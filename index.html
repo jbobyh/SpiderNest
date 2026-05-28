@@ -299,8 +299,22 @@
         }
       }
 
+      // Вычисляем начальные смежные клетки (со стартовой позиции)
+      const initOpen = new Set([`${cx},${cy}`, `${ex},${ey}`]);
+      const initEverOpened = new Set([`${cx},${cy}`, `${ex},${ey}`]);
+      const initEverRevealed = new Set([`${cx},${cy}`, `${ex},${ey}`]);
+      for (const [ox, oy] of [[cx,cy],[ex,ey]]) {
+        for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+          const nx = ox+dx, ny = oy+dy;
+          const nk = cellKey(nx,ny);
+          if (nx>=0&&nx<G&&ny>=0&&ny<G&&!disabledCells.has(nk)) initEverRevealed.add(nk);
+        }
+      }
+
       return {
-        openCells: new Set([`${cx},${cy}`]),
+        openCells: initOpen,
+        everRevealedCells: initEverRevealed, // клетки, которые когда-либо были видны (смежные или открытые)
+        everOpenedCells: initEverOpened, // клетки, которые когда-либо были реально открыты
         permanentlyClosed: new Set(), // чёрные клетки
         startCell: { x: cx, y: cy },
         exitCell: { x: ex, y: ey },
@@ -311,7 +325,7 @@
         keyObjs: keyObjs,
         keysCollected: 0,
         upgradeObjs: upgradeObjs,
-        revealedExit: false,
+        revealedExit: true,
 
         upgrades: {                   // текущие бонусы игрока
           pellets: 0,                 // +1 пуля за каждый стак
@@ -764,10 +778,16 @@
         ctx.beginPath(); ctx.moveTo(Math.max(0, startCol) * CP, i * CP); ctx.lineTo(Math.min(G, endCol) * CP, i * CP); ctx.stroke();
       }
 
-      // Навсегда закрытые (чёрные) клетки (изначально выключенные и закрытые игроком)
+      // Навсегда закрытые (чёрные) клетки — только те, что смежны с хотя бы одной открытой или everRevealed
       const blackCells = new Set([...s.permanentlyClosed, ...s.disabledCells]);
       for (const k of blackCells) {
         const { x, y } = cellFromKey(k);
+        // Показываем только если хотя бы один сосед когда-либо был реально открыт
+        let blackVisible = false;
+        for (const [ddx, ddy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+          if (s.everOpenedCells.has(cellKey(x+ddx, y+ddy))) { blackVisible = true; break; }
+        }
+        if (!blackVisible) continue;
         if (!isCellVisible(x, y)) continue;
         ctx.fillStyle = '#000000';
         ctx.fillRect(x * CP, y * CP, CP, CP);
@@ -810,8 +830,11 @@
         }
       }
 
-      // Смежные закрытые клетки (видно содержимое)
-      const adj = getAdjacentTo(s.openCells, s.disabledCells, s.permanentlyClosed);
+      // Смежные закрытые клетки (видно содержимое) — все когда-либо виденные, не открытые и не чёрные
+      const adj = new Set();
+      for (const k of s.everRevealedCells) {
+        if (!s.openCells.has(k) && !s.disabledCells.has(k) && !s.permanentlyClosed.has(k)) adj.add(k);
+      }
       for (const k of adj) {
         const { x, y } = cellFromKey(k);
         if (!isCellVisible(x, y)) continue;
@@ -989,14 +1012,8 @@
       for (const g of s.ghosts) {
         if (!g.trapped) continue;
         const gc = cellOf(g.x, g.y);
-        // Видны если клетка смежная с открытой
-        let visible = false;
-        for (const [dx, dy] of [[0, 0], [0, -1], [0, 1], [-1, 0], [1, 0]]) {
-          if (s.openCells.has(cellKey(gc.x + dx, gc.y + dy))) {
-            visible = true;
-            break;
-          }
-        }
+        // Видны если клетка когда-либо была смежной с открытой
+        const visible = s.everRevealedCells.has(cellKey(gc.x, gc.y));
         if (!visible) continue;
         if (!isCellVisible(gc.x, gc.y)) continue;
 
@@ -1261,6 +1278,16 @@
 
           // Открываем
           state.openCells.add(k);
+          state.everRevealedCells.add(k);
+          state.everOpenedCells.add(k);
+          // Добавляем смежные с новой клеткой в everRevealedCells
+          for (const [ddx, ddy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+            const nnx = cx+ddx, nny = cy+ddy;
+            const nnk = cellKey(nnx,nny);
+            if (nnx>=0&&nnx<G&&nny>=0&&nny<G&&!state.disabledCells.has(nnk)&&!state.permanentlyClosed.has(nnk)) {
+              state.everRevealedCells.add(nnk);
+            }
+          }
 
           // Проверяем содержимое
           const content = state.cellContents.get(k);
