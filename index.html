@@ -219,13 +219,17 @@
         const j = Math.floor(Math.random() * (i + 1));
         [availableCells[i], availableCells[j]] = [availableCells[j], availableCells[i]];
       }
+      
+      const maxDist = Math.max(cx, cy, G - 1 - cx, G - 1 - cy);
 
       // Расставляем ключи (3 штуки)
       const keyObjs = [];
       const keysCount = Math.min(3, availableCells.length);
       for (let i = 0; i < keysCount; i++) {
         const cell = availableCells.shift();
-        cellContents.set(cell.k, { type: 'key', enemyCount: 10, enemiesReleased: false });
+        const dist = Math.max(Math.abs(cell.x - cx), Math.abs(cell.y - cy));
+        const enemyCount = (5 + Math.floor(Math.random() * 8)) * dist;
+        cellContents.set(cell.k, { type: 'key', enemyCount, enemiesReleased: false });
         keyObjs.push({ x: (cell.x + 0.5) * CP, y: (cell.y + 0.5) * CP, cellKey: cell.k, collected: false });
       }
 
@@ -233,7 +237,9 @@
       const heartsCount = Math.min(CONFIG.HEARTS_COUNT, availableCells.length);
       for (let i = 0; i < heartsCount; i++) {
         const cell = availableCells.shift();
-        cellContents.set(cell.k, { type: 'heart', enemyCount: 5, enemiesReleased: false });
+        const dist = Math.max(Math.abs(cell.x - cx), Math.abs(cell.y - cy));
+        const enemyCount = (3 + Math.floor(Math.random() * 5)) * dist;
+        cellContents.set(cell.k, { type: 'heart', enemyCount, enemiesReleased: false });
       }
 
       // Расставляем апгрейды
@@ -253,7 +259,9 @@
       for (let i = 0; i < upgsCount; i++) {
         const cell = availableCells.shift();
         const upgId = upgradePool[i];
-        cellContents.set(cell.k, { type: 'upgrade', upgradeType: upgId, enemyCount: 15, enemiesReleased: false });
+        const dist = Math.max(Math.abs(cell.x - cx), Math.abs(cell.y - cy));
+        const enemyCount = (4 + Math.floor(Math.random() * 6)) * dist;
+        cellContents.set(cell.k, { type: 'upgrade', upgradeType: upgId, enemyCount: enemyCount, enemiesReleased: false });
         upgradeObjs.push({ x: (cell.x + 0.5) * CP, y: (cell.y + 0.5) * CP, cellKey: cell.k, upgradeType: upgId, collected: false });
       }
 
@@ -261,7 +269,8 @@
       while (availableCells.length > 0) {
         const cell = availableCells.shift();
         if (Math.random() < 0.7) {
-          const enemyCount = 1 + Math.floor(Math.random() * 3);
+          const dist = Math.max(Math.abs(cell.x - cx), Math.abs(cell.y - cy));
+          const enemyCount = (1 + Math.floor(Math.random() * 3)) * dist;
           cellContents.set(cell.k, { type: 'enemies', enemyCount, enemiesReleased: false, enemies: [] });
         } else {
           cellContents.set(cell.k, { type: 'empty' });
@@ -300,15 +309,13 @@
       }
 
       // Вычисляем начальные смежные клетки (со стартовой позиции)
-      const initOpen = new Set([`${cx},${cy}`, `${ex},${ey}`]);
-      const initEverOpened = new Set([`${cx},${cy}`, `${ex},${ey}`]);
-      const initEverRevealed = new Set([`${cx},${cy}`, `${ex},${ey}`]);
-      for (const [ox, oy] of [[cx,cy],[ex,ey]]) {
-        for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
-          const nx = ox+dx, ny = oy+dy;
-          const nk = cellKey(nx,ny);
-          if (nx>=0&&nx<G&&ny>=0&&ny<G&&!disabledCells.has(nk)) initEverRevealed.add(nk);
-        }
+      const initOpen = new Set([`${cx},${cy}`]);
+      const initEverOpened = new Set([`${cx},${cy}`]);
+      const initEverRevealed = new Set([`${cx},${cy}`]);
+      for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+        const nx = cx+dx, ny = cy+dy;
+        const nk = cellKey(nx,ny);
+        if (nx>=0&&nx<G&&ny>=0&&ny<G&&!disabledCells.has(nk)) initEverRevealed.add(nk);
       }
 
       return {
@@ -325,7 +332,7 @@
         keyObjs: keyObjs,
         keysCollected: 0,
         upgradeObjs: upgradeObjs,
-        revealedExit: true,
+        revealedExit: false,
 
         upgrades: {                   // текущие бонусы игрока
           pellets: 0,                 // +1 пуля за каждый стак
@@ -1305,9 +1312,23 @@
             }
           }
 
-          // Проверяем выход
-          if (cx === state.exitCell.x && cy === state.exitCell.y) {
-            state.revealedExit = true;
+          // Проверяем выход: открылась смежная с выходом — выход тоже открывается
+          const ec = state.exitCell;
+          const ek = cellKey(ec.x, ec.y);
+          if (!state.openCells.has(ek)) {
+            for (const [ddx, ddy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+              if (state.openCells.has(cellKey(ec.x+ddx, ec.y+ddy))) {
+                state.openCells.add(ek);
+                state.everOpenedCells.add(ek);
+                state.everRevealedCells.add(ek);
+                for (const [ex2, ey2] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+                  const nnk = cellKey(ec.x+ex2, ec.y+ey2);
+                  if (!state.disabledCells.has(nnk) && !state.permanentlyClosed.has(nnk)) state.everRevealedCells.add(nnk);
+                }
+                state.revealedExit = true;
+                break;
+              }
+            }
           }
 
         } else if (state.openCells.has(k)) {
