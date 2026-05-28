@@ -96,6 +96,13 @@
       GHOST_HP: 100,
       GHOST_SPEED: 70,
       GHOST_RADIUS: 7,
+      SHOOTER_HP: 100,
+      SHOOTER_SPEED: 55,
+      SHOOTER_RADIUS: 7,
+      SHOOTER_BULLET_SPEED: 100,
+      SHOOTER_SHOOT_RANGE: 0,   // заполняется после CP
+      SHOOTER_SHOOT_CD: 1.0,
+      SHOOTER_STOP_DIST: 0,     // заполняется после CP
       DISABLED_CELLS_COUNT: 15,
       BLOCK_CELLS_FOREVER: false,
     };
@@ -107,6 +114,8 @@
     const ctx = C.getContext('2d');
     const G = CONFIG.GRID_SIZE;
     const CP = CONFIG.CELL_PX;
+    CONFIG.SHOOTER_SHOOT_RANGE = CP * 1.0;
+    CONFIG.SHOOTER_STOP_DIST = CP * 0.9;
     const VIEW_W = CONFIG.VIEW_W;
     const VIEW_H = CONFIG.VIEW_H;
     C.width = VIEW_W;
@@ -292,6 +301,7 @@
             const margin = CONFIG.GHOST_RADIUS + 10;
             const gx = x * CP + margin + Math.random() * (CP - margin * 2);
             const gy = y * CP + margin + Math.random() * (CP - margin * 2);
+            const isShooter = Math.random() < 0.30;
             trappedGhosts.push({
               x: gx, y: gy,
               homeX: x, homeY: y,
@@ -299,7 +309,9 @@
               phase: Math.random() * Math.PI * 2,
               wobble: 0.3 + Math.random() * 0.5,
               vx: 0, vy: 0,
-              hp: CONFIG.GHOST_HP,
+              hp: isShooter ? CONFIG.SHOOTER_HP : CONFIG.GHOST_HP,
+              type: isShooter ? 'shooter' : 'chaser',
+              shootCd: 0,
             });
           }
         }
@@ -358,6 +370,7 @@
         ghosts: trappedGhosts,
         activeGhosts: [], // враги которые были выпущены
         bullets: [],
+        enemyBullets: [],
         shootCooldown: 0,
         particles: [],
 
@@ -692,27 +705,89 @@
         const dx = s.player.x - g.x;
         const dy = s.player.y - g.y;
         const dist = Math.hypot(dx, dy);
-        if (dist > 0) {
-          g.x += (dx / dist) * CONFIG.GHOST_SPEED * dt;
-          g.y += (dy / dist) * CONFIG.GHOST_SPEED * dt;
+
+        if (g.type === 'shooter') {
+          // Стрелок: движется к игроку, пока не достигнет дистанции SHOOTER_STOP_DIST
+          if (dist > CONFIG.SHOOTER_STOP_DIST && dist > 0) {
+            const spd = CONFIG.SHOOTER_SPEED;
+            g.x += (dx / dist) * spd * dt;
+            g.y += (dy / dist) * spd * dt;
+          }
+          // Стрельба
+          if (g.shootCd > 0) g.shootCd -= dt;
+          if (dist <= CONFIG.SHOOTER_SHOOT_RANGE && g.shootCd <= 0) {
+            g.shootCd = CONFIG.SHOOTER_SHOOT_CD;
+            if (dist > 0) {
+              s.enemyBullets.push({
+                x: g.x, y: g.y,
+                vx: (dx / dist) * CONFIG.SHOOTER_BULLET_SPEED,
+                vy: (dy / dist) * CONFIG.SHOOTER_BULLET_SPEED,
+                life: 6,
+              });
+            }
+          }
+        } else {
+          // Обычный: летит к игроку
+          if (dist > 0) {
+            g.x += (dx / dist) * CONFIG.GHOST_SPEED * dt;
+            g.y += (dy / dist) * CONFIG.GHOST_SPEED * dt;
+          }
+          // Касание игрока
+          if (dist < CONFIG.GHOST_RADIUS + CONFIG.PLAYER_RADIUS) {
+            if (s.player.invulnerable <= 0) {
+              s.player.lives--;
+              s.player.invulnerable = 1.0;
+            }
+            s.activeGhosts.splice(i, 1);
+            for (let k = 0; k < 12; k++) {
+              const a = Math.random() * Math.PI * 2;
+              s.particles.push({
+                x: s.player.x, y: s.player.y,
+                vx: Math.cos(a) * 80, vy: Math.sin(a) * 80,
+                life: 0.5, maxLife: 0.5, color: '#ff4444',
+              });
+            }
+            continue;
+          }
+        }
+      }
+
+      // Обновление вражеских пуль
+      for (let i = s.enemyBullets.length - 1; i >= 0; i--) {
+        const eb = s.enemyBullets[i];
+        eb.x += eb.vx * dt;
+        eb.y += eb.vy * dt;
+        eb.life -= dt;
+
+        if (!inRoom(eb.x, eb.y, s.openCells) || eb.life <= 0) {
+          for (let j = 0; j < 4; j++) {
+            const a = Math.random() * Math.PI * 2;
+            s.particles.push({
+              x: eb.x, y: eb.y,
+              vx: Math.cos(a) * 30, vy: Math.sin(a) * 30,
+              life: 0.25, maxLife: 0.25, color: '#ff6600',
+            });
+          }
+          s.enemyBullets.splice(i, 1);
+          continue;
         }
 
-        // Касание игрока
-        if (dist < CONFIG.GHOST_RADIUS + CONFIG.PLAYER_RADIUS) {
+        // Попадание в игрока
+        const pd = Math.hypot(eb.x - s.player.x, eb.y - s.player.y);
+        if (pd < CONFIG.PLAYER_RADIUS + 4) {
           if (s.player.invulnerable <= 0) {
             s.player.lives--;
-            s.player.invulnerable = 1.0;
+            s.player.invulnerable = 0.5;
           }
-          s.activeGhosts.splice(i, 1);
-          for (let k = 0; k < 12; k++) {
+          s.enemyBullets.splice(i, 1);
+          for (let k = 0; k < 8; k++) {
             const a = Math.random() * Math.PI * 2;
             s.particles.push({
               x: s.player.x, y: s.player.y,
-              vx: Math.cos(a) * 80, vy: Math.sin(a) * 80,
-              life: 0.5, maxLife: 0.5, color: '#ff4444',
+              vx: Math.cos(a) * 70, vy: Math.sin(a) * 70,
+              life: 0.4, maxLife: 0.4, color: '#ff4444',
             });
           }
-          continue;
         }
       }
 
@@ -1023,13 +1098,24 @@
         }
       }
 
-      // Пули
+      // Пули игрока
       for (const b of s.bullets) {
         ctx.fillStyle = '#ffffaa';
         ctx.shadowColor = '#ffff00';
         ctx.shadowBlur = 8;
         ctx.beginPath();
         ctx.arc(b.x, b.y, CONFIG.BULLET_RADIUS, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.shadowBlur = 0;
+
+      // Вражеские пули
+      for (const eb of s.enemyBullets) {
+        ctx.fillStyle = '#ff4400';
+        ctx.shadowColor = '#ff2200';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(eb.x, eb.y, 4, 0, Math.PI * 2);
         ctx.fill();
       }
       ctx.shadowBlur = 0;
@@ -1105,9 +1191,10 @@
       const r = CONFIG.GHOST_RADIUS + wave;
       const alpha = baseAlpha * (0.65 + 0.35 * Math.sin(g.phase * 1.3));
 
+      const isShooter = g.type === 'shooter';
       ctx.globalAlpha = alpha;
-      ctx.fillStyle = '#c080ff';
-      ctx.shadowColor = '#9040ff';
+      ctx.fillStyle = isShooter ? '#ff8040' : '#c080ff';
+      ctx.shadowColor = isShooter ? '#ff4400' : '#9040ff';
       ctx.shadowBlur = 18;
 
       ctx.beginPath();
@@ -1126,20 +1213,21 @@
 
       ctx.shadowBlur = 0;
       ctx.globalAlpha = 0.9;
-      ctx.fillStyle = '#220033';
+      ctx.fillStyle = isShooter ? '#330010' : '#220033';
       ctx.beginPath(); ctx.arc(g.x - r * 0.28, g.y - r * 0.1, r * 0.2, 0, Math.PI * 2); ctx.fill();
       ctx.beginPath(); ctx.arc(g.x + r * 0.28, g.y - r * 0.1, r * 0.2, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#ff80ff';
+      ctx.fillStyle = isShooter ? '#ffaa00' : '#ff80ff';
       ctx.beginPath(); ctx.arc(g.x - r * 0.22, g.y - r * 0.15, r * 0.08, 0, Math.PI * 2); ctx.fill();
       ctx.beginPath(); ctx.arc(g.x + r * 0.34, g.y - r * 0.15, r * 0.08, 0, Math.PI * 2); ctx.fill();
 
       // HP бар
-      if (g.hp !== undefined && g.hp < CONFIG.GHOST_HP) {
-        const hpFrac = Math.max(0, g.hp / CONFIG.GHOST_HP);
+      const maxHp = g.type === 'shooter' ? CONFIG.SHOOTER_HP : CONFIG.GHOST_HP;
+      if (g.hp !== undefined && g.hp < maxHp) {
+        const hpFrac = Math.max(0, g.hp / maxHp);
         ctx.globalAlpha = 0.8;
         ctx.fillStyle = '#1a0030';
         ctx.fillRect(g.x - r, g.y - r - 8, r * 2, 3);
-        ctx.fillStyle = hpFrac > 0.5 ? '#aa44ff' : '#ff44aa';
+        ctx.fillStyle = g.type === 'shooter' ? (hpFrac > 0.5 ? '#ff8800' : '#ff4400') : (hpFrac > 0.5 ? '#aa44ff' : '#ff44aa');
         ctx.fillRect(g.x - r, g.y - r - 8, r * 2 * hpFrac, 3);
       }
 
