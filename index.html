@@ -1372,10 +1372,55 @@
           // ОТКРЫТЬ клетку — только смежная
           if (!getAdjacentOpen(state.openCells, k)) return;
 
-          // Проверяем хватает ли жизней (можно открывать только если жизней >= 2)
-          if (state.player.lives < 2) return;
+          // Проверяем хватает ли жизней
+          if (state.player.lives < 1) return;
 
-          // Тратим жизнь
+          // Если 1 жизнь — автозакрываем дальнюю клетку
+          if (state.player.lives === 1) {
+            const playerCell = cellOf(state.player.x, state.player.y);
+            const playerKey = cellKey(playerCell.x, playerCell.y);
+            let farthestCell = null;
+            let maxDist = -1;
+
+            // Ищем самую дальнюю закрываемую клетку
+            for (const openKey of state.openCells) {
+              if (openKey === playerKey) continue;
+              const { x: ox, y: oy } = cellFromKey(openKey);
+              // Нельзя закрыть выход
+              if (ox === state.exitCell.x && oy === state.exitCell.y) continue;
+              // Нельзя закрыть с несобранным ключом
+              if (state.keyObjs.some(key => !key.collected && key.cellKey === openKey)) continue;
+              // Нельзя закрыть с несобранным сердцем
+              if (state.hearts.some(heart => !heart.collected && heart.cellKey === openKey)) continue;
+
+              // Проверяем что клетка не станет изолированной
+              let hasOpenNeighbor = false;
+              for (const [ddx, ddy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+                const nnk = cellKey(ox+ddx, oy+ddy);
+                if (state.openCells.has(nnk) && nnk !== openKey && nnk !== k) {
+                  hasOpenNeighbor = true;
+                  break;
+                }
+              }
+              if (!hasOpenNeighbor) continue;
+
+              const dist = Math.hypot(ox - playerCell.x, oy - playerCell.y);
+              if (dist > maxDist) {
+                maxDist = dist;
+                farthestCell = openKey;
+              }
+            }
+
+            // Если не нашли клетку для закрытия — отменяем
+            if (!farthestCell) return;
+
+            // Закрываем дальнюю клетку
+            state.openCells.delete(farthestCell);
+            // Возвращаем жизнь за закрытие
+            state.player.lives++;
+          }
+
+          // Тратим жизнь на открытие
           state.player.lives--;
 
           // Открываем
