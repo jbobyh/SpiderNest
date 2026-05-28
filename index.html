@@ -1,0 +1,1519 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GHOST ROOM</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #050a0f;
+      --panel: #0a1520;
+      --border: #1a3a5c;
+      --accent: #00d4ff;
+      --danger: #ff3a3a;
+      --ok: #00ff88;
+      --ghost: #b060ff;
+      --text: #a0c8e0;
+      --dim: #2a4a6a;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Share Tech Mono', monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse at 50% 30%, rgba(0, 100, 180, 0.08) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    h1 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 2rem;
+      font-weight: 900;
+      color: var(--accent);
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      text-shadow: 0 0 30px rgba(0, 212, 255, 0.5), 0 0 60px rgba(0, 212, 255, 0.2);
+      position: relative;
+      z-index: 1;
+    }
+
+    .subtitle {
+      font-size: 0.75rem;
+      color: var(--dim);
+      letter-spacing: 0.2em;
+      margin-bottom: 16px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .game-wrapper {
+      position: relative;
+      z-index: 1;
+    }
+
+    #hud {
+      display: flex;
+      gap: 24px;
+      align-items: center;
+      margin-bottom: 10px;
+      padding: 10px 20px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .hud-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .hud-label {
+      font-size: 0.6rem;
+      color: var(--dim);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+
+    .hud-value {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
+    .hud-bar {
+      width: 120px;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .hud-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.3s, background 0.3s;
+    }
+
+    #canvas-container {
+      position: relative;
+      border: 1px solid var(--border);
+      box-shadow: 0 0 40px rgba(0, 50, 100, 0.3), inset 0 0 40px rgba(0, 0, 0, 0.5);
+    }
+
+    canvas {
+      display: block;
+      cursor: crosshair;
+    }
+
+    #overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(5, 10, 15, 0.92);
+      z-index: 10;
+    }
+
+    #overlay h2 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 2.5rem;
+      font-weight: 900;
+      margin-bottom: 16px;
+      text-shadow: 0 0 30px currentColor;
+    }
+
+    #overlay p {
+      font-size: 0.85rem;
+      color: var(--dim);
+      margin-bottom: 8px;
+      letter-spacing: 0.1em;
+    }
+
+    .btn {
+      margin-top: 20px;
+      padding: 12px 32px;
+      background: transparent;
+      border: 2px solid var(--accent);
+      color: var(--accent);
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.85rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s;
+      border-radius: 2px;
+    }
+
+    .btn:hover {
+      background: rgba(0, 212, 255, 0.1);
+      box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+    }
+
+    .rules {
+      max-width: 720px;
+      margin-top: 20px;
+      padding: 24px 32px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      text-align: center;
+      position: relative;
+      z-index: 1;
+    }
+
+    .rules h3 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.9rem;
+      color: var(--accent);
+      letter-spacing: 0.2em;
+      margin-bottom: 16px;
+    }
+
+    .rules-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px 32px;
+      text-align: left;
+    }
+
+    .rule-item {
+      font-size: 0.75rem;
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    .rule-item strong {
+      color: var(--accent);
+    }
+
+    .rule-item .danger {
+      color: var(--danger);
+    }
+
+    .rule-item .ok {
+      color: var(--ok);
+    }
+
+    @media (max-width: 600px) {
+      .rules-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    #upgrade-popup {
+      position: absolute;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(10, 20, 30, 0.95);
+      border: 2px solid #ffcc00;
+      border-radius: 4px;
+      padding: 10px 22px;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.8rem;
+      color: #ffcc00;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      text-align: center;
+      pointer-events: none;
+      z-index: 20;
+      opacity: 0;
+      transition: opacity 0.2s;
+      text-shadow: 0 0 12px rgba(255, 200, 0, 0.6);
+      box-shadow: 0 0 20px rgba(255, 200, 0, 0.25);
+      white-space: nowrap;
+    }
+
+    #upgrade-popup.visible {
+      opacity: 1;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>GHOST ROOM</h1>
+  <p class="subtitle">// survival · exploration · containment //</p>
+
+  <div class="game-wrapper">
+
+    <div id="hud">
+      <div class="hud-item">
+        <span class="hud-label">HP</span>
+        <div class="hud-bar">
+          <div class="hud-bar-fill" id="bar-hp" style="background:var(--ok)"></div>
+        </div>
+        <span class="hud-value" id="val-hp" style="color:var(--ok)">100</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">AREA</span>
+        <span class="hud-value" id="val-area" style="color:var(--text)">1×1</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">GHOSTS</span>
+        <span class="hud-value" id="val-ghosts" style="color:var(--ghost)">0</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">KILLS</span>
+        <span class="hud-value" id="val-kills" style="color:var(--text)">0</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">UPGRADES</span>
+        <span class="hud-value" id="val-upgrades" style="color:#ffcc00;font-size:0.7rem">—</span>
+      </div>
+    </div>
+
+    <div id="canvas-container">
+      <canvas id="canvas"></canvas>
+      <div id="upgrade-popup"></div>
+      <div id="overlay">
+        <h2 style="color:var(--accent)">GHOST ROOM</h2>
+        <p>Найди выход. Не дай призракам добраться до тебя.</p>
+        <button class="btn" id="start-btn">НАЧАТЬ ИГРУ</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="rules">
+    <h3>// ПРАВИЛА //</h3>
+    <div class="rules-grid">
+      <div class="rule-item"><strong>WASD</strong> — движение игрока</div>
+      <div class="rule-item"><strong>ЛКМ</strong> — выстрел дробовиком в направлении курсора</div>
+      <div class="rule-item"><strong class="ok">ЛКМ стреляет</strong> — при HP клетки=0 клетка открывается, +1 жизнь
+      </div>
+      <div class="rule-item"><strong class="ok">Жизни = открытые клетки</strong> — открой больше клеток, чтобы выжить
+      </div>
+      <div class="rule-item"><strong class="danger">Спавн врагов</strong> — чем больше открытых клеток, тем быстрее
+        спавн</div>
+      <div class="rule-item"><strong class="danger">Касание призрака</strong> — закрывает дальнюю клетку = -1 жизнь
+      </div>
+      <div class="rule-item"><strong class="ok">Зелёная клетка</strong> — выход! Зайди в неё, чтобы победить</div>
+      <div class="rule-item"><strong>Игрок</strong> — не может закрыть клетки сам, только от урона</div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================================
+    // CONFIG
+    // ============================================================
+    const CONFIG = {
+      GRID_SIZE: 9,           // размер карты в клетках (больше карта)
+      CELL_PX: 96 * 1.3,         // пиксели на клетку (крупнее клетки)
+      VIEW_W: 576 * 1.5,             // ширина canvas
+      VIEW_H: 576,             // высота canvas
+      PLAYER_HP: 1,           // стартовые жизни (= стартовое число открытых клеток)
+      PLAYER_SPEED: 130,       // px/sec
+      PLAYER_RADIUS: 6,
+      SHOOTING_ENABLED: true,
+      SHOTGUN_PELLETS: 3,
+      SHOTGUN_SPREAD: 0.15,    // радиан
+      SHOTGUN_COOLDOWN: 0.45,
+      BULLET_SPEED: 320,
+      BULLET_DAMAGE: 40,
+      BULLET_RADIUS: 3,
+      BULLET_MAX_BOUNCES: 0,   // 0 = нет рикошета, просто исчезает
+      GHOST_SPAWN_RATE: 0.3,     // призраков в секунду (нарастает со временем)
+      GHOST_SPEED: 55,
+      GHOST_HP: 40,
+      GHOST_DAMAGE: 1,         // урон при касании (в жизнях = клетках)
+      GHOST_RADIUS: 7,
+      GHOST_INVULNERABILITY: 0.1, // сек после касания
+      INITIAL_ROOM_CELLS: 1,   // стартовый размер (всегда 1)
+      MAX_ROOM_CELLS: 4,       // дефолт, читается из input при старте
+      DISABLED_CELLS_COUNT: 20, // количество выключенных (чёрных) клеток
+      CELL_HP: 100,             // HP закрытой клетки
+      BULLET_DAMAGE_CELL: 15,   // урон клетке от выстрела
+    };
+
+    // ============================================================
+    // STATE
+    // ============================================================
+    const C = document.getElementById('canvas');
+    const ctx = C.getContext('2d');
+    const G = CONFIG.GRID_SIZE;
+    const CP = CONFIG.CELL_PX;
+    const VIEW_W = CONFIG.VIEW_W;
+    const VIEW_H = CONFIG.VIEW_H;
+    C.width = VIEW_W;
+    C.height = VIEW_H;
+    const W = G * CP;           // полный размер мира
+    const H = G * CP;
+
+    let state = null;
+    let animId = null;
+    let lastTime = 0;
+    let camera = { x: 0, y: 0 };  // позиция камеры в мире
+
+    // Проверка связности: все не-выключенные клетки достижимы из старта
+    function checkConnectivity(startX, startY, disabledSet) {
+      const visited = new Set();
+      const queue = [`${startX},${startY}`];
+      visited.add(`${startX},${startY}`);
+
+      while (queue.length) {
+        const k = queue.shift();
+        const { x, y } = cellFromKey(k);
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = x + dx, ny = y + dy;
+          const nk = cellKey(nx, ny);
+          if (nx >= 0 && nx < G && ny >= 0 && ny < G && !disabledSet.has(nk) && !visited.has(nk)) {
+            visited.add(nk);
+            queue.push(nk);
+          }
+        }
+      }
+
+      // Все не-выключенные клетки должны быть посещены
+      const totalCells = G * G;
+      return visited.size === totalCells - disabledSet.size;
+    }
+
+    function generateDisabledCells(startX, startY, exitX, exitY) {
+      const count = CONFIG.DISABLED_CELLS_COUNT;
+      const maxAttempts = 1000;
+
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const disabled = new Set();
+        const candidates = [];
+
+        // Собираем все клетки кроме старта и выхода
+        for (let y = 0; y < G; y++) {
+          for (let x = 0; x < G; x++) {
+            if ((x !== startX || y !== startY) && (x !== exitX || y !== exitY)) {
+              candidates.push({ x, y });
+            }
+          }
+        }
+
+        // Перемешиваем и берём нужное количество
+        for (let i = candidates.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+        }
+
+        for (let i = 0; i < Math.min(count, candidates.length); i++) {
+          disabled.add(cellKey(candidates[i].x, candidates[i].y));
+        }
+
+        // Проверяем связность
+        if (checkConnectivity(startX, startY, disabled)) {
+          return disabled;
+        }
+      }
+
+      // Если не удалось, возвращаем пустой сет (не должно произойти при разумных значениях)
+      return new Set();
+    }
+
+    // Типы апгрейдов и их пулы
+    const UPGRADE_TYPES = [
+      { id: 'pellets', label: '+1 пуля', color: '#ffaa00', max: 5 },
+      { id: 'cooldown', label: 'Перезарядка -10%', color: '#00ccff', max: 5 },
+      // { id: 'pierce', label: 'Пробитие', color: '#ff44ff', max: 1 },
+      { id: 'speed', label: 'Скорость +10%', color: '#44ff88', max: 5 },
+      { id: 'spread', label: 'Разброс +10%', color: '#ff66aa', max: 5 },
+    ];
+
+    function generateUpgradeCells(startX, startY, exitX, exitY, disabledCells) {
+      // Собираем список допустимых клеток (не старт, не выход, не выключенные)
+      const pool = [];
+      for (let y = 0; y < G; y++) {
+        for (let x = 0; x < G; x++) {
+          if ((x === startX && y === startY) || (x === exitX && y === exitY)) continue;
+          if (disabledCells.has(cellKey(x, y))) continue;
+          pool.push(cellKey(x, y));
+        }
+      }
+      // Перемешиваем
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+      }
+
+      // Раскидываем апгрейды: 5 pellets, 5 cooldown, 1 pierce, 5 speed = 16 total
+      const upgradeCells = new Map();
+      let idx = 0;
+      for (const upg of UPGRADE_TYPES) {
+        for (let n = 0; n < upg.max && idx < pool.length; n++, idx++) {
+          upgradeCells.set(pool[idx], upg.id);
+        }
+      }
+      return upgradeCells;
+    }
+
+    function initState() {
+      const cx = Math.floor(G / 2);
+      const cy = Math.floor(G / 2);
+
+      // размещаем выход в случайной клетке (не стартовой)
+      let ex, ey;
+      do {
+        ex = Math.floor(Math.random() * G);
+        ey = Math.floor(Math.random() * G);
+      } while (ex === cx && ey === cy);
+
+      // генерируем выключенные клетки
+      const disabledCells = generateDisabledCells(cx, cy, ex, ey);
+
+      // генерируем апгрейд-клетки
+      const upgradeCells = generateUpgradeCells(cx, cy, ex, ey, disabledCells);
+
+      return {
+        room: new Set([`${cx},${cy}`]),   // занятые клетки
+        visitedCells: [`${cx},${cy}`],    // все когда-то открытые клетки (для подсветки)
+        roomOpenOrder: [`${cx},${cy}`],   // порядок открытия
+        startCell: { x: cx, y: cy },
+        exitCell: { x: ex, y: ey },
+        disabledCells: disabledCells,     // выключенные клетки (чёрные)
+        upgradeCells: upgradeCells,       // Map: cellKey -> upgradeType
+        collectedUpgrades: new Set(),     // собранные апгрейды (ключи клеток)
+        revealedExit: false,
+        revealedDisabled: new Set(),  // открытые чёрные клетки (остаются видимыми)
+        cellHP: {},                   // HP закрытых клеток (ключ -> HP)
+
+        upgrades: {                   // текущие бонусы игрока
+          pellets: 0,                 // +1 пуля за каждый стак
+          cooldownMult: 1.0,          // множитель КД (снижается на 10% за стак)
+          pierce: false,              // пули пронизывают врагов
+          speedMult: 1.0,             // множитель скорости (+10% за стак)
+          spreadMult: 1.0,            // множитель разброса (+10% за стак)
+        },
+
+        player: {
+          x: (cx + 0.5) * CP,
+          y: (cy + 0.5) * CP,
+          hp: CONFIG.INITIAL_ROOM_CELLS,  // HP = количество открытых клеток
+          invulnerable: 0,
+        },
+
+        bullets: [],
+        ghosts: [],
+        particles: [],
+
+        kills: 0,
+        time: 0,
+
+        keys: {},
+        mouse: { x: (cx + 0.5) * CP, y: (cy + 0.5) * CP },
+        phase: 'play', // play | win | dead
+        shootCooldown: 0,
+      };
+    }
+
+    // ============================================================
+    // UTILITY
+    // ============================================================
+    function cellKey(x, y) { return `${x},${y}`; }
+    function cellFromKey(k) { const [x, y] = k.split(','); return { x: +x, y: +y }; }
+    function cellOf(px, py) { return { x: Math.floor(px / CP), y: Math.floor(py / CP) }; }
+
+    function inRoom(px, py, room) {
+      const c = cellOf(px, py);
+      return room.has(cellKey(c.x, c.y));
+    }
+
+    function getRoomCells(room) {
+      return [...room].map(cellFromKey);
+    }
+
+    function getAdjacentTo(room, disabledCells) {
+      const adj = new Set();
+      for (const k of room) {
+        const { x, y } = cellFromKey(k);
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = x + dx, ny = y + dy;
+          const nk = cellKey(nx, ny);
+          if (nx >= 0 && nx < G && ny >= 0 && ny < G && !room.has(nk) && !disabledCells?.has(nk)) {
+            adj.add(nk);
+          }
+        }
+      }
+      return adj;
+    }
+
+    // Проверяем, является ли клетка "крайней" (её удаление не разделит комнату)
+    function isRemovable(room, key, playerCell) {
+      if (room.size <= 1) return false;
+      if (key === cellKey(playerCell.x, playerCell.y)) return false;
+
+      // Проверяем связность после удаления
+      const testRoom = new Set(room);
+      testRoom.delete(key);
+
+      // BFS от любой оставшейся клетки
+      const cells = [...testRoom];
+      if (cells.length === 0) return false;
+      const visited = new Set();
+      const queue = [cells[0]];
+      visited.add(cells[0]);
+      while (queue.length) {
+        const cur = queue.shift();
+        const { x, y } = cellFromKey(cur);
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nk = cellKey(x + dx, y + dy);
+          if (testRoom.has(nk) && !visited.has(nk)) {
+            visited.add(nk);
+            queue.push(nk);
+          }
+        }
+      }
+      return visited.size === testRoom.size;
+    }
+
+    // ============================================================
+    // GHOST SPAWN — на границе примыкающих клеток
+    // ============================================================
+    function spawnGhost(room, disabledCells) {
+      // Находим все примыкающие клетки (смежные с открытыми, но не открытые)
+      const adjCells = [];
+
+      if (adjCells.length === 0) {
+        // Fallback: если нет примыкающих, используем старую логику
+        const edgeCells = [];
+        for (const k of room) {
+          const { x, y } = cellFromKey(k);
+          const isEdge = [[0, -1], [0, 1], [-1, 0], [1, 0]].some(([dx, dy]) => !room.has(cellKey(x + dx, y + dy)));
+          if (isEdge) edgeCells.push({ x, y });
+        }
+        const cells = edgeCells.length > 0 ? edgeCells : getRoomCells(room);
+        const cell = cells[Math.floor(Math.random() * cells.length)];
+        const validSides = [];
+        if (!room.has(cellKey(cell.x, cell.y - 1))) validSides.push(0);
+        if (!room.has(cellKey(cell.x, cell.y + 1))) validSides.push(1);
+        if (!room.has(cellKey(cell.x - 1, cell.y))) validSides.push(2);
+        if (!room.has(cellKey(cell.x + 1, cell.y))) validSides.push(3);
+        const side = validSides.length > 0 ? validSides[Math.floor(Math.random() * validSides.length)] : Math.floor(Math.random() * 4);
+        let sx, sy;
+        const r = CONFIG.GHOST_RADIUS + 8;
+        switch (side) {
+          case 0: sx = (cell.x + Math.random()) * CP; sy = cell.y * CP - r; break;
+          case 1: sx = (cell.x + Math.random()) * CP; sy = (cell.y + 1) * CP + r; break;
+          case 2: sx = cell.x * CP - r; sy = (cell.y + Math.random()) * CP; break;
+          case 3: sx = (cell.x + 1) * CP + r; sy = (cell.y + Math.random()) * CP; break;
+        }
+        return { x: sx, y: sy, hp: CONFIG.GHOST_HP, invulnerable: 0, phase: Math.random() * Math.PI * 2, wobble: 0.3 + Math.random() * 0.5 };
+      }
+
+      // Выбираем случайную примыкающую клетку
+      const cell = adjCells[Math.floor(Math.random() * adjCells.length)];
+
+      // Спавним на границе этой примыкающей клетки (со стороны открытой клетки)
+      // Находим, с какой стороны находится открытая клетка
+      const neighbors = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+      let spawnSide = null;
+      for (const [dx, dy] of neighbors) {
+        if (room.has(cellKey(cell.x + dx, cell.y + dy))) {
+          // Эта сторона граничит с открытой клеткой
+          if (dx === 0 && dy === -1) spawnSide = 0; // open is above, spawn at bottom of adj
+          if (dx === 0 && dy === 1) spawnSide = 1;  // open is below, spawn at top of adj
+          if (dx === -1 && dy === 0) spawnSide = 2; // open is left, spawn at right of adj
+          if (dx === 1 && dy === 0) spawnSide = 3;  // open is right, spawn at left of adj
+          break;
+        }
+      }
+
+      // Если не нашли (не должно произойти), берём случайную сторону
+      if (spawnSide === null) spawnSide = Math.floor(Math.random() * 4);
+
+      let sx, sy;
+      const r = CONFIG.GHOST_RADIUS + 8;
+      switch (spawnSide) {
+        case 0: sx = (cell.x + Math.random()) * CP; sy = (cell.y + 1) * CP + r; break; // bottom edge of adj
+        case 1: sx = (cell.x + Math.random()) * CP; sy = cell.y * CP - r; break;      // top edge of adj
+        case 2: sx = (cell.x + 1) * CP + r; sy = (cell.y + Math.random()) * CP; break; // right edge of adj
+        case 3: sx = cell.x * CP - r; sy = (cell.y + Math.random()) * CP; break;       // left edge of adj
+      }
+
+      return {
+        x: sx, y: sy,
+        hp: CONFIG.GHOST_HP,
+        invulnerable: 0,
+        phase: Math.random() * Math.PI * 2,
+        wobble: 0.3 + Math.random() * 0.5,
+      };
+    }
+
+    // ============================================================
+    // UPGRADES
+    // ============================================================
+    let upgradePopupTimer = 0;
+
+    function applyUpgrade(s, type) {
+      const upg = UPGRADE_TYPES.find(u => u.id === type);
+      switch (type) {
+        case 'pellets': s.upgrades.pellets++; break;
+        case 'cooldown': s.upgrades.cooldownMult = Math.max(0.1, s.upgrades.cooldownMult - 0.10); break;
+        case 'pierce': s.upgrades.pierce = true; break;
+        case 'speed': s.upgrades.speedMult += 0.10; break;
+        case 'spread': s.upgrades.spreadMult += 0.10; break;
+      }
+      if (upg) showUpgradePopup(upg.label, upg.color);
+    }
+
+    function showUpgradePopup(text, color) {
+      const el = document.getElementById('upgrade-popup');
+      el.textContent = '⬆ ' + text;
+      el.style.borderColor = color;
+      el.style.color = color;
+      el.style.textShadow = `0 0 12px ${color}`;
+      el.style.boxShadow = `0 0 20px ${color}44`;
+      el.classList.add('visible');
+      upgradePopupTimer = 2.0;
+    }
+
+    // ============================================================
+    // SHOOT
+    // ============================================================
+    function shoot(s) {
+      if (s.shootCooldown > 0) return;
+      const cooldown = CONFIG.SHOTGUN_COOLDOWN * s.upgrades.cooldownMult;
+      s.shootCooldown = cooldown;
+
+      const dx = s.mouse.x - s.player.x;
+      const dy = s.mouse.y - s.player.y;
+      const baseAngle = Math.atan2(dy, dx);
+
+      const pellets = CONFIG.SHOTGUN_PELLETS + s.upgrades.pellets;
+      for (let i = 0; i < pellets; i++) {
+        const spread = (Math.random() - 0.5) * CONFIG.SHOTGUN_SPREAD * s.upgrades.spreadMult;
+        const a = baseAngle + spread;
+        s.bullets.push({
+          x: s.player.x, y: s.player.y,
+          vx: Math.cos(a) * CONFIG.BULLET_SPEED,
+          vy: Math.sin(a) * CONFIG.BULLET_SPEED,
+          life: 1.5,
+        });
+      }
+
+      // Particle muzzle flash
+      for (let i = 0; i < 8; i++) {
+        const a = baseAngle + (Math.random() - 0.5) * 0.8;
+        s.particles.push({
+          x: s.player.x, y: s.player.y,
+          vx: Math.cos(a) * (60 + Math.random() * 80),
+          vy: Math.sin(a) * (60 + Math.random() * 80),
+          life: 0.2, maxLife: 0.2, color: '#ffcc44',
+        });
+      }
+    }
+
+    // ============================================================
+    // UPDATE
+    // ============================================================
+    function update(s, dt) {
+      if (s.phase !== 'play') return;
+      s.time += dt;
+
+      // Движение игрока
+      const spd = CONFIG.PLAYER_SPEED * s.upgrades.speedMult;
+      let mvx = 0, mvy = 0;
+      const k = s.keys;
+      if (k['w'] || k['W'] || k['ц'] || k['Ц'] || k['ArrowUp'] || k['arrowup']) mvy -= 1;
+      if (k['s'] || k['S'] || k['ы'] || k['Ы'] || k['ArrowDown'] || k['arrowdown']) mvy += 1;
+      if (k['a'] || k['A'] || k['ф'] || k['Ф'] || k['ArrowLeft'] || k['arrowleft']) mvx -= 1;
+      if (k['d'] || k['D'] || k['в'] || k['В'] || k['ArrowRight'] || k['arrowright']) mvx += 1;
+      if (mvx && mvy) { mvx *= 0.707; mvy *= 0.707; }
+
+      const pr = CONFIG.PLAYER_RADIUS;
+      let npx = s.player.x + mvx * spd * dt;
+      let npy = s.player.y + mvy * spd * dt;
+
+      // Движение по X если целевая позиция в комнате
+      const tcX = cellOf(npx, s.player.y);
+      if (s.room.has(cellKey(tcX.x, tcX.y))) {
+        s.player.x = npx;
+      }
+      // Движение по Y если целевая позиция в комнате
+      const tcY = cellOf(s.player.x, npy);
+      if (s.room.has(cellKey(tcY.x, tcY.y))) {
+        s.player.y = npy;
+      }
+
+      // Выход?
+      if (s.revealedExit) {
+        const ec = s.exitCell;
+        const ex0 = ec.x * CP, ex1 = (ec.x + 1) * CP;
+        const ey0 = ec.y * CP, ey1 = (ec.y + 1) * CP;
+        if (s.player.x > ex0 && s.player.x < ex1 && s.player.y > ey0 && s.player.y < ey1) {
+          s.phase = 'win';
+          return;
+        }
+      }
+
+      // Инвулнерабельность
+      if (s.player.invulnerable > 0) s.player.invulnerable -= dt;
+      s.shootCooldown = Math.max(0, s.shootCooldown - dt);
+
+      // Таймер попапа апгрейда
+      if (upgradePopupTimer > 0) {
+        upgradePopupTimer -= dt;
+        if (upgradePopupTimer <= 0) {
+          document.getElementById('upgrade-popup').classList.remove('visible');
+        }
+      }
+
+      // Пули
+      for (let i = s.bullets.length - 1; i >= 0; i--) {
+        const b = s.bullets[i];
+        b.x += b.vx * dt;
+        b.y += b.vy * dt;
+        b.life -= dt;
+
+        // Пуля вышла за комнату или попала в закрытую клетку?
+        const bc = cellOf(b.x, b.y);
+        const bk = cellKey(bc.x, bc.y);
+        const inOpenRoom = s.room.has(bk);
+        const isValidCell = bc.x >= 0 && bc.x < G && bc.y >= 0 && bc.y < G && !s.disabledCells.has(bk);
+
+        if (!isValidCell || b.life <= 0) {
+          // Частицы попадания
+          for (let j = 0; j < 4; j++) {
+            const a = Math.random() * Math.PI * 2;
+            s.particles.push({
+              x: b.x, y: b.y,
+              vx: Math.cos(a) * 40, vy: Math.sin(a) * 40,
+              life: 0.3, maxLife: 0.3, color: '#88aaff',
+            });
+          }
+          s.bullets.splice(i, 1);
+          continue;
+        }
+
+        // Пуля в закрытой клетке - дамажим клетку
+        if (!inOpenRoom) {
+          if (!s.cellHP[bk]) s.cellHP[bk] = CONFIG.CELL_HP;
+          s.cellHP[bk] -= CONFIG.BULLET_DAMAGE_CELL;
+
+          // Частицы попадания в клетку
+          for (let j = 0; j < 4; j++) {
+            const a = Math.random() * Math.PI * 2;
+            s.particles.push({
+              x: b.x, y: b.y,
+              vx: Math.cos(a) * 50, vy: Math.sin(a) * 50,
+              life: 0.25, maxLife: 0.25, color: '#ffaa44',
+            });
+          }
+          s.bullets.splice(i, 1);
+
+          // Клетка разрушена - открываем
+          if (s.cellHP[bk] <= 0) {
+            delete s.cellHP[bk];
+            s.room.add(bk);
+            s.visitedCells.push(bk);
+            s.roomOpenOrder.push(bk);
+            // +1 жизнь за открытую клетку
+            s.player.hp = s.room.size;
+
+            // Спавн призраков при открытии клетки: количество = открытые клетки
+            const spawnCount = s.room.size;
+            for (let si = 0; si < spawnCount; si++) {
+              s.ghosts.push(spawnGhost(s.room, s.disabledCells));
+            }
+
+            // Большой взрыв
+            for (let k = 0; k < 16; k++) {
+              const a = Math.random() * Math.PI * 2;
+              s.particles.push({
+                x: (bc.x + 0.5) * CP, y: (bc.y + 0.5) * CP,
+                vx: Math.cos(a) * (60 + Math.random() * 60),
+                vy: Math.sin(a) * (60 + Math.random() * 60),
+                life: 0.5, maxLife: 0.5, color: k % 2 === 0 ? '#ff8844' : '#ffaa66',
+              });
+            }
+
+            // Раскрыт ли выход?
+            if (bc.x === s.exitCell.x && bc.y === s.exitCell.y) {
+              s.revealedExit = true;
+            }
+
+            // Апгрейд в клетке? (только при первом открытии)
+            if (s.upgradeCells.has(bk) && !s.collectedUpgrades.has(bk)) {
+              s.collectedUpgrades.add(bk);
+              applyUpgrade(s, s.upgradeCells.get(bk));
+            }
+
+          }
+          continue;
+        }
+
+        // Столкновение с призраками
+        let bulletDestroyed = false;
+        for (let j = s.ghosts.length - 1; j >= 0; j--) {
+          const g = s.ghosts[j];
+          if (b.hitGhosts && b.hitGhosts.has(j)) continue; // pierce: уже попали по этому призраку
+          const dist = Math.hypot(b.x - g.x, b.y - g.y);
+          if (dist < CONFIG.GHOST_RADIUS + CONFIG.BULLET_RADIUS) {
+            g.hp -= CONFIG.BULLET_DAMAGE;
+            // Частицы крови призрака
+            for (let k = 0; k < 8; k++) {
+              const a = Math.random() * Math.PI * 2;
+              s.particles.push({
+                x: g.x, y: g.y,
+                vx: Math.cos(a) * 60, vy: Math.sin(a) * 60,
+                life: 0.4, maxLife: 0.4, color: '#b060ff',
+              });
+            }
+            if (g.hp <= 0) {
+              s.ghosts.splice(j, 1);
+              s.kills++;
+              for (let k = 0; k < 16; k++) {
+                const a = Math.random() * Math.PI * 2;
+                s.particles.push({
+                  x: g.x, y: g.y,
+                  vx: Math.cos(a) * (40 + Math.random() * 80),
+                  vy: Math.sin(a) * (40 + Math.random() * 80),
+                  life: 0.6, maxLife: 0.6, color: k % 2 === 0 ? '#b060ff' : '#ff80ff',
+                });
+              }
+            }
+            if (s.upgrades.pierce) {
+              if (!b.hitGhosts) b.hitGhosts = new Set();
+              b.hitGhosts.add(j);
+            } else {
+              bulletDestroyed = true;
+              s.bullets.splice(i, 1);
+              break;
+            }
+          }
+        }
+        if (bulletDestroyed) continue;
+      }
+
+      // Призраки
+      for (let i = s.ghosts.length - 1; i >= 0; i--) {
+        const g = s.ghosts[i];
+        g.phase += dt * 2;
+        if (g.invulnerable > 0) g.invulnerable -= dt;
+
+        // Движение к игроку
+        const dx = s.player.x - g.x;
+        const dy = s.player.y - g.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist > 0) {
+          g.x += (dx / dist) * CONFIG.GHOST_SPEED * dt;
+          g.y += (dy / dist) * CONFIG.GHOST_SPEED * dt;
+        }
+		
+		// Коллизия между призраками (разделяющееся движение)
+		for (let i = 0; i < s.ghosts.length; i++) {
+		  const g1 = s.ghosts[i];
+		  for (let j = i + 1; j < s.ghosts.length; j++) {
+			const g2 = s.ghosts[j];
+
+			const dx = g2.x - g1.x;
+			const dy = g2.y - g1.y;
+			const distSq = dx * dx + dy * dy;
+			const minDist = CONFIG.GHOST_RADIUS * 2;
+
+			if (distSq < minDist * minDist && distSq > 0) {
+			  const dist = Math.sqrt(distSq);
+			  const overlap = minDist - dist;
+			  const nx = dx / dist; // нормаль X
+			  const ny = dy / dist; // нормаль Y
+
+			  // Отталкиваем оба призрака на половину перекрытия
+			  g1.x -= nx * overlap * 0.5;
+			  g1.y -= ny * overlap * 0.5;
+			  g2.x += nx * overlap * 0.5;
+			  g2.y += ny * overlap * 0.5;
+			}
+		  }
+		}
+
+        // Касание игрока
+        if (dist < CONFIG.GHOST_RADIUS + CONFIG.PLAYER_RADIUS) {
+          if (s.player.invulnerable <= 0) {
+            s.player.invulnerable = CONFIG.GHOST_INVULNERABILITY;
+            // Закрыть самую дальнюю клетку от игрока
+            closeOrDamagePlayer(s);
+          }
+          s.ghosts.splice(i, 1);
+          for (let k = 0; k < 12; k++) {
+            const a = Math.random() * Math.PI * 2;
+            s.particles.push({
+              x: s.player.x, y: s.player.y,
+              vx: Math.cos(a) * 80, vy: Math.sin(a) * 80,
+              life: 0.5, maxLife: 0.5, color: '#ff4444',
+            });
+          }
+          continue;
+        }
+      }
+
+      // Частицы
+      for (let i = s.particles.length - 1; i >= 0; i--) {
+        const p = s.particles[i];
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.vx *= 0.9;
+        p.vy *= 0.9;
+        p.life -= dt;
+        if (p.life <= 0) s.particles.splice(i, 1);
+      }
+
+      // HP всегда = количество открытых клеток
+      s.player.hp = s.room.size;
+
+      // Смерть
+      if (s.player.hp <= 0) {
+        s.player.hp = 0;
+        s.phase = 'dead';
+      }
+    }
+
+    // Закрыть самую дальнюю клетку от игрока при получении урона
+    function closeOrDamagePlayer(s) {
+      const playerCell = cellOf(s.player.x, s.player.y);
+      // Находим клетку максимально далёкую от игрока (не клетку игрока)
+      let farthestKey = null;
+      let farthestDist = -1;
+      for (const k of s.room) {
+        const { x, y } = cellFromKey(k);
+        if (x === playerCell.x && y === playerCell.y) continue; // не удаляем клетку под игроком
+        if (!isRemovable(s.room, k, playerCell)) continue;      // не разрывать комнату
+        const d = Math.hypot(x - playerCell.x, y - playerCell.y);
+        if (d > farthestDist) { farthestDist = d; farthestKey = k; }
+      }
+
+      if (farthestKey) {
+        // Закрываем клетку
+        s.room.delete(farthestKey);
+        const idx = s.roomOpenOrder.indexOf(farthestKey);
+        if (idx > -1) s.roomOpenOrder.splice(idx, 1);
+        s.cellHP[farthestKey] = CONFIG.CELL_HP;
+        // Если закрыли выход — убрать reveal
+        const { x: fx, y: fy } = cellFromKey(farthestKey);
+        if (s.revealedExit && fx === s.exitCell.x && fy === s.exitCell.y) {
+          s.revealedExit = false;
+        }
+        // HP = новый размер комнаты
+        s.player.hp = s.room.size;
+        if (s.player.hp <= 0) s.phase = 'dead';
+      } else {
+        // Нет клетки для закрытия — прямой урон (крайний случай)
+        s.player.hp = s.room.size - 1;
+        if (s.player.hp <= 0) s.phase = 'dead';
+      }
+    }
+
+    function clampPlayerToRoom(s) {
+      const pr = CONFIG.PLAYER_RADIUS;
+      // Попробуем 4 стороны и закрепим
+      let px = s.player.x, py = s.player.y;
+      const pc = cellOf(px, py);
+      if (!s.room.has(cellKey(pc.x, pc.y))) {
+        // Найти ближайшую клетку
+        let best = null, bestD = Infinity;
+        for (const k of s.room) {
+          const c = cellFromKey(k);
+          const cx = (c.x + 0.5) * CP, cy = (c.y + 0.5) * CP;
+          const d = Math.hypot(px - cx, py - cy);
+          if (d < bestD) { bestD = d; best = c; }
+        }
+        if (best) {
+          s.player.x = Math.max(best.x * CP + pr, Math.min((best.x + 1) * CP - pr, px));
+          s.player.y = Math.max(best.y * CP + pr, Math.min((best.y + 1) * CP - pr, py));
+        }
+      }
+    }
+
+    // ============================================================
+    // DRAW
+    // ============================================================
+    function draw(s) {
+      ctx.clearRect(0, 0, VIEW_W, VIEW_H);
+
+      // Центрируем камеру на игроке
+      camera.x = s.player.x - VIEW_W / 2;
+      camera.y = s.player.y - VIEW_H / 2;
+      // Ограничиваем камеру границами мира
+      camera.x = Math.max(0, Math.min(camera.x, W - VIEW_W));
+      camera.y = Math.max(0, Math.min(camera.y, H - VIEW_H));
+
+      ctx.save();
+      ctx.translate(-camera.x, -camera.y);
+
+      // Фон карты (тьма)
+      ctx.fillStyle = '#030810';
+      ctx.fillRect(0, 0, W, H);
+
+      // Сетка (слабо видимая) - рисуем только видимые линии
+      ctx.strokeStyle = '#0d1e2e';
+      ctx.lineWidth = 1;
+      const startCol = Math.floor(camera.x / CP);
+      const endCol = Math.ceil((camera.x + VIEW_W) / CP);
+      const startRow = Math.floor(camera.y / CP);
+      const endRow = Math.ceil((camera.y + VIEW_H) / CP);
+      for (let i = Math.max(0, startCol); i <= Math.min(G, endCol); i++) {
+        ctx.beginPath(); ctx.moveTo(i * CP, Math.max(0, startRow) * CP); ctx.lineTo(i * CP, Math.min(G, endRow) * CP); ctx.stroke();
+      }
+      for (let i = Math.max(0, startRow); i <= Math.min(G, endRow); i++) {
+        ctx.beginPath(); ctx.moveTo(Math.max(0, startCol) * CP, i * CP); ctx.lineTo(Math.min(G, endCol) * CP, i * CP); ctx.stroke();
+      }
+
+      // Смежные клетки (доступны для открытия)
+      const adj = getAdjacentTo(s.room, s.disabledCells);
+      for (const k of adj) {
+        const { x, y } = cellFromKey(k);
+        if (!isCellVisible(x, y)) continue;
+
+        const hasUpg = s.upgradeCells.has(k) && !s.collectedUpgrades.has(k);
+        if (hasUpg) {
+          const upgType = s.upgradeCells.get(k);
+          const upgDef = UPGRADE_TYPES.find(u => u.id === upgType);
+          const pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.004);
+          ctx.fillStyle = `rgba(30,20,0,0.25)`;
+          ctx.fillRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
+          ctx.strokeStyle = upgDef.color;
+          ctx.globalAlpha = 0.35 + pulse * 0.4;
+          ctx.lineWidth = 2;
+          ctx.strokeRect(x * CP + 2, y * CP + 2, CP - 4, CP - 4);
+          ctx.globalAlpha = 0.5 + pulse * 0.5;
+          ctx.fillStyle = upgDef.color;
+          ctx.font = `bold 10px "Share Tech Mono"`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('⬆', (x + 0.5) * CP, (y + 0.5) * CP - 4);
+          ctx.font = `12px "Share Tech Mono"`;
+          ctx.fillText(upgDef.label, (x + 0.5) * CP, (y + 0.5) * CP + 8);
+          ctx.globalAlpha = 1;
+        } else {
+          ctx.fillStyle = 'rgba(0,80,120,0.12)';
+          ctx.fillRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
+          ctx.strokeStyle = 'rgba(0,150,200,0.2)';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
+        }
+
+        // HP бар для закрытой клетки
+        if (s.cellHP[k] !== undefined) {
+          const hpFrac = s.cellHP[k] / CONFIG.CELL_HP;
+          if (hpFrac < 1) {
+            ctx.fillStyle = '#1a0a00';
+            ctx.fillRect(x * CP + 4, y * CP + CP - 8, CP - 8, 4);
+            ctx.fillStyle = hpFrac > 0.5 ? '#ffaa44' : hpFrac > 0.25 ? '#ff8844' : '#ff4444';
+            ctx.fillRect(x * CP + 4, y * CP + CP - 8, (CP - 8) * hpFrac, 4);
+          }
+        }
+      }
+
+      // Закрытые клетки с HP (не смежные но с уроном)
+      for (const k of Object.keys(s.cellHP)) {
+        if (s.room.has(k)) continue;
+        if (adj.has(k)) continue; // уже отрисованы выше
+        const { x, y } = cellFromKey(k);
+        if (!isCellVisible(x, y)) continue;
+
+        ctx.fillStyle = 'rgba(80,40,20,0.15)';
+        ctx.fillRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
+
+        const hpFrac = s.cellHP[k] / CONFIG.CELL_HP;
+        if (hpFrac < 1) {
+          ctx.fillStyle = '#1a0a00';
+          ctx.fillRect(x * CP + 4, y * CP + CP - 8, CP - 8, 4);
+          ctx.fillStyle = hpFrac > 0.5 ? '#ffaa44' : hpFrac > 0.25 ? '#ff8844' : '#ff4444';
+          ctx.fillRect(x * CP + 4, y * CP + CP - 8, (CP - 8) * hpFrac, 4);
+        }
+      }
+
+      // Посещённые клетки (были открыты, но сейчас закрыты)
+      for (const k of s.visitedCells) {
+        if (s.room.has(k)) continue; // если сейчас открыта - пропускаем
+        const { x, y } = cellFromKey(k);
+        if (!isCellVisible(x, y)) continue;
+        ctx.fillStyle = 'rgba(180,120,40,0.10)';
+        ctx.fillRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
+        ctx.strokeStyle = 'rgba(200,140,60,0.15)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
+      }
+
+      // Выключенные клетки (чёрные) — открываются при примыкании к открытым и остаются видимыми
+      // Сначала проверяем новые клетки для открытия
+      for (const k of s.disabledCells) {
+        if (s.revealedDisabled.has(k)) continue; // уже открыта
+        const { x, y } = cellFromKey(k);
+        // Открываем если примыкает к открытой
+        const isAdjacentToOpen = [[0, -1], [0, 1], [-1, 0], [1, 0]].some(([dx, dy]) => {
+          return s.room.has(cellKey(x + dx, y + dy));
+        });
+        if (isAdjacentToOpen) {
+          s.revealedDisabled.add(k);
+        }
+      }
+
+      // Рисуем все открытые чёрные клетки
+      for (const k of s.revealedDisabled) {
+        const { x, y } = cellFromKey(k);
+        if (!isCellVisible(x, y)) continue;
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(x * CP, y * CP, CP, CP);
+      }
+
+      // Комната
+      for (const k of s.room) {
+        const { x, y } = cellFromKey(k);
+        if (!isCellVisible(x, y)) continue;
+        const isExit = s.revealedExit && x === s.exitCell.x && y === s.exitCell.y;
+        // Красноватый оттенок для самой старой клетки (которая будет закрыта следующей)
+        const isFirstCell = s.roomOpenOrder.length > 0 && s.roomOpenOrder[0] === k;
+        const willClose = s.room.size >= s.maxRoomCells && isFirstCell;
+
+        if (isExit) {
+          ctx.fillStyle = `rgba(0,60,20,0.9)`;
+        } else if (willClose) {
+          ctx.fillStyle = `rgb(30,15,15)`;
+        } else {
+          ctx.fillStyle = `rgb(10,25,40)`;
+        }
+        ctx.fillRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
+
+        if (isExit) {
+          // Пульсирующая зелёная граница
+          const pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.005);
+          ctx.strokeStyle = `rgba(0,255,100,${0.5 + pulse * 0.5})`;
+          ctx.lineWidth = 2;
+          ctx.strokeRect(x * CP + 2, y * CP + 2, CP - 4, CP - 4);
+
+          // EXIT текст
+          ctx.fillStyle = `rgba(0,255,100,${0.6 + pulse * 0.4})`;
+          ctx.font = 'bold 11px "Share Tech Mono"';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('EXIT', (x + 0.5) * CP, (y + 0.5) * CP);
+        }
+      }
+
+      // Стены комнаты
+      for (const k of s.room) {
+        const { x, y } = cellFromKey(k);
+        if (!isCellVisible(x, y)) continue;
+        const dirs = [[0, -1, 'top'], [0, 1, 'bot'], [-1, 0, 'lft'], [1, 0, 'rgt']];
+        ctx.strokeStyle = '#1a4060';
+        ctx.lineWidth = 2;
+        for (const [dx, dy,] of dirs) {
+          if (!s.room.has(cellKey(x + dx, y + dy))) {
+            ctx.beginPath();
+            if (dy === -1) { ctx.moveTo(x * CP, y * CP); ctx.lineTo((x + 1) * CP, y * CP); }
+            if (dy === 1) { ctx.moveTo(x * CP, (y + 1) * CP); ctx.lineTo((x + 1) * CP, (y + 1) * CP); }
+            if (dx === -1) { ctx.moveTo(x * CP, y * CP); ctx.lineTo(x * CP, (y + 1) * CP); }
+            if (dx === 1) { ctx.moveTo((x + 1) * CP, y * CP); ctx.lineTo((x + 1) * CP, (y + 1) * CP); }
+            ctx.stroke();
+          }
+        }
+      }
+
+      // Частицы
+      for (const p of s.particles) {
+        const alpha = p.life / p.maxLife;
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+
+      // Пули
+      for (const b of s.bullets) {
+        ctx.fillStyle = '#ffffaa';
+        ctx.shadowColor = '#ffff00';
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, CONFIG.BULLET_RADIUS, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.shadowBlur = 0;
+
+      // Призраки — видны в радиусе 1 клетки от открытых (в смежных тоже)
+      for (const g of s.ghosts) {
+        // Проверяем, находится ли призрак в открытой клетке или примыкающей
+        const gc = cellOf(g.x, g.y);
+        let visible = s.room.has(cellKey(gc.x, gc.y));
+        if (!visible) {
+          // Проверяем смежность с открытыми
+          visible = [[0, -1], [0, 1], [-1, 0], [1, 0]].some(([dx, dy]) => {
+            return s.room.has(cellKey(gc.x + dx, gc.y + dy));
+          });
+        }
+        if (!visible) continue;
+        if (g.x + CONFIG.GHOST_RADIUS < camera.x || g.x - CONFIG.GHOST_RADIUS > camera.x + VIEW_W ||
+          g.y + CONFIG.GHOST_RADIUS < camera.y || g.y - CONFIG.GHOST_RADIUS > camera.y + VIEW_H) continue;
+
+        const wave = Math.sin(g.phase) * g.wobble * 4;
+        const r = CONFIG.GHOST_RADIUS + wave;
+        const alpha = 0.65 + 0.35 * Math.sin(g.phase * 1.3);
+
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = '#c080ff';
+        ctx.shadowColor = '#9040ff';
+        ctx.shadowBlur = 18;
+
+        // Тело призрака
+        ctx.beginPath();
+        ctx.arc(g.x, g.y, r, Math.PI, 0);
+        // Волнистый низ
+        const steps = 4;
+        const stepW = (2 * r) / steps;
+        for (let i = 0; i < steps; i++) {
+          const px1 = g.x + r - i * stepW;
+          const px2 = g.x + r - (i + 1) * stepW;
+          const mid = (px1 + px2) / 2;
+          const waveAmp = i % 2 === 0 ? r * 0.35 : -r * 0.2;
+          ctx.quadraticCurveTo(mid, g.y + r + waveAmp + wave * 0.5, px2, g.y + (i % 2 === 0 ? r * 0.1 : r * 0.2));
+        }
+        ctx.closePath();
+        ctx.fill();
+
+        // Глаза
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 0.9;
+        ctx.fillStyle = '#220033';
+        ctx.beginPath(); ctx.arc(g.x - r * 0.28, g.y - r * 0.1, r * 0.2, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(g.x + r * 0.28, g.y - r * 0.1, r * 0.2, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ff80ff';
+        ctx.beginPath(); ctx.arc(g.x - r * 0.22, g.y - r * 0.15, r * 0.08, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(g.x + r * 0.34, g.y - r * 0.15, r * 0.08, 0, Math.PI * 2); ctx.fill();
+
+        // HP бар
+        const hpFrac = g.hp / CONFIG.GHOST_HP;
+        ctx.globalAlpha = 0.8;
+        ctx.fillStyle = '#1a0030';
+        ctx.fillRect(g.x - r, g.y - r - 8, r * 2, 3);
+        ctx.fillStyle = hpFrac > 0.5 ? '#aa44ff' : '#ff44aa';
+        ctx.fillRect(g.x - r, g.y - r - 8, r * 2 * hpFrac, 3);
+      }
+      ctx.globalAlpha = 1;
+      ctx.shadowBlur = 0;
+
+      // Игрок
+      const p = s.player;
+      const blinkOk = s.player.invulnerable <= 0 || Math.floor(s.player.invulnerable * 10) % 2 === 0;
+      if (blinkOk) {
+        // Тело
+        ctx.fillStyle = '#00d4ff';
+        ctx.shadowColor = '#00aaff';
+        ctx.shadowBlur = 20;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, CONFIG.PLAYER_RADIUS, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Прицел - направление к мышке
+        const dx = s.mouse.x - p.x;
+        const dy = s.mouse.y - p.y;
+        const a = Math.atan2(dy, dx);
+        const d = 14;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.moveTo(p.x + Math.cos(a) * 10, p.y + Math.sin(a) * 10);
+        ctx.lineTo(p.x + Math.cos(a) * d, p.y + Math.sin(a) * d);
+        ctx.stroke();
+      }
+      ctx.shadowBlur = 0;
+
+      ctx.restore();
+
+      // HUD обновление
+      updateHUD(s);
+    }
+
+    // Проверка видимости клетки на экране
+    function isCellVisible(cx, cy) {
+      const x = cx * CP;
+      const y = cy * CP;
+      return x + CP > camera.x && x < camera.x + VIEW_W &&
+        y + CP > camera.y && y < camera.y + VIEW_H;
+    }
+
+    function updateHUD(s) {
+      const maxHP = Math.max(s.room.size, 1);
+      const hpPct = Math.max(0, s.player.hp / maxHP * 100);
+      document.getElementById('bar-hp').style.width = hpPct + '%';
+      document.getElementById('bar-hp').style.background = hpPct > 50 ? 'var(--ok)' : hpPct > 25 ? '#ffaa00' : 'var(--danger)';
+      document.getElementById('val-hp').textContent = s.player.hp + ' ❤';
+      document.getElementById('val-hp').style.color = hpPct > 50 ? 'var(--ok)' : hpPct > 25 ? '#ffaa00' : 'var(--danger)';
+
+      const cells = getRoomCells(s.room);
+      const xs = cells.map(c => c.x), ys = cells.map(c => c.y);
+      const w = Math.max(...xs) - Math.min(...xs) + 1, h = Math.max(...ys) - Math.min(...ys) + 1;
+      document.getElementById('val-area').textContent = `${s.room.size}кл`;
+      document.getElementById('val-ghosts').textContent = s.ghosts.length;
+      document.getElementById('val-kills').textContent = s.kills;
+
+      const u = s.upgrades;
+      const parts = [];
+      if (u.pellets > 0) parts.push(`P+${u.pellets}`);
+      if (u.cooldownMult < 1.0) parts.push(`CD${Math.round(u.cooldownMult * 100)}%`);
+      if (u.pierce) parts.push(`PCR`);
+      if (u.speedMult > 1.0) parts.push(`S+${Math.round((u.speedMult - 1) * 100)}%`);
+      if (u.spreadMult > 1.0) parts.push(`SPR+${Math.round((u.spreadMult - 1) * 100)}%`);
+      document.getElementById('val-upgrades').textContent = parts.length ? parts.join(' ') : '—';
+    }
+
+    // ============================================================
+    // OVERLAY
+    // ============================================================
+    function showOverlay(title, color, lines, btnText) {
+      const ov = document.getElementById('overlay');
+      ov.style.display = 'flex';
+      ov.innerHTML = `
+    <h2 style="color:${color}">${title}</h2>
+    ${lines.map(l => `<p>${l}</p>`).join('')}
+    <button class="btn" id="start-btn" style="border-color:${color};color:${color}">
+      ${btnText}
+    </button>
+  `;
+      document.getElementById('start-btn').onclick = startGame;
+    }
+
+    function hideOverlay() {
+      document.getElementById('overlay').style.display = 'none';
+    }
+
+    // ============================================================
+    // GAME LOOP
+    // ============================================================
+    function loop(ts) {
+      const dt = Math.min((ts - lastTime) / 1000, 0.05);
+      lastTime = ts;
+
+      if (state && state.phase === 'play') {
+        update(state, dt);
+        draw(state);
+      } else if (state && state.phase === 'win') {
+        draw(state);
+        showOverlay('ВЫХОД НАЙДЕН!', '#00ff88',
+          [`Призраков уничтожено: ${state.kills}`, `Время: ${Math.round(state.time)}с`],
+          'ИГРАТЬ ЕЩЁ');
+        state.phase = 'stopped';
+      } else if (state && state.phase === 'dead') {
+        draw(state);
+        const reason = 'Призраки уничтожили вас';
+        showOverlay('GAME OVER', '#ff3a3a',
+          [reason, `Призраков уничтожено: ${state.kills}`, `Время: ${Math.round(state.time)}с`],
+          'ПОПРОБОВАТЬ СНОВА');
+        state.phase = 'stopped';
+      }
+
+      animId = requestAnimationFrame(loop);
+    }
+
+    function startGame() {
+      hideOverlay();
+      state = initState();
+      draw(state);
+    }
+
+    // ============================================================
+    // INPUT
+    // ============================================================
+    document.addEventListener('keydown', e => {
+      if (!state) return;
+      state.keys[e.key.toLowerCase()] = true;
+    });
+    document.addEventListener('keyup', e => {
+      if (!state) return;
+      state.keys[e.key.toLowerCase()] = false;
+    });
+
+    C.addEventListener('mousemove', e => {
+      if (!state) return;
+      const rect = C.getBoundingClientRect();
+      const scaleX = VIEW_W / rect.width;
+      const scaleY = VIEW_H / rect.height;
+      // Координаты мира = экран + камера
+      state.mouse.x = (e.clientX - rect.left) * scaleX + camera.x;
+      state.mouse.y = (e.clientY - rect.top) * scaleY + camera.y;
+    });
+
+    C.addEventListener('mousedown', e => {
+      if (!state || state.phase !== 'play') return;
+      e.preventDefault();
+
+      const rect = C.getBoundingClientRect();
+      const scaleX = VIEW_W / rect.width;
+      const scaleY = VIEW_H / rect.height;
+      // Координаты мира = экран + камера
+      const mx = (e.clientX - rect.left) * scaleX + camera.x;
+      const my = (e.clientY - rect.top) * scaleY + camera.y;
+
+      if (e.button === 0) {
+        // ЛКМ — стрельба (отключена)
+        if (CONFIG.SHOOTING_ENABLED) {
+          shoot(state);
+        }
+      } else if (e.button === 2) {
+        // ПКМ — расширить/закрыть комнату
+        const cx = Math.floor(mx / CP);
+        const cy = Math.floor(my / CP);
+        if (cx < 0 || cx >= G || cy < 0 || cy >= G) return;
+        const k = cellKey(cx, cy);
+
+        if (!state.room.has(k)) {
+          // ПКМ на закрытой клетке — ничего (открытие только через выстрелы)
+        }
+      }
+    });
+
+    C.addEventListener('contextmenu', e => e.preventDefault());
+
+    // Стрельба по удержанию ЛКМ — отключена
+    let mouseHeld = false;
+    if (CONFIG.SHOOTING_ENABLED) {
+      C.addEventListener('mousedown', e => { if (e.button === 0) mouseHeld = true; });
+      document.addEventListener('mouseup', e => { if (e.button === 0) mouseHeld = false; });
+    }
+
+    // ============================================================
+    // START
+    // ============================================================
+    document.getElementById('start-btn').onclick = startGame;
+    lastTime = performance.now();
+    animId = requestAnimationFrame(loop);
+
+    // Перехват стрельбы при удержании — отключён
+    if (CONFIG.SHOOTING_ENABLED) {
+      setInterval(() => {
+        if (mouseHeld && state && state.phase === 'play') {
+          shoot(state);
+        }
+      }, 450);
+    }
+  </script>
+
+</body>
+
+</html>
