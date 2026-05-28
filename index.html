@@ -193,11 +193,14 @@
       const cx = Math.floor(G / 2);
       const cy = Math.floor(G / 2);
 
-      let ex, ey;
+      const maxDist = Math.max(cx, cy, G - 1 - cx, G - 1 - cy);
+      
+      let ex, ey, ed;
       do {
         ex = Math.floor(Math.random() * G);
         ey = Math.floor(Math.random() * G);
-      } while (ex === cx && ey === cy);
+        ed = Math.max(Math.abs(ex - cx), Math.abs(ey - cy));
+      } while (!(ed >= 2 && ed <= 4));
 
       const disabledCells = generateDisabledCells(cx, cy, ex, ey);
 
@@ -219,14 +222,17 @@
         const j = Math.floor(Math.random() * (i + 1));
         [availableCells[i], availableCells[j]] = [availableCells[j], availableCells[i]];
       }
-      
-      const maxDist = Math.max(cx, cy, G - 1 - cx, G - 1 - cy);
 
-      // Расставляем ключи (3 штуки)
+      // Расставляем ключи (3 штуки) — только в клетках с дистанцией 2-4 от центра
       const keyObjs = [];
-      const keysCount = Math.min(3, availableCells.length);
+      const keyCandidates = availableCells.filter(c => {
+        const d = Math.max(Math.abs(c.x - cx), Math.abs(c.y - cy));
+        return d >= 2 && d <= 4;
+      });
+      const keysCount = Math.min(3, keyCandidates.length);
       for (let i = 0; i < keysCount; i++) {
-        const cell = availableCells.shift();
+        const cell = keyCandidates[i];
+        availableCells.splice(availableCells.indexOf(cell), 1);
         const dist = Math.max(Math.abs(cell.x - cx), Math.abs(cell.y - cy));
         const enemyCount = (5 + Math.floor(Math.random() * 8)) * dist;
         cellContents.set(cell.k, { type: 'key', enemyCount, enemiesReleased: false });
@@ -842,6 +848,19 @@
       for (const k of s.everRevealedCells) {
         if (!s.openCells.has(k) && !s.disabledCells.has(k) && !s.permanentlyClosed.has(k)) adj.add(k);
       }
+
+      // Призраки в закрытых комнатах (видны)
+      for (const g of s.ghosts) {
+        if (!g.trapped) continue;
+        const gc = cellOf(g.x, g.y);
+        // Видны если клетка когда-либо была смежной с открытой
+        const visible = s.everRevealedCells.has(cellKey(gc.x, gc.y));
+        if (!visible) continue;
+        if (!isCellVisible(gc.x, gc.y)) continue;
+
+        drawGhost(g, 0.5); // Полупрозрачные т.к. за стенкой
+      }
+      
       for (const k of adj) {
         const { x, y } = cellFromKey(k);
         if (!isCellVisible(x, y)) continue;
@@ -1014,18 +1033,6 @@
         ctx.fill();
       }
       ctx.shadowBlur = 0;
-
-      // Призраки в закрытых комнатах (видны)
-      for (const g of s.ghosts) {
-        if (!g.trapped) continue;
-        const gc = cellOf(g.x, g.y);
-        // Видны если клетка когда-либо была смежной с открытой
-        const visible = s.everRevealedCells.has(cellKey(gc.x, gc.y));
-        if (!visible) continue;
-        if (!isCellVisible(gc.x, gc.y)) continue;
-
-        drawGhost(g, 0.5); // Полупрозрачные т.к. за стенкой
-      }
 
       // Активные призраки (выпущенные)
       for (const g of s.activeGhosts) {
