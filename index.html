@@ -101,7 +101,7 @@
       SHOOTER_RADIUS: 7,
       SHOOTER_BULLET_SPEED: 100,
       SHOOTER_SHOOT_RANGE: 0,   // заполняется после CP
-      SHOOTER_SHOOT_CD: 1.0,
+      SHOOTER_SHOOT_CD: 2.0,
       SHOOTER_STOP_DIST: 0,     // заполняется после CP
       DISABLED_CELLS_COUNT: 15,
       BLOCK_CELLS_FOREVER: false,
@@ -378,7 +378,10 @@
 
         keys: {},
         mouse: { x: (cx + 0.5) * CP, y: (cy + 0.5) * CP },
-        phase: 'play',
+        phase: 'play', // 'play', 'battle', 'win', 'dead', 'stopped'
+
+        // Battle mode state
+        battle: null, // { openCells, cellContents, hearts, keyObjs, upgradeObjs, ghosts, activeGhosts, ... }
       };
     }
 
@@ -388,6 +391,250 @@
     function cellKey(x, y) { return `${x},${y}`; }
     function cellFromKey(k) { const [x, y] = k.split(','); return { x: +x, y: +y }; }
     function cellOf(px, py) { return { x: Math.floor(px / CP), y: Math.floor(py / CP) }; }
+
+    // ============================================================
+    // BATTLE MODE
+    // ============================================================
+    const BATTLE_SCALE = 3; // Клетки в 2 раза больше чем на карте
+    const BATTLE_CELL_PX = CP * BATTLE_SCALE;
+
+    function enterBattleMode(s, openedCellKey) {
+      // Используем актуальные открытые клетки (после автозакрытия и всех изменений)
+      const battleCells = new Set([...s.openCells]);
+      battleCells.add(openedCellKey);
+
+      // Вычисляем границы battle-локации
+      let minX = G, minY = G, maxX = 0, maxY = 0;
+      for (const k of battleCells) {
+        const { x, y } = cellFromKey(k);
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+      }
+
+      // Создаём маппинг координат: позиция на карте -> позиция в battle
+      const cellOffsetX = minX;
+      const cellOffsetY = minY;
+      const battleWidth = (maxX - minX + 1) * BATTLE_CELL_PX;
+      const battleHeight = (maxY - minY + 1) * BATTLE_CELL_PX;
+
+      // Конвертируем координаты игрока
+      const playerCell = cellOf(s.player.x, s.player.y);
+      const playerBattleX = (playerCell.x - cellOffsetX) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2;
+      const playerBattleY = (playerCell.y - cellOffsetY) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2;
+
+      // Создаём battle-копии коллектиблов
+      const battleHearts = [];
+      const battleKeys = [];
+      const battleUpgrades = [];
+      const battleGhosts = [];
+      const battleActiveGhosts = [];
+
+      // Сердечки
+      for (const heart of s.hearts) {
+        if (heart.collected) continue;
+        const hc = cellOf(heart.x, heart.y);
+        const hk = cellKey(hc.x, hc.y);
+        if (battleCells.has(hk)) {
+          battleHearts.push({
+            x: (hc.x - cellOffsetX) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
+            y: (hc.y - cellOffsetY) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
+            originalCellKey: hk,
+            collected: false
+          });
+        }
+      }
+
+      // Ключи
+      for (const keyObj of s.keyObjs) {
+        if (keyObj.collected) continue;
+        const kc = cellOf(keyObj.x, keyObj.y);
+        const kk = cellKey(kc.x, kc.y);
+        if (battleCells.has(kk)) {
+          battleKeys.push({
+            x: (kc.x - cellOffsetX) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
+            y: (kc.y - cellOffsetY) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
+            originalCellKey: kk,
+            collected: false
+          });
+        }
+      }
+
+      // Апгрейды
+      for (const upg of s.upgradeObjs) {
+        if (upg.collected) continue;
+        const uc = cellOf(upg.x, upg.y);
+        const uk = cellKey(uc.x, uc.y);
+        if (battleCells.has(uk)) {
+          battleUpgrades.push({
+            x: (uc.x - cellOffsetX) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
+            y: (uc.y - cellOffsetY) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
+            originalCellKey: uk,
+            upgradeType: upg.upgradeType,
+            collected: false
+          });
+        }
+      }
+
+      // Враги из открытой клетки -> активные враги
+      const openedContent = s.cellContents.get(openedCellKey);
+      if (openedContent && openedContent.enemyCount && !openedContent.enemiesReleased) {
+        openedContent.enemiesReleased = true;
+        const { x: ox, y: oy } = cellFromKey(openedCellKey);
+        for (let i = s.ghosts.length - 1; i >= 0; i--) {
+          const g = s.ghosts[i];
+          if (g.homeX === ox && g.homeY === oy) {
+            g.trapped = false;
+            // Конвертируем позицию врага в battle-координаты
+            const battleX = (g.homeX - cellOffsetX) * BATTLE_CELL_PX + (g.x - g.homeX * CP) * BATTLE_SCALE;
+            const battleY = (g.homeY - cellOffsetY) * BATTLE_CELL_PX + (g.y - g.homeY * CP) * BATTLE_SCALE;
+            battleActiveGhosts.push({
+              x: battleX, y: battleY,
+              vx: 0, vy: 0,
+              hp: g.hp,
+              type: g.type,
+              phase: g.phase,
+              wobble: g.wobble,
+              shootCd: 0,
+            });
+            s.ghosts.splice(i, 1);
+          }
+        }
+      }
+
+      // Уже активные враги -> тоже переносим в battle
+      for (const g of s.activeGhosts) {
+        const gc = cellOf(g.x, g.y);
+        if (battleCells.has(cellKey(gc.x, gc.y))) {
+          const battleX = (gc.x - cellOffsetX) * BATTLE_CELL_PX + (g.x - gc.x * CP) * BATTLE_SCALE;
+          const battleY = (gc.y - cellOffsetY) * BATTLE_CELL_PX + (g.y - gc.y * CP) * BATTLE_SCALE;
+          battleActiveGhosts.push({
+            x: battleX, y: battleY,
+            vx: 0, vy: 0,
+            hp: g.hp,
+            type: g.type,
+            phase: g.phase,
+            wobble: g.wobble,
+            shootCd: g.shootCd || 0,
+          });
+        }
+      }
+
+      s.battle = {
+        openCells: battleCells,
+        cellOffsetX,
+        cellOffsetY,
+        width: battleWidth,
+        height: battleHeight,
+        hearts: battleHearts,
+        keys: battleKeys,
+        upgrades: battleUpgrades,
+        ghosts: battleGhosts,
+        activeGhosts: battleActiveGhosts,
+        bullets: [],
+        enemyBullets: [],
+        particles: [],
+        player: {
+          x: playerBattleX,
+          y: playerBattleY,
+        },
+        openedCellKey,
+        cellContents: s.cellContents,
+      };
+
+      // Устанавливаем мышь на игрока для корректного направления стрельбы
+      s.mouse.x = playerBattleX + 50;
+      s.mouse.y = playerBattleY;
+
+      s.phase = 'battle';
+    }
+
+    function exitBattleMode(s) {
+      if (!s.battle) return;
+
+      const b = s.battle;
+
+      // Синхронизируем собранные предметы обратно в основной state
+      for (const bh of b.hearts) {
+        if (bh.collected) {
+          const heart = s.hearts.find(h => h.cellKey === bh.originalCellKey);
+          if (heart && !heart.collected) {
+            heart.collected = true;
+            s.cellContents.delete(bh.originalCellKey);
+            s.heartsCollected++;
+          }
+        }
+      }
+
+      for (const bk of b.keys) {
+        if (bk.collected) {
+          const keyObj = s.keyObjs.find(k => k.cellKey === bk.originalCellKey);
+          if (keyObj && !keyObj.collected) {
+            keyObj.collected = true;
+            s.cellContents.delete(bk.originalCellKey);
+            s.keysCollected++;
+          }
+        }
+      }
+
+      for (const bu of b.upgrades) {
+        if (bu.collected) {
+          const upg = s.upgradeObjs.find(u => u.cellKey === bu.originalCellKey);
+          if (upg && !upg.collected) {
+            upg.collected = true;
+            s.cellContents.delete(bu.originalCellKey);
+            applyUpgrade(s, bu.upgradeType);
+          }
+        }
+      }
+
+      // Конвертируем позицию игрока обратно
+      const battleCellX = Math.floor(b.player.x / BATTLE_CELL_PX);
+      const battleCellY = Math.floor(b.player.y / BATTLE_CELL_PX);
+      const mapCellX = battleCellX + b.cellOffsetX;
+      const mapCellY = battleCellY + b.cellOffsetY;
+      const localX = b.player.x - battleCellX * BATTLE_CELL_PX;
+      const localY = b.player.y - battleCellY * BATTLE_CELL_PX;
+      s.player.x = mapCellX * CP + localX / BATTLE_SCALE;
+      s.player.y = mapCellY * CP + localY / BATTLE_SCALE;
+
+      // Переносим оставшихся врагов обратно
+      s.activeGhosts = [];
+      for (const bg of b.activeGhosts) {
+        const bx = Math.floor(bg.x / BATTLE_CELL_PX);
+        const by = Math.floor(bg.y / BATTLE_CELL_PX);
+        const mx = bx + b.cellOffsetX;
+        const my = by + b.cellOffsetY;
+        const lx = bg.x - bx * BATTLE_CELL_PX;
+        const ly = bg.y - by * BATTLE_CELL_PX;
+        s.activeGhosts.push({
+          x: mx * CP + lx / BATTLE_SCALE,
+          y: my * CP + ly / BATTLE_SCALE,
+          vx: 0, vy: 0,
+          hp: bg.hp,
+          type: bg.type,
+          phase: bg.phase,
+          wobble: bg.wobble,
+          shootCd: bg.shootCd || 0,
+        });
+      }
+
+      s.battle = null;
+
+      // Проверяем победу: игрок на выходе с 3 ключами
+      if (s.revealedExit && s.keysCollected >= 3) {
+        const ec = s.exitCell;
+        const ex0 = ec.x * CP, ex1 = (ec.x + 1) * CP;
+        const ey0 = ec.y * CP, ey1 = (ec.y + 1) * CP;
+        if (s.player.x > ex0 && s.player.x < ex1 && s.player.y > ey0 && s.player.y < ey1) {
+          s.phase = 'win';
+          return;
+        }
+      }
+
+      s.phase = 'play';
+    }
 
     function inRoom(px, py, openCells) {
       const c = cellOf(px, py);
@@ -482,6 +729,327 @@
         const a = baseAngle + (Math.random() - 0.5) * 0.8;
         s.particles.push({
           x: s.player.x, y: s.player.y,
+          vx: Math.cos(a) * (60 + Math.random() * 80),
+          vy: Math.sin(a) * (60 + Math.random() * 80),
+          life: 0.2, maxLife: 0.2, color: '#ffcc44',
+        });
+      }
+    }
+
+    // ============================================================
+    // BATTLE UPDATE
+    // ============================================================
+    function updateBattle(s, dt) {
+      const b = s.battle;
+      if (!b) return;
+
+      s.time += dt;
+
+      // Инвулнерабельность
+      if (s.player.invulnerable > 0) s.player.invulnerable -= dt;
+
+      // Движение игрока в battle mode
+      const spd = CONFIG.PLAYER_SPEED * s.upgrades.speedMult;
+      let mvx = 0, mvy = 0;
+      const k = s.keys;
+      if (k['w'] || k['W'] || k['ц'] || k['Ц'] || k['ArrowUp'] || k['arrowup']) mvy -= 1;
+      if (k['s'] || k['S'] || k['ы'] || k['Ы'] || k['ArrowDown'] || k['arrowdown']) mvy += 1;
+      if (k['a'] || k['A'] || k['ф'] || k['Ф'] || k['ArrowLeft'] || k['arrowleft']) mvx -= 1;
+      if (k['d'] || k['D'] || k['в'] || k['В'] || k['ArrowRight'] || k['arrowright']) mvx += 1;
+      if (mvx && mvy) { mvx *= 0.707; mvy *= 0.707; }
+
+      const pr = CONFIG.PLAYER_RADIUS;
+      let npx = b.player.x + mvx * spd * dt;
+      let npy = b.player.y + mvy * spd * dt;
+
+      // Проверка границ battle-локации
+      npx = Math.max(pr, Math.min(npx, b.width - pr));
+      npy = Math.max(pr, Math.min(npy, b.height - pr));
+
+      // Проверка - движение только по открытым клеткам battle
+      const tcX = Math.floor(npx / BATTLE_CELL_PX);
+      const tcY = Math.floor(b.player.y / BATTLE_CELL_PX);
+      const mapX = tcX + b.cellOffsetX;
+      const mapY = tcY + b.cellOffsetY;
+      if (b.openCells.has(cellKey(mapX, mapY))) {
+        b.player.x = npx;
+      }
+
+      const tcY2 = Math.floor(npy / BATTLE_CELL_PX);
+      const tcY2X = Math.floor(b.player.x / BATTLE_CELL_PX);
+      const mapY2X = tcY2X + b.cellOffsetX;
+      const mapY2Y = tcY2 + b.cellOffsetY;
+      if (b.openCells.has(cellKey(mapY2X, mapY2Y))) {
+        b.player.y = npy;
+      }
+
+      // Сбор сердечек в battle
+      for (const heart of b.hearts) {
+        if (!heart.collected) {
+          const dist = Math.hypot(b.player.x - heart.x, b.player.y - heart.y);
+          if (dist < CONFIG.PLAYER_RADIUS + 10) {
+            heart.collected = true;
+            s.player.lives += CONFIG.LIVES_PER_HEART;
+            for (let i = 0; i < 12; i++) {
+              const a = Math.random() * Math.PI * 2;
+              b.particles.push({
+                x: heart.x, y: heart.y,
+                vx: Math.cos(a) * 80, vy: Math.sin(a) * 80,
+                life: 0.6, maxLife: 0.6, color: '#ff6b9d',
+              });
+            }
+          }
+        }
+      }
+
+      // Сбор ключей в battle
+      for (const keyObj of b.keys) {
+        if (!keyObj.collected) {
+          const dist = Math.hypot(b.player.x - keyObj.x, b.player.y - keyObj.y);
+          if (dist < CONFIG.PLAYER_RADIUS + 10) {
+            keyObj.collected = true;
+            for (let i = 0; i < 12; i++) {
+              const a = Math.random() * Math.PI * 2;
+              b.particles.push({
+                x: keyObj.x, y: keyObj.y,
+                vx: Math.cos(a) * 80, vy: Math.sin(a) * 80,
+                life: 0.6, maxLife: 0.6, color: '#ffd700',
+              });
+            }
+          }
+        }
+      }
+
+      // Сбор апгрейдов в battle
+      for (const upg of b.upgrades) {
+        if (!upg.collected) {
+          const dist = Math.hypot(b.player.x - upg.x, b.player.y - upg.y);
+          if (dist < CONFIG.PLAYER_RADIUS + 10) {
+            upg.collected = true;
+            const upgDef = UPGRADE_TYPES.find(u => u.id === upg.upgradeType);
+            const color = upgDef ? upgDef.color : '#ffcc00';
+            for (let i = 0; i < 12; i++) {
+              const a = Math.random() * Math.PI * 2;
+              b.particles.push({
+                x: upg.x, y: upg.y,
+                vx: Math.cos(a) * 80, vy: Math.sin(a) * 80,
+                life: 0.6, maxLife: 0.6, color: color,
+              });
+            }
+          }
+        }
+      }
+
+      // Стрельба в battle mode
+      s.shootCooldown = Math.max(0, s.shootCooldown - dt);
+
+      // Обновление пуль в battle
+      for (let i = b.bullets.length - 1; i >= 0; i--) {
+        const bullet = b.bullets[i];
+        bullet.x += bullet.vx * dt;
+        bullet.y += bullet.vy * dt;
+        bullet.life -= dt;
+
+        // Проверка границ battle
+        if (bullet.x < 0 || bullet.x > b.width || bullet.y < 0 || bullet.y > b.height || bullet.life <= 0) {
+          b.bullets.splice(i, 1);
+          continue;
+        }
+
+        // Попадание во врагов
+        for (let j = b.activeGhosts.length - 1; j >= 0; j--) {
+          const g = b.activeGhosts[j];
+          const dist = Math.hypot(bullet.x - g.x, bullet.y - g.y);
+          if (dist < CONFIG.GHOST_RADIUS + CONFIG.BULLET_RADIUS) {
+            g.hp -= CONFIG.BULLET_DAMAGE;
+            for (let k = 0; k < 8; k++) {
+              const a = Math.random() * Math.PI * 2;
+              b.particles.push({
+                x: g.x, y: g.y,
+                vx: Math.cos(a) * 60, vy: Math.sin(a) * 60,
+                life: 0.4, maxLife: 0.4, color: '#b060ff',
+              });
+            }
+            if (g.hp <= 0) {
+              b.activeGhosts.splice(j, 1);
+              for (let k = 0; k < 16; k++) {
+                const a = Math.random() * Math.PI * 2;
+                b.particles.push({
+                  x: g.x, y: g.y,
+                  vx: Math.cos(a) * (40 + Math.random() * 80),
+                  vy: Math.sin(a) * (40 + Math.random() * 80),
+                  life: 0.6, maxLife: 0.6, color: k % 2 === 0 ? '#b060ff' : '#ff80ff',
+                });
+              }
+            }
+            b.bullets.splice(i, 1);
+            break;
+          }
+        }
+      }
+
+      // Обновление врагов в battle
+      for (let i = b.activeGhosts.length - 1; i >= 0; i--) {
+        const g = b.activeGhosts[i];
+        g.phase += dt * 2;
+
+        const dx = b.player.x - g.x;
+        const dy = b.player.y - g.y;
+        const dist = Math.hypot(dx, dy);
+
+        if (g.type === 'shooter') {
+          // Стрелок
+          if (dist > CONFIG.SHOOTER_STOP_DIST * BATTLE_SCALE && dist > 0) {
+            const spd = CONFIG.SHOOTER_SPEED;
+            g.x += (dx / dist) * spd * dt;
+            g.y += (dy / dist) * spd * dt;
+          }
+          if (g.shootCd > 0) g.shootCd -= dt;
+          if (dist <= CONFIG.SHOOTER_SHOOT_RANGE * BATTLE_SCALE && g.shootCd <= 0) {
+            g.shootCd = CONFIG.SHOOTER_SHOOT_CD;
+            if (dist > 0) {
+              b.enemyBullets.push({
+                x: g.x, y: g.y,
+                vx: (dx / dist) * CONFIG.SHOOTER_BULLET_SPEED,
+                vy: (dy / dist) * CONFIG.SHOOTER_BULLET_SPEED,
+                life: 6,
+              });
+            }
+          }
+        } else {
+          // Обычный - летит к игроку
+          if (dist > 0) {
+            g.x += (dx / dist) * CONFIG.GHOST_SPEED * dt;
+            g.y += (dy / dist) * CONFIG.GHOST_SPEED * dt;
+          }
+          // Касание игрока
+          if (dist < CONFIG.GHOST_RADIUS + CONFIG.PLAYER_RADIUS) {
+            if (s.player.invulnerable <= 0) {
+              s.player.lives--;
+              s.player.invulnerable = 1.0;
+            }
+            b.activeGhosts.splice(i, 1);
+            for (let k = 0; k < 12; k++) {
+              const a = Math.random() * Math.PI * 2;
+              b.particles.push({
+                x: b.player.x, y: b.player.y,
+                vx: Math.cos(a) * 80, vy: Math.sin(a) * 80,
+                life: 0.5, maxLife: 0.5, color: '#ff4444',
+              });
+            }
+            continue;
+          }
+        }
+      }
+
+      // Вражеские пули в battle
+      for (let i = b.enemyBullets.length - 1; i >= 0; i--) {
+        const eb = b.enemyBullets[i];
+        eb.x += eb.vx * dt;
+        eb.y += eb.vy * dt;
+        eb.life -= dt;
+
+        if (eb.x < 0 || eb.x > b.width || eb.y < 0 || eb.y > b.height || eb.life <= 0) {
+          b.enemyBullets.splice(i, 1);
+          continue;
+        }
+
+        const pd = Math.hypot(eb.x - b.player.x, eb.y - b.player.y);
+        if (pd < CONFIG.PLAYER_RADIUS + 4) {
+          if (s.player.invulnerable <= 0) {
+            s.player.lives--;
+            s.player.invulnerable = 0.5;
+          }
+          b.enemyBullets.splice(i, 1);
+          for (let k = 0; k < 8; k++) {
+            const a = Math.random() * Math.PI * 2;
+            b.particles.push({
+              x: b.player.x, y: b.player.y,
+              vx: Math.cos(a) * 70, vy: Math.sin(a) * 70,
+              life: 0.4, maxLife: 0.4, color: '#ff4444',
+            });
+          }
+        }
+      }
+
+      // Коллизии между врагами в battle
+      for (let i = 0; i < b.activeGhosts.length; i++) {
+        const g1 = b.activeGhosts[i];
+        for (let j = i + 1; j < b.activeGhosts.length; j++) {
+          const g2 = b.activeGhosts[j];
+          const dx = g2.x - g1.x;
+          const dy = g2.y - g1.y;
+          const distSq = dx * dx + dy * dy;
+          const minDist = CONFIG.GHOST_RADIUS * 2;
+          if (distSq < minDist * minDist && distSq > 0) {
+            const dist = Math.sqrt(distSq);
+            const overlap = minDist - dist;
+            const nx = dx / dist;
+            const ny = dy / dist;
+            g1.x -= nx * overlap * 0.5;
+            g1.y -= ny * overlap * 0.5;
+            g2.x += nx * overlap * 0.5;
+            g2.y += ny * overlap * 0.5;
+          }
+        }
+      }
+
+      // Частицы в battle
+      for (let i = b.particles.length - 1; i >= 0; i--) {
+        const p = b.particles[i];
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.vx *= 0.9;
+        p.vy *= 0.9;
+        p.life -= dt;
+        if (p.life <= 0) b.particles.splice(i, 1);
+      }
+
+      // Проверяем завершение боя: все враги убиты
+      const hasEnemies = b.activeGhosts.length > 0;
+
+      if (!hasEnemies) {
+        // Бой закончен (все враги убиты), возвращаемся на карту
+        exitBattleMode(s);
+        return;
+      }
+
+      // Смерть в battle
+      if (s.player.lives <= 0) {
+        s.player.lives = 0;
+        s.phase = 'dead';
+      }
+    }
+
+    // Стрельба в battle mode
+    function shootBattle(s) {
+      if (s.shootCooldown > 0) return;
+      if (!s.battle) return;
+      const b = s.battle;
+      const cooldown = 0.45 * s.upgrades.cooldownMult;
+      s.shootCooldown = cooldown;
+
+      const dx = s.mouse.x - b.player.x;
+      const dy = s.mouse.y - b.player.y;
+      const baseAngle = Math.atan2(dy, dx);
+
+      const pellets = CONFIG.SHOTGUN_PELLETS + s.upgrades.pellets;
+      for (let i = 0; i < pellets; i++) {
+        const spread = (Math.random() - 0.5) * CONFIG.SHOTGUN_SPREAD * s.upgrades.spreadMult;
+        const a = baseAngle + spread;
+        b.bullets.push({
+          x: b.player.x, y: b.player.y,
+          vx: Math.cos(a) * CONFIG.BULLET_SPEED,
+          vy: Math.sin(a) * CONFIG.BULLET_SPEED,
+          life: 1.5,
+        });
+      }
+
+      // Particle muzzle flash
+      for (let i = 0; i < 8; i++) {
+        const a = baseAngle + (Math.random() - 0.5) * 0.8;
+        b.particles.push({
+          x: b.player.x, y: b.player.y,
           vx: Math.cos(a) * (60 + Math.random() * 80),
           vy: Math.sin(a) * (60 + Math.random() * 80),
           life: 0.2, maxLife: 0.2, color: '#ffcc44',
@@ -832,6 +1400,222 @@
         s.player.lives = 0;
         s.phase = 'dead';
       }
+    }
+
+    // ============================================================
+    // BATTLE DRAW
+    // ============================================================
+    function drawBattle(s) {
+      const b = s.battle;
+      if (!b) return;
+
+      ctx.clearRect(0, 0, VIEW_W, VIEW_H);
+
+      // Камера следует за игроком в battle
+      camera.x = b.player.x - VIEW_W / 2;
+      camera.y = b.player.y - VIEW_H / 2;
+      // Ограничиваем только если battle-локация больше экрана
+      if (b.width > VIEW_W) {
+        camera.x = Math.max(0, Math.min(camera.x, b.width - VIEW_W));
+      }
+      if (b.height > VIEW_H) {
+        camera.y = Math.max(0, Math.min(camera.y, b.height - VIEW_H));
+      }
+
+      ctx.save();
+      ctx.translate(-camera.x, -camera.y);
+
+      // Фон battle
+      ctx.fillStyle = '#030810';
+      ctx.fillRect(0, 0, b.width, b.height);
+
+      // Сетка battle
+      ctx.strokeStyle = '#0d1e2e';
+      ctx.lineWidth = 1;
+      const startCol = Math.floor(camera.x / BATTLE_CELL_PX);
+      const endCol = Math.ceil((camera.x + VIEW_W) / BATTLE_CELL_PX);
+      const startRow = Math.floor(camera.y / BATTLE_CELL_PX);
+      const endRow = Math.ceil((camera.y + VIEW_H) / BATTLE_CELL_PX);
+      for (let i = Math.max(0, startCol); i <= endCol; i++) {
+        ctx.beginPath(); ctx.moveTo(i * BATTLE_CELL_PX, Math.max(0, startRow) * BATTLE_CELL_PX);
+        ctx.lineTo(i * BATTLE_CELL_PX, Math.min((endRow + 1), Math.ceil(b.height / BATTLE_CELL_PX)) * BATTLE_CELL_PX);
+        ctx.stroke();
+      }
+      for (let i = Math.max(0, startRow); i <= endRow; i++) {
+        ctx.beginPath(); ctx.moveTo(Math.max(0, startCol) * BATTLE_CELL_PX, i * BATTLE_CELL_PX);
+        ctx.lineTo(Math.min((endCol + 1), Math.ceil(b.width / BATTLE_CELL_PX)) * BATTLE_CELL_PX, i * BATTLE_CELL_PX);
+        ctx.stroke();
+      }
+
+      // Отрисовка клеток battle
+      for (const k of b.openCells) {
+        const { x, y } = cellFromKey(k);
+        // Позиция в battle-координатах
+        const bx = (x - b.cellOffsetX) * BATTLE_CELL_PX;
+        const by = (y - b.cellOffsetY) * BATTLE_CELL_PX;
+
+        // Проверяем видимость
+        if (bx + BATTLE_CELL_PX < camera.x || bx > camera.x + VIEW_W ||
+            by + BATTLE_CELL_PX < camera.y || by > camera.y + VIEW_H) continue;
+
+        // Фон клетки
+        ctx.fillStyle = 'rgb(10,25,40)';
+        ctx.fillRect(bx + 1, by + 1, BATTLE_CELL_PX - 2, BATTLE_CELL_PX - 2);
+
+        // Стены
+        const dirs = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+        ctx.strokeStyle = '#1a4060';
+        ctx.lineWidth = 2;
+        for (const [dx, dy] of dirs) {
+          const nk = cellKey(x + dx, y + dy);
+          if (!b.openCells.has(nk)) {
+            ctx.beginPath();
+            if (dy === -1) { ctx.moveTo(bx, by); ctx.lineTo(bx + BATTLE_CELL_PX, by); }
+            if (dy === 1) { ctx.moveTo(bx, by + BATTLE_CELL_PX); ctx.lineTo(bx + BATTLE_CELL_PX, by + BATTLE_CELL_PX); }
+            if (dx === -1) { ctx.moveTo(bx, by); ctx.lineTo(bx, by + BATTLE_CELL_PX); }
+            if (dx === 1) { ctx.moveTo(bx + BATTLE_CELL_PX, by); ctx.lineTo(bx + BATTLE_CELL_PX, by + BATTLE_CELL_PX); }
+            ctx.stroke();
+          }
+        }
+      }
+
+      // Сердечки
+      for (const heart of b.hearts) {
+        if (heart.collected) continue;
+        const pulse = 0.8 + 0.2 * Math.sin(Date.now() * 0.008);
+        ctx.fillStyle = `rgba(255, 107, 157, ${pulse})`;
+        ctx.shadowColor = '#ff6b9d';
+        ctx.shadowBlur = 15;
+        ctx.font = 'bold 24px "Share Tech Mono"';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('♥', heart.x, heart.y);
+        ctx.shadowBlur = 0;
+      }
+
+      // Ключи
+      for (const keyObj of b.keys) {
+        if (keyObj.collected) continue;
+        const pulse = 0.8 + 0.2 * Math.sin(Date.now() * 0.008);
+        ctx.fillStyle = `rgba(255, 215, 0, ${pulse})`;
+        ctx.shadowColor = '#ffd700';
+        ctx.shadowBlur = 15;
+        ctx.font = 'bold 24px "Share Tech Mono"';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('🔑', keyObj.x, keyObj.y);
+        ctx.shadowBlur = 0;
+      }
+
+      // Апгрейды
+      for (const upg of b.upgrades) {
+        if (upg.collected) continue;
+        const upgDef = UPGRADE_TYPES.find(u => u.id === upg.upgradeType);
+        if (upgDef) {
+          const pulse = 0.8 + 0.2 * Math.sin(Date.now() * 0.008);
+          ctx.fillStyle = upgDef.color;
+          ctx.shadowColor = upgDef.color;
+          ctx.shadowBlur = 15;
+          ctx.font = 'bold 24px "Share Tech Mono"';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('⬆', upg.x, upg.y - 12);
+          ctx.font = 'bold 12px "Share Tech Mono"';
+          ctx.fillText(upgDef.label, upg.x, upg.y + 14);
+          ctx.shadowBlur = 0;
+        }
+      }
+
+      // Пули игрока
+      for (const b of s.battle.bullets) {
+        ctx.fillStyle = '#ffffaa';
+        ctx.shadowColor = '#ffff00';
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, CONFIG.BULLET_RADIUS, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.shadowBlur = 0;
+
+      // Вражеские пули
+      for (const eb of s.battle.enemyBullets) {
+        ctx.fillStyle = '#ff4400';
+        ctx.shadowColor = '#ff2200';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(eb.x, eb.y, 4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.shadowBlur = 0;
+
+      // Враги в battle
+      for (const g of b.activeGhosts) {
+        drawGhost(g, 1);
+      }
+
+      // Частицы
+      for (const p of b.particles) {
+        const alpha = p.life / p.maxLife;
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+
+      // Игрок в battle
+      const p = b.player;
+      const blinkOk = s.player.invulnerable <= 0 || Math.floor(s.player.invulnerable * 10) % 2 === 0;
+      if (blinkOk) {
+        ctx.fillStyle = '#00d4ff';
+        ctx.shadowColor = '#00aaff';
+        ctx.shadowBlur = 20;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, CONFIG.PLAYER_RADIUS, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // Прицел
+        const dx = s.mouse.x - p.x;
+        const dy = s.mouse.y - p.y;
+        const a = Math.atan2(dy, dx);
+        const d = 14;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.moveTo(p.x + Math.cos(a) * 10, p.y + Math.sin(a) * 10);
+        ctx.lineTo(p.x + Math.cos(a) * d, p.y + Math.sin(a) * d);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+
+      ctx.restore();
+
+      // Виньетка при малом количестве жизней
+      if (s.player.lives === 2) {
+        const grad = ctx.createRadialGradient(VIEW_W / 2, VIEW_H / 2, VIEW_H / 3, VIEW_W / 2, VIEW_H / 2, Math.sqrt((VIEW_W) ** 2 + (VIEW_H) ** 2));
+        grad.addColorStop(0, 'rgba(255, 120, 0, 0)');
+        grad.addColorStop(1, 'rgba(255, 120, 0, 0.35)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+      } else if (s.player.lives === 1) {
+        const grad = ctx.createRadialGradient(VIEW_W / 2, VIEW_H / 2, VIEW_H / 3, VIEW_W / 2, VIEW_H / 2, Math.sqrt((VIEW_W) ** 2 + (VIEW_H) ** 2));
+        grad.addColorStop(0, 'rgba(255, 0, 0, 0)');
+        grad.addColorStop(1, 'rgba(255, 0, 0, 0.55)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+      }
+
+      // Индикатор battle mode
+      ctx.fillStyle = '#ff4444';
+      ctx.font = 'bold 14px "Share Tech Mono"';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillText('⚔ BATTLE MODE', 10, 10);
+
+      updateHUD(s);
     }
 
     // ============================================================
@@ -1300,6 +2084,9 @@
       if (state && state.phase === 'play') {
         update(state, dt);
         draw(state);
+      } else if (state && state.phase === 'battle') {
+        updateBattle(state, dt);
+        drawBattle(state);
       } else if (state && state.phase === 'win') {
         draw(state);
         showOverlay('ВЫХОД НАЙДЕН!', '#00ff88',
@@ -1307,7 +2094,12 @@
           'ИГРАТЬ ЕЩЁ');
         state.phase = 'stopped';
       } else if (state && state.phase === 'dead') {
-        draw(state);
+        // Если умерли в battle mode, рисуем battle экран
+        if (state.battle) {
+          drawBattle(state);
+        } else {
+          draw(state);
+        }
         showOverlay('GAME OVER', '#ff3a3a',
           ['Жизни закончились!', `Собрано сердечек: ${state.heartsCollected}/${CONFIG.HEARTS_COUNT}`, `Время: ${Math.round(state.time)}с`],
           'ПОПРОБОВАТЬ СНОВА');
@@ -1346,7 +2138,10 @@
     });
 
     C.addEventListener('mousedown', e => {
-      if (!state || state.phase !== 'play') return;
+      if (!state) return;
+      // ПКМ только в play mode, ЛКМ в play и battle
+      if (e.button === 2 && state.phase !== 'play') return;
+      if (e.button === 0 && state.phase !== 'play' && state.phase !== 'battle') return;
       e.preventDefault();
 
       const rect = C.getBoundingClientRect();
@@ -1356,8 +2151,12 @@
       const my = (e.clientY - rect.top) * scaleY + camera.y;
 
       if (e.button === 0) {
-        // ЛКМ — стрельба
-        shoot(state);
+        // ЛКМ — стрельба (в play или battle)
+        if (state.phase === 'battle') {
+          shootBattle(state);
+        } else {
+          shoot(state);
+        }
       } else if (e.button === 2) {
         // ПКМ — открыть или закрыть комнату
         const cx = Math.floor(mx / CP);
@@ -1436,20 +2235,13 @@
             }
           }
 
-          // Проверяем содержимое
+          // Проверяем содержимое - если не пустая, переходим в battle mode
           const content = state.cellContents.get(k);
-          if (content && content.enemyCount && !content.enemiesReleased) {
-            // Выпускаем врагов!
-            content.enemiesReleased = true;
-            // Переносим врагов из trapped в active
-            for (let i = state.ghosts.length - 1; i >= 0; i--) {
-              const g = state.ghosts[i];
-              if (g.homeX === cx && g.homeY === cy) {
-                g.trapped = false;
-                state.activeGhosts.push(g);
-                state.ghosts.splice(i, 1);
-              }
-            }
+          const hasContent = content && (content.type === 'heart' || content.type === 'key' || content.type === 'upgrade' ||
+                             (content.enemyCount && content.enemyCount > 0 && !content.enemiesReleased));
+          if (hasContent) {
+            // Переходим в battle mode
+            enterBattleMode(state, k);
           }
 
           // Проверяем выход: открылась смежная с выходом — выход тоже открывается
@@ -1508,8 +2300,12 @@
 
     // Стрельба при удержании
     setInterval(() => {
-      if (mouseHeld && state && state.phase === 'play') {
-        shoot(state);
+      if (mouseHeld && state) {
+        if (state.phase === 'play') {
+          shoot(state);
+        } else if (state.phase === 'battle') {
+          shootBattle(state);
+        }
       }
     }, 450);
 
