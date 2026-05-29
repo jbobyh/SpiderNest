@@ -21,6 +21,10 @@
         <span class="hud-value" id="val-lives" style="color:var(--danger)">3</span>
       </div>
       <div class="hud-item">
+        <span class="hud-label">УРОВЕНЬ</span>
+        <span class="hud-value" id="val-level" style="color:var(--accent)">1</span>
+      </div>
+      <div class="hud-item">
         <span class="hud-label">КОМНАТЫ</span>
         <span class="hud-value" id="val-area" style="color:var(--text)">1</span>
       </div>
@@ -105,6 +109,7 @@
       SHOOTER_STOP_DIST: 0,     // заполняется после CP
       DISABLED_CELLS_COUNT: 15,
       BLOCK_CELLS_FOREVER: false,
+      DEBUG_INVULNERABLE: true, // дебаг: неуязвимость от врагов
     };
 
     // ============================================================
@@ -124,9 +129,22 @@
     const H = G * CP;
 
     let state = null;
+    let currentLevel = 1;
+    let playerProgress = {
+      totalLives: 3,
+      totalHeartsCollected: 0,
+      upgrades: {
+        pellets: 0,
+        cooldownMult: 1.0,
+        pierce: false,
+        speedMult: 1.0,
+        spreadMult: 1.0,
+      }
+    };
     let animId = null;
     let lastTime = 0;
     let camera = { x: 0, y: 0 };  // позиция камеры в мире
+    let mouseScreen = { x: 0, y: 0 }; // экранные координаты курсора (пикселей канваса)
 
     // Состояние зум-перехода перед battle
     let zoomTransition = null; // { fromCamX, fromCamY, fromScale, toCamX, toCamY, toScale, t, pendingCellKey }
@@ -202,7 +220,8 @@
       { id: 'spread', label: 'Разброс +10%', color: '#ff66aa', max: 2 },
     ];
 
-    function initState() {
+    function initState(level = 1) {
+      const levelMultiplier = Math.pow(2, level - 1);
       const cx = Math.floor(G / 2);
       const cy = Math.floor(G / 2);
 
@@ -247,7 +266,7 @@
         const cell = keyCandidates[i];
         availableCells.splice(availableCells.indexOf(cell), 1);
         const dist = Math.max(Math.abs(cell.x - cx), Math.abs(cell.y - cy));
-        const enemyCount = (5 + Math.floor(Math.random() * 8)) * dist;
+        const enemyCount = (5 + Math.floor(Math.random() * 8)) * dist * levelMultiplier;
         cellContents.set(cell.k, { type: 'key', enemyCount, enemiesReleased: false });
         keyObjs.push({ x: (cell.x + 0.5) * CP, y: (cell.y + 0.5) * CP, cellKey: cell.k, collected: false });
       }
@@ -257,7 +276,7 @@
       for (let i = 0; i < heartsCount; i++) {
         const cell = availableCells.shift();
         const dist = Math.max(Math.abs(cell.x - cx), Math.abs(cell.y - cy));
-        const enemyCount = (3 + Math.floor(Math.random() * 5)) * dist;
+        const enemyCount = (3 + Math.floor(Math.random() * 5)) * dist * levelMultiplier;
         cellContents.set(cell.k, { type: 'heart', enemyCount, enemiesReleased: false });
       }
 
@@ -279,7 +298,7 @@
         const cell = availableCells.shift();
         const upgId = upgradePool[i];
         const dist = Math.max(Math.abs(cell.x - cx), Math.abs(cell.y - cy));
-        const enemyCount = (4 + Math.floor(Math.random() * 6)) * dist;
+        const enemyCount = (4 + Math.floor(Math.random() * 6)) * dist * levelMultiplier;
         cellContents.set(cell.k, { type: 'upgrade', upgradeType: upgId, enemyCount: enemyCount, enemiesReleased: false });
         upgradeObjs.push({ x: (cell.x + 0.5) * CP, y: (cell.y + 0.5) * CP, cellKey: cell.k, upgradeType: upgId, collected: false });
       }
@@ -289,7 +308,7 @@
         const cell = availableCells.shift();
         if (Math.random() < 0.7) {
           const dist = Math.max(Math.abs(cell.x - cx), Math.abs(cell.y - cy));
-          const enemyCount = (1 + Math.floor(Math.random() * 3)) * dist;
+          const enemyCount = (1 + Math.floor(Math.random() * 3)) * dist * levelMultiplier;
           cellContents.set(cell.k, { type: 'enemies', enemyCount, enemiesReleased: false, enemies: [] });
         } else {
           cellContents.set(cell.k, { type: 'empty' });
@@ -356,18 +375,12 @@
         upgradeObjs: upgradeObjs,
         revealedExit: false,
 
-        upgrades: {                   // текущие бонусы игрока
-          pellets: 0,                 // +1 пуля за каждый стак
-          cooldownMult: 1.0,          // множитель КД (снижается на 10% за стак)
-          pierce: false,              // пули пронизывают врагов
-          speedMult: 1.0,             // множитель скорости (+10% за стак)
-          spreadMult: 1.0,            // множитель разброса (+10% за стак)
-        },
+        upgrades: playerProgress.upgrades,
 
         player: {
           x: (cx + 0.5) * CP,
           y: (cy + 0.5) * CP,
-          lives: CONFIG.INITIAL_LIVES,
+          lives: playerProgress.totalLives,
           invulnerable: 0,
         },
 
@@ -647,7 +660,7 @@
         const ex0 = ec.x * CP, ex1 = (ec.x + 1) * CP;
         const ey0 = ec.y * CP, ey1 = (ec.y + 1) * CP;
         if (s.player.x > ex0 && s.player.x < ex1 && s.player.y > ey0 && s.player.y < ey1) {
-          s.phase = 'win';
+          s.phase = 'level_complete';
           return;
         }
       }
@@ -699,11 +712,26 @@
     function applyUpgrade(s, type) {
       const upg = UPGRADE_TYPES.find(u => u.id === type);
       switch (type) {
-        case 'pellets': s.upgrades.pellets++; break;
-        case 'cooldown': s.upgrades.cooldownMult = Math.max(0.1, s.upgrades.cooldownMult - 0.10); break;
-        case 'pierce': s.upgrades.pierce = true; break;
-        case 'speed': s.upgrades.speedMult += 0.10; break;
-        case 'spread': s.upgrades.spreadMult += 0.10; break;
+        case 'pellets': 
+          s.upgrades.pellets++; 
+          playerProgress.upgrades.pellets++; 
+          break;
+        case 'cooldown': 
+          s.upgrades.cooldownMult = Math.max(0.1, s.upgrades.cooldownMult - 0.10); 
+          playerProgress.upgrades.cooldownMult = s.upgrades.cooldownMult; 
+          break;
+        case 'pierce': 
+          s.upgrades.pierce = true; 
+          playerProgress.upgrades.pierce = true; 
+          break;
+        case 'speed': 
+          s.upgrades.speedMult += 0.10; 
+          playerProgress.upgrades.speedMult = s.upgrades.speedMult; 
+          break;
+        case 'spread': 
+          s.upgrades.spreadMult += 0.10; 
+          playerProgress.upgrades.spreadMult = s.upgrades.spreadMult; 
+          break;
       }
       if (upg) showUpgradePopup(upg.label, upg.color);
     }
@@ -961,7 +989,7 @@
           }
           // Касание игрока (масштабированное)
           if (dist < (CONFIG.GHOST_RADIUS + CONFIG.PLAYER_RADIUS) * BATTLE_SCALE) {
-            if (s.player.invulnerable <= 0) {
+            if (s.player.invulnerable <= 0 && !CONFIG.DEBUG_INVULNERABLE) {
               s.player.lives--;
               s.player.invulnerable = 1.0;
             }
@@ -1010,7 +1038,7 @@
 
         const pd = Math.hypot(eb.x - b.player.x, eb.y - b.player.y);
         if (pd < CONFIG.PLAYER_RADIUS * BATTLE_SCALE + 4 * BATTLE_SCALE) {
-          if (s.player.invulnerable <= 0) {
+          if (s.player.invulnerable <= 0 && !CONFIG.DEBUG_INVULNERABLE) {
             s.player.lives--;
             s.player.invulnerable = 0.5;
           }
@@ -1255,7 +1283,7 @@
         const ex0 = ec.x * CP, ex1 = (ec.x + 1) * CP;
         const ey0 = ec.y * CP, ey1 = (ec.y + 1) * CP;
         if (s.player.x > ex0 && s.player.x < ex1 && s.player.y > ey0 && s.player.y < ey1) {
-          s.phase = 'win';
+          s.phase = 'level_complete';
           return;
         }
       }
@@ -1386,7 +1414,7 @@
           }
           // Касание игрока
           if (dist < CONFIG.GHOST_RADIUS + CONFIG.PLAYER_RADIUS) {
-            if (s.player.invulnerable <= 0) {
+            if (s.player.invulnerable <= 0 && !CONFIG.DEBUG_INVULNERABLE) {
               s.player.lives--;
               s.player.invulnerable = 1.0;
             }
@@ -1427,7 +1455,7 @@
         // Попадание в игрока
         const pd = Math.hypot(eb.x - s.player.x, eb.y - s.player.y);
         if (pd < CONFIG.PLAYER_RADIUS + 4) {
-          if (s.player.invulnerable <= 0) {
+          if (s.player.invulnerable <= 0 && !CONFIG.DEBUG_INVULNERABLE) {
             s.player.lives--;
             s.player.invulnerable = 0.5;
           }
@@ -1499,6 +1527,10 @@
       const sc = b.staticScale || 1;
       camera.x = b.staticCamX || 0;
       camera.y = b.staticCamY || 0;
+
+      // Пересчитываем мировые координаты мыши каждый кадр (battle)
+      s.mouse.x = (mouseScreen.x - VIEW_W / 2) / sc + b.width / 2;
+      s.mouse.y = (mouseScreen.y - VIEW_H / 2) / sc + b.height / 2;
 
       ctx.save();
       ctx.translate(VIEW_W / 2, VIEW_H / 2);
@@ -1700,6 +1732,10 @@
       camera.y = s.player.y - VIEW_H / 2;
       camera.x = Math.max(0, Math.min(camera.x, W - VIEW_W));
       camera.y = Math.max(0, Math.min(camera.y, H - VIEW_H));
+
+      // Пересчитываем мировые координаты мыши каждый кадр
+      s.mouse.x = mouseScreen.x + camera.x;
+      s.mouse.y = mouseScreen.y + camera.y;
 
       ctx.save();
       ctx.translate(-camera.x, -camera.y);
@@ -2130,6 +2166,9 @@
     }
 
     function updateHUD(s) {
+      // Уровень
+      document.getElementById('val-level').textContent = currentLevel;
+      
       // Жизни
       const livesContainer = document.getElementById('lives-container');
       livesContainer.innerHTML = '';
@@ -2160,7 +2199,7 @@
     // ============================================================
     // OVERLAY
     // ============================================================
-    function showOverlay(title, color, lines, btnText) {
+    function showOverlay(title, color, lines, btnText, action = 'startGame') {
       const ov = document.getElementById('overlay');
       ov.style.display = 'flex';
       ov.innerHTML = `
@@ -2170,7 +2209,16 @@
       ${btnText}
     </button>
   `;
-      document.getElementById('start-btn').onclick = startGame;
+      
+      const btn = document.getElementById('start-btn');
+      if (action === 'nextLevel') {
+        btn.onclick = () => {
+          hideOverlay();
+          nextLevel();
+        };
+      } else if (action === 'startGame') {
+        btn.onclick = startGame;
+      }
     }
 
     function hideOverlay() {
@@ -2444,11 +2492,17 @@
       } else if (state && state.phase === 'battle') {
         updateBattle(state, dt);
         drawBattle(state);
+      } else if (state && state.phase === 'level_complete') {
+        draw(state);
+        showOverlay('УРОВЕНЬ ПРОЙДЕН!', '#00ff88',
+          [`Собрано сердечек: ${state.heartsCollected}/${CONFIG.HEARTS_COUNT}`, `Время: ${Math.round(state.time)}с`],
+          'СЛЕДУЮЩИЙ УРОВЕНЬ', 'nextLevel');
+        state.phase = 'stopped';
       } else if (state && state.phase === 'win') {
         draw(state);
-        showOverlay('ВЫХОД НАЙДЕН!', '#00ff88',
-          [`Собрано сердечек: ${state.heartsCollected}/${CONFIG.HEARTS_COUNT}`, `Время: ${Math.round(state.time)}с`],
-          'ИГРАТЬ ЕЩЁ');
+        showOverlay('ПОБЕДА!', '#ffd700',
+          [`Все уровни пройдены!`, `Общее время: ${Math.round(state.time)}с`],
+          'ИГРАТЬ СНОВА', 'startGame');
         state.phase = 'stopped';
       } else if (state && state.phase === 'dead') {
         // Если умерли в battle mode, рисуем battle экран
@@ -2459,16 +2513,48 @@
         }
         showOverlay('GAME OVER', '#ff3a3a',
           ['Жизни закончились!', `Собрано сердечек: ${state.heartsCollected}/${CONFIG.HEARTS_COUNT}`, `Время: ${Math.round(state.time)}с`],
-          'ПОПРОБОВАТЬ СНОВА');
+          'ПОПРОБОВАТЬ СНОВА', 'startGame');
         state.phase = 'stopped';
       }
 
       animId = requestAnimationFrame(loop);
     }
 
+    function savePlayerProgress(s) {
+      playerProgress.totalLives = s.player.lives + s.openCells.size;
+      playerProgress.totalHeartsCollected += s.heartsCollected;
+      // upgrades already saved during applyUpgrade
+    }
+
+    function nextLevel() {
+      if (currentLevel >= 10) {
+        // All levels completed - show victory
+        state.phase = 'win';
+        return;
+      }
+      
+      savePlayerProgress(state);
+      currentLevel++;
+      state = initState(currentLevel);
+      updateHUD();
+    }
+
     function startGame() {
       hideOverlay();
-      state = initState();
+      currentLevel = 1;
+      playerProgress = {
+        totalLives: 3,
+        totalHeartsCollected: 0,
+        upgrades: {
+          pellets: 0,
+          cooldownMult: 1.0,
+          pierce: false,
+          speedMult: 1.0,
+          spreadMult: 1.0,
+        }
+      };
+      state = initState(currentLevel);
+      updateHUD();
       draw(state);
     }
 
@@ -2485,23 +2571,11 @@
     });
 
     C.addEventListener('mousemove', e => {
-      if (!state) return;
       const rect = C.getBoundingClientRect();
       const scaleX = VIEW_W / rect.width;
       const scaleY = VIEW_H / rect.height;
-      const sx = (e.clientX - rect.left) * scaleX;
-      const sy = (e.clientY - rect.top) * scaleY;
-      if (state.phase === 'battle' && state.battle) {
-        // Статичная камера: экранные координаты -> battle-мировые
-        const sc2 = state.battle.staticScale || 1;
-        const bw = state.battle.width;
-        const bh = state.battle.height;
-        state.mouse.x = (sx - VIEW_W / 2) / sc2 + bw / 2;
-        state.mouse.y = (sy - VIEW_H / 2) / sc2 + bh / 2;
-      } else {
-        state.mouse.x = sx + camera.x;
-        state.mouse.y = sy + camera.y;
-      }
+      mouseScreen.x = (e.clientX - rect.left) * scaleX;
+      mouseScreen.y = (e.clientY - rect.top) * scaleY;
     });
 
     C.addEventListener('mousedown', e => {
