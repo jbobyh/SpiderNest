@@ -417,8 +417,28 @@
 
     function enterBattleMode(s, openedCellKey) {
       // Используем актуальные открытые клетки (после автозакрытия и всех изменений)
-      const battleCells = new Set([...s.openCells]);
-      battleCells.add(openedCellKey);
+      const allOpenCells = new Set([...s.openCells]);
+      allOpenCells.add(openedCellKey);
+
+      // Находим клетку игрока и делаем BFS чтобы найти только связанные с ней клетки
+      const playerCell = cellOf(s.player.x, s.player.y);
+      const playerKey = cellKey(playerCell.x, playerCell.y);
+      const battleCells = new Set();
+      const queue = [playerKey];
+      battleCells.add(playerKey);
+
+      while (queue.length) {
+        const k = queue.shift();
+        const { x, y } = cellFromKey(k);
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = x + dx, ny = y + dy;
+          const nk = cellKey(nx, ny);
+          if (allOpenCells.has(nk) && !battleCells.has(nk)) {
+            battleCells.add(nk);
+            queue.push(nk);
+          }
+        }
+      }
 
       // Вычисляем границы battle-локации
       let minX = G, minY = G, maxX = 0, maxY = 0;
@@ -437,7 +457,7 @@
       const battleHeight = (maxY - minY + 1) * BATTLE_CELL_PX;
 
       // Конвертируем координаты игрока с точным смещением внутри клетки
-      const playerCell = cellOf(s.player.x, s.player.y);
+      // playerCell уже определён выше при BFS
       const playerLocalX = s.player.x - playerCell.x * CP; // смещение внутри клетки [0..CP)
       const playerLocalY = s.player.y - playerCell.y * CP;
       const playerBattleX = (playerCell.x - cellOffsetX) * BATTLE_CELL_PX + playerLocalX * BATTLE_SCALE;
@@ -2684,8 +2704,26 @@
                              (content.enemyCount && content.enemyCount > 0 && !content.enemiesReleased));
           if (hasContent) {
             // Вычисляем целевую камеру зума: совпадает с battle камерой
-            const futureCells = new Set([...state.openCells]);
-            futureCells.add(k);
+            // Используем только клетки, связанные с позицией игрока (как в enterBattleMode)
+            const allOpenCells = new Set([...state.openCells]);
+            allOpenCells.add(k);
+            const playerCell = cellOf(state.player.x, state.player.y);
+            const playerKey = cellKey(playerCell.x, playerCell.y);
+            const futureCells = new Set();
+            const queue = [playerKey];
+            futureCells.add(playerKey);
+            while (queue.length) {
+              const qk = queue.shift();
+              const { x: qx, y: qy } = cellFromKey(qk);
+              for (const [qdx, qdy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+                const nqx = qx + qdx, nqy = qy + qdy;
+                const nqk = cellKey(nqx, nqy);
+                if (allOpenCells.has(nqk) && !futureCells.has(nqk)) {
+                  futureCells.add(nqk);
+                  queue.push(nqk);
+                }
+              }
+            }
             let fMinX = G, fMinY = G, fMaxX = 0, fMaxY = 0;
             for (const fk of futureCells) {
               const { x: fx, y: fy } = cellFromKey(fk);
