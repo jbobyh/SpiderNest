@@ -159,10 +159,10 @@
       while (queue.length) {
         const k = queue.shift();
         const { x, y } = cellFromKey(k);
-        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        for (const [dx, dy] of CARDINAL_DIRECTIONS) {
           const nx = x + dx, ny = y + dy;
           const nk = cellKey(nx, ny);
-          if (nx >= 0 && nx < G && ny >= 0 && ny < G && !disabledSet.has(nk) && !visited.has(nk)) {
+          if (inBounds(nx, ny) && !disabledSet.has(nk) && !visited.has(nk)) {
             visited.add(nk);
             queue.push(nk);
           }
@@ -192,10 +192,7 @@
         }
 
         // Перемешиваем и берём нужное количество
-        for (let i = candidates.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
-        }
+        shuffleInPlace(candidates);
 
         for (let i = 0; i < Math.min(count, candidates.length); i++) {
           disabled.add(cellKey(candidates[i].x, candidates[i].y));
@@ -250,10 +247,7 @@
       }
 
       // Перемешиваем
-      for (let i = availableCells.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [availableCells[i], availableCells[j]] = [availableCells[j], availableCells[i]];
-      }
+      shuffleInPlace(availableCells);
 
       // Расставляем ключи (3 штуки) — только в клетках с дистанцией 2-4 от центра
       const keyObjs = [];
@@ -289,10 +283,7 @@
         }
       }
       // Перемешиваем
-      for (let i = upgradePool.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [upgradePool[i], upgradePool[j]] = [upgradePool[j], upgradePool[i]];
-      }
+      shuffleInPlace(upgradePool);
       const upgsCount = Math.min(upgradePool.length, availableCells.length);
       for (let i = 0; i < upgsCount; i++) {
         const cell = availableCells.shift();
@@ -353,11 +344,7 @@
       const initOpen = new Set([`${cx},${cy}`]);
       const initEverOpened = new Set([`${cx},${cy}`]);
       const initEverRevealed = new Set([`${cx},${cy}`]);
-      for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
-        const nx = cx+dx, ny = cy+dy;
-        const nk = cellKey(nx,ny);
-        if (nx>=0&&nx<G&&ny>=0&&ny<G&&!disabledCells.has(nk)) initEverRevealed.add(nk);
-      }
+      revealAdjacentCells(initEverRevealed, cx, cy, disabledCells);
 
       return {
         openCells: initOpen,
@@ -405,9 +392,82 @@
     // ============================================================
     // UTILITY
     // ============================================================
+    const CARDINAL_DIRECTIONS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    const WALL_DIRECTIONS = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+
     function cellKey(x, y) { return `${x},${y}`; }
     function cellFromKey(k) { const [x, y] = k.split(','); return { x: +x, y: +y }; }
     function cellOf(px, py) { return { x: Math.floor(px / CP), y: Math.floor(py / CP) }; }
+    function inBounds(x, y) { return x >= 0 && x < G && y >= 0 && y < G; }
+    function easeInOutQuad(t) { return t < 0.5 ? 2*t*t : -1+(4-2*t)*t; }
+
+    function shuffleInPlace(items) {
+      for (let i = items.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [items[i], items[j]] = [items[j], items[i]];
+      }
+      return items;
+    }
+
+    function getCanvasPoint(e) {
+      const rect = C.getBoundingClientRect();
+      const scaleX = VIEW_W / rect.width;
+      const scaleY = VIEW_H / rect.height;
+      return {
+        x: (e.clientX - rect.left) * scaleX,
+        y: (e.clientY - rect.top) * scaleY,
+      };
+    }
+
+    function getConnectedCells(openCells, startKey) {
+      const connected = new Set();
+      const queue = [startKey];
+      connected.add(startKey);
+
+      while (queue.length) {
+        const k = queue.shift();
+        const { x, y } = cellFromKey(k);
+        for (const [dx, dy] of CARDINAL_DIRECTIONS) {
+          const nk = cellKey(x + dx, y + dy);
+          if (openCells.has(nk) && !connected.has(nk)) {
+            connected.add(nk);
+            queue.push(nk);
+          }
+        }
+      }
+
+      return connected;
+    }
+
+    function getCellBounds(cells) {
+      let minX = G, minY = G, maxX = 0, maxY = 0;
+      for (const k of cells) {
+        const { x, y } = cellFromKey(k);
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+      }
+      return { minX, minY, maxX, maxY };
+    }
+
+    function revealAdjacentCells(targetSet, x, y, disabledCells, permanentlyClosed = null, requireBounds = true) {
+      for (const [dx, dy] of CARDINAL_DIRECTIONS) {
+        const nx = x + dx, ny = y + dy;
+        const nk = cellKey(nx, ny);
+        if ((!requireBounds || inBounds(nx, ny)) && !disabledCells.has(nk) && !permanentlyClosed?.has(nk)) {
+          targetSet.add(nk);
+        }
+      }
+    }
+
+    function someAdjacentCell(x, y, predicate) {
+      for (const [dx, dy] of CARDINAL_DIRECTIONS) {
+        const nx = x + dx, ny = y + dy;
+        if (predicate(nx, ny, cellKey(nx, ny))) return true;
+      }
+      return false;
+    }
 
     // ============================================================
     // BATTLE MODE
@@ -423,32 +483,10 @@
       // Находим клетку игрока и делаем BFS чтобы найти только связанные с ней клетки
       const playerCell = cellOf(s.player.x, s.player.y);
       const playerKey = cellKey(playerCell.x, playerCell.y);
-      const battleCells = new Set();
-      const queue = [playerKey];
-      battleCells.add(playerKey);
-
-      while (queue.length) {
-        const k = queue.shift();
-        const { x, y } = cellFromKey(k);
-        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-          const nx = x + dx, ny = y + dy;
-          const nk = cellKey(nx, ny);
-          if (allOpenCells.has(nk) && !battleCells.has(nk)) {
-            battleCells.add(nk);
-            queue.push(nk);
-          }
-        }
-      }
+      const battleCells = getConnectedCells(allOpenCells, playerKey);
 
       // Вычисляем границы battle-локации
-      let minX = G, minY = G, maxX = 0, maxY = 0;
-      for (const k of battleCells) {
-        const { x, y } = cellFromKey(k);
-        minX = Math.min(minX, x);
-        minY = Math.min(minY, y);
-        maxX = Math.max(maxX, x);
-        maxY = Math.max(maxY, y);
-      }
+      const { minX, minY, maxX, maxY } = getCellBounds(battleCells);
 
       // Создаём маппинг координат: позиция на карте -> позиция в battle
       const cellOffsetX = minX;
@@ -705,10 +743,10 @@
       const adj = new Set();
       for (const k of openCells) {
         const { x, y } = cellFromKey(k);
-        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        for (const [dx, dy] of CARDINAL_DIRECTIONS) {
           const nx = x + dx, ny = y + dy;
           const nk = cellKey(nx, ny);
-          if (nx >= 0 && nx < G && ny >= 0 && ny < G &&
+          if (inBounds(nx, ny) &&
             !openCells.has(nk) &&
             !disabledCells?.has(nk) &&
             !permanentlyClosed?.has(nk)) {
@@ -721,7 +759,7 @@
 
     function getAdjacentOpen(openCells, targetKey) {
       const { x, y } = cellFromKey(targetKey);
-      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      for (const [dx, dy] of CARDINAL_DIRECTIONS) {
         const nk = cellKey(x + dx, y + dy);
         if (openCells.has(nk)) return true;
       }
@@ -1602,10 +1640,9 @@
         ctx.fillRect(bx + 1, by + 1, BATTLE_CELL_PX - 2, BATTLE_CELL_PX - 2);
 
         // Стены
-        const dirs = [[0, -1], [0, 1], [-1, 0], [1, 0]];
         ctx.strokeStyle = '#1a4060';
         ctx.lineWidth = 2;
-        for (const [dx, dy] of dirs) {
+        for (const [dx, dy] of WALL_DIRECTIONS) {
           const nk = cellKey(x + dx, y + dy);
           if (!b.openCells.has(nk)) {
             ctx.beginPath();
@@ -1798,11 +1835,7 @@
       for (const k of blackCells) {
         const { x, y } = cellFromKey(k);
         // Показываем только если хотя бы один сосед когда-либо был реально открыт
-        let blackVisible = false;
-        for (const [ddx, ddy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
-          if (s.everOpenedCells.has(cellKey(x+ddx, y+ddy))) { blackVisible = true; break; }
-        }
-        if (!blackVisible) continue;
+        if (!someAdjacentCell(x, y, (nx, ny, nk) => s.everOpenedCells.has(nk))) continue;
         if (!isCellVisible(x, y)) continue;
         ctx.fillStyle = '#000000';
         ctx.fillRect(x * CP, y * CP, CP, CP);
@@ -1866,10 +1899,10 @@
       // Клетки, смежные с игроком — доступны для открытия (ПКМ), подсвечиваем зелёным
       const playerCellForDraw = cellOf(s.player.x, s.player.y);
       const playerAdjOpen = new Set();
-      for (const [ddx, ddy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+      for (const [ddx, ddy] of CARDINAL_DIRECTIONS) {
         const nx = playerCellForDraw.x + ddx, ny = playerCellForDraw.y + ddy;
         const nk = cellKey(nx, ny);
-        if (nx >= 0 && nx < G && ny >= 0 && ny < G &&
+        if (inBounds(nx, ny) &&
             !s.openCells.has(nk) && !s.disabledCells.has(nk) && !s.permanentlyClosed.has(nk)) {
           playerAdjOpen.add(nk);
         }
@@ -1980,10 +2013,9 @@
       for (const k of s.openCells) {
         const { x, y } = cellFromKey(k);
         if (!isCellVisible(x, y)) continue;
-        const dirs = [[0, -1], [0, 1], [-1, 0], [1, 0]];
         ctx.strokeStyle = '#1a4060';
         ctx.lineWidth = 2;
-        for (const [dx, dy] of dirs) {
+        for (const [dx, dy] of WALL_DIRECTIONS) {
           const nk = cellKey(x + dx, y + dy);
           if (!s.openCells.has(nk)) {
             ctx.beginPath();
@@ -2309,11 +2341,7 @@
       ctx.globalAlpha = fadeAlpha;
       for (const k of blackCellsZ) {
         const { x, y } = cellFromKey(k);
-        let blackVisible = false;
-        for (const [ddx, ddy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
-          if (s.everOpenedCells.has(cellKey(x+ddx, y+ddy))) { blackVisible = true; break; }
-        }
-        if (!blackVisible) continue;
+        if (!someAdjacentCell(x, y, (nx, ny, nk) => s.everOpenedCells.has(nk))) continue;
         ctx.fillStyle = '#000000';
         ctx.fillRect(x * CP, y * CP, CP, CP);
         ctx.strokeStyle = '#1a1a1a';
@@ -2334,7 +2362,7 @@
         const { x, y } = cellFromKey(k);
         ctx.strokeStyle = '#1a4060';
         ctx.lineWidth = 2;
-        for (const [dx, dy] of [[0,-1],[0,1],[-1,0],[1,0]]) {
+        for (const [dx, dy] of WALL_DIRECTIONS) {
           const nk = cellKey(x+dx, y+dy);
           if (!s.openCells.has(nk)) {
             ctx.beginPath();
@@ -2511,8 +2539,7 @@
         const ZOOM_DUR = 1.0;
         zoomTransition.t = Math.min(zoomTransition.t + dt, ZOOM_DUR);
         const zt = zoomTransition;
-        const ease = t => t < 0.5 ? 2*t*t : -1+(4-2*t)*t;
-        const p = ease(zt.t / ZOOM_DUR);
+        const p = easeInOutQuad(zt.t / ZOOM_DUR);
         const curScale = zt.fromScale + (zt.toScale - zt.fromScale) * p;
         const curCamX = zt.fromCamX + (zt.toCamX - zt.fromCamX) * p;
         const curCamY = zt.fromCamY + (zt.toCamY - zt.fromCamY) * p;
@@ -2529,8 +2556,7 @@
         const ZOOM_OUT_DUR = 1.0;
         zoomOutTransition.t = Math.min(zoomOutTransition.t + dt, ZOOM_OUT_DUR);
         const zot = zoomOutTransition;
-        const ease = t => t < 0.5 ? 2*t*t : -1+(4-2*t)*t;
-        const p = ease(zot.t / ZOOM_OUT_DUR);
+        const p = easeInOutQuad(zot.t / ZOOM_OUT_DUR);
         const curScale = zot.fromScale + (zot.toScale - zot.fromScale) * p;
         const curCamX = zot.fromCamX + (zot.toCamX - zot.fromCamX) * p;
         const curCamY = zot.fromCamY + (zot.toCamY - zot.fromCamY) * p;
@@ -2744,11 +2770,9 @@
     });
 
     C.addEventListener('mousemove', e => {
-      const rect = C.getBoundingClientRect();
-      const scaleX = VIEW_W / rect.width;
-      const scaleY = VIEW_H / rect.height;
-      mouseScreen.x = (e.clientX - rect.left) * scaleX;
-      mouseScreen.y = (e.clientY - rect.top) * scaleY;
+      const p = getCanvasPoint(e);
+      mouseScreen.x = p.x;
+      mouseScreen.y = p.y;
     });
 
     C.addEventListener('mousedown', e => {
@@ -2758,11 +2782,9 @@
       if (e.button === 0 && state.phase !== 'play' && state.phase !== 'battle') return;
       e.preventDefault();
 
-      const rect = C.getBoundingClientRect();
-      const scaleX = VIEW_W / rect.width;
-      const scaleY = VIEW_H / rect.height;
-      const mx = (e.clientX - rect.left) * scaleX + camera.x;
-      const my = (e.clientY - rect.top) * scaleY + camera.y;
+      const pointer = getCanvasPoint(e);
+      const mx = pointer.x + camera.x;
+      const my = pointer.y + camera.y;
 
       if (e.button === 0) {
         // ЛКМ — стрельба (в play или battle)
@@ -2809,14 +2831,8 @@
               if (state.hearts.some(heart => !heart.collected && heart.cellKey === openKey)) continue;
 
               // Проверяем что клетка не станет изолированной
-              let hasOpenNeighbor = false;
-              for (const [ddx, ddy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
-                const nnk = cellKey(ox+ddx, oy+ddy);
-                if (state.openCells.has(nnk) && nnk !== openKey && nnk !== k) {
-                  hasOpenNeighbor = true;
-                  break;
-                }
-              }
+              const hasOpenNeighbor = someAdjacentCell(ox, oy, (nx, ny, nk) =>
+                state.openCells.has(nk) && nk !== openKey && nk !== k);
               if (!hasOpenNeighbor) continue;
 
               const dist = Math.hypot(ox - playerCell.x, oy - playerCell.y);
@@ -2843,13 +2859,7 @@
           state.everRevealedCells.add(k);
           state.everOpenedCells.add(k);
           // Добавляем смежные с новой клеткой в everRevealedCells
-          for (const [ddx, ddy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
-            const nnx = cx+ddx, nny = cy+ddy;
-            const nnk = cellKey(nnx,nny);
-            if (nnx>=0&&nnx<G&&nny>=0&&nny<G&&!state.disabledCells.has(nnk)&&!state.permanentlyClosed.has(nnk)) {
-              state.everRevealedCells.add(nnk);
-            }
-          }
+          revealAdjacentCells(state.everRevealedCells, cx, cy, state.disabledCells, state.permanentlyClosed);
 
           // Проверяем содержимое - если не пустая, переходим в battle mode через зум
           const content = state.cellContents.get(k);
@@ -2862,27 +2872,8 @@
             allOpenCells.add(k);
             const playerCell = cellOf(state.player.x, state.player.y);
             const playerKey = cellKey(playerCell.x, playerCell.y);
-            const futureCells = new Set();
-            const queue = [playerKey];
-            futureCells.add(playerKey);
-            while (queue.length) {
-              const qk = queue.shift();
-              const { x: qx, y: qy } = cellFromKey(qk);
-              for (const [qdx, qdy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-                const nqx = qx + qdx, nqy = qy + qdy;
-                const nqk = cellKey(nqx, nqy);
-                if (allOpenCells.has(nqk) && !futureCells.has(nqk)) {
-                  futureCells.add(nqk);
-                  queue.push(nqk);
-                }
-              }
-            }
-            let fMinX = G, fMinY = G, fMaxX = 0, fMaxY = 0;
-            for (const fk of futureCells) {
-              const { x: fx, y: fy } = cellFromKey(fk);
-              fMinX = Math.min(fMinX, fx); fMinY = Math.min(fMinY, fy);
-              fMaxX = Math.max(fMaxX, fx); fMaxY = Math.max(fMaxY, fy);
-            }
+            const futureCells = getConnectedCells(allOpenCells, playerKey);
+            const { minX: fMinX, minY: fMinY, maxX: fMaxX, maxY: fMaxY } = getCellBounds(futureCells);
             const fCols = fMaxX - fMinX + 1;
             const fRows = fMaxY - fMinY + 1;
             const fW = fCols * CP;
@@ -2917,18 +2908,12 @@
           const ec = state.exitCell;
           const ek = cellKey(ec.x, ec.y);
           if (!state.openCells.has(ek)) {
-            for (const [ddx, ddy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
-              if (state.openCells.has(cellKey(ec.x+ddx, ec.y+ddy))) {
-                state.openCells.add(ek);
-                state.everOpenedCells.add(ek);
-                state.everRevealedCells.add(ek);
-                for (const [ex2, ey2] of [[1,0],[-1,0],[0,1],[0,-1]]) {
-                  const nnk = cellKey(ec.x+ex2, ec.y+ey2);
-                  if (!state.disabledCells.has(nnk) && !state.permanentlyClosed.has(nnk)) state.everRevealedCells.add(nnk);
-                }
-                state.revealedExit = true;
-                break;
-              }
+            if (someAdjacentCell(ec.x, ec.y, (nx, ny, nk) => state.openCells.has(nk))) {
+              state.openCells.add(ek);
+              state.everOpenedCells.add(ek);
+              state.everRevealedCells.add(ek);
+              revealAdjacentCells(state.everRevealedCells, ec.x, ec.y, state.disabledCells, state.permanentlyClosed, false);
+              state.revealedExit = true;
             }
           }
 
