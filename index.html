@@ -602,12 +602,10 @@
       s.battle.playZoomScale = s.battle.staticScale * BATTLE_SCALE;
     }
 
-    function exitBattleMode(s) {
+    function syncBattleCollectibles(s) {
       if (!s.battle) return;
-
       const b = s.battle;
 
-      // Синхронизируем собранные предметы обратно в основной state
       for (const bh of b.hearts) {
         if (bh.collected) {
           const heart = s.hearts.find(h => h.cellKey === bh.originalCellKey);
@@ -640,6 +638,12 @@
           }
         }
       }
+    }
+
+    function exitBattleMode(s) {
+      if (!s.battle) return;
+
+      const b = s.battle;
 
       // Конвертируем позицию игрока обратно
       const battleCellX = Math.floor(b.player.x / BATTLE_CELL_PX);
@@ -1132,6 +1136,8 @@
         // Конечная камера: play режим, центрирована на play-игроке
         const toCamX = Math.max(0, Math.min(playPX - VIEW_W / 2, W - VIEW_W));
         const toCamY = Math.max(0, Math.min(playPY - VIEW_H / 2, H - VIEW_H));
+
+        syncBattleCollectibles(s);
 
         zoomOutTransition = { 
           fromScale, toScale: 1, 
