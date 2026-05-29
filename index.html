@@ -1792,14 +1792,32 @@
         drawGhost(g, 0.5); // Полупрозрачные т.к. за стенкой
       }
       
+      // Клетки, смежные с игроком — доступны для открытия (ПКМ), подсвечиваем зелёным
+      const playerCellForDraw = cellOf(s.player.x, s.player.y);
+      const playerAdjOpen = new Set();
+      for (const [ddx, ddy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+        const nx = playerCellForDraw.x + ddx, ny = playerCellForDraw.y + ddy;
+        const nk = cellKey(nx, ny);
+        if (nx >= 0 && nx < G && ny >= 0 && ny < G &&
+            !s.openCells.has(nk) && !s.disabledCells.has(nk) && !s.permanentlyClosed.has(nk)) {
+          playerAdjOpen.add(nk);
+        }
+      }
+
       for (const k of adj) {
         const { x, y } = cellFromKey(k);
         if (!isCellVisible(x, y)) continue;
 
         // Фон смежной клетки
-        ctx.fillStyle = 'rgba(40,30,50,0.3)';
-        ctx.fillRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
-        ctx.strokeStyle = 'rgba(100,80,120,0.4)';
+        if (playerAdjOpen.has(k)) {
+          ctx.fillStyle = 'rgba(20,60,30,0.15)';
+          ctx.fillRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
+          ctx.strokeStyle = 'rgba(40,200,80,0.3)';
+        } else {
+          ctx.fillStyle = 'rgba(40,30,50,0.3)';
+          ctx.fillRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
+          ctx.strokeStyle = 'rgba(100,80,120,0.4)';
+        }
         ctx.lineWidth = 1;
         ctx.strokeRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
 
@@ -1873,6 +1891,18 @@
             }
           }
         }
+      }
+
+      // Зелёная подсветка клеток у игрока, не попавших в adj (ещё не в everRevealedCells)
+      for (const k of playerAdjOpen) {
+        if (adj.has(k)) continue; // уже нарисована выше
+        const { x, y } = cellFromKey(k);
+        if (!isCellVisible(x, y)) continue;
+        ctx.fillStyle = 'rgba(20,60,30,0.15)';
+        ctx.fillRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
+        ctx.strokeStyle = 'rgba(40,200,80,0.3)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
       }
 
       // Стены
@@ -2505,8 +2535,10 @@
         if (state.disabledCells.has(k)) return;
 
         if (!state.openCells.has(k) && !state.permanentlyClosed.has(k)) {
-          // ОТКРЫТЬ клетку — только смежная
-          if (!getAdjacentOpen(state.openCells, k)) return;
+          // ОТКРЫТЬ клетку — только смежная с клеткой игрока
+          const playerC = cellOf(state.player.x, state.player.y);
+          const isAdjToPlayer = Math.abs(cx - playerC.x) + Math.abs(cy - playerC.y) === 1;
+          if (!isAdjToPlayer) return;
 
           // Проверяем хватает ли жизней
           if (state.player.lives < 1) return;
