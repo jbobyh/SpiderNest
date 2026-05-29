@@ -130,6 +130,7 @@
 
     // Состояние зум-перехода перед battle
     let zoomTransition = null; // { fromCamX, fromCamY, fromScale, toCamX, toCamY, toScale, t, pendingCellKey }
+    let zoomOutTransition = null; // { fromScale, toScale, t }
 
     // Проверка связности: все не-выключенные клетки достижимы из старта
     function checkConnectivity(startX, startY, disabledSet) {
@@ -422,10 +423,12 @@
       const battleWidth = (maxX - minX + 1) * BATTLE_CELL_PX;
       const battleHeight = (maxY - minY + 1) * BATTLE_CELL_PX;
 
-      // Конвертируем координаты игрока
+      // Конвертируем координаты игрока с точным смещением внутри клетки
       const playerCell = cellOf(s.player.x, s.player.y);
-      const playerBattleX = (playerCell.x - cellOffsetX) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2;
-      const playerBattleY = (playerCell.y - cellOffsetY) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2;
+      const playerLocalX = s.player.x - playerCell.x * CP; // смещение внутри клетки [0..CP)
+      const playerLocalY = s.player.y - playerCell.y * CP;
+      const playerBattleX = (playerCell.x - cellOffsetX) * BATTLE_CELL_PX + playerLocalX * BATTLE_SCALE;
+      const playerBattleY = (playerCell.y - cellOffsetY) * BATTLE_CELL_PX + playerLocalY * BATTLE_SCALE;
 
       // Создаём battle-копии коллектиблов
       const battleHearts = [];
@@ -560,6 +563,10 @@
       s.battle.staticScale = Math.min(scaleX2, scaleY2, 1);
       s.battle.staticCamX = (battleWidth * s.battle.staticScale - VIEW_W) / 2;
       s.battle.staticCamY = (battleHeight * s.battle.staticScale - VIEW_H) / 2;
+      // Сохраняем центр зоны в play-координатах для zoom-out
+      s.battle.playCenterX = (minX + bCols / 2) * CP;
+      s.battle.playCenterY = (minY + bRows / 2) * CP;
+      s.battle.playZoomScale = s.battle.staticScale * BATTLE_SCALE;
     }
 
     function exitBattleMode(s) {
@@ -1056,8 +1063,37 @@
       const hasEnemies = b.activeGhosts.length > 0;
 
       if (!hasEnemies) {
-        // Бой закончен (все враги убиты), возвращаемся на карту
-        exitBattleMode(s);
+        // Бой закончен — запускаем zoom-out переход
+        // Игрок в battle -> play координаты
+        const battleCellX = Math.floor(b.player.x / BATTLE_CELL_PX);
+        const battleCellY = Math.floor(b.player.y / BATTLE_CELL_PX);
+        const mapCellX = battleCellX + b.cellOffsetX;
+        const mapCellY = battleCellY + b.cellOffsetY;
+        const localX = b.player.x - battleCellX * BATTLE_CELL_PX;
+        const localY = b.player.y - battleCellY * BATTLE_CELL_PX;
+        const playPX = mapCellX * CP + localX / BATTLE_SCALE;
+        const playPY = mapCellY * CP + localY / BATTLE_SCALE;
+
+        // Начало zoom-out = конец zoom-in: тот же масштаб и центр зоны
+        const fromScale = b.playZoomScale || (b.staticScale || 1) * BATTLE_SCALE;
+        const zoneCX = b.playCenterX || playPX;
+        const zoneCY = b.playCenterY || playPY;
+        const fromCamX = zoneCX - VIEW_W / (2 * fromScale);
+        const fromCamY = zoneCY - VIEW_H / (2 * fromScale);
+
+        // Конечная камера: play режим, центрирована на play-игроке
+        const toCamX = Math.max(0, Math.min(playPX - VIEW_W / 2, W - VIEW_W));
+        const toCamY = Math.max(0, Math.min(playPY - VIEW_H / 2, H - VIEW_H));
+
+        zoomOutTransition = { 
+          fromScale, toScale: 1, 
+          fromCamX, fromCamY, 
+          toCamX, toCamY,
+          playerX: playPX, playerY: playPY,
+          t: 0,
+          frozenAngle: Math.atan2(s.mouse.y - playPY, s.mouse.x - playPX),
+        };
+        s.phase = 'zoom_out_transition';
         return;
       }
 
@@ -2114,7 +2150,7 @@
     // ============================================================
     // ZOOM DRAW (play map with zoom transform)
     // ============================================================
-    function drawZoom(s, scale, camX, camY, progress, pendingCellKey) {
+    function drawZoom(s, scale, camX, camY, progress, pendingCellKey, frozenAngle) {
       ctx.clearRect(0, 0, VIEW_W, VIEW_H);
       ctx.save();
       // Трансформация: зум от центра экрана
@@ -2133,6 +2169,27 @@
         ctx.beginPath(); ctx.moveTo(i * CP, 0); ctx.lineTo(i * CP, H); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(0, i * CP); ctx.lineTo(W, i * CP); ctx.stroke();
       }
+
+      // Содержимое клеток с fade-out (кроме pendingCellKey)
+      const fadeAlpha = 1 - progress; // 1 -> 0
+
+      // Чёрные (disabled + permanently closed) клетки
+      const blackCellsZ = new Set([...s.permanentlyClosed, ...s.disabledCells]);
+      ctx.globalAlpha = fadeAlpha;
+      for (const k of blackCellsZ) {
+        const { x, y } = cellFromKey(k);
+        let blackVisible = false;
+        for (const [ddx, ddy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+          if (s.everOpenedCells.has(cellKey(x+ddx, y+ddy))) { blackVisible = true; break; }
+        }
+        if (!blackVisible) continue;
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(x * CP, y * CP, CP, CP);
+        ctx.strokeStyle = '#1a1a1a';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
+      }
+      ctx.globalAlpha = 1;
 
       // Открытые клетки
       for (const k of s.openCells) {
@@ -2159,8 +2216,21 @@
         }
       }
 
-      // Содержимое клеток с fade-out (кроме pendingCellKey)
-      const fadeAlpha = 1 - progress; // 1 -> 0
+      // Смежные (фиолетовая подсветка) клетки
+      const adjZ = new Set();
+      for (const k of s.everRevealedCells) {
+        if (!s.openCells.has(k) && !s.disabledCells.has(k) && !s.permanentlyClosed.has(k)) adjZ.add(k);
+      }
+      ctx.globalAlpha = fadeAlpha;
+      for (const k of adjZ) {
+        const { x, y } = cellFromKey(k);
+        ctx.fillStyle = 'rgba(40,30,50,0.3)';
+        ctx.fillRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
+        ctx.strokeStyle = 'rgba(100,80,120,0.4)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
+      }
+      ctx.globalAlpha = 1;
       
       // Сердечки в открытых клетках
       for (const heart of s.hearts) {
@@ -2243,7 +2313,34 @@
       ctx.fill();
       ctx.shadowBlur = 0;
 
+      // Прицел - зафиксированный угол на момент начала перехода
+      const za = (frozenAngle !== undefined) ? frozenAngle : Math.atan2(s.mouse.y - p.y, s.mouse.x - p.x);
+      const zd = 14;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.shadowBlur = 6;
+      ctx.beginPath();
+      ctx.moveTo(p.x + Math.cos(za) * 10, p.y + Math.sin(za) * 10);
+      ctx.lineTo(p.x + Math.cos(za) * zd, p.y + Math.sin(za) * zd);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
       ctx.restore();
+
+      // Виньетка при малом количестве жизней
+      if (s.player.lives === 2) {
+        const grad = ctx.createRadialGradient(VIEW_W / 2, VIEW_H / 2, VIEW_H / 3, VIEW_W / 2, VIEW_H / 2, Math.sqrt((VIEW_W) ** 2 + (VIEW_H) ** 2));
+        grad.addColorStop(0, 'rgba(255, 120, 0, 0)');
+        grad.addColorStop(1, 'rgba(255, 120, 0, 0.35)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+      } else if (s.player.lives === 1) {
+        const grad = ctx.createRadialGradient(VIEW_W / 2, VIEW_H / 2, VIEW_H / 3, VIEW_W / 2, VIEW_H / 2, Math.sqrt((VIEW_W) ** 2 + (VIEW_H) ** 2));
+        grad.addColorStop(0, 'rgba(255, 0, 0, 0)');
+        grad.addColorStop(1, 'rgba(255, 0, 0, 0.55)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+      }
 
       // Оверлей с текстом
       ctx.fillStyle = 'rgba(255,68,68,0.85)';
@@ -2251,6 +2348,21 @@
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
       ctx.fillText('⚔ ENTERING BATTLE...', VIEW_W / 2, 10);
+    }
+
+    // drawZoomOut: используем drawZoom с play-координатами
+    function drawZoomOut(s, scale, camX, camY, progress, playerX, playerY, frozenAngle) {
+      // Временно подменяем позицию игрока на battle-позицию в play-коорд
+      const origX = s.player.x, origY = s.player.y;
+      s.player.x = playerX; s.player.y = playerY;
+      drawZoom(s, scale, camX, camY, 1 - progress, null, frozenAngle);
+      s.player.x = origX; s.player.y = origY;
+      // Поверх - текст ≄ поверх виньетки
+      ctx.fillStyle = 'rgba(0,255,136,0.85)';
+      ctx.font = 'bold 14px "Share Tech Mono"';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText('✓ BATTLE COMPLETE', VIEW_W / 2, 10);
     }
 
     // ============================================================
@@ -2275,11 +2387,29 @@
         const curCamY = zt.fromCamY + (zt.toCamY - zt.fromCamY) * p;
         camera.x = curCamX;
         camera.y = curCamY;
-        drawZoom(state, curScale, curCamX, curCamY, zt.t / ZOOM_DUR, zt.pendingCellKey);
+        drawZoom(state, curScale, curCamX, curCamY, zt.t / ZOOM_DUR, zt.pendingCellKey, zt.frozenAngle);
 
         if (zt.t >= ZOOM_DUR) {
           enterBattleMode(state, zt.pendingCellKey);
           zoomTransition = null;
+        }
+      } else if (state && state.phase === 'zoom_out_transition') {
+        // Анимация zoom-out из battle на карту (1 сек)
+        const ZOOM_OUT_DUR = 1.0;
+        zoomOutTransition.t = Math.min(zoomOutTransition.t + dt, ZOOM_OUT_DUR);
+        const zot = zoomOutTransition;
+        const ease = t => t < 0.5 ? 2*t*t : -1+(4-2*t)*t;
+        const p = ease(zot.t / ZOOM_OUT_DUR);
+        const curScale = zot.fromScale + (zot.toScale - zot.fromScale) * p;
+        const curCamX = zot.fromCamX + (zot.toCamX - zot.fromCamX) * p;
+        const curCamY = zot.fromCamY + (zot.toCamY - zot.fromCamY) * p;
+        camera.x = curCamX;
+        camera.y = curCamY;
+        drawZoomOut(state, curScale, curCamX, curCamY, zot.t / ZOOM_OUT_DUR, zot.playerX, zot.playerY, zot.frozenAngle);
+
+        if (zot.t >= ZOOM_OUT_DUR) {
+          exitBattleMode(state);
+          zoomOutTransition = null;
         }
       } else if (state && state.phase === 'battle') {
         updateBattle(state, dt);
@@ -2447,7 +2577,7 @@
           const hasContent = content && (content.type === 'heart' || content.type === 'key' || content.type === 'upgrade' ||
                              (content.enemyCount && content.enemyCount > 0 && !content.enemiesReleased));
           if (hasContent) {
-            // Вычисляем целевую камеру зума: центр на будущих открытых клетках
+            // Вычисляем целевую камеру зума: совпадает с battle камерой
             const futureCells = new Set([...state.openCells]);
             futureCells.add(k);
             let fMinX = G, fMinY = G, fMaxX = 0, fMaxY = 0;
@@ -2460,7 +2590,12 @@
             const fRows = fMaxY - fMinY + 1;
             const fW = fCols * CP;
             const fH = fRows * CP;
-            const toScale = Math.min(VIEW_W / fW, VIEW_H / fH, 3);
+            // Масштаб как в battle: staticScale = min(VIEW_W / battleWidth, VIEW_H / battleHeight, 1)
+            // В play-координатах: zoomScale = staticScale * BATTLE_SCALE
+            const battleW = fCols * BATTLE_CELL_PX;
+            const battleH = fRows * BATTLE_CELL_PX;
+            const staticScale = Math.min(VIEW_W / battleW, VIEW_H / battleH, 1);
+            const toScale = staticScale * BATTLE_SCALE;
             const fCenterX = (fMinX + fCols / 2) * CP;
             const fCenterY = (fMinY + fRows / 2) * CP;
             const toCamX = fCenterX - VIEW_W / (2 * toScale);
@@ -2473,6 +2608,7 @@
               toCamX, toCamY, toScale,
               t: 0,
               pendingCellKey: k,
+              frozenAngle: Math.atan2(state.mouse.y - state.player.y, state.mouse.x - state.player.x),
             };
             state.phase = 'zoom_transition';
           }
