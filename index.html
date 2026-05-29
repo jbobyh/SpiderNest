@@ -634,7 +634,7 @@
           if (upg && !upg.collected) {
             upg.collected = true;
             s.cellContents.delete(bu.originalCellKey);
-            applyUpgrade(s, bu.upgradeType);
+            applyUpgrade(s, bu.upgradeType, false);
           }
         }
       }
@@ -733,7 +733,7 @@
     // ============================================================
     let upgradePopupTimer = 0;
 
-    function applyUpgrade(s, type) {
+    function applyUpgrade(s, type, showPopup = true) {
       const upg = UPGRADE_TYPES.find(u => u.id === type);
       switch (type) {
         case 'pellets': 
@@ -757,7 +757,7 @@
           playerProgress.upgrades.spreadMult = s.upgrades.spreadMult; 
           break;
       }
-      if (upg) showUpgradePopup(upg.label, upg.color);
+      if (upg && showPopup) showUpgradePopup(upg.label, upg.color);
     }
 
     function showUpgradePopup(text, color) {
@@ -815,6 +815,14 @@
       if (!b) return;
 
       s.time += dt;
+
+      // Таймер попапа апгрейда
+      if (upgradePopupTimer > 0) {
+        upgradePopupTimer -= dt;
+        if (upgradePopupTimer <= 0) {
+          document.getElementById('upgrade-popup').classList.remove('visible');
+        }
+      }
 
       // Инвулнерабельность
       if (s.player.invulnerable > 0) s.player.invulnerable -= dt;
@@ -899,6 +907,7 @@
             upg.collected = true;
             const upgDef = UPGRADE_TYPES.find(u => u.id === upg.upgradeType);
             const color = upgDef ? upgDef.color : '#ffcc00';
+            if (upgDef) showUpgradePopup(upgDef.label, upgDef.color);
             for (let i = 0; i < 12; i++) {
               const a = Math.random() * Math.PI * 2;
               b.particles.push({
