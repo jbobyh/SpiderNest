@@ -128,6 +128,9 @@
     let lastTime = 0;
     let camera = { x: 0, y: 0 };  // позиция камеры в мире
 
+    // Состояние зум-перехода перед battle
+    let zoomTransition = null; // { fromCamX, fromCamY, fromScale, toCamX, toCamY, toScale, t, pendingCellKey }
+
     // Проверка связности: все не-выключенные клетки достижимы из старта
     function checkConnectivity(startX, startY, disabledSet) {
       const visited = new Set();
@@ -395,7 +398,7 @@
     // ============================================================
     // BATTLE MODE
     // ============================================================
-    const BATTLE_SCALE = 2; // Клетки в 2 раза больше чем на карте
+    const BATTLE_SCALE = 10; // Клетки в 2 раза больше чем на карте
     const BATTLE_CELL_PX = CP * BATTLE_SCALE;
 
     function enterBattleMode(s, openedCellKey) {
@@ -548,6 +551,15 @@
       s.mouse.y = playerBattleY;
 
       s.phase = 'battle';
+
+      // Вычисляем статичную камеру battle: умещаем все открытые клетки на экране
+      const bCols = maxX - minX + 1;
+      const bRows = maxY - minY + 1;
+      const scaleX2 = VIEW_W / (bCols * BATTLE_CELL_PX);
+      const scaleY2 = VIEW_H / (bRows * BATTLE_CELL_PX);
+      s.battle.staticScale = Math.min(scaleX2, scaleY2, 1);
+      s.battle.staticCamX = (battleWidth * s.battle.staticScale - VIEW_W) / 2;
+      s.battle.staticCamY = (battleHeight * s.battle.staticScale - VIEW_H) / 2;
     }
 
     function exitBattleMode(s) {
@@ -1447,19 +1459,15 @@
 
       ctx.clearRect(0, 0, VIEW_W, VIEW_H);
 
-      // Камера следует за игроком в battle
-      camera.x = b.player.x - VIEW_W / 2;
-      camera.y = b.player.y - VIEW_H / 2;
-      // Ограничиваем только если battle-локация больше экрана
-      if (b.width > VIEW_W) {
-        camera.x = Math.max(0, Math.min(camera.x, b.width - VIEW_W));
-      }
-      if (b.height > VIEW_H) {
-        camera.y = Math.max(0, Math.min(camera.y, b.height - VIEW_H));
-      }
+      // Статичная камера battle: всё поле умещается на экране
+      const sc = b.staticScale || 1;
+      camera.x = b.staticCamX || 0;
+      camera.y = b.staticCamY || 0;
 
       ctx.save();
-      ctx.translate(-camera.x, -camera.y);
+      ctx.translate(VIEW_W / 2, VIEW_H / 2);
+      ctx.scale(sc, sc);
+      ctx.translate(-b.width / 2, -b.height / 2);
 
       // Фон battle
       ctx.fillStyle = '#030810';
@@ -1468,18 +1476,14 @@
       // Сетка battle
       ctx.strokeStyle = '#0d1e2e';
       ctx.lineWidth = 1;
-      const startCol = Math.floor(camera.x / BATTLE_CELL_PX);
-      const endCol = Math.ceil((camera.x + VIEW_W) / BATTLE_CELL_PX);
-      const startRow = Math.floor(camera.y / BATTLE_CELL_PX);
-      const endRow = Math.ceil((camera.y + VIEW_H) / BATTLE_CELL_PX);
-      for (let i = Math.max(0, startCol); i <= endCol; i++) {
-        ctx.beginPath(); ctx.moveTo(i * BATTLE_CELL_PX, Math.max(0, startRow) * BATTLE_CELL_PX);
-        ctx.lineTo(i * BATTLE_CELL_PX, Math.min((endRow + 1), Math.ceil(b.height / BATTLE_CELL_PX)) * BATTLE_CELL_PX);
+      for (let i = 0; i <= Math.ceil(b.width / BATTLE_CELL_PX); i++) {
+        ctx.beginPath(); ctx.moveTo(i * BATTLE_CELL_PX, 0);
+        ctx.lineTo(i * BATTLE_CELL_PX, b.height);
         ctx.stroke();
       }
-      for (let i = Math.max(0, startRow); i <= endRow; i++) {
-        ctx.beginPath(); ctx.moveTo(Math.max(0, startCol) * BATTLE_CELL_PX, i * BATTLE_CELL_PX);
-        ctx.lineTo(Math.min((endCol + 1), Math.ceil(b.width / BATTLE_CELL_PX)) * BATTLE_CELL_PX, i * BATTLE_CELL_PX);
+      for (let i = 0; i <= Math.ceil(b.height / BATTLE_CELL_PX); i++) {
+        ctx.beginPath(); ctx.moveTo(0, i * BATTLE_CELL_PX);
+        ctx.lineTo(b.width, i * BATTLE_CELL_PX);
         ctx.stroke();
       }
 
@@ -1489,10 +1493,6 @@
         // Позиция в battle-координатах
         const bx = (x - b.cellOffsetX) * BATTLE_CELL_PX;
         const by = (y - b.cellOffsetY) * BATTLE_CELL_PX;
-
-        // Проверяем видимость
-        if (bx + BATTLE_CELL_PX < camera.x || bx > camera.x + VIEW_W ||
-            by + BATTLE_CELL_PX < camera.y || by > camera.y + VIEW_H) continue;
 
         // Фон клетки
         ctx.fillStyle = 'rgb(10,25,40)';
@@ -1586,7 +1586,7 @@
 
       // Враги в battle (масштабированы)
       for (const g of b.activeGhosts) {
-        drawGhost(g, 1, BATTLE_SCALE);
+        drawGhost(g, 1, BATTLE_SCALE, true);
       }
 
       // Частицы
@@ -2003,10 +2003,10 @@
       updateHUD(s);
     }
 
-    function drawGhost(g, baseAlpha, scale = 1) {
+    function drawGhost(g, baseAlpha, scale = 1, skipVisibilityCheck = false) {
       const ghostRadius = CONFIG.GHOST_RADIUS * scale;
-      if (g.x + ghostRadius < camera.x || g.x - ghostRadius > camera.x + VIEW_W ||
-        g.y + ghostRadius < camera.y || g.y - ghostRadius > camera.y + VIEW_H) return;
+      if (!skipVisibilityCheck && (g.x + ghostRadius < camera.x || g.x - ghostRadius > camera.x + VIEW_W ||
+        g.y + ghostRadius < camera.y || g.y - ghostRadius > camera.y + VIEW_H)) return;
 
       const wave = Math.sin(g.phase) * g.wobble * 4 * scale;
       const r = ghostRadius + wave;
@@ -2112,6 +2112,148 @@
     }
 
     // ============================================================
+    // ZOOM DRAW (play map with zoom transform)
+    // ============================================================
+    function drawZoom(s, scale, camX, camY, progress, pendingCellKey) {
+      ctx.clearRect(0, 0, VIEW_W, VIEW_H);
+      ctx.save();
+      // Трансформация: зум от центра экрана
+      ctx.translate(VIEW_W / 2, VIEW_H / 2);
+      ctx.scale(scale, scale);
+      ctx.translate(-camX - VIEW_W / (2 * scale), -camY - VIEW_H / (2 * scale));
+
+      // Фон
+      ctx.fillStyle = '#030810';
+      ctx.fillRect(0, 0, W, H);
+
+      // Сетка
+      ctx.strokeStyle = '#0d1e2e';
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= G; i++) {
+        ctx.beginPath(); ctx.moveTo(i * CP, 0); ctx.lineTo(i * CP, H); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, i * CP); ctx.lineTo(W, i * CP); ctx.stroke();
+      }
+
+      // Открытые клетки
+      for (const k of s.openCells) {
+        const { x, y } = cellFromKey(k);
+        ctx.fillStyle = 'rgb(10,25,40)';
+        ctx.fillRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
+      }
+
+      // Стены открытых клеток
+      for (const k of s.openCells) {
+        const { x, y } = cellFromKey(k);
+        ctx.strokeStyle = '#1a4060';
+        ctx.lineWidth = 2;
+        for (const [dx, dy] of [[0,-1],[0,1],[-1,0],[1,0]]) {
+          const nk = cellKey(x+dx, y+dy);
+          if (!s.openCells.has(nk)) {
+            ctx.beginPath();
+            if (dy===-1) { ctx.moveTo(x*CP,y*CP); ctx.lineTo((x+1)*CP,y*CP); }
+            if (dy===1) { ctx.moveTo(x*CP,(y+1)*CP); ctx.lineTo((x+1)*CP,(y+1)*CP); }
+            if (dx===-1) { ctx.moveTo(x*CP,y*CP); ctx.lineTo(x*CP,(y+1)*CP); }
+            if (dx===1) { ctx.moveTo((x+1)*CP,y*CP); ctx.lineTo((x+1)*CP,(y+1)*CP); }
+            ctx.stroke();
+          }
+        }
+      }
+
+      // Содержимое клеток с fade-out (кроме pendingCellKey)
+      const fadeAlpha = 1 - progress; // 1 -> 0
+      
+      // Сердечки в открытых клетках
+      for (const heart of s.hearts) {
+        if (heart.collected) continue;
+        const hc = cellOf(heart.x, heart.y);
+        if (!s.openCells.has(cellKey(hc.x, hc.y))) continue;
+        const pulse = 0.8 + 0.2 * Math.sin(Date.now() * 0.008);
+        ctx.globalAlpha = fadeAlpha;
+        ctx.fillStyle = `rgba(255, 107, 157, ${pulse})`;
+        ctx.shadowColor = '#ff6b9d';
+        ctx.shadowBlur = 15;
+        ctx.font = 'bold 24px "Share Tech Mono"';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('♥', heart.x, heart.y);
+        ctx.shadowBlur = 0;
+      }
+      ctx.globalAlpha = 1;
+
+      // Ключи в открытых клетках
+      for (const keyObj of s.keyObjs) {
+        if (keyObj.collected) continue;
+        const kc = cellOf(keyObj.x, keyObj.y);
+        if (!s.openCells.has(cellKey(kc.x, kc.y))) continue;
+        const pulse = 0.8 + 0.2 * Math.sin(Date.now() * 0.008);
+        ctx.globalAlpha = fadeAlpha;
+        ctx.fillStyle = `rgba(255, 215, 0, ${pulse})`;
+        ctx.shadowColor = '#ffd700';
+        ctx.shadowBlur = 15;
+        ctx.font = 'bold 24px "Share Tech Mono"';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('🔑', keyObj.x, keyObj.y);
+        ctx.shadowBlur = 0;
+      }
+      ctx.globalAlpha = 1;
+
+      // Апгрейды в открытых клетках
+      for (const upg of s.upgradeObjs) {
+        if (upg.collected) continue;
+        const uc = cellOf(upg.x, upg.y);
+        if (!s.openCells.has(cellKey(uc.x, uc.y))) continue;
+        const upgDef = UPGRADE_TYPES.find(u => u.id === upg.upgradeType);
+        if (upgDef) {
+          const pulse = 0.8 + 0.2 * Math.sin(Date.now() * 0.008);
+          ctx.globalAlpha = fadeAlpha;
+          ctx.fillStyle = upgDef.color;
+          ctx.shadowColor = upgDef.color;
+          ctx.shadowBlur = 15;
+          ctx.font = 'bold 24px "Share Tech Mono"';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('⬆', upg.x, upg.y - 12);
+          ctx.font = 'bold 12px "Share Tech Mono"';
+          ctx.fillText(upgDef.label, upg.x, upg.y + 14);
+          ctx.shadowBlur = 0;
+        }
+      }
+      ctx.globalAlpha = 1;
+
+      // Призраки в закрытых клетках (fade-out, кроме pendingCellKey)
+      for (const g of s.ghosts) {
+        if (!g.trapped) continue;
+        const gc = cellOf(g.x, g.y);
+        const cellK = cellKey(gc.x, gc.y);
+        const visible = s.everRevealedCells.has(cellK);
+        if (!visible) continue;
+        const isPending = cellK === pendingCellKey;
+        const gAlpha = isPending ? 1 : fadeAlpha;
+        drawGhost(g, gAlpha * 0.5, 1, true);
+      }
+
+      // Игрок
+      const p = s.player;
+      ctx.fillStyle = '#00d4ff';
+      ctx.shadowColor = '#00aaff';
+      ctx.shadowBlur = 20;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, CONFIG.PLAYER_RADIUS, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      ctx.restore();
+
+      // Оверлей с текстом
+      ctx.fillStyle = 'rgba(255,68,68,0.85)';
+      ctx.font = 'bold 14px "Share Tech Mono"';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText('⚔ ENTERING BATTLE...', VIEW_W / 2, 10);
+    }
+
+    // ============================================================
     // GAME LOOP
     // ============================================================
     function loop(ts) {
@@ -2121,6 +2263,24 @@
       if (state && state.phase === 'play') {
         update(state, dt);
         draw(state);
+      } else if (state && state.phase === 'zoom_transition') {
+        // Анимация зума перед battle (1 сек)
+        const ZOOM_DUR = 1.0;
+        zoomTransition.t = Math.min(zoomTransition.t + dt, ZOOM_DUR);
+        const zt = zoomTransition;
+        const ease = t => t < 0.5 ? 2*t*t : -1+(4-2*t)*t;
+        const p = ease(zt.t / ZOOM_DUR);
+        const curScale = zt.fromScale + (zt.toScale - zt.fromScale) * p;
+        const curCamX = zt.fromCamX + (zt.toCamX - zt.fromCamX) * p;
+        const curCamY = zt.fromCamY + (zt.toCamY - zt.fromCamY) * p;
+        camera.x = curCamX;
+        camera.y = curCamY;
+        drawZoom(state, curScale, curCamX, curCamY, zt.t / ZOOM_DUR, zt.pendingCellKey);
+
+        if (zt.t >= ZOOM_DUR) {
+          enterBattleMode(state, zt.pendingCellKey);
+          zoomTransition = null;
+        }
       } else if (state && state.phase === 'battle') {
         updateBattle(state, dt);
         drawBattle(state);
@@ -2169,9 +2329,19 @@
       const rect = C.getBoundingClientRect();
       const scaleX = VIEW_W / rect.width;
       const scaleY = VIEW_H / rect.height;
-      // Координаты мира = экран + камера
-      state.mouse.x = (e.clientX - rect.left) * scaleX + camera.x;
-      state.mouse.y = (e.clientY - rect.top) * scaleY + camera.y;
+      const sx = (e.clientX - rect.left) * scaleX;
+      const sy = (e.clientY - rect.top) * scaleY;
+      if (state.phase === 'battle' && state.battle) {
+        // Статичная камера: экранные координаты -> battle-мировые
+        const sc2 = state.battle.staticScale || 1;
+        const bw = state.battle.width;
+        const bh = state.battle.height;
+        state.mouse.x = (sx - VIEW_W / 2) / sc2 + bw / 2;
+        state.mouse.y = (sy - VIEW_H / 2) / sc2 + bh / 2;
+      } else {
+        state.mouse.x = sx + camera.x;
+        state.mouse.y = sy + camera.y;
+      }
     });
 
     C.addEventListener('mousedown', e => {
@@ -2272,13 +2442,39 @@
             }
           }
 
-          // Проверяем содержимое - если не пустая, переходим в battle mode
+          // Проверяем содержимое - если не пустая, переходим в battle mode через зум
           const content = state.cellContents.get(k);
           const hasContent = content && (content.type === 'heart' || content.type === 'key' || content.type === 'upgrade' ||
                              (content.enemyCount && content.enemyCount > 0 && !content.enemiesReleased));
           if (hasContent) {
-            // Переходим в battle mode
-            enterBattleMode(state, k);
+            // Вычисляем целевую камеру зума: центр на будущих открытых клетках
+            const futureCells = new Set([...state.openCells]);
+            futureCells.add(k);
+            let fMinX = G, fMinY = G, fMaxX = 0, fMaxY = 0;
+            for (const fk of futureCells) {
+              const { x: fx, y: fy } = cellFromKey(fk);
+              fMinX = Math.min(fMinX, fx); fMinY = Math.min(fMinY, fy);
+              fMaxX = Math.max(fMaxX, fx); fMaxY = Math.max(fMaxY, fy);
+            }
+            const fCols = fMaxX - fMinX + 1;
+            const fRows = fMaxY - fMinY + 1;
+            const fW = fCols * CP;
+            const fH = fRows * CP;
+            const toScale = Math.min(VIEW_W / fW, VIEW_H / fH, 3);
+            const fCenterX = (fMinX + fCols / 2) * CP;
+            const fCenterY = (fMinY + fRows / 2) * CP;
+            const toCamX = fCenterX - VIEW_W / (2 * toScale);
+            const toCamY = fCenterY - VIEW_H / (2 * toScale);
+
+            zoomTransition = {
+              fromCamX: camera.x,
+              fromCamY: camera.y,
+              fromScale: 1,
+              toCamX, toCamY, toScale,
+              t: 0,
+              pendingCellKey: k,
+            };
+            state.phase = 'zoom_transition';
           }
 
           // Проверяем выход: открылась смежная с выходом — выход тоже открывается
