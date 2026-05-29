@@ -395,7 +395,7 @@
     // ============================================================
     // BATTLE MODE
     // ============================================================
-    const BATTLE_SCALE = 3; // Клетки в 2 раза больше чем на карте
+    const BATTLE_SCALE = 2; // Клетки в 2 раза больше чем на карте
     const BATTLE_CELL_PX = CP * BATTLE_SCALE;
 
     function enterBattleMode(s, openedCellKey) {
@@ -748,8 +748,8 @@
       // Инвулнерабельность
       if (s.player.invulnerable > 0) s.player.invulnerable -= dt;
 
-      // Движение игрока в battle mode
-      const spd = CONFIG.PLAYER_SPEED * s.upgrades.speedMult;
+      // Движение игрока в battle mode (масштабированная скорость)
+      const spd = CONFIG.PLAYER_SPEED * s.upgrades.speedMult * BATTLE_SCALE;
       let mvx = 0, mvy = 0;
       const k = s.keys;
       if (k['w'] || k['W'] || k['ц'] || k['Ц'] || k['ArrowUp'] || k['arrowup']) mvy -= 1;
@@ -758,7 +758,7 @@
       if (k['d'] || k['D'] || k['в'] || k['В'] || k['ArrowRight'] || k['arrowright']) mvx += 1;
       if (mvx && mvy) { mvx *= 0.707; mvy *= 0.707; }
 
-      const pr = CONFIG.PLAYER_RADIUS;
+      const pr = CONFIG.PLAYER_RADIUS * BATTLE_SCALE;
       let npx = b.player.x + mvx * spd * dt;
       let npy = b.player.y + mvy * spd * dt;
 
@@ -787,7 +787,7 @@
       for (const heart of b.hearts) {
         if (!heart.collected) {
           const dist = Math.hypot(b.player.x - heart.x, b.player.y - heart.y);
-          if (dist < CONFIG.PLAYER_RADIUS + 10) {
+          if (dist < CONFIG.PLAYER_RADIUS * BATTLE_SCALE + 10 * BATTLE_SCALE) {
             heart.collected = true;
             s.player.lives += CONFIG.LIVES_PER_HEART;
             for (let i = 0; i < 12; i++) {
@@ -806,7 +806,7 @@
       for (const keyObj of b.keys) {
         if (!keyObj.collected) {
           const dist = Math.hypot(b.player.x - keyObj.x, b.player.y - keyObj.y);
-          if (dist < CONFIG.PLAYER_RADIUS + 10) {
+          if (dist < CONFIG.PLAYER_RADIUS * BATTLE_SCALE + 10 * BATTLE_SCALE) {
             keyObj.collected = true;
             for (let i = 0; i < 12; i++) {
               const a = Math.random() * Math.PI * 2;
@@ -824,7 +824,7 @@
       for (const upg of b.upgrades) {
         if (!upg.collected) {
           const dist = Math.hypot(b.player.x - upg.x, b.player.y - upg.y);
-          if (dist < CONFIG.PLAYER_RADIUS + 10) {
+          if (dist < CONFIG.PLAYER_RADIUS * BATTLE_SCALE + 10 * BATTLE_SCALE) {
             upg.collected = true;
             const upgDef = UPGRADE_TYPES.find(u => u.id === upg.upgradeType);
             const color = upgDef ? upgDef.color : '#ffcc00';
@@ -856,11 +856,28 @@
           continue;
         }
 
-        // Попадание во врагов
+        // Проверка столкновения со стенами (вне открытых клеток)
+        const bulletCellX = Math.floor(bullet.x / BATTLE_CELL_PX) + b.cellOffsetX;
+        const bulletCellY = Math.floor(bullet.y / BATTLE_CELL_PX) + b.cellOffsetY;
+        if (!b.openCells.has(cellKey(bulletCellX, bulletCellY))) {
+          // Пуля в стене - уничтожаем
+          for (let k = 0; k < 5; k++) {
+            const a = Math.random() * Math.PI * 2;
+            b.particles.push({
+              x: bullet.x, y: bullet.y,
+              vx: Math.cos(a) * 40 * BATTLE_SCALE, vy: Math.sin(a) * 40 * BATTLE_SCALE,
+              life: 0.3, maxLife: 0.3, color: '#888888',
+            });
+          }
+          b.bullets.splice(i, 1);
+          continue;
+        }
+
+        // Попадание во врагов (масштабированные)
         for (let j = b.activeGhosts.length - 1; j >= 0; j--) {
           const g = b.activeGhosts[j];
           const dist = Math.hypot(bullet.x - g.x, bullet.y - g.y);
-          if (dist < CONFIG.GHOST_RADIUS + CONFIG.BULLET_RADIUS) {
+          if (dist < (CONFIG.GHOST_RADIUS + CONFIG.BULLET_RADIUS) * BATTLE_SCALE) {
             g.hp -= CONFIG.BULLET_DAMAGE;
             for (let k = 0; k < 8; k++) {
               const a = Math.random() * Math.PI * 2;
@@ -900,7 +917,7 @@
         if (g.type === 'shooter') {
           // Стрелок
           if (dist > CONFIG.SHOOTER_STOP_DIST * BATTLE_SCALE && dist > 0) {
-            const spd = CONFIG.SHOOTER_SPEED;
+            const spd = CONFIG.SHOOTER_SPEED * BATTLE_SCALE;
             g.x += (dx / dist) * spd * dt;
             g.y += (dy / dist) * spd * dt;
           }
@@ -910,20 +927,21 @@
             if (dist > 0) {
               b.enemyBullets.push({
                 x: g.x, y: g.y,
-                vx: (dx / dist) * CONFIG.SHOOTER_BULLET_SPEED,
-                vy: (dy / dist) * CONFIG.SHOOTER_BULLET_SPEED,
+                vx: (dx / dist) * CONFIG.SHOOTER_BULLET_SPEED * BATTLE_SCALE,
+                vy: (dy / dist) * CONFIG.SHOOTER_BULLET_SPEED * BATTLE_SCALE,
                 life: 6,
               });
             }
           }
         } else {
-          // Обычный - летит к игроку
+          // Обычный - летит к игроку (масштабированная скорость)
           if (dist > 0) {
-            g.x += (dx / dist) * CONFIG.GHOST_SPEED * dt;
-            g.y += (dy / dist) * CONFIG.GHOST_SPEED * dt;
+            const spd = CONFIG.GHOST_SPEED * BATTLE_SCALE;
+            g.x += (dx / dist) * spd * dt;
+            g.y += (dy / dist) * spd * dt;
           }
-          // Касание игрока
-          if (dist < CONFIG.GHOST_RADIUS + CONFIG.PLAYER_RADIUS) {
+          // Касание игрока (масштабированное)
+          if (dist < (CONFIG.GHOST_RADIUS + CONFIG.PLAYER_RADIUS) * BATTLE_SCALE) {
             if (s.player.invulnerable <= 0) {
               s.player.lives--;
               s.player.invulnerable = 1.0;
@@ -954,8 +972,25 @@
           continue;
         }
 
+        // Проверка столкновения вражеских пуль со стенами
+        const enemyBulletCellX = Math.floor(eb.x / BATTLE_CELL_PX) + b.cellOffsetX;
+        const enemyBulletCellY = Math.floor(eb.y / BATTLE_CELL_PX) + b.cellOffsetY;
+        if (!b.openCells.has(cellKey(enemyBulletCellX, enemyBulletCellY))) {
+          // Пуля в стене - уничтожаем
+          for (let k = 0; k < 3; k++) {
+            const a = Math.random() * Math.PI * 2;
+            b.particles.push({
+              x: eb.x, y: eb.y,
+              vx: Math.cos(a) * 30 * BATTLE_SCALE, vy: Math.sin(a) * 30 * BATTLE_SCALE,
+              life: 0.25, maxLife: 0.25, color: '#ff4400',
+            });
+          }
+          b.enemyBullets.splice(i, 1);
+          continue;
+        }
+
         const pd = Math.hypot(eb.x - b.player.x, eb.y - b.player.y);
-        if (pd < CONFIG.PLAYER_RADIUS + 4) {
+        if (pd < CONFIG.PLAYER_RADIUS * BATTLE_SCALE + 4 * BATTLE_SCALE) {
           if (s.player.invulnerable <= 0) {
             s.player.lives--;
             s.player.invulnerable = 0.5;
@@ -972,7 +1007,7 @@
         }
       }
 
-      // Коллизии между врагами в battle
+      // Коллизии между врагами в battle (масштабированные)
       for (let i = 0; i < b.activeGhosts.length; i++) {
         const g1 = b.activeGhosts[i];
         for (let j = i + 1; j < b.activeGhosts.length; j++) {
@@ -980,7 +1015,7 @@
           const dx = g2.x - g1.x;
           const dy = g2.y - g1.y;
           const distSq = dx * dx + dy * dy;
-          const minDist = CONFIG.GHOST_RADIUS * 2;
+          const minDist = CONFIG.GHOST_RADIUS * 2 * BATTLE_SCALE;
           if (distSq < minDist * minDist && distSq > 0) {
             const dist = Math.sqrt(distSq);
             const overlap = minDist - dist;
@@ -1033,25 +1068,26 @@
       const dy = s.mouse.y - b.player.y;
       const baseAngle = Math.atan2(dy, dx);
 
+      // Пули игрока (масштабированная скорость)
       const pellets = CONFIG.SHOTGUN_PELLETS + s.upgrades.pellets;
       for (let i = 0; i < pellets; i++) {
         const spread = (Math.random() - 0.5) * CONFIG.SHOTGUN_SPREAD * s.upgrades.spreadMult;
         const a = baseAngle + spread;
         b.bullets.push({
           x: b.player.x, y: b.player.y,
-          vx: Math.cos(a) * CONFIG.BULLET_SPEED,
-          vy: Math.sin(a) * CONFIG.BULLET_SPEED,
+          vx: Math.cos(a) * CONFIG.BULLET_SPEED * BATTLE_SCALE,
+          vy: Math.sin(a) * CONFIG.BULLET_SPEED * BATTLE_SCALE,
           life: 1.5,
         });
       }
 
-      // Particle muzzle flash
+      // Particle muzzle flash (масштабированная скорость)
       for (let i = 0; i < 8; i++) {
         const a = baseAngle + (Math.random() - 0.5) * 0.8;
         b.particles.push({
           x: b.player.x, y: b.player.y,
-          vx: Math.cos(a) * (60 + Math.random() * 80),
-          vy: Math.sin(a) * (60 + Math.random() * 80),
+          vx: Math.cos(a) * (60 + Math.random() * 80) * BATTLE_SCALE,
+          vy: Math.sin(a) * (60 + Math.random() * 80) * BATTLE_SCALE,
           life: 0.2, maxLife: 0.2, color: '#ffcc44',
         });
       }
@@ -1485,8 +1521,8 @@
         const pulse = 0.8 + 0.2 * Math.sin(Date.now() * 0.008);
         ctx.fillStyle = `rgba(255, 107, 157, ${pulse})`;
         ctx.shadowColor = '#ff6b9d';
-        ctx.shadowBlur = 15;
-        ctx.font = 'bold 24px "Share Tech Mono"';
+        ctx.shadowBlur = 15 * BATTLE_SCALE;
+        ctx.font = `bold ${24 * BATTLE_SCALE}px "Share Tech Mono"`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('♥', heart.x, heart.y);
@@ -1499,8 +1535,8 @@
         const pulse = 0.8 + 0.2 * Math.sin(Date.now() * 0.008);
         ctx.fillStyle = `rgba(255, 215, 0, ${pulse})`;
         ctx.shadowColor = '#ffd700';
-        ctx.shadowBlur = 15;
-        ctx.font = 'bold 24px "Share Tech Mono"';
+        ctx.shadowBlur = 15 * BATTLE_SCALE;
+        ctx.font = `bold ${24 * BATTLE_SCALE}px "Share Tech Mono"`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('🔑', keyObj.x, keyObj.y);
@@ -1515,13 +1551,13 @@
           const pulse = 0.8 + 0.2 * Math.sin(Date.now() * 0.008);
           ctx.fillStyle = upgDef.color;
           ctx.shadowColor = upgDef.color;
-          ctx.shadowBlur = 15;
-          ctx.font = 'bold 24px "Share Tech Mono"';
+          ctx.shadowBlur = 15 * BATTLE_SCALE;
+          ctx.font = `bold ${24 * BATTLE_SCALE}px "Share Tech Mono"`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText('⬆', upg.x, upg.y - 12);
-          ctx.font = 'bold 12px "Share Tech Mono"';
-          ctx.fillText(upgDef.label, upg.x, upg.y + 14);
+          ctx.fillText('⬆', upg.x, upg.y - 12 * BATTLE_SCALE);
+          ctx.font = `bold ${12 * BATTLE_SCALE}px "Share Tech Mono"`;
+          ctx.fillText(upgDef.label, upg.x, upg.y + 14 * BATTLE_SCALE);
           ctx.shadowBlur = 0;
         }
       }
@@ -1530,9 +1566,9 @@
       for (const b of s.battle.bullets) {
         ctx.fillStyle = '#ffffaa';
         ctx.shadowColor = '#ffff00';
-        ctx.shadowBlur = 8;
+        ctx.shadowBlur = 8 * BATTLE_SCALE;
         ctx.beginPath();
-        ctx.arc(b.x, b.y, CONFIG.BULLET_RADIUS, 0, Math.PI * 2);
+        ctx.arc(b.x, b.y, CONFIG.BULLET_RADIUS * BATTLE_SCALE, 0, Math.PI * 2);
         ctx.fill();
       }
       ctx.shadowBlur = 0;
@@ -1541,16 +1577,16 @@
       for (const eb of s.battle.enemyBullets) {
         ctx.fillStyle = '#ff4400';
         ctx.shadowColor = '#ff2200';
-        ctx.shadowBlur = 10;
+        ctx.shadowBlur = 10 * BATTLE_SCALE;
         ctx.beginPath();
-        ctx.arc(eb.x, eb.y, 4, 0, Math.PI * 2);
+        ctx.arc(eb.x, eb.y, 4 * BATTLE_SCALE, 0, Math.PI * 2);
         ctx.fill();
       }
       ctx.shadowBlur = 0;
 
-      // Враги в battle
+      // Враги в battle (масштабированы)
       for (const g of b.activeGhosts) {
-        drawGhost(g, 1);
+        drawGhost(g, 1, BATTLE_SCALE);
       }
 
       // Частицы
@@ -1559,7 +1595,7 @@
         ctx.globalAlpha = alpha;
         ctx.fillStyle = p.color;
         ctx.beginPath();
-        ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, 2 * BATTLE_SCALE, 0, Math.PI * 2);
         ctx.fill();
       }
       ctx.globalAlpha = 1;
@@ -1570,9 +1606,9 @@
       if (blinkOk) {
         ctx.fillStyle = '#00d4ff';
         ctx.shadowColor = '#00aaff';
-        ctx.shadowBlur = 20;
+        ctx.shadowBlur = 20 * BATTLE_SCALE;
         ctx.beginPath();
-        ctx.arc(p.x, p.y, CONFIG.PLAYER_RADIUS, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, CONFIG.PLAYER_RADIUS * BATTLE_SCALE, 0, Math.PI * 2);
         ctx.fill();
         ctx.shadowBlur = 0;
 
@@ -1580,12 +1616,12 @@
         const dx = s.mouse.x - p.x;
         const dy = s.mouse.y - p.y;
         const a = Math.atan2(dy, dx);
-        const d = 14;
+        const d = 14 * BATTLE_SCALE;
         ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2;
-        ctx.shadowBlur = 6;
+        ctx.lineWidth = 2 * BATTLE_SCALE;
+        ctx.shadowBlur = 6 * BATTLE_SCALE;
         ctx.beginPath();
-        ctx.moveTo(p.x + Math.cos(a) * 10, p.y + Math.sin(a) * 10);
+        ctx.moveTo(p.x + Math.cos(a) * 10 * BATTLE_SCALE, p.y + Math.sin(a) * 10 * BATTLE_SCALE);
         ctx.lineTo(p.x + Math.cos(a) * d, p.y + Math.sin(a) * d);
         ctx.stroke();
         ctx.shadowBlur = 0;
@@ -1967,19 +2003,20 @@
       updateHUD(s);
     }
 
-    function drawGhost(g, baseAlpha) {
-      if (g.x + CONFIG.GHOST_RADIUS < camera.x || g.x - CONFIG.GHOST_RADIUS > camera.x + VIEW_W ||
-        g.y + CONFIG.GHOST_RADIUS < camera.y || g.y - CONFIG.GHOST_RADIUS > camera.y + VIEW_H) return;
+    function drawGhost(g, baseAlpha, scale = 1) {
+      const ghostRadius = CONFIG.GHOST_RADIUS * scale;
+      if (g.x + ghostRadius < camera.x || g.x - ghostRadius > camera.x + VIEW_W ||
+        g.y + ghostRadius < camera.y || g.y - ghostRadius > camera.y + VIEW_H) return;
 
-      const wave = Math.sin(g.phase) * g.wobble * 4;
-      const r = CONFIG.GHOST_RADIUS + wave;
+      const wave = Math.sin(g.phase) * g.wobble * 4 * scale;
+      const r = ghostRadius + wave;
       const alpha = baseAlpha * (0.65 + 0.35 * Math.sin(g.phase * 1.3));
 
       const isShooter = g.type === 'shooter';
       ctx.globalAlpha = alpha;
       ctx.fillStyle = isShooter ? '#ff8040' : '#c080ff';
       ctx.shadowColor = isShooter ? '#ff4400' : '#9040ff';
-      ctx.shadowBlur = 18;
+      ctx.shadowBlur = 18 * scale;
 
       ctx.beginPath();
       ctx.arc(g.x, g.y, r, Math.PI, 0);
@@ -2010,9 +2047,9 @@
         const hpFrac = Math.max(0, g.hp / maxHp);
         ctx.globalAlpha = 0.8;
         ctx.fillStyle = '#1a0030';
-        ctx.fillRect(g.x - r, g.y - r - 8, r * 2, 3);
+        ctx.fillRect(g.x - r, g.y - r - 8 * scale, r * 2, 3 * scale);
         ctx.fillStyle = g.type === 'shooter' ? (hpFrac > 0.5 ? '#ff8800' : '#ff4400') : (hpFrac > 0.5 ? '#aa44ff' : '#ff44aa');
-        ctx.fillRect(g.x - r, g.y - r - 8, r * 2 * hpFrac, 3);
+        ctx.fillRect(g.x - r, g.y - r - 8 * scale, r * 2 * hpFrac, 3 * scale);
       }
 
       ctx.globalAlpha = 1;
