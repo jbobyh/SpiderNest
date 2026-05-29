@@ -2238,6 +2238,24 @@
         };
       } else if (action === 'startGame') {
         btn.onclick = startGame;
+      } else if (action === 'continueGame') {
+        btn.onclick = continueGame;
+      }
+    }
+
+    function showStartOverlay() {
+      const ov = document.getElementById('overlay');
+      ov.style.display = 'flex';
+      const saveExists = hasSave();
+      ov.innerHTML = `
+    <h2 style="color:var(--accent)">GHOST ROOM</h2>
+    <p>Найди выход. Не дай призракам добраться до тебя.</p>
+    ${saveExists ? `<button class="btn" id="continue-btn" style="border-color:#00ff88;color:#00ff88">ПРОДОЛЖИТЬ</button>` : ''}
+    <button class="btn" id="start-btn">${saveExists ? 'НОВАЯ ИГРА' : 'НАЧАТЬ ИГРУ'}</button>
+  `;
+      document.getElementById('start-btn').onclick = startGame;
+      if (saveExists) {
+        document.getElementById('continue-btn').onclick = continueGame;
       }
     }
 
@@ -2508,6 +2526,7 @@
         if (zot.t >= ZOOM_OUT_DUR) {
           exitBattleMode(state);
           zoomOutTransition = null;
+          saveGame();
         }
       } else if (state && state.phase === 'battle') {
         updateBattle(state, dt);
@@ -2546,9 +2565,116 @@
       // upgrades already saved during applyUpgrade
     }
 
+    // ============================================================
+    // SAVE / LOAD (localStorage)
+    // ============================================================
+    const SAVE_KEY = 'ghostroom_save';
+
+    function serializeState(s) {
+      return {
+        openCells: [...s.openCells],
+        everRevealedCells: [...s.everRevealedCells],
+        everOpenedCells: [...s.everOpenedCells],
+        permanentlyClosed: [...s.permanentlyClosed],
+        disabledCells: [...s.disabledCells],
+        startCell: s.startCell,
+        exitCell: s.exitCell,
+        revealedExit: s.revealedExit,
+        heartsCollected: s.heartsCollected,
+        keysCollected: s.keysCollected,
+        player: { x: s.player.x, y: s.player.y, lives: s.player.lives, invulnerable: 0 },
+        cellContents: [...s.cellContents].map(([k, v]) => [k, v]),
+        hearts: s.hearts,
+        keyObjs: s.keyObjs,
+        upgradeObjs: s.upgradeObjs,
+        upgrades: { ...s.upgrades },
+        ghosts: s.ghosts.map(g => ({ ...g })),
+        activeGhosts: s.activeGhosts.map(g => ({ ...g })),
+        time: s.time,
+      };
+    }
+
+    function deserializeState(data) {
+      const s = {
+        openCells: new Set(data.openCells),
+        everRevealedCells: new Set(data.everRevealedCells),
+        everOpenedCells: new Set(data.everOpenedCells),
+        permanentlyClosed: new Set(data.permanentlyClosed),
+        disabledCells: new Set(data.disabledCells),
+        startCell: data.startCell,
+        exitCell: data.exitCell,
+        revealedExit: data.revealedExit,
+        heartsCollected: data.heartsCollected,
+        keysCollected: data.keysCollected,
+        player: { ...data.player },
+        cellContents: new Map(data.cellContents),
+        hearts: data.hearts,
+        keyObjs: data.keyObjs,
+        upgradeObjs: data.upgradeObjs,
+        upgrades: { ...data.upgrades },
+        ghosts: data.ghosts.map(g => ({ ...g })),
+        activeGhosts: (data.activeGhosts || []).map(g => ({ ...g })),
+        bullets: [],
+        enemyBullets: [],
+        particles: [],
+        shootCooldown: 0,
+        keys: {},
+        mouse: { x: data.player.x, y: data.player.y },
+        time: data.time || 0,
+        phase: 'play',
+        battle: null,
+      };
+      return s;
+    }
+
+    function saveGame() {
+      if (!state) return;
+      try {
+        const save = {
+          version: 1,
+          currentLevel,
+          playerProgress: { ...playerProgress, upgrades: { ...playerProgress.upgrades } },
+          state: serializeState(state),
+        };
+        localStorage.setItem(SAVE_KEY, JSON.stringify(save));
+      } catch (e) {
+        console.warn('Save failed:', e);
+      }
+    }
+
+    function loadGame() {
+      try {
+        const raw = localStorage.getItem(SAVE_KEY);
+        if (!raw) return false;
+        const save = JSON.parse(raw);
+        if (!save || save.version !== 1) return false;
+        currentLevel = save.currentLevel;
+        playerProgress = save.playerProgress;
+        state = deserializeState(save.state);
+        return true;
+      } catch (e) {
+        console.warn('Load failed:', e);
+        return false;
+      }
+    }
+
+    function hasSave() {
+      try {
+        const raw = localStorage.getItem(SAVE_KEY);
+        if (!raw) return false;
+        const save = JSON.parse(raw);
+        return save && save.version === 1;
+      } catch (e) { return false; }
+    }
+
+    function deleteSave() {
+      localStorage.removeItem(SAVE_KEY);
+    }
+
     function nextLevel() {
       if (currentLevel >= 10) {
         // All levels completed - show victory
+        deleteSave();
         state.phase = 'win';
         return;
       }
@@ -2556,11 +2682,13 @@
       savePlayerProgress(state);
       currentLevel++;
       state = initState(currentLevel);
+      saveGame();
       updateHUD();
     }
 
     function startGame() {
       hideOverlay();
+      deleteSave();
       currentLevel = 1;
       playerProgress = {
         totalLives: 3,
@@ -2574,6 +2702,16 @@
         }
       };
       state = initState(currentLevel);
+      updateHUD();
+      draw(state);
+    }
+
+    function continueGame() {
+      hideOverlay();
+      if (!loadGame()) {
+        startGame();
+        return;
+      }
       updateHUD();
       draw(state);
     }
@@ -2755,6 +2893,9 @@
               frozenAngle: Math.atan2(state.mouse.y - state.player.y, state.mouse.x - state.player.x),
             };
             state.phase = 'zoom_transition';
+          } else {
+            // Пустая клетка — сразу сохраняем
+            saveGame();
           }
 
           // Проверяем выход: открылась смежная с выходом — выход тоже открывается
@@ -2800,6 +2941,7 @@
           if (CONFIG.BLOCK_CELLS_FOREVER) {
             state.permanentlyClosed.add(k);
           }
+          saveGame();
         }
       }
     });
@@ -2825,7 +2967,7 @@
     // ============================================================
     // START
     // ============================================================
-    document.getElementById('start-btn').onclick = startGame;
+    showStartOverlay();
     lastTime = performance.now();
     animId = requestAnimationFrame(loop);
   </script>
