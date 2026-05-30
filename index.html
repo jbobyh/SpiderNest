@@ -2681,6 +2681,8 @@
 
     function serializeState(s) {
       return {
+        gridSize: s.gridSize,
+        keysRequired: s.keysRequired,
         openCells: [...s.openCells],
         everRevealedCells: [...s.everRevealedCells],
         everOpenedCells: [...s.everOpenedCells],
@@ -2705,6 +2707,8 @@
 
     function deserializeState(data) {
       const s = {
+        gridSize: data.gridSize || 5,
+        keysRequired: data.keysRequired || 2,
         openCells: new Set(data.openCells),
         everRevealedCells: new Set(data.everRevealedCells),
         everOpenedCells: new Set(data.everOpenedCells),
