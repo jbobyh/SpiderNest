@@ -2964,6 +2964,15 @@
           const hasUncollectedHeart = state.hearts.some(heart => !heart.collected && heart.cellKey === k);
           if (hasUncollectedHeart) return;
 
+          // Нельзя закрыть клетку, которая разделит оставшиеся клетки на 2+ части
+          const openWithoutThis = new Set(state.openCells);
+          openWithoutThis.delete(k);
+          const playerKey = cellKey(playerCell.x, playerCell.y);
+          if (openWithoutThis.has(playerKey)) {
+            const remainingConnected = getConnectedCells(openWithoutThis, playerKey);
+            if (remainingConnected.size !== openWithoutThis.size) return; // Есть отсоединённые клетки
+          }
+
           // Возвращаем жизнь
           state.player.lives++;
 
