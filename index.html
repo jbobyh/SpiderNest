@@ -1311,10 +1311,12 @@
         const fromCamY = zoneCY - VIEW_H / (2 * fromScale);
 
         // Конечная камера: play режим, центрирована на play-игроке
+        let toCamX = playPX - VIEW_W / 2;
+        let toCamY = playPY - VIEW_H / 2;
         const worldW = s.gridSize * CP;
         const worldH = s.gridSize * CP;
-        const toCamX = Math.max(0, Math.min(playPX - VIEW_W / 2, worldW - VIEW_W));
-        const toCamY = Math.max(0, Math.min(playPY - VIEW_H / 2, worldH - VIEW_H));
+        // toCamX = Math.max(0, Math.min(toCamX, worldW - VIEW_W));
+        // toCamY = Math.max(0, Math.min(toCamY, worldH - VIEW_H));
 
         syncBattleCollectibles(s);
 
@@ -1914,12 +1916,13 @@
     function draw(s) {
       ctx.clearRect(0, 0, VIEW_W, VIEW_H);
 
+      // Камера всегда центрирована на игроке
       camera.x = s.player.x - VIEW_W / 2;
       camera.y = s.player.y - VIEW_H / 2;
       const worldW = s.gridSize * CP;
       const worldH = s.gridSize * CP;
-      camera.x = Math.max(0, Math.min(camera.x, worldW - VIEW_W));
-      camera.y = Math.max(0, Math.min(camera.y, worldH - VIEW_H));
+      // camera.x = Math.max(0, Math.min(camera.x, worldW - VIEW_W));
+      // camera.y = Math.max(0, Math.min(camera.y, worldH - VIEW_H));
 
       // Пересчитываем мировые координаты мыши каждый кадр
       s.mouse.x = mouseScreen.x + camera.x;
