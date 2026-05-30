@@ -34,11 +34,11 @@
       </div>
       <div class="hud-item">
         <span class="hud-label">СЕРДЕЧКИ</span>
-        <span class="hud-value" id="val-hearts" style="color:#ff6b9d">0/10</span>
+        <span class="hud-value" id="val-hearts" style="color:#ff6b9d">0/3</span>
       </div>
       <div class="hud-item">
         <span class="hud-label">КЛЮЧИ</span>
-        <span class="hud-value" id="val-keys" style="color:#ffd700">0/3</span>
+        <span class="hud-value" id="val-keys" style="color:#ffd700">0/2</span>
       </div>
       <div class="hud-item">
         <span class="hud-label">UPGRADES</span>
@@ -67,12 +67,12 @@
       <div class="rule-item"><strong>ПКМ</strong> — открыть перегородку (–1 жизнь) или закрыть (+1 жизнь). Закрыть можно
         любую клетку кроме той, где находится игрок</div>
       <div class="rule-item"><strong>Содержимое</strong> — видно в соседних закрытых комнатах</div>
-      <div class="rule-item"><strong class="ok">Сердечки</strong> — собери для +3 жизней (коснись). Всего 10 на уровне
+      <div class="rule-item"><strong class="ok">Сердечки</strong> — собери для +3 жизней (коснись). Разное количество на каждом уровне
       </div>
-      <div class="rule-item"><strong class="ok">Ключи 🔑</strong> — собери все 3 штуки, чтобы разблокировать выход</div>
+      <div class="rule-item"><strong class="ok">Ключи 🔑</strong> — собери все ключи, чтобы разблокировать выход (2-4 в зависимости от уровня)</div>
       <div class="rule-item"><strong class="danger">Враги</strong> — в некоторых комнатах. Открытие выпускает их!
         Уничтожай из дробовика!</div>
-      <div class="rule-item"><strong>Зелёная клетка</strong> — выход! Зайди в неё с 3 ключами, чтобы победить</div>
+      <div class="rule-item"><strong>Зелёная клетка</strong> — выход! Зайди в неё со всеми ключами, чтобы победить</div>
       <div class="rule-item"><strong>Чёрные клетки</strong> — закрыты навсегда, больше не открыть</div>
     </div>
   </div>
@@ -111,6 +111,19 @@
       BLOCK_CELLS_FOREVER: false,
       DEBUG_INVULNERABLE: false, // дебаг: неуязвимость от врагов
     };
+
+    // ============================================================
+    // LEVEL CONFIGURATION
+    // ============================================================
+    const LEVEL_CONFIG = {
+      1: { gridSize: 5, keysRequired: 2, disabledCells: 4, heartsCount: 3 },
+      2: { gridSize: 9, keysRequired: 3, disabledCells: 12, heartsCount: 5 },
+      3: { gridSize: 11, keysRequired: 4, disabledCells: 18, heartsCount: 7 },
+    };
+
+    function getLevelConfig(level) {
+      return LEVEL_CONFIG[level] || LEVEL_CONFIG[3];
+    }
 
     // ============================================================
     // STATE
@@ -160,7 +173,7 @@
     let zoomOutTransition = null; // { fromScale, toScale, t }
 
     // Проверка связности: все не-выключенные клетки достижимы из старта
-    function checkConnectivity(startX, startY, disabledSet) {
+    function checkConnectivity(startX, startY, disabledSet, gridSize) {
       const visited = new Set();
       const queue = [`${startX},${startY}`];
       visited.add(`${startX},${startY}`);
@@ -171,7 +184,7 @@
         for (const [dx, dy] of CARDINAL_DIRECTIONS) {
           const nx = x + dx, ny = y + dy;
           const nk = cellKey(nx, ny);
-          if (inBounds(nx, ny) && !disabledSet.has(nk) && !visited.has(nk)) {
+          if (nx >= 0 && nx < gridSize && ny >= 0 && ny < gridSize && !disabledSet.has(nk) && !visited.has(nk)) {
             visited.add(nk);
             queue.push(nk);
           }
@@ -179,12 +192,11 @@
       }
 
       // Все не-выключенные клетки должны быть посещены
-      const totalCells = G * G;
+      const totalCells = gridSize * gridSize;
       return visited.size === totalCells - disabledSet.size;
     }
 
-    function generateDisabledCells(startX, startY, exitX, exitY) {
-      const count = CONFIG.DISABLED_CELLS_COUNT;
+    function generateDisabledCells(startX, startY, exitX, exitY, gridSize, disabledCount) {
       const maxAttempts = 1000;
 
       for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -192,8 +204,8 @@
         const candidates = [];
 
         // Собираем все клетки кроме старта и выхода
-        for (let y = 0; y < G; y++) {
-          for (let x = 0; x < G; x++) {
+        for (let y = 0; y < gridSize; y++) {
+          for (let x = 0; x < gridSize; x++) {
             if ((x !== startX || y !== startY) && (x !== exitX || y !== exitY)) {
               candidates.push({ x, y });
             }
@@ -203,12 +215,12 @@
         // Перемешиваем и берём нужное количество
         shuffleInPlace(candidates);
 
-        for (let i = 0; i < Math.min(count, candidates.length); i++) {
+        for (let i = 0; i < Math.min(disabledCount, candidates.length); i++) {
           disabled.add(cellKey(candidates[i].x, candidates[i].y));
         }
 
         // Проверяем связность
-        if (checkConnectivity(startX, startY, disabled)) {
+        if (checkConnectivity(startX, startY, disabled, gridSize)) {
           return disabled;
         }
       }
@@ -227,27 +239,33 @@
     ];
 
     function initState(level = 1) {
+      const levelConfig = getLevelConfig(level);
+      const gridSize = levelConfig.gridSize;
+      const keysRequired = levelConfig.keysRequired;
+      const disabledCount = levelConfig.disabledCells;
+      const heartsConfig = levelConfig.heartsCount;
+      
       const levelMultiplier = Math.pow(2, level - 1);
-      const cx = Math.floor(G / 2);
-      const cy = Math.floor(G / 2);
+      const cx = Math.floor(gridSize / 2);
+      const cy = Math.floor(gridSize / 2);
 
-      const maxDist = Math.max(cx, cy, G - 1 - cx, G - 1 - cy);
+      const maxDist = Math.max(cx, cy, gridSize - 1 - cx, gridSize - 1 - cy);
       
       let ex, ey, ed;
       do {
-        ex = Math.floor(Math.random() * G);
-        ey = Math.floor(Math.random() * G);
+        ex = Math.floor(Math.random() * gridSize);
+        ey = Math.floor(Math.random() * gridSize);
         ed = Math.max(Math.abs(ex - cx), Math.abs(ey - cy));
       } while (!(ed >= 2 && ed <= 4));
 
-      const disabledCells = generateDisabledCells(cx, cy, ex, ey);
+      const disabledCells = generateDisabledCells(cx, cy, ex, ey, gridSize, disabledCount);
 
       // Генерируем содержимое клеток
       const cellContents = new Map(); // key -> {type: 'empty'|'heart'|'enemies', enemyCount?: number}
       const availableCells = [];
 
-      for (let y = 0; y < G; y++) {
-        for (let x = 0; x < G; x++) {
+      for (let y = 0; y < gridSize; y++) {
+        for (let x = 0; x < gridSize; x++) {
           const k = cellKey(x, y);
           if (!disabledCells.has(k) && !(x === cx && y === cy) && !(x === ex && y === ey)) {
             availableCells.push({ x, y, k });
@@ -258,13 +276,13 @@
       // Перемешиваем
       shuffleInPlace(availableCells);
 
-      // Расставляем ключи (3 штуки) — только в клетках с дистанцией 2-4 от центра
+      // Расставляем ключи — только в клетках с дистанцией 2-4 от центра
       const keyObjs = [];
       const keyCandidates = availableCells.filter(c => {
         const d = Math.max(Math.abs(c.x - cx), Math.abs(c.y - cy));
         return d >= 2 && d <= 4;
       });
-      const keysCount = Math.min(3, keyCandidates.length);
+      const keysCount = Math.min(keysRequired, keyCandidates.length);
       for (let i = 0; i < keysCount; i++) {
         const cell = keyCandidates[i];
         availableCells.splice(availableCells.indexOf(cell), 1);
@@ -275,7 +293,7 @@
       }
 
       // Расставляем сердечки
-      const heartsCount = Math.min(CONFIG.HEARTS_COUNT, availableCells.length);
+      const heartsCount = Math.min(heartsConfig, availableCells.length);
       for (let i = 0; i < heartsCount; i++) {
         const cell = availableCells.shift();
         const dist = Math.max(Math.abs(cell.x - cx), Math.abs(cell.y - cy));
@@ -356,6 +374,8 @@
       revealAdjacentCells(initEverRevealed, cx, cy, disabledCells);
 
       return {
+        gridSize: gridSize,
+        keysRequired: keysRequired,
         openCells: initOpen,
         everRevealedCells: initEverRevealed, // клетки, которые когда-либо были видны (смежные или открытые)
         everOpenedCells: initEverOpened, // клетки, которые когда-либо были реально открыты
@@ -407,7 +427,7 @@
     function cellKey(x, y) { return `${x},${y}`; }
     function cellFromKey(k) { const [x, y] = k.split(','); return { x: +x, y: +y }; }
     function cellOf(px, py) { return { x: Math.floor(px / CP), y: Math.floor(py / CP) }; }
-    function inBounds(x, y) { return x >= 0 && x < G && y >= 0 && y < G; }
+    function inBounds(x, y) { return x >= 0 && x < 11 && y >= 0 && y < 11; }
     function easeInOutQuad(t) { return t < 0.5 ? 2*t*t : -1+(4-2*t)*t; }
 
     function shuffleInPlace(items) {
@@ -825,8 +845,8 @@
 
       s.battle = null;
 
-      // Проверяем победу: игрок на выходе с 3 ключами
-      if (s.keysCollected >= 3) {
+      // Проверяем победу: игрок на выходе со всеми ключами
+      if (s.keysCollected >= s.keysRequired) {
         const ec = s.exitCell;
         const ex0 = ec.x * CP, ex1 = (ec.x + 1) * CP;
         const ey0 = ec.y * CP, ey1 = (ec.y + 1) * CP;
@@ -1291,8 +1311,10 @@
         const fromCamY = zoneCY - VIEW_H / (2 * fromScale);
 
         // Конечная камера: play режим, центрирована на play-игроке
-        const toCamX = Math.max(0, Math.min(playPX - VIEW_W / 2, W - VIEW_W));
-        const toCamY = Math.max(0, Math.min(playPY - VIEW_H / 2, H - VIEW_H));
+        const worldW = s.gridSize * CP;
+        const worldH = s.gridSize * CP;
+        const toCamX = Math.max(0, Math.min(playPX - VIEW_W / 2, worldW - VIEW_W));
+        const toCamY = Math.max(0, Math.min(playPY - VIEW_H / 2, worldH - VIEW_H));
 
         syncBattleCollectibles(s);
 
@@ -1462,7 +1484,7 @@
       }
 
       // Выход?
-      if (s.keysCollected >= 3) {
+      if (s.keysCollected >= s.keysRequired) {
         const ec = s.exitCell;
         const ex0 = ec.x * CP, ex1 = (ec.x + 1) * CP;
         const ey0 = ec.y * CP, ey1 = (ec.y + 1) * CP;
@@ -1894,8 +1916,10 @@
 
       camera.x = s.player.x - VIEW_W / 2;
       camera.y = s.player.y - VIEW_H / 2;
-      camera.x = Math.max(0, Math.min(camera.x, W - VIEW_W));
-      camera.y = Math.max(0, Math.min(camera.y, H - VIEW_H));
+      const worldW = s.gridSize * CP;
+      const worldH = s.gridSize * CP;
+      camera.x = Math.max(0, Math.min(camera.x, worldW - VIEW_W));
+      camera.y = Math.max(0, Math.min(camera.y, worldH - VIEW_H));
 
       // Пересчитываем мировые координаты мыши каждый кадр
       s.mouse.x = mouseScreen.x + camera.x;
@@ -1906,7 +1930,7 @@
 
       // Фон
       ctx.fillStyle = '#030810';
-      ctx.fillRect(0, 0, W, H);
+      ctx.fillRect(0, 0, worldW, worldH);
 
 
       // Навсегда закрытые (чёрные) клетки — только те, что смежны с хотя бы одной открытой или everRevealed
@@ -1943,7 +1967,7 @@
           ctx.font = 'bold 11px "Share Tech Mono"';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          if (s.keysCollected >= 3) {
+          if (s.keysCollected >= s.keysRequired) {
             ctx.strokeStyle = `rgba(0,255,100,${0.5 + pulse * 0.5})`;
             ctx.lineWidth = 2;
             ctx.strokeRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
@@ -1954,7 +1978,7 @@
             ctx.lineWidth = 2;
             ctx.strokeRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
             ctx.fillStyle = `rgba(255,170,0,${0.6 + pulse * 0.4})`;
-            ctx.fillText(`EXIT (LOCKED ${s.keysCollected}/3)`, (x + 0.5) * CP, (y + 0.5) * CP);
+            ctx.fillText(`EXIT (LOCKED ${s.keysCollected}/${s.keysRequired})`, (x + 0.5) * CP, (y + 0.5) * CP);
           }
         }
       }
@@ -2013,7 +2037,7 @@
           ctx.font = 'bold 11px "Share Tech Mono"';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          if (s.keysCollected >= 3) {
+          if (s.keysCollected >= s.keysRequired) {
             ctx.fillStyle = `rgba(0,255,100,${0.6 + pulse * 0.4})`;
             ctx.fillText('EXIT', (x + 0.5) * CP, (y + 0.5) * CP);
           } else {
@@ -2292,6 +2316,7 @@
     }
 
     function updateHUD(s) {
+      if (!s) return;
       // Уровень
       document.getElementById('val-level').textContent = currentLevel;
       
@@ -2309,8 +2334,9 @@
       // Остальное
       document.getElementById('val-area').textContent = s.openCells.size;
       document.getElementById('val-ghosts').textContent = s.activeGhosts.length;
-      document.getElementById('val-hearts').textContent = `${s.heartsCollected}/${CONFIG.HEARTS_COUNT}`;
-      document.getElementById('val-keys').textContent = `${s.keysCollected}/3`;
+      const levelCfg = getLevelConfig(currentLevel);
+      document.getElementById('val-hearts').textContent = `${s.heartsCollected}/${levelCfg.heartsCount}`;
+      document.getElementById('val-keys').textContent = `${s.keysCollected}/${s.keysRequired}`;
 
       const u = s.upgrades;
       const parts = [];
@@ -2382,7 +2408,9 @@
 
       // Фон
       ctx.fillStyle = '#030810';
-      ctx.fillRect(0, 0, W, H);
+      const zoomWorldW = s.gridSize * CP;
+      const zoomWorldH = s.gridSize * CP;
+      ctx.fillRect(0, 0, zoomWorldW, zoomWorldH);
 
       // Содержимое клеток с fade-out (кроме pendingCellKey)
       const fadeAlpha = 1 - progress; // 1 -> 0
@@ -2609,8 +2637,9 @@
         drawBattle(state);
       } else if (state && state.phase === 'level_complete') {
         draw(state);
+        const levelCfg = getLevelConfig(currentLevel);
         showOverlay('УРОВЕНЬ ПРОЙДЕН!', '#00ff88',
-          [`Собрано сердечек: ${state.heartsCollected}/${CONFIG.HEARTS_COUNT}`, `Время: ${Math.round(state.time)}с`],
+          [`Собрано сердечек: ${state.heartsCollected}/${levelCfg.heartsCount}`, `Время: ${Math.round(state.time)}с`],
           'СЛЕДУЮЩИЙ УРОВЕНЬ', 'nextLevel');
         state.phase = 'stopped';
       } else if (state && state.phase === 'win') {
@@ -2626,8 +2655,9 @@
         } else {
           draw(state);
         }
+        const levelCfg = getLevelConfig(currentLevel);
         showOverlay('GAME OVER', '#ff3a3a',
-          ['Жизни закончились!', `Собрано сердечек: ${state.heartsCollected}/${CONFIG.HEARTS_COUNT}`, `Время: ${Math.round(state.time)}с`],
+          ['Жизни закончились!', `Собрано сердечек: ${state.heartsCollected}/${levelCfg.heartsCount}`, `Время: ${Math.round(state.time)}с`],
           'ПОПРОБОВАТЬ СНОВА', 'startGame');
         state.phase = 'stopped';
       }
@@ -2748,7 +2778,7 @@
     }
 
     function nextLevel() {
-      if (currentLevel >= 10) {
+      if (currentLevel >= 3) {
         // All levels completed - show victory
         deleteSave();
         state.phase = 'win';
@@ -2832,7 +2862,7 @@
         // ПКМ — открыть или закрыть комнату
         const cx = Math.floor(mx / CP);
         const cy = Math.floor(my / CP);
-        if (cx < 0 || cx >= G || cy < 0 || cy >= G) return;
+        if (cx < 0 || cx >= state.gridSize || cy < 0 || cy >= state.gridSize) return;
         const k = cellKey(cx, cy);
 
         // Проверяем, не выключена ли клетка изначально
