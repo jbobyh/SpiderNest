@@ -2965,8 +2965,11 @@
           if (hasUncollectedHeart) return;
 
           // Нельзя закрыть клетку, которая разделит оставшиеся клетки на 2+ части
+          // (клетка выхода исключается из проверки — она всегда открыта и не мешает закрытию)
           const openWithoutThis = new Set(state.openCells);
           openWithoutThis.delete(k);
+          const exitKey = cellKey(state.exitCell.x, state.exitCell.y);
+          openWithoutThis.delete(exitKey); // Исключаем выход из проверки связности
           const playerKey = cellKey(playerCell.x, playerCell.y);
           if (openWithoutThis.has(playerKey)) {
             const remainingConnected = getConnectedCells(openWithoutThis, playerKey);
