@@ -44,6 +44,10 @@
         <span class="hud-label">UPGRADES</span>
         <span class="hud-value" id="val-upgrades" style="color:#ffcc00;font-size:0.7rem">—</span>
       </div>
+      <div class="hud-item">
+        <span class="hud-label">WEAPON</span>
+        <span class="hud-value" id="val-weapon" style="font-size:0.7rem">—</span>
+      </div>
     </div>
 
     <div id="canvas-container">
@@ -61,7 +65,9 @@
     <h3>// ПРАВИЛА //</h3>
     <div class="rules-grid">
       <div class="rule-item"><strong>WASD</strong> — движение игрока</div>
-      <div class="rule-item"><strong>ЛКМ</strong> — стрелять из дробовика (удержание для автострельбы)</div>
+      <div class="rule-item"><strong>ЛКМ</strong> — стрелять (удержание для автострельбы)</div>
+      <div class="rule-item"><strong>1 / 2</strong> — выбрать слот оружия; <strong>F</strong> — переключить оружие</div>
+      <div class="rule-item"><strong>Оружие 🔫</strong> — подберись вплотную чтобы подобрать. Пистолет — 1 точная пуля. Дробовик — 3 пули с разбросом</div>
       <div class="rule-item"><strong class="danger">3 жизни</strong> — начальное количество. Трать на открытие дверей
       </div>
       <div class="rule-item"><strong>ПКМ</strong> — открыть перегородку (–1 жизнь) или закрыть (+1 жизнь). Закрыть можно
@@ -161,7 +167,10 @@
         pierce: false,
         speedMult: 1.0,
         spreadMult: 1.0,
-      }
+      },
+      weaponSlots: ['pistol', null],
+      activeSlot: 0,
+      maxSlots: 1,
     };
     let animId = null;
     let lastTime = 0;
@@ -228,6 +237,32 @@
       // Если не удалось, возвращаем пустой сет (не должно произойти при разумных значениях)
       return new Set();
     }
+
+    // ============================================================
+    // WEAPON DEFINITIONS
+    // ============================================================
+    const WEAPON_DEFS = {
+      pistol: {
+        id: 'pistol',
+        label: 'ПИСТОЛЕТ',
+        color: '#00d4ff',
+        pellets: 1,
+        spread: 0,
+        damage: 35,
+        cooldown: 0.35,
+        bulletSpeed: 400,
+      },
+      shotgun: {
+        id: 'shotgun',
+        label: 'ДРОБОВИК',
+        color: '#ffaa00',
+        pellets: 3,
+        spread: 0.35,
+        damage: 35,
+        cooldown: 0.55,
+        bulletSpeed: 320,
+      },
+    };
 
     // Типы апгрейдов и их пулы
     const UPGRADE_TYPES = [
@@ -301,6 +336,12 @@
         cellContents.set(cell.k, { type: 'heart', enemyCount, enemiesReleased: false });
       }
 
+      // Резервируем клетку для дробовика на уровне 1 (до начала расстановки апгрейдов)
+      let shotgunCell = null;
+      if (level === 1 && availableCells.length > 0) {
+        shotgunCell = availableCells.shift();
+      }
+
       // Расставляем апгрейды
       const upgradeObjs = [];
       const upgradePool = [];
@@ -331,6 +372,17 @@
         } else {
           cellContents.set(cell.k, { type: 'empty' });
         }
+      }
+
+      // Генерируем оружие на полу
+      const droppedWeapons = [];
+      if (shotgunCell) {
+        droppedWeapons.push({
+          x: (shotgunCell.x + 0.5) * CP,
+          y: (shotgunCell.y + 0.5) * CP,
+          weaponId: 'shotgun',
+          cellKey: shotgunCell.k,
+        });
       }
 
       // Создаём врагов в закрытых комнатах
@@ -415,6 +467,11 @@
 
         // Battle mode state
         battle: null, // { openCells, cellContents, hearts, keyObjs, upgradeObjs, ghosts, activeGhosts, ... }
+
+        droppedWeapons: droppedWeapons,
+        weaponSlots: [...playerProgress.weaponSlots],
+        activeSlot: playerProgress.activeSlot,
+        maxSlots: playerProgress.maxSlots,
       };
     }
 
@@ -682,6 +739,23 @@
         }
       }
 
+      // Оружие на полу в battle
+      const battleWeapons = [];
+      for (const dw of s.droppedWeapons) {
+        const wc = cellOf(dw.x, dw.y);
+        const wk = cellKey(wc.x, wc.y);
+        if (battleCells.has(wk)) {
+          battleWeapons.push({
+            x: (wc.x - cellOffsetX) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
+            y: (wc.y - cellOffsetY) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
+            weaponId: dw.weaponId,
+            originalX: dw.x,
+            originalY: dw.y,
+            picked: false,
+          });
+        }
+      }
+
       // Враги из открытой клетки -> активные враги
       const openedContent = s.cellContents.get(openedCellKey);
       if (openedContent && openedContent.enemyCount && !openedContent.enemiesReleased) {
@@ -735,6 +809,7 @@
         hearts: battleHearts,
         keys: battleKeys,
         upgrades: battleUpgrades,
+        weapons: battleWeapons,
         ghosts: battleGhosts,
         activeGhosts: battleActiveGhosts,
         bullets: [],
@@ -941,25 +1016,33 @@
     // ============================================================
     // SHOOT
     // ============================================================
+    function getActiveWeapon(s) {
+      const weaponId = s.weaponSlots[s.activeSlot];
+      return weaponId ? WEAPON_DEFS[weaponId] : null;
+    }
+
     function shoot(s) {
       if (s.shootCooldown > 0) return;
-      const cooldown = 0.45 * s.upgrades.cooldownMult;
+      const weapon = getActiveWeapon(s);
+      if (!weapon) return;
+      const cooldown = weapon.cooldown * s.upgrades.cooldownMult;
       s.shootCooldown = cooldown;
 
       const dx = s.mouse.x - s.player.x;
       const dy = s.mouse.y - s.player.y;
       const baseAngle = Math.atan2(dy, dx);
 
-      const pellets = CONFIG.SHOTGUN_PELLETS + s.upgrades.pellets;
-      const totalSpread = CONFIG.SHOTGUN_SPREAD * s.upgrades.spreadMult;
+      const pellets = weapon.pellets + (weapon.id === 'shotgun' ? s.upgrades.pellets : 0);
+      const totalSpread = weapon.spread * (weapon.id === 'shotgun' ? s.upgrades.spreadMult : 1);
       for (let i = 0; i < pellets; i++) {
         const spread = pellets > 1 ? (-totalSpread / 2) + (i * totalSpread / (pellets - 1)) : 0;
         const a = baseAngle + spread;
         s.bullets.push({
           x: s.player.x, y: s.player.y,
-          vx: Math.cos(a) * CONFIG.BULLET_SPEED,
-          vy: Math.sin(a) * CONFIG.BULLET_SPEED,
+          vx: Math.cos(a) * weapon.bulletSpeed,
+          vy: Math.sin(a) * weapon.bulletSpeed,
           life: 1.5,
+          damage: weapon.damage,
         });
       }
 
@@ -970,9 +1053,53 @@
           x: s.player.x, y: s.player.y,
           vx: Math.cos(a) * (60 + Math.random() * 80),
           vy: Math.sin(a) * (60 + Math.random() * 80),
-          life: 0.2, maxLife: 0.2, color: '#ffcc44',
+          life: 0.2, maxLife: 0.2, color: weapon.color,
         });
       }
+    }
+
+    // ============================================================
+    // WEAPON PICKUP
+    // ============================================================
+    // px, py — координаты частиц (battle или play в зависимости от контекста)
+    // dropPlayX, dropPlayY — play-координаты куда бросить вытесненное оружие
+    function pickupWeapon(s, weaponId, particles, px, py, scale, dropPlayX, dropPlayY) {
+      if (scale === undefined) scale = 1;
+      // Есть свободный слот в пределах maxSlots
+      let freeSlot = -1;
+      for (let i = 0; i < s.maxSlots; i++) {
+        if (!s.weaponSlots[i]) { freeSlot = i; break; }
+      }
+
+      if (freeSlot >= 0) {
+        // Есть свободный слот — кладём туда
+        s.weaponSlots[freeSlot] = weaponId;
+      } else {
+        // Нет свободных — сбрасываем оружие в активном слоте на землю
+        const droppedId = s.weaponSlots[s.activeSlot];
+        if (droppedId) {
+          const dox = dropPlayX !== undefined ? dropPlayX : px;
+          const doy = dropPlayY !== undefined ? dropPlayY : py;
+          s.droppedWeapons.push({ x: dox, y: doy, weaponId: droppedId });
+        }
+        s.weaponSlots[s.activeSlot] = weaponId;
+      }
+
+      // Партиклы
+      const wDef = WEAPON_DEFS[weaponId];
+      for (let i = 0; i < 12; i++) {
+        const a = Math.random() * Math.PI * 2;
+        particles.push({
+          x: px, y: py,
+          vx: Math.cos(a) * 80 * scale, vy: Math.sin(a) * 80 * scale,
+          life: 0.6, maxLife: 0.6, color: wDef ? wDef.color : '#ffffff',
+        });
+      }
+
+      playerProgress.weaponSlots = [...s.weaponSlots];
+      playerProgress.activeSlot = s.activeSlot;
+      playerProgress.maxSlots = s.maxSlots;
+      updateHUD(s);
     }
 
     // ============================================================
@@ -1088,6 +1215,7 @@
         }
       }
 
+
       // Синхронизируем собранные предметы с основным состоянием
       syncBattleCollectibles(s);
 
@@ -1129,7 +1257,7 @@
           const g = b.activeGhosts[j];
           const dist = Math.hypot(bullet.x - g.x, bullet.y - g.y);
           if (dist < (CONFIG.GHOST_RADIUS + CONFIG.BULLET_RADIUS) * BATTLE_SCALE) {
-            g.hp -= CONFIG.BULLET_DAMAGE;
+            g.hp -= (bullet.damage || CONFIG.BULLET_DAMAGE);
             for (let k = 0; k < 8; k++) {
               const a = Math.random() * Math.PI * 2;
               b.particles.push({
@@ -1294,7 +1422,7 @@
       // Проверяем завершение боя: все враги убиты и содержимое ячейки собрано
       const hasEnemies = b.activeGhosts.length > 0;
       const cellContent = s.cellContents.get(b.openedCellKey);
-      const cellContentCollected = !cellContent || cellContent.type === 'empty';
+      const cellContentCollected = !cellContent || cellContent.type === 'empty' || cellContent.type === 'enemies';
 
       if (!hasEnemies && cellContentCollected) {
         // Бой закончен — запускаем zoom-out переход
@@ -1348,8 +1476,10 @@
     function shootBattle(s) {
       if (s.shootCooldown > 0) return;
       if (!s.battle) return;
+      const weapon = getActiveWeapon(s);
+      if (!weapon) return;
       const b = s.battle;
-      const cooldown = 0.45 * s.upgrades.cooldownMult;
+      const cooldown = weapon.cooldown * s.upgrades.cooldownMult;
       s.shootCooldown = cooldown;
 
       const dx = s.mouse.x - b.player.x;
@@ -1357,16 +1487,17 @@
       const baseAngle = Math.atan2(dy, dx);
 
       // Пули игрока (масштабированная скорость)
-      const pellets = CONFIG.SHOTGUN_PELLETS + s.upgrades.pellets;
-      const totalSpread = CONFIG.SHOTGUN_SPREAD * s.upgrades.spreadMult;
+      const pellets = weapon.pellets + (weapon.id === 'shotgun' ? s.upgrades.pellets : 0);
+      const totalSpread = weapon.spread * (weapon.id === 'shotgun' ? s.upgrades.spreadMult : 1);
       for (let i = 0; i < pellets; i++) {
         const spread = pellets > 1 ? (-totalSpread / 2) + (i * totalSpread / (pellets - 1)) : 0;
         const a = baseAngle + spread;
         b.bullets.push({
           x: b.player.x, y: b.player.y,
-          vx: Math.cos(a) * CONFIG.BULLET_SPEED * BATTLE_SCALE,
-          vy: Math.sin(a) * CONFIG.BULLET_SPEED * BATTLE_SCALE,
+          vx: Math.cos(a) * weapon.bulletSpeed * BATTLE_SCALE,
+          vy: Math.sin(a) * weapon.bulletSpeed * BATTLE_SCALE,
           life: 1.5,
+          damage: weapon.damage,
         });
       }
 
@@ -1377,7 +1508,7 @@
           x: b.player.x, y: b.player.y,
           vx: Math.cos(a) * (60 + Math.random() * 80) * BATTLE_SCALE,
           vy: Math.sin(a) * (60 + Math.random() * 80) * BATTLE_SCALE,
-          life: 0.2, maxLife: 0.2, color: '#ffcc44',
+          life: 0.2, maxLife: 0.2, color: weapon.color,
         });
       }
     }
@@ -1482,6 +1613,7 @@
         }
       }
 
+
       // Таймер попапа апгрейда
       if (upgradePopupTimer > 0) {
         upgradePopupTimer -= dt;
@@ -1529,7 +1661,7 @@
           if (b.hitGhosts && b.hitGhosts.has(j)) continue; // pierce
           const dist = Math.hypot(b.x - g.x, b.y - g.y);
           if (dist < CONFIG.GHOST_RADIUS + CONFIG.BULLET_RADIUS) {
-            g.hp -= CONFIG.BULLET_DAMAGE;
+            g.hp -= (b.damage || CONFIG.BULLET_DAMAGE);
             hit = true;
             for (let k = 0; k < 8; k++) {
               const a = Math.random() * Math.PI * 2;
@@ -1819,6 +1951,31 @@
           ctx.fillText('⬆', upg.x, upg.y - 12 * BATTLE_SCALE);
           ctx.font = `bold ${12 * BATTLE_SCALE}px "Share Tech Mono"`;
           ctx.fillText(upgDef.label, upg.x, upg.y + 14 * BATTLE_SCALE);
+          ctx.shadowBlur = 0;
+        }
+      }
+
+      // Оружие на полу в battle
+      if (b.weapons) {
+        for (const bw of b.weapons) {
+          if (bw.picked) continue;
+          const wDef = WEAPON_DEFS[bw.weaponId];
+          if (!wDef) continue;
+          const pulse = 0.7 + 0.3 * Math.sin(Date.now() * 0.007);
+          ctx.fillStyle = wDef.color;
+          ctx.shadowColor = wDef.color;
+          ctx.shadowBlur = 12 * BATTLE_SCALE;
+          ctx.globalAlpha = pulse;
+          ctx.font = `bold ${18 * BATTLE_SCALE}px "Share Tech Mono"`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('🔫', bw.x, bw.y - 8 * BATTLE_SCALE);
+          ctx.font = `bold ${9 * BATTLE_SCALE}px "Share Tech Mono"`;
+          ctx.fillStyle = '#ffffff';
+          ctx.shadowBlur = 0;
+          ctx.globalAlpha = 0.9;
+          ctx.fillText(wDef.label, bw.x, bw.y + 8 * BATTLE_SCALE);
+          ctx.globalAlpha = 1;
           ctx.shadowBlur = 0;
         }
       }
@@ -2178,6 +2335,31 @@
         }
       }
 
+      // Оружие на полу
+      for (const dw of s.droppedWeapons) {
+        const wc = cellOf(dw.x, dw.y);
+        if (!s.openCells.has(cellKey(wc.x, wc.y))) continue;
+        if (!isCellVisible(wc.x, wc.y)) continue;
+        const wDef = WEAPON_DEFS[dw.weaponId];
+        if (!wDef) continue;
+        const pulse = 0.7 + 0.3 * Math.sin(Date.now() * 0.007);
+        ctx.fillStyle = wDef.color;
+        ctx.shadowColor = wDef.color;
+        ctx.shadowBlur = 12;
+        ctx.globalAlpha = pulse;
+        ctx.font = 'bold 18px "Share Tech Mono"';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('🔫', dw.x, dw.y - 8);
+        ctx.font = 'bold 9px "Share Tech Mono"';
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 0.9;
+        ctx.fillText(wDef.label, dw.x, dw.y + 8);
+        ctx.globalAlpha = 1;
+        ctx.shadowBlur = 0;
+      }
+
       // Пули игрока
       for (const b of s.bullets) {
         ctx.fillStyle = '#ffffaa';
@@ -2354,6 +2536,20 @@
       if (u.speedMult > 1.0) parts.push(`S+${Math.round((u.speedMult - 1) * 100)}%`);
       if (u.spreadMult > 1.0) parts.push(`SPR+${Math.round((u.spreadMult - 1) * 100)}%`);
       document.getElementById('val-upgrades').textContent = parts.length ? parts.join(' ') : '—';
+
+      // Слоты оружия
+      const weaponEl = document.getElementById('val-weapon');
+      if (weaponEl && s.weaponSlots) {
+        const slotParts = [];
+        for (let i = 0; i < s.maxSlots; i++) {
+          const wId = s.weaponSlots[i];
+          const wDef = wId ? WEAPON_DEFS[wId] : null;
+          const label = wDef ? wDef.label : '—';
+          const active = i === s.activeSlot;
+          slotParts.push(`<span style="color:${active ? (wDef ? wDef.color : '#fff') : '#888'};${active ? 'text-decoration:underline' : ''}">[${i+1}]${label}</span>`);
+        }
+        weaponEl.innerHTML = slotParts.join(' ');
+      }
     }
 
     // ============================================================
@@ -2676,6 +2872,9 @@
     function savePlayerProgress(s) {
       playerProgress.totalLives = s.player.lives + s.openCells.size;
       playerProgress.totalHeartsCollected += s.heartsCollected;
+      playerProgress.weaponSlots = [...(s.weaponSlots || ['pistol', null])];
+      playerProgress.activeSlot = s.activeSlot || 0;
+      playerProgress.maxSlots = s.maxSlots || 1;
       // upgrades already saved during applyUpgrade
     }
 
@@ -2706,6 +2905,10 @@
         upgrades: { ...s.upgrades },
         ghosts: s.ghosts.map(g => ({ ...g })),
         activeGhosts: s.activeGhosts.map(g => ({ ...g })),
+        droppedWeapons: s.droppedWeapons ? [...s.droppedWeapons] : [],
+        weaponSlots: s.weaponSlots ? [...s.weaponSlots] : ['pistol', null],
+        activeSlot: s.activeSlot || 0,
+        maxSlots: s.maxSlots || 1,
         time: s.time,
       };
     }
@@ -2732,6 +2935,10 @@
         upgrades: { ...data.upgrades },
         ghosts: data.ghosts.map(g => ({ ...g })),
         activeGhosts: (data.activeGhosts || []).map(g => ({ ...g })),
+        droppedWeapons: data.droppedWeapons ? [...data.droppedWeapons] : [],
+        weaponSlots: data.weaponSlots ? [...data.weaponSlots] : ['pistol', null],
+        activeSlot: data.activeSlot || 0,
+        maxSlots: data.maxSlots || 1,
         bullets: [],
         enemyBullets: [],
         particles: [],
@@ -2801,7 +3008,7 @@
       currentLevel++;
       state = initState(currentLevel);
       saveGame();
-      updateHUD();
+      updateHUD(state);
     }
 
     function startGame() {
@@ -2817,10 +3024,13 @@
           pierce: false,
           speedMult: 1.0,
           spreadMult: 1.0,
-        }
+        },
+        weaponSlots: ['pistol', null],
+        activeSlot: 0,
+        maxSlots: 1,
       };
       state = initState(currentLevel);
-      updateHUD();
+      updateHUD(state);
       draw(state);
     }
 
@@ -2830,7 +3040,7 @@
         startGame();
         return;
       }
-      updateHUD();
+      updateHUD(state);
       draw(state);
     }
 
@@ -2840,6 +3050,79 @@
     document.addEventListener('keydown', e => {
       if (!state) return;
       state.keys[e.key.toLowerCase()] = true;
+
+      // Смена слотов / оружия
+      if (state.phase === 'play' || state.phase === 'battle') {
+        let weaponChanged = false;
+        if (e.key === '1') {
+          if (state.maxSlots >= 1 && state.weaponSlots[0]) {
+            state.activeSlot = 0;
+            playerProgress.activeSlot = 0;
+            state.shootCooldown = 0;
+            weaponChanged = true;
+          }
+        } else if (e.key === '2') {
+          if (state.maxSlots >= 2 && state.weaponSlots[1]) {
+            state.activeSlot = 1;
+            playerProgress.activeSlot = 1;
+            state.shootCooldown = 0;
+            weaponChanged = true;
+          }
+        } else if (e.key === 'f' || e.key === 'F' || e.key === 'а' || e.key === 'А') {
+          // Сначала пытаемся подобрать оружие рядом
+          let pickedUp = false;
+
+          if (state.phase === 'play') {
+            for (let i = state.droppedWeapons.length - 1; i >= 0; i--) {
+              const dw = state.droppedWeapons[i];
+              const wc = cellOf(dw.x, dw.y);
+              if (!state.openCells.has(cellKey(wc.x, wc.y))) continue;
+              const dist = Math.hypot(state.player.x - dw.x, state.player.y - dw.y);
+              if (dist < CONFIG.PLAYER_RADIUS + 24) {
+                state.droppedWeapons.splice(i, 1);
+                pickupWeapon(state, dw.weaponId, state.particles, dw.x, dw.y, 1);
+                pickedUp = true;
+                weaponChanged = true;
+                break;
+              }
+            }
+          } else if (state.phase === 'battle' && state.battle && state.battle.weapons) {
+            const b = state.battle;
+            for (let i = b.weapons.length - 1; i >= 0; i--) {
+              const bw = b.weapons[i];
+              if (bw.picked) continue;
+              const dist = Math.hypot(b.player.x - bw.x, b.player.y - bw.y);
+              if (dist < CONFIG.PLAYER_RADIUS * BATTLE_SCALE + 24 * BATTLE_SCALE) {
+                bw.picked = true;
+                const idx = state.droppedWeapons.findIndex(dw => Math.abs(dw.x - bw.originalX) < 1 && Math.abs(dw.y - bw.originalY) < 1);
+                if (idx >= 0) state.droppedWeapons.splice(idx, 1);
+                const bpCell = { x: Math.floor(b.player.x / BATTLE_CELL_PX), y: Math.floor(b.player.y / BATTLE_CELL_PX) };
+                const dropPX = (bpCell.x + b.cellOffsetX + 0.5) * CP;
+                const dropPY = (bpCell.y + b.cellOffsetY + 0.5) * CP;
+                pickupWeapon(state, bw.weaponId, b.particles, bw.x, bw.y, BATTLE_SCALE, dropPX, dropPY);
+                pickedUp = true;
+                weaponChanged = true;
+                break;
+              }
+            }
+          }
+
+          // Если ничего не подобрали — переключаем слот
+          if (!pickedUp) {
+            for (let i = 1; i <= state.maxSlots; i++) {
+              const next = (state.activeSlot + i) % state.maxSlots;
+              if (state.weaponSlots[next]) {
+                state.activeSlot = next;
+                playerProgress.activeSlot = next;
+                state.shootCooldown = 0;
+                weaponChanged = true;
+                break;
+              }
+            }
+          }
+        }
+        if (weaponChanged) updateHUD(state);
+      }
     });
     document.addEventListener('keyup', e => {
       if (!state) return;
@@ -3060,7 +3343,7 @@
           shootBattle(state);
         }
       }
-    }, 450);
+    }, 50);
 
     // ============================================================
     // START
