@@ -734,14 +734,15 @@
 
       s.phase = 'battle';
 
-      // Вычисляем статичную камеру battle: умещаем все открытые клетки на экране
+      // Вычисляем статичную камеру battle: умещаем все открытые клетки + стены на экране
       const bCols = maxX - minX + 1;
       const bRows = maxY - minY + 1;
-      const scaleX2 = VIEW_W / (bCols * BATTLE_CELL_PX);
-      const scaleY2 = VIEW_H / (bRows * BATTLE_CELL_PX);
+      const wallPad = BATTLE_CELL_PX * 0.125; // wall depth, 1 side
+      const scaleX2 = VIEW_W / (bCols * BATTLE_CELL_PX + wallPad * 2);
+      const scaleY2 = VIEW_H / (bRows * BATTLE_CELL_PX + wallPad * 2);
       s.battle.staticScale = Math.min(scaleX2, scaleY2, 1);
-      s.battle.staticCamX = (battleWidth * s.battle.staticScale - VIEW_W) / 2;
-      s.battle.staticCamY = (battleHeight * s.battle.staticScale - VIEW_H) / 2;
+      s.battle.staticCamX = (battleWidth * s.battle.staticScale - VIEW_W) / 2 - wallPad * s.battle.staticScale;
+      s.battle.staticCamY = (battleHeight * s.battle.staticScale - VIEW_H) / 2 - wallPad * s.battle.staticScale;
       // Сохраняем центр зоны в play-координатах для zoom-out
       s.battle.playCenterX = (minX + bCols / 2) * CP;
       s.battle.playCenterY = (minY + bRows / 2) * CP;
@@ -2933,6 +2934,14 @@
             // Используем только клетки, связанные с позицией игрока (как в enterBattleMode)
             const allOpenCells = new Set([...state.openCells]);
             allOpenCells.add(k);
+            // Если открытие k раскроет выход — добавляем его тоже
+            const ec = state.exitCell;
+            const ek = cellKey(ec.x, ec.y);
+            if (!allOpenCells.has(ek)) {
+              if (someAdjacentCell(ec.x, ec.y, (nx, ny, nk) => allOpenCells.has(nk))) {
+                allOpenCells.add(ek);
+              }
+            }
             const playerCell = cellOf(state.player.x, state.player.y);
             const playerKey = cellKey(playerCell.x, playerCell.y);
             const futureCells = getConnectedCells(allOpenCells, playerKey);
@@ -2943,8 +2952,9 @@
             const fH = fRows * CP;
             // Масштаб как в battle: staticScale = min(VIEW_W / battleWidth, VIEW_H / battleHeight, 1)
             // В play-координатах: zoomScale = staticScale * BATTLE_SCALE
-            const battleW = fCols * BATTLE_CELL_PX;
-            const battleH = fRows * BATTLE_CELL_PX;
+            const battleWallPad = BATTLE_CELL_PX * 0.125;
+            const battleW = fCols * BATTLE_CELL_PX + battleWallPad * 2;
+            const battleH = fRows * BATTLE_CELL_PX + battleWallPad * 2;
             const staticScale = Math.min(VIEW_W / battleW, VIEW_H / battleH, 1);
             const toScale = staticScale * BATTLE_SCALE;
             const fCenterX = (fMinX + fCols / 2) * CP;
