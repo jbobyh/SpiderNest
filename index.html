@@ -109,7 +109,7 @@
       SHOOTER_STOP_DIST: 0,     // заполняется после CP
       DISABLED_CELLS_COUNT: 15,
       BLOCK_CELLS_FOREVER: false,
-      DEBUG_INVULNERABLE: true, // дебаг: неуязвимость от врагов
+      DEBUG_INVULNERABLE: false, // дебаг: неуязвимость от врагов
     };
 
     // ============================================================
@@ -826,7 +826,7 @@
       s.battle = null;
 
       // Проверяем победу: игрок на выходе с 3 ключами
-      if (s.revealedExit && s.keysCollected >= 3) {
+      if (s.keysCollected >= 3) {
         const ec = s.exitCell;
         const ex0 = ec.x * CP, ex1 = (ec.x + 1) * CP;
         const ey0 = ec.y * CP, ey1 = (ec.y + 1) * CP;
@@ -1462,7 +1462,7 @@
       }
 
       // Выход?
-      if (s.revealedExit && s.keysCollected >= 3) {
+      if (s.keysCollected >= 3) {
         const ec = s.exitCell;
         const ex0 = ec.x * CP, ex1 = (ec.x + 1) * CP;
         const ey0 = ec.y * CP, ey1 = (ec.y + 1) * CP;
@@ -1924,7 +1924,7 @@
       for (const k of s.openCells) {
         const { x, y } = cellFromKey(k);
         if (!isCellVisible(x, y)) continue;
-        const isExit = s.revealedExit && x === s.exitCell.x && y === s.exitCell.y;
+        const isExit = x === s.exitCell.x && y === s.exitCell.y;
 
         if (isExit) {
           ctx.fillStyle = `rgba(0,60,20,0.9)`;
@@ -2860,8 +2860,6 @@
             for (const openKey of state.openCells) {
               if (openKey === playerKey) continue;
               const { x: ox, y: oy } = cellFromKey(openKey);
-              // Нельзя закрыть выход
-              if (ox === state.exitCell.x && oy === state.exitCell.y) continue;
               // Нельзя закрыть с несобранным ключом
               if (state.keyObjs.some(key => !key.collected && key.cellKey === openKey)) continue;
               // Нельзя закрыть с несобранным сердцем
@@ -2934,14 +2932,6 @@
             // Используем только клетки, связанные с позицией игрока (как в enterBattleMode)
             const allOpenCells = new Set([...state.openCells]);
             allOpenCells.add(k);
-            // Если открытие k раскроет выход — добавляем его тоже
-            const ec = state.exitCell;
-            const ek = cellKey(ec.x, ec.y);
-            if (!allOpenCells.has(ek)) {
-              if (someAdjacentCell(ec.x, ec.y, (nx, ny, nk) => allOpenCells.has(nk))) {
-                allOpenCells.add(ek);
-              }
-            }
             const playerCell = cellOf(state.player.x, state.player.y);
             const playerKey = cellKey(playerCell.x, playerCell.y);
             const futureCells = getConnectedCells(allOpenCells, playerKey);
@@ -2977,26 +2967,10 @@
             saveGame();
           }
 
-          // Проверяем выход: открылась смежная с выходом — выход тоже открывается
-          const ec = state.exitCell;
-          const ek = cellKey(ec.x, ec.y);
-          if (!state.openCells.has(ek)) {
-            if (someAdjacentCell(ec.x, ec.y, (nx, ny, nk) => state.openCells.has(nk))) {
-              state.openCells.add(ek);
-              state.everOpenedCells.add(ek);
-              state.everRevealedCells.add(ek);
-              revealAdjacentCells(state.everRevealedCells, ec.x, ec.y, state.disabledCells, state.permanentlyClosed, false);
-              state.revealedExit = true;
-            }
-          }
-
         } else if (state.openCells.has(k)) {
           // ЗАКРЫТЬ клетку навсегда
           const playerCell = cellOf(state.player.x, state.player.y);
           if (k === cellKey(playerCell.x, playerCell.y)) return; // Нельзя закрыть клетку с игроком
-
-          // Нельзя закрыть клетку с выходом
-          if (cx === state.exitCell.x && cy === state.exitCell.y) return;
 
           // Нельзя закрыть клетку с несобранным ключом
           const hasUncollectedKey = state.keyObjs.some(key => !key.collected && key.cellKey === k);
@@ -3007,11 +2981,8 @@
           if (hasUncollectedHeart) return;
 
           // Нельзя закрыть клетку, которая разделит оставшиеся клетки на 2+ части
-          // (клетка выхода исключается из проверки — она всегда открыта и не мешает закрытию)
           const openWithoutThis = new Set(state.openCells);
           openWithoutThis.delete(k);
-          const exitKey = cellKey(state.exitCell.x, state.exitCell.y);
-          openWithoutThis.delete(exitKey); // Исключаем выход из проверки связности
           const playerKey = cellKey(playerCell.x, playerCell.y);
           if (openWithoutThis.has(playerKey)) {
             const remainingConnected = getConnectedCells(openWithoutThis, playerKey);
