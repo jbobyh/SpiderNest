@@ -109,7 +109,7 @@
       SHOOTER_STOP_DIST: 0,     // заполняется после CP
       DISABLED_CELLS_COUNT: 15,
       BLOCK_CELLS_FOREVER: false,
-      DEBUG_INVULNERABLE: false, // дебаг: неуязвимость от врагов
+      DEBUG_INVULNERABLE: true, // дебаг: неуязвимость от врагов
     };
 
     // ============================================================
@@ -127,6 +127,15 @@
     C.height = VIEW_H;
     const W = G * CP;           // полный размер мира
     const H = G * CP;
+
+    const floorImg = new Image();
+    floorImg.src = 'img/floor.png';
+
+    const wallImg = new Image();
+    wallImg.src = 'img/wall.png';
+
+    const cornerImg = new Image();
+    cornerImg.src = 'img/corner.png';
 
     let state = null;
     let currentLevel = 1;
@@ -467,6 +476,105 @@
         if (predicate(nx, ny, cellKey(nx, ny))) return true;
       }
       return false;
+    }
+
+    // ============================================================
+    // WALL RENDERING
+    // ============================================================
+    // Draws wall.png on each border edge of openCells set.
+    // wallW/wallH: size of one wall strip in world-units for this context (cellPx wide, depth fraction tall).
+    // The wall is drawn OUTSIDE the open cell (into closed space), clipped to not overdraw open cells.
+    function drawOpenCellWalls(openCells, cellPx, wallDepth, offsetX = 0, offsetY = 0) {
+      if (!wallImg.complete || wallImg.naturalWidth === 0) return;
+
+      for (const k of openCells) {
+        const { x, y } = cellFromKey(k);
+
+        // dx,dy: direction toward the neighbour (outside)
+        // Wall drawn starting at the edge going outward by wallDepth
+        const sides = [
+          { dx: 0, dy: -1 }, // top
+          { dx: 0, dy:  1 }, // bottom
+          { dx: -1, dy: 0 }, // left
+          { dx:  1, dy: 0 }, // right
+        ];
+
+        for (const { dx, dy } of sides) {
+          const nk = cellKey(x + dx, y + dy);
+          if (openCells.has(nk)) continue; // neighbour is open — no wall here
+
+          const cx0 = (x - offsetX) * cellPx;
+          const cy0 = (y - offsetY) * cellPx;
+
+          ctx.save();
+
+          // Place and rotate the wall strip so its length runs along the shared edge.
+          // edgeMid = midpoint of the shared edge between this cell and neighbour.
+          // After rotate, local -Y points outward (away from open cell).
+          // Wall image designed for top: drawn at y=-wallDepth going upward (outward).
+          const edgeMidX = cx0 + (0.5 + dx * 0.5) * cellPx;
+          const edgeMidY = cy0 + (0.5 + dy * 0.5) * cellPx;
+
+          const angle = Math.atan2(dy, dx) + Math.PI / 2; // 0=top, rotates for each side
+
+          ctx.translate(edgeMidX, edgeMidY);
+          ctx.rotate(angle);
+          // Local coords: X along edge, -Y = outward direction
+          ctx.drawImage(wallImg, -cellPx / 2, -wallDepth, cellPx, wallDepth);
+
+          ctx.restore();
+        }
+      }
+    }
+
+    // Draws corner.png at each corner of the open area boundary.
+    // cornerSize: size of the corner square in world-units.
+    // Image is designed for top-left corner (outside), rotated for other corners.
+    // Two cases per diagonal direction (ddx, ddy):
+    //   External corner: both cardinal neighbours are closed → draw into diagonal cell
+    //   Internal (concave) corner: both cardinal neighbours are open, diagonal is closed → draw into diagonal cell
+    function drawOpenCellCorners(openCells, cellPx, cornerSize, offsetX = 0, offsetY = 0) {
+      if (!cornerImg.complete || cornerImg.naturalWidth === 0) return;
+
+      // Diagonal directions with their rotation angle (image = top-left = 0)
+      const diagonals = [
+        { ddx: -1, ddy: -1, angle: 0 },              // top-left
+        { ddx:  1, ddy: -1, angle: Math.PI / 2 },    // top-right
+        { ddx:  1, ddy:  1, angle: Math.PI },         // bottom-right
+        { ddx: -1, ddy:  1, angle: -Math.PI / 2 },   // bottom-left
+      ];
+
+      for (const k of openCells) {
+        const { x, y } = cellFromKey(k);
+
+        for (const { ddx, ddy, angle } of diagonals) {
+          const sideA = openCells.has(cellKey(x + ddx, y));
+          const sideB = openCells.has(cellKey(x, y + ddy));
+          const diagOpen = openCells.has(cellKey(x + ddx, y + ddy));
+
+          const isExternal = !sideA && !sideB;       // outer convex corner
+          const isInternal = sideA && sideB && !diagOpen; // inner concave corner
+
+          if (!isExternal && !isInternal) continue;
+
+          // Corner point in world coords (shared by this cell and the diagonal)
+          const cornerX = (x - offsetX + (ddx > 0 ? 1 : 0)) * cellPx;
+          const cornerY = (y - offsetY + (ddy > 0 ? 1 : 0)) * cellPx;
+
+          ctx.save();
+          ctx.translate(cornerX, cornerY);
+          if (isInternal) {
+            // Flip around image centre: rotate by angle+PI, draw at (0,0) so image
+            // occupies the same diagonal cell but mirrored — top-left corner faces inward
+            ctx.rotate(angle + Math.PI);
+            ctx.drawImage(cornerImg, 0, 0, cornerSize, cornerSize);
+          } else {
+            ctx.rotate(angle);
+            ctx.drawImage(cornerImg, -cornerSize, -cornerSize, cornerSize, cornerSize);
+          }
+          ctx.restore();
+        }
+      }
     }
 
     // ============================================================
@@ -1616,19 +1724,6 @@
       ctx.fillStyle = '#030810';
       ctx.fillRect(0, 0, b.width, b.height);
 
-      // Сетка battle
-      ctx.strokeStyle = '#0d1e2e';
-      ctx.lineWidth = 1;
-      for (let i = 0; i <= Math.ceil(b.width / BATTLE_CELL_PX); i++) {
-        ctx.beginPath(); ctx.moveTo(i * BATTLE_CELL_PX, 0);
-        ctx.lineTo(i * BATTLE_CELL_PX, b.height);
-        ctx.stroke();
-      }
-      for (let i = 0; i <= Math.ceil(b.height / BATTLE_CELL_PX); i++) {
-        ctx.beginPath(); ctx.moveTo(0, i * BATTLE_CELL_PX);
-        ctx.lineTo(b.width, i * BATTLE_CELL_PX);
-        ctx.stroke();
-      }
 
       // Отрисовка клеток battle
       for (const k of b.openCells) {
@@ -1638,24 +1733,18 @@
         const by = (y - b.cellOffsetY) * BATTLE_CELL_PX;
 
         // Фон клетки
-        ctx.fillStyle = 'rgb(10,25,40)';
-        ctx.fillRect(bx + 1, by + 1, BATTLE_CELL_PX - 2, BATTLE_CELL_PX - 2);
-
-        // Стены
-        ctx.strokeStyle = '#1a4060';
-        ctx.lineWidth = 2;
-        for (const [dx, dy] of WALL_DIRECTIONS) {
-          const nk = cellKey(x + dx, y + dy);
-          if (!b.openCells.has(nk)) {
-            ctx.beginPath();
-            if (dy === -1) { ctx.moveTo(bx, by); ctx.lineTo(bx + BATTLE_CELL_PX, by); }
-            if (dy === 1) { ctx.moveTo(bx, by + BATTLE_CELL_PX); ctx.lineTo(bx + BATTLE_CELL_PX, by + BATTLE_CELL_PX); }
-            if (dx === -1) { ctx.moveTo(bx, by); ctx.lineTo(bx, by + BATTLE_CELL_PX); }
-            if (dx === 1) { ctx.moveTo(bx + BATTLE_CELL_PX, by); ctx.lineTo(bx + BATTLE_CELL_PX, by + BATTLE_CELL_PX); }
-            ctx.stroke();
-          }
+        if (floorImg.complete && floorImg.naturalWidth > 0) {
+          ctx.drawImage(floorImg, bx, by, BATTLE_CELL_PX, BATTLE_CELL_PX);
+        } else {
+          ctx.fillStyle = 'rgb(10,25,40)';
+          ctx.fillRect(bx, by, BATTLE_CELL_PX, BATTLE_CELL_PX);
         }
+
       }
+
+      // Стены по краям открытых клеток (battle)
+      drawOpenCellWalls(b.openCells, BATTLE_CELL_PX, BATTLE_CELL_PX * 0.125, b.cellOffsetX, b.cellOffsetY);
+      drawOpenCellCorners(b.openCells, BATTLE_CELL_PX, BATTLE_CELL_PX * 0.125, b.cellOffsetX, b.cellOffsetY);
 
       // Сердечки
       for (const heart of b.hearts) {
@@ -1818,19 +1907,6 @@
       ctx.fillStyle = '#030810';
       ctx.fillRect(0, 0, W, H);
 
-      // Сетка
-      ctx.strokeStyle = '#0d1e2e';
-      ctx.lineWidth = 1;
-      const startCol = Math.floor(camera.x / CP);
-      const endCol = Math.ceil((camera.x + VIEW_W) / CP);
-      const startRow = Math.floor(camera.y / CP);
-      const endRow = Math.ceil((camera.y + VIEW_H) / CP);
-      for (let i = Math.max(0, startCol); i <= Math.min(G, endCol); i++) {
-        ctx.beginPath(); ctx.moveTo(i * CP, Math.max(0, startRow) * CP); ctx.lineTo(i * CP, Math.min(G, endRow) * CP); ctx.stroke();
-      }
-      for (let i = Math.max(0, startRow); i <= Math.min(G, endRow); i++) {
-        ctx.beginPath(); ctx.moveTo(Math.max(0, startCol) * CP, i * CP); ctx.lineTo(Math.min(G, endCol) * CP, i * CP); ctx.stroke();
-      }
 
       // Навсегда закрытые (чёрные) клетки — только те, что смежны с хотя бы одной открытой или everRevealed
       const blackCells = new Set([...s.permanentlyClosed, ...s.disabledCells]);
@@ -1841,9 +1917,6 @@
         if (!isCellVisible(x, y)) continue;
         ctx.fillStyle = '#000000';
         ctx.fillRect(x * CP, y * CP, CP, CP);
-        ctx.strokeStyle = '#1a1a1a';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
       }
 
       // Открытые клетки
@@ -1854,10 +1927,15 @@
 
         if (isExit) {
           ctx.fillStyle = `rgba(0,60,20,0.9)`;
+          ctx.fillRect(x * CP, y * CP, CP, CP);
         } else {
-          ctx.fillStyle = `rgb(10,25,40)`;
+          if (floorImg.complete && floorImg.naturalWidth > 0) {
+            ctx.drawImage(floorImg, x * CP, y * CP, CP, CP);
+          } else {
+            ctx.fillStyle = `rgb(10,25,40)`;
+            ctx.fillRect(x * CP, y * CP, CP, CP);
+          }
         }
-        ctx.fillRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
 
         if (isExit) {
           const pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.005);
@@ -1867,18 +1945,22 @@
           if (s.keysCollected >= 3) {
             ctx.strokeStyle = `rgba(0,255,100,${0.5 + pulse * 0.5})`;
             ctx.lineWidth = 2;
-            ctx.strokeRect(x * CP + 2, y * CP + 2, CP - 4, CP - 4);
+            ctx.strokeRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
             ctx.fillStyle = `rgba(0,255,100,${0.6 + pulse * 0.4})`;
             ctx.fillText('EXIT', (x + 0.5) * CP, (y + 0.5) * CP);
           } else {
             ctx.strokeStyle = `rgba(255,170,0,${0.5 + pulse * 0.5})`;
             ctx.lineWidth = 2;
-            ctx.strokeRect(x * CP + 2, y * CP + 2, CP - 4, CP - 4);
+            ctx.strokeRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
             ctx.fillStyle = `rgba(255,170,0,${0.6 + pulse * 0.4})`;
             ctx.fillText(`EXIT (LOCKED ${s.keysCollected}/3)`, (x + 0.5) * CP, (y + 0.5) * CP);
           }
         }
       }
+
+      // Стены по краям открытых клеток
+      drawOpenCellWalls(s.openCells, CP, CP * 0.125);
+      drawOpenCellCorners(s.openCells, CP, CP * 0.125);
 
       // Смежные закрытые клетки (видно содержимое) — все когда-либо виденные, не открытые и не чёрные
       const adj = new Set();
@@ -1918,14 +2000,10 @@
         if (playerAdjOpen.has(k)) {
           ctx.fillStyle = 'rgba(20,60,30,0.15)';
           ctx.fillRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
-          ctx.strokeStyle = 'rgba(40,200,80,0.3)';
         } else {
           ctx.fillStyle = 'rgba(40,30,50,0.3)';
           ctx.fillRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
-          ctx.strokeStyle = 'rgba(100,80,120,0.4)';
         }
-        ctx.lineWidth = 1;
-        ctx.strokeRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
 
         // Показываем содержимое
         const isExitCell = x === s.exitCell.x && y === s.exitCell.y;
@@ -2006,28 +2084,6 @@
         if (!isCellVisible(x, y)) continue;
         ctx.fillStyle = 'rgba(20,60,30,0.15)';
         ctx.fillRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
-        ctx.strokeStyle = 'rgba(40,200,80,0.3)';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
-      }
-
-      // Стены
-      for (const k of s.openCells) {
-        const { x, y } = cellFromKey(k);
-        if (!isCellVisible(x, y)) continue;
-        ctx.strokeStyle = '#1a4060';
-        ctx.lineWidth = 2;
-        for (const [dx, dy] of WALL_DIRECTIONS) {
-          const nk = cellKey(x + dx, y + dy);
-          if (!s.openCells.has(nk)) {
-            ctx.beginPath();
-            if (dy === -1) { ctx.moveTo(x * CP, y * CP); ctx.lineTo((x + 1) * CP, y * CP); }
-            if (dy === 1) { ctx.moveTo(x * CP, (y + 1) * CP); ctx.lineTo((x + 1) * CP, (y + 1) * CP); }
-            if (dx === -1) { ctx.moveTo(x * CP, y * CP); ctx.lineTo(x * CP, (y + 1) * CP); }
-            if (dx === 1) { ctx.moveTo((x + 1) * CP, y * CP); ctx.lineTo((x + 1) * CP, (y + 1) * CP); }
-            ctx.stroke();
-          }
-        }
       }
 
       // Сердечки в открытых клетках
@@ -2327,14 +2383,6 @@
       ctx.fillStyle = '#030810';
       ctx.fillRect(0, 0, W, H);
 
-      // Сетка
-      ctx.strokeStyle = '#0d1e2e';
-      ctx.lineWidth = 1;
-      for (let i = 0; i <= G; i++) {
-        ctx.beginPath(); ctx.moveTo(i * CP, 0); ctx.lineTo(i * CP, H); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(0, i * CP); ctx.lineTo(W, i * CP); ctx.stroke();
-      }
-
       // Содержимое клеток с fade-out (кроме pendingCellKey)
       const fadeAlpha = 1 - progress; // 1 -> 0
 
@@ -2346,36 +2394,23 @@
         if (!someAdjacentCell(x, y, (nx, ny, nk) => s.everOpenedCells.has(nk))) continue;
         ctx.fillStyle = '#000000';
         ctx.fillRect(x * CP, y * CP, CP, CP);
-        ctx.strokeStyle = '#1a1a1a';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
       }
       ctx.globalAlpha = 1;
 
       // Открытые клетки
       for (const k of s.openCells) {
         const { x, y } = cellFromKey(k);
-        ctx.fillStyle = 'rgb(10,25,40)';
-        ctx.fillRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
-      }
-
-      // Стены открытых клеток
-      for (const k of s.openCells) {
-        const { x, y } = cellFromKey(k);
-        ctx.strokeStyle = '#1a4060';
-        ctx.lineWidth = 2;
-        for (const [dx, dy] of WALL_DIRECTIONS) {
-          const nk = cellKey(x+dx, y+dy);
-          if (!s.openCells.has(nk)) {
-            ctx.beginPath();
-            if (dy===-1) { ctx.moveTo(x*CP,y*CP); ctx.lineTo((x+1)*CP,y*CP); }
-            if (dy===1) { ctx.moveTo(x*CP,(y+1)*CP); ctx.lineTo((x+1)*CP,(y+1)*CP); }
-            if (dx===-1) { ctx.moveTo(x*CP,y*CP); ctx.lineTo(x*CP,(y+1)*CP); }
-            if (dx===1) { ctx.moveTo((x+1)*CP,y*CP); ctx.lineTo((x+1)*CP,(y+1)*CP); }
-            ctx.stroke();
-          }
+        if (floorImg.complete && floorImg.naturalWidth > 0) {
+          ctx.drawImage(floorImg, x * CP, y * CP, CP, CP);
+        } else {
+          ctx.fillStyle = 'rgb(10,25,40)';
+          ctx.fillRect(x * CP, y * CP, CP, CP);
         }
       }
+
+      // Стены по краям открытых клеток (zoom)
+      drawOpenCellWalls(s.openCells, CP, CP * 0.125);
+      drawOpenCellCorners(s.openCells, CP, CP * 0.125);
 
       // Смежные (фиолетовая подсветка) клетки
       const adjZ = new Set();
@@ -2387,9 +2422,6 @@
         const { x, y } = cellFromKey(k);
         ctx.fillStyle = 'rgba(40,30,50,0.3)';
         ctx.fillRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
-        ctx.strokeStyle = 'rgba(100,80,120,0.4)';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
       }
       ctx.globalAlpha = 1;
       
