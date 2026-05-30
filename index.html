@@ -1088,6 +1088,9 @@
         }
       }
 
+      // Синхронизируем собранные предметы с основным состоянием
+      syncBattleCollectibles(s);
+
       // Стрельба в battle mode
       s.shootCooldown = Math.max(0, s.shootCooldown - dt);
 
@@ -1288,10 +1291,12 @@
         if (p.life <= 0) b.particles.splice(i, 1);
       }
 
-      // Проверяем завершение боя: все враги убиты
+      // Проверяем завершение боя: все враги убиты и содержимое ячейки собрано
       const hasEnemies = b.activeGhosts.length > 0;
+      const cellContent = s.cellContents.get(b.openedCellKey);
+      const cellContentCollected = !cellContent || cellContent.type === 'empty';
 
-      if (!hasEnemies) {
+      if (!hasEnemies && cellContentCollected) {
         // Бой закончен — запускаем zoom-out переход
         // Игрок в battle -> play координаты
         const battleCellX = Math.floor(b.player.x / BATTLE_CELL_PX);
