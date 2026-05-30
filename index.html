@@ -122,9 +122,9 @@
     // LEVEL CONFIGURATION
     // ============================================================
     const LEVEL_CONFIG = {
-      1: { gridSize: 5, keysRequired: 2, disabledCells: 4, heartsCount: 3 },
-      2: { gridSize: 9, keysRequired: 3, disabledCells: 12, heartsCount: 5 },
-      3: { gridSize: 11, keysRequired: 4, disabledCells: 18, heartsCount: 7 },
+      1: { gridSize: 5, keysRequired: 1, disabledCells: 6, heartsCount: 3 },
+      2: { gridSize: 7, keysRequired: 2, disabledCells: 11, heartsCount: 5 },
+      3: { gridSize: 9, keysRequired: 3, disabledCells: 20, heartsCount: 7 },
     };
 
     function getLevelConfig(level) {
@@ -155,6 +155,9 @@
 
     const cornerImg = new Image();
     cornerImg.src = 'img/corner.png';
+
+    const closedCellImg = new Image();
+    closedCellImg.src = 'img/closedcell.png';
 
     let state = null;
     let currentLevel = 1;
@@ -1372,7 +1375,7 @@
         if (pd < CONFIG.PLAYER_RADIUS * BATTLE_SCALE + 4 * BATTLE_SCALE) {
           if (s.player.invulnerable <= 0 && !CONFIG.DEBUG_INVULNERABLE) {
             s.player.lives--;
-            s.player.invulnerable = 0.5;
+            s.player.invulnerable = 1;
           }
           b.enemyBullets.splice(i, 1);
           for (let k = 0; k < 8; k++) {
@@ -1802,7 +1805,7 @@
         if (pd < CONFIG.PLAYER_RADIUS + 4) {
           if (s.player.invulnerable <= 0 && !CONFIG.DEBUG_INVULNERABLE) {
             s.player.lives--;
-            s.player.invulnerable = 0.5;
+            s.player.invulnerable = 1;
           }
           s.enemyBullets.splice(i, 1);
           for (let k = 0; k < 8; k++) {
@@ -2109,6 +2112,23 @@
         ctx.fillRect(x * CP, y * CP, CP, CP);
       }
 
+      // Неоткрытые клетки (не исследованные) — рисуем closedcell.png
+      for (let y = 0; y < s.gridSize; y++) {
+        for (let x = 0; x < s.gridSize; x++) {
+          const k = cellKey(x, y);
+          // Пропускаем если клетка уже открыта, открывалась ранее, или недоступна
+          if (s.openCells.has(k) || s.everRevealedCells.has(k) ||
+              s.disabledCells.has(k) || s.permanentlyClosed.has(k)) continue;
+          if (!isCellVisible(x, y)) continue;
+          if (closedCellImg.complete && closedCellImg.naturalWidth > 0) {
+            ctx.drawImage(closedCellImg, x * CP, y * CP, CP, CP);
+          } else {
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(x * CP, y * CP, CP, CP);
+          }
+        }
+      }
+
       // Открытые клетки
       for (const k of s.openCells) {
         const { x, y } = cellFromKey(k);
@@ -2176,7 +2196,7 @@
       for (const [ddx, ddy] of CARDINAL_DIRECTIONS) {
         const nx = playerCellForDraw.x + ddx, ny = playerCellForDraw.y + ddy;
         const nk = cellKey(nx, ny);
-        if (inBounds(nx, ny) &&
+        if (nx >= 0 && nx < s.gridSize && ny >= 0 && ny < s.gridSize &&
             !s.openCells.has(nk) && !s.disabledCells.has(nk) && !s.permanentlyClosed.has(nk)) {
           playerAdjOpen.add(nk);
         }
@@ -2184,11 +2204,12 @@
 
       for (const k of adj) {
         const { x, y } = cellFromKey(k);
+        if (x < 0 || x >= s.gridSize || y < 0 || y >= s.gridSize) continue;
         if (!isCellVisible(x, y)) continue;
 
         // Фон смежной клетки
         if (playerAdjOpen.has(k)) {
-          ctx.fillStyle = 'rgba(20,60,30,0.15)';
+          ctx.fillStyle = 'rgba(45,138,69,0.15)';
           ctx.fillRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
         } else {
           ctx.fillStyle = 'rgba(40,30,50,0.3)';
@@ -2271,6 +2292,7 @@
       for (const k of playerAdjOpen) {
         if (adj.has(k)) continue; // уже нарисована выше
         const { x, y } = cellFromKey(k);
+        if (x < 0 || x >= s.gridSize || y < 0 || y >= s.gridSize) continue;
         if (!isCellVisible(x, y)) continue;
         ctx.fillStyle = 'rgba(20,60,30,0.15)';
         ctx.fillRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
