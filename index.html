@@ -109,7 +109,7 @@
       SHOOTER_STOP_DIST: 0,     // заполняется после CP
       DISABLED_CELLS_COUNT: 15,
       BLOCK_CELLS_FOREVER: false,
-      DEBUG_INVULNERABLE: true, // дебаг: неуязвимость от врагов
+      DEBUG_INVULNERABLE: false, // дебаг: неуязвимость от врагов
     };
 
     // ============================================================
@@ -822,8 +822,9 @@
       const baseAngle = Math.atan2(dy, dx);
 
       const pellets = CONFIG.SHOTGUN_PELLETS + s.upgrades.pellets;
+      const totalSpread = CONFIG.SHOTGUN_SPREAD * s.upgrades.spreadMult;
       for (let i = 0; i < pellets; i++) {
-        const spread = (Math.random() - 0.5) * CONFIG.SHOTGUN_SPREAD * s.upgrades.spreadMult;
+        const spread = pellets > 1 ? (-totalSpread / 2) + (i * totalSpread / (pellets - 1)) : 0;
         const a = baseAngle + spread;
         s.bullets.push({
           x: s.player.x, y: s.player.y,
@@ -1219,8 +1220,9 @@
 
       // Пули игрока (масштабированная скорость)
       const pellets = CONFIG.SHOTGUN_PELLETS + s.upgrades.pellets;
+      const totalSpread = CONFIG.SHOTGUN_SPREAD * s.upgrades.spreadMult;
       for (let i = 0; i < pellets; i++) {
-        const spread = (Math.random() - 0.5) * CONFIG.SHOTGUN_SPREAD * s.upgrades.spreadMult;
+        const spread = pellets > 1 ? (-totalSpread / 2) + (i * totalSpread / (pellets - 1)) : 0;
         const a = baseAngle + spread;
         b.bullets.push({
           x: b.player.x, y: b.player.y,
@@ -2536,7 +2538,7 @@
         draw(state);
       } else if (state && state.phase === 'zoom_transition') {
         // Анимация зума перед battle (1 сек)
-        const ZOOM_DUR = 1.0;
+        const ZOOM_DUR = 0.5;
         zoomTransition.t = Math.min(zoomTransition.t + dt, ZOOM_DUR);
         const zt = zoomTransition;
         const p = easeInOutQuad(zt.t / ZOOM_DUR);
@@ -2553,7 +2555,7 @@
         }
       } else if (state && state.phase === 'zoom_out_transition') {
         // Анимация zoom-out из battle на карту (1 сек)
-        const ZOOM_OUT_DUR = 1.0;
+        const ZOOM_OUT_DUR = 0.5;
         zoomOutTransition.t = Math.min(zoomOutTransition.t + dt, ZOOM_OUT_DUR);
         const zot = zoomOutTransition;
         const p = easeInOutQuad(zot.t / ZOOM_OUT_DUR);
@@ -2812,14 +2814,16 @@
           // Проверяем хватает ли жизней
           if (state.player.lives < 1) return;
 
-          // Если 1 жизнь — автозакрываем дальнюю клетку
+          // Если 1 жизнь — автозакрываем клетку (сначала отсоединённые, потом дальние по пути)
           if (state.player.lives === 1) {
             const playerCell = cellOf(state.player.x, state.player.y);
             const playerKey = cellKey(playerCell.x, playerCell.y);
-            let farthestCell = null;
-            let maxDist = -1;
 
-            // Ищем самую дальнюю закрываемую клетку
+            // Находим связанные с игроком клетки (BFS)
+            const connected = getConnectedCells(state.openCells, playerKey);
+
+            // Фильтруем кандидатов на закрытие
+            const candidates = [];
             for (const openKey of state.openCells) {
               if (openKey === playerKey) continue;
               const { x: ox, y: oy } = cellFromKey(openKey);
@@ -2829,24 +2833,51 @@
               if (state.keyObjs.some(key => !key.collected && key.cellKey === openKey)) continue;
               // Нельзя закрыть с несобранным сердцем
               if (state.hearts.some(heart => !heart.collected && heart.cellKey === openKey)) continue;
+              candidates.push(openKey);
+            }
 
-              // Проверяем что клетка не станет изолированной
-              const hasOpenNeighbor = someAdjacentCell(ox, oy, (nx, ny, nk) =>
-                state.openCells.has(nk) && nk !== openKey && nk !== k);
-              if (!hasOpenNeighbor) continue;
+            let cellToClose = null;
 
-              const dist = Math.hypot(ox - playerCell.x, oy - playerCell.y);
-              if (dist > maxDist) {
-                maxDist = dist;
-                farthestCell = openKey;
+            // Шаг 1: Ищем отсоединённые клетки (не в connected)
+            const isolated = candidates.filter(k => !connected.has(k));
+            if (isolated.length > 0) {
+              // Закрываем любую отсоединённую (первая найденная)
+              cellToClose = isolated[0];
+            } else {
+              // Шаг 2: Находим самую дальнюю по пути (BFS distance)
+              const distances = new Map();
+              const queue = [[playerKey, 0]];
+              distances.set(playerKey, 0);
+
+              while (queue.length) {
+                const [k, d] = queue.shift();
+                const { x, y } = cellFromKey(k);
+                for (const [dx, dy] of CARDINAL_DIRECTIONS) {
+                  const nk = cellKey(x + dx, y + dy);
+                  if (state.openCells.has(nk) && !distances.has(nk)) {
+                    distances.set(nk, d + 1);
+                    queue.push([nk, d + 1]);
+                  }
+                }
+              }
+
+              let maxDist = -1;
+              for (const k of candidates) {
+                if (connected.has(k) && distances.has(k)) {
+                  const d = distances.get(k);
+                  if (d > maxDist) {
+                    maxDist = d;
+                    cellToClose = k;
+                  }
+                }
               }
             }
 
             // Если не нашли клетку для закрытия — отменяем
-            if (!farthestCell) return;
+            if (!cellToClose) return;
 
-            // Закрываем дальнюю клетку
-            state.openCells.delete(farthestCell);
+            // Закрываем клетку
+            state.openCells.delete(cellToClose);
             // Возвращаем жизнь за закрытие
             state.player.lives++;
           }
