@@ -67,7 +67,7 @@
     <div class="rules-grid">
       <div class="rule-item"><strong>WASD</strong> — движение игрока</div>
       <div class="rule-item"><strong>ЛКМ</strong> — стрелять (удержание для автострельбы)</div>
-      <div class="rule-item"><strong>1 / 2</strong> — выбрать слот оружия; <strong>F</strong> — переключить оружие</div>
+      <div class="rule-item"><strong>1 / 2</strong> — выбрать слот; <strong>Q</strong> — чередовать слоты; <strong>F</strong> — подобрать/переключить оружие</div>
       <div class="rule-item"><strong>Оружие 🔫</strong> — подберись вплотную чтобы подобрать. Пистолет — 1 точная пуля. Дробовик — 3 пули с разбросом. Револьвер — 1 пуля, урон 40. Карабин — очередь из 3 пуль</div>
       <div class="rule-item"><strong class="danger">3 жизни</strong> — начальное количество. Трать на открытие дверей
       </div>
@@ -291,6 +291,7 @@
         reflection: false,
       },
       spawnedUpgrades: {}, // сколько раз каждый апгрейд заспавнился за всю игру
+      spawnedWeapons: [], // какие оружия уже заспавнились за всю игру
       weaponSlots: ['pistol', null],
       activeSlot: 0,
       maxSlots: 1,
@@ -515,12 +516,17 @@
         cellContents.set(cell.k, { type: 'heart', enemyCount, enemiesReleased: false });
       }
 
-      // Генерируем оружие на полу (случайное, 1 на ур.1, 2 на ур.2, 3 на ур.3)
-      // Оружие имеет приоритет над апгрейдами и врагами!
+      // Генерируем оружие на полу: 1 на ур.1, 2 на ур.2, 2 на ур.3
+      // Оружие не повторяется между уровнями!
       const droppedWeapons = [];
-      const weaponPool = ['shotgun', 'smg', 'rifle', 'revolver', 'carbine'];
+      const allWeapons = ['shotgun', 'smg', 'rifle', 'revolver', 'carbine'];
+      // Фильтруем уже заспавненные оружия
+      const weaponPool = allWeapons.filter(w => !playerProgress.spawnedWeapons.includes(w));
       shuffleInPlace(weaponPool);
-      const weaponCount = Math.min(level, availableCells.length, weaponPool.length);
+      // Количество оружия на уровне: 1, 2, 2
+      const levelWeaponCounts = { 1: 1, 2: 2, 3: 2 };
+      const targetWeaponCount = levelWeaponCounts[level] || 1;
+      const weaponCount = Math.min(targetWeaponCount, availableCells.length, weaponPool.length);
 
       // На 1 уровне оружие спавнится на диагональных клетках от старта
       let weaponCells = [];
@@ -558,6 +564,8 @@
           weaponId: weaponId,
           cellKey: cell.k,
         });
+        // Запоминаем что это оружие заспавнилось
+        playerProgress.spawnedWeapons.push(weaponId);
       }
 
       // Расставляем апгрейды (после оружия, т.к. оружие в приоритете)
@@ -1573,8 +1581,9 @@
       }
 
       if (freeSlot >= 0) {
-        // Есть свободный слот — кладём туда
+        // Есть свободный слот — кладём туда и сразу выбираем
         s.weaponSlots[freeSlot] = weaponId;
+        s.activeSlot = freeSlot;
       } else {
         // Нет свободных — сбрасываем оружие в активном слоте на землю
         const droppedId = s.weaponSlots[s.activeSlot];
@@ -4069,9 +4078,12 @@
         if (!save || save.version !== 1) return false;
         currentLevel = save.currentLevel;
         playerProgress = save.playerProgress;
-        // Для старых сохранений без spawnedUpgrades
+        // Для старых сохранений без spawnedUpgrades и spawnedWeapons
         if (!playerProgress.spawnedUpgrades) {
           playerProgress.spawnedUpgrades = {};
+        }
+        if (!playerProgress.spawnedWeapons) {
+          playerProgress.spawnedWeapons = [];
         }
         state = deserializeState(save.state);
         return true;
@@ -4104,6 +4116,10 @@
       
       savePlayerProgress(state);
       currentLevel++;
+      // После первого уровня разблокируем второй слот
+      if (currentLevel === 2) {
+        playerProgress.maxSlots = 2;
+      }
       state = initState(currentLevel);
       saveGame();
       updateHUD(state);
@@ -4133,6 +4149,7 @@
           reflection: false,
         },
         spawnedUpgrades: {},
+        spawnedWeapons: [],
         weaponSlots: ['pistol', null],
         activeSlot: 0,
         maxSlots: 1,
@@ -4173,6 +4190,21 @@
           if (state.maxSlots >= 2 && state.weaponSlots[1]) {
             state.activeSlot = 1;
             playerProgress.activeSlot = 1;
+            state.shootCooldown = 0;
+            weaponChanged = true;
+          }
+        } else if (e.key === 'q' || e.key === 'Q' || e.key === 'й' || e.key === 'Й') {
+          // Q — чередование между слотами
+          const nextSlot = state.activeSlot === 0 ? 1 : 0;
+          if (state.maxSlots >= nextSlot + 1 && state.weaponSlots[nextSlot]) {
+            state.activeSlot = nextSlot;
+            playerProgress.activeSlot = nextSlot;
+            state.shootCooldown = 0;
+            weaponChanged = true;
+          } else if (state.weaponSlots[state.activeSlot === 0 ? 0 : 1]) {
+            // Если следующий слот пуст, возвращаемся к первому если он есть
+            state.activeSlot = 0;
+            playerProgress.activeSlot = 0;
             state.shootCooldown = 0;
             weaponChanged = true;
           }
