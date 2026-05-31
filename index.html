@@ -163,7 +163,18 @@
       SHOOTER_SHOOT_RANGE: 0,         // заполняется после CP
       SHOOTER_SHOOT_CD: 2.0,
       SHOOTER_STOP_DIST: 0,           // заполняется после CP
-      SHOOTER_CHANCE: 0.30,           // шанс что враг будет стрелком
+      SHOOTER_CHANCE: 0.30,           // шанс что враг будет плевакой (только для типов кроме быка)
+      BULL_CHANCE: 0.30,              // шанс что враг будет быком (только на уровнях 2-3)
+
+      // Bull
+      BULL_HP: 200,
+      BULL_SPEED: 70,
+      BULL_RADIUS: 10,
+      BULL_PREPARE_TIME: 0.5,         // время подготовки рывка (сек)
+      BULL_DASH_DISTANCE: 0,          // заполняется после CP (2 клетки)
+      BULL_REST_TIME: 3.0,            // время отдыха после рывка (сек)
+      BULL_CHARGE_DIST: 0,            // заполняется после CP (1.5 клетки)
+      BULL_ATTACK_DIST: 0,            // заполняется после CP (1.6 клетки)
 
       // Level generation
       DISABLED_CELLS_COUNT: 15,
@@ -211,6 +222,9 @@
     const CP = CONFIG.CELL_PX;
     CONFIG.SHOOTER_SHOOT_RANGE = CP * 1.0;
     CONFIG.SHOOTER_STOP_DIST = CP * 0.9;
+    CONFIG.BULL_DASH_DISTANCE = CP * 2.0;
+    CONFIG.BULL_CHARGE_DIST = CP * 1.5;
+    CONFIG.BULL_ATTACK_DIST = CP * 1.6;
     const VIEW_W = CONFIG.VIEW_W;
     const VIEW_H = CONFIG.VIEW_H;
     C.width = VIEW_W;
@@ -344,7 +358,7 @@
         color: '#ff44ff',
         pellets: 1,
         spread: 0.20,
-        damage: 10,
+        damage: 15,
         cooldown: 0.1,
         bulletSpeed: 400,
         penetrate: 0,
@@ -520,7 +534,19 @@
             const margin = CONFIG.GHOST_RADIUS + CONFIG.GHOST_SPAWN_MARGIN;
             const gx = x * CP + margin + Math.random() * (CP - margin * 2);
             const gy = y * CP + margin + Math.random() * (CP - margin * 2);
-            const isShooter = Math.random() < CONFIG.SHOOTER_CHANCE;
+            // Определяем тип врага
+            let enemyType;
+            let enemyHp;
+            let enemyRadius = CONFIG.GHOST_RADIUS;
+            if (level >= 2 && Math.random() < CONFIG.BULL_CHANCE) {
+              enemyType = 'bull';
+              enemyHp = CONFIG.BULL_HP;
+              enemyRadius = CONFIG.BULL_RADIUS;
+            } else {
+              const isPlevaka = Math.random() < CONFIG.SHOOTER_CHANCE;
+              enemyType = isPlevaka ? 'plevaka' : 'soldier';
+              enemyHp = isPlevaka ? CONFIG.SHOOTER_HP : CONFIG.GHOST_HP;
+            }
             trappedGhosts.push({
               x: gx, y: gy,
               homeX: x, homeY: y,
@@ -528,9 +554,18 @@
               phase: Math.random() * Math.PI * 2,
               wobble: CONFIG.GHOST_WOBBLE_MIN + Math.random() * (CONFIG.GHOST_WOBBLE_MAX - CONFIG.GHOST_WOBBLE_MIN),
               vx: 0, vy: 0,
-              hp: isShooter ? CONFIG.SHOOTER_HP : CONFIG.GHOST_HP,
-              type: isShooter ? 'shooter' : 'chaser',
+              radius: enemyRadius,
+              hp: enemyHp,
+              type: enemyType,
               shootCd: 0,
+              // Поля для быка
+              state: 'chase', // chase, prepare, dash, rest
+              stateTimer: 0,
+              dashTargetX: 0,
+              dashTargetY: 0,
+              dashDirX: 0,
+              dashDirY: 0,
+              dashDistance: 0,
             });
           }
         }
@@ -902,6 +937,14 @@
               phase: g.phase,
               wobble: g.wobble,
               shootCd: 0,
+              radius: g.radius,
+              state: g.state,
+              stateTimer: g.stateTimer,
+              dashTargetX: g.dashTargetX,
+              dashTargetY: g.dashTargetY,
+              dashDirX: g.dashDirX,
+              dashDirY: g.dashDirY,
+              dashDistance: g.dashDistance,
             });
             s.ghosts.splice(i, 1);
           }
@@ -922,6 +965,14 @@
             phase: g.phase,
             wobble: g.wobble,
             shootCd: g.shootCd || 0,
+            radius: g.radius,
+            state: g.state,
+            stateTimer: g.stateTimer,
+            dashTargetX: g.dashTargetX,
+            dashTargetY: g.dashTargetY,
+            dashDirX: g.dashDirX,
+            dashDirY: g.dashDirY,
+            dashDistance: g.dashDistance,
           });
         }
       }
@@ -1041,6 +1092,14 @@
           phase: bg.phase,
           wobble: bg.wobble,
           shootCd: bg.shootCd || 0,
+          radius: bg.radius,
+          state: bg.state,
+          stateTimer: bg.stateTimer,
+          dashTargetX: bg.dashTargetX,
+          dashTargetY: bg.dashTargetY,
+          dashDirX: bg.dashDirX,
+          dashDirY: bg.dashDirY,
+          dashDistance: bg.dashDistance,
         });
       }
 
@@ -1430,8 +1489,8 @@
         const dy = b.player.y - g.y;
         const dist = Math.hypot(dx, dy);
 
-        if (g.type === 'shooter') {
-          // Стрелок
+        if (g.type === 'plevaka' || g.type === 'shooter') {
+          // Плевака
           if (dist > CONFIG.SHOOTER_STOP_DIST * BATTLE_SCALE && dist > 0) {
             const spd = CONFIG.SHOOTER_SPEED * BATTLE_SCALE;
             g.x += (dx / dist) * spd * dt;
@@ -1449,15 +1508,132 @@
               });
             }
           }
+        } else if (g.type === 'bull') {
+          // Бык: FSM — chase → prepare → dash → rest → chase
+          const effectiveRadius = (g.radius || CONFIG.BULL_RADIUS) * BATTLE_SCALE;
+          const hitDist = effectiveRadius + CONFIG.PLAYER_RADIUS * BATTLE_SCALE;
+          const chargeDist = CONFIG.BULL_CHARGE_DIST * BATTLE_SCALE;
+          const dashDist = CONFIG.BULL_DASH_DISTANCE * BATTLE_SCALE;
+          
+          if (!g.state) g.state = 'chase';
+          if (g.stateTimer === undefined) g.stateTimer = 0;
+          
+          switch (g.state) {
+            case 'chase':
+              // Идёт к игроку пока не достигнет дистанции CHARGE_DIST
+              if (dist > chargeDist && dist > 0) {
+                const spd = CONFIG.BULL_SPEED * BATTLE_SCALE;
+                g.x += (dx / dist) * spd * dt;
+                g.y += (dy / dist) * spd * dt;
+              } else if (dist <= chargeDist) {
+                // Переход в подготовку
+                g.state = 'prepare';
+                g.stateTimer = CONFIG.BULL_PREPARE_TIME;
+                g.dashTargetX = b.player.x;
+                g.dashTargetY = b.player.y;
+              }
+              break;
+              
+            case 'prepare':
+              // Стоит на месте, готовится к рывку
+              g.stateTimer -= dt;
+              if (g.stateTimer <= 0) {
+                // Начинаем рывок в направлении запомненной позиции
+                g.state = 'dash';
+                const ddx = g.dashTargetX - g.x;
+                const ddy = g.dashTargetY - g.y;
+                const ddist = Math.hypot(ddx, ddy);
+                if (ddist > 0) {
+                  g.dashDirX = ddx / ddist;
+                  g.dashDirY = ddy / ddist;
+                } else {
+                  g.dashDirX = dx / dist;
+                  g.dashDirY = dy / dist;
+                }
+                g.dashDistance = dashDist;
+                g.stateTimer = 0; // счётчик пройденной дистанции
+              }
+              break;
+              
+            case 'dash':
+              // Быстрый рывок
+              {
+                const dashSpeed = CONFIG.BULL_SPEED * 4 * BATTLE_SCALE; // в 4 раза быстрее обычного
+                const moveDist = dashSpeed * dt;
+                let newX = g.x + g.dashDirX * moveDist;
+                let newY = g.y + g.dashDirY * moveDist;
+                
+                // Проверяем столкновение со стенами battle-зоны
+                const newCellX = Math.floor(newX / BATTLE_CELL_PX) + b.cellOffsetX;
+                const newCellY = Math.floor(newY / BATTLE_CELL_PX) + b.cellOffsetY;
+                
+                let hitWall = false;
+                if (!b.openCells.has(cellKey(newCellX, newCellY))) {
+                  hitWall = true;
+                }
+                
+                // Проверяем достижение максимальной дистанции рывка
+                const moved = Math.hypot(newX - g.x, newY - g.y);
+                g.stateTimer += moved;
+                
+                if (hitWall || g.stateTimer >= g.dashDistance) {
+                  // Попали в стену или прошли полную дистанцию — переходим в отдых
+                  g.state = 'rest';
+                  g.stateTimer = CONFIG.BULL_REST_TIME;
+                } else {
+                  g.x = newX;
+                  g.y = newY;
+                }
+                
+                // Проверяем попадание в игрока во время рывка
+                const newDist = Math.hypot(b.player.x - g.x, b.player.y - g.y);
+                if (newDist < hitDist) {
+                  if (s.player.invulnerable <= 0 && !CONFIG.DEBUG_INVULNERABLE) {
+                    s.player.lives--;
+                    s.player.invulnerable = CONFIG.PLAYER_INVULNERABLE_TIME;
+                  }
+                  // Бык не исчезает, просто переходит в отдых
+                  g.state = 'rest';
+                  g.stateTimer = CONFIG.BULL_REST_TIME;
+                }
+              }
+              break;
+              
+            case 'rest':
+              // Отдых — стоит на месте
+              g.stateTimer -= dt;
+              if (g.stateTimer <= 0) {
+                g.state = 'chase';
+              }
+              break;
+          }
+          
+          // Проверка касания игрока (для состояний chase/rest)
+          if (g.state !== 'dash' && dist < hitDist) {
+            if (s.player.invulnerable <= 0 && !CONFIG.DEBUG_INVULNERABLE) {
+              s.player.lives--;
+              s.player.invulnerable = CONFIG.PLAYER_INVULNERABLE_TIME;
+            }
+            b.activeGhosts.splice(i, 1);
+            for (let k = 0; k < CONFIG.PLAYER_HIT_PARTICLES_COUNT; k++) {
+              const a = Math.random() * Math.PI * 2;
+              b.particles.push({
+                x: b.player.x, y: b.player.y,
+                vx: Math.cos(a) * CONFIG.PLAYER_HIT_PARTICLES_SPEED, vy: Math.sin(a) * CONFIG.PLAYER_HIT_PARTICLES_SPEED,
+                life: CONFIG.PLAYER_HIT_PARTICLES_LIFE, maxLife: CONFIG.PLAYER_HIT_PARTICLES_LIFE, color: '#ff4444',
+              });
+            }
+            continue;
+          }
         } else {
-          // Обычный - летит к игроку (масштабированная скорость)
+          // Солдат - летит к игроку (масштабированная скорость)
           if (dist > 0) {
             const spd = CONFIG.GHOST_SPEED * BATTLE_SCALE;
             g.x += (dx / dist) * spd * dt;
             g.y += (dy / dist) * spd * dt;
           }
           // Касание игрока (масштабированное)
-          if (dist < (CONFIG.GHOST_RADIUS + CONFIG.PLAYER_RADIUS) * BATTLE_SCALE) {
+          if (dist < ((g.radius || CONFIG.GHOST_RADIUS) + CONFIG.PLAYER_RADIUS) * BATTLE_SCALE) {
             if (s.player.invulnerable <= 0 && !CONFIG.DEBUG_INVULNERABLE) {
               s.player.lives--;
               s.player.invulnerable = CONFIG.PLAYER_INVULNERABLE_TIME;
@@ -1873,8 +2049,8 @@
         const dy = s.player.y - g.y;
         const dist = Math.hypot(dx, dy);
 
-        if (g.type === 'shooter') {
-          // Стрелок: движется к игроку, пока не достигнет дистанции SHOOTER_STOP_DIST
+        if (g.type === 'plevaka' || g.type === 'shooter') {
+          // Плевака: движется к игроку, пока не достигнет дистанции SHOOTER_STOP_DIST
           if (dist > CONFIG.SHOOTER_STOP_DIST && dist > 0) {
             const spd = CONFIG.SHOOTER_SPEED;
             g.x += (dx / dist) * spd * dt;
@@ -1893,14 +2069,132 @@
               });
             }
           }
+        } else if (g.type === 'bull') {
+          // Бык: FSM — chase → prepare → dash → rest → chase
+          const effectiveRadius = g.radius || CONFIG.BULL_RADIUS;
+          const hitDist = effectiveRadius + CONFIG.PLAYER_RADIUS;
+          
+          if (!g.state) g.state = 'chase';
+          if (g.stateTimer === undefined) g.stateTimer = 0;
+          
+          switch (g.state) {
+            case 'chase':
+              // Идёт к игроку пока не достигнет дистанции CHARGE_DIST
+              if (dist > CONFIG.BULL_CHARGE_DIST && dist > 0) {
+                const spd = CONFIG.BULL_SPEED;
+                g.x += (dx / dist) * spd * dt;
+                g.y += (dy / dist) * spd * dt;
+              } else if (dist <= CONFIG.BULL_CHARGE_DIST) {
+                // Переход в подготовку
+                g.state = 'prepare';
+                g.stateTimer = CONFIG.BULL_PREPARE_TIME;
+                g.dashTargetX = s.player.x;
+                g.dashTargetY = s.player.y;
+              }
+              break;
+              
+            case 'prepare':
+              // Стоит на месте, готовится к рывку
+              g.stateTimer -= dt;
+              if (g.stateTimer <= 0) {
+                // Начинаем рывок в направлении запомненной позиции
+                g.state = 'dash';
+                const ddx = g.dashTargetX - g.x;
+                const ddy = g.dashTargetY - g.y;
+                const ddist = Math.hypot(ddx, ddy);
+                if (ddist > 0) {
+                  g.dashDirX = ddx / ddist;
+                  g.dashDirY = ddy / ddist;
+                } else {
+                  g.dashDirX = dx / dist;
+                  g.dashDirY = dy / dist;
+                }
+                g.dashDistance = CONFIG.BULL_DASH_DISTANCE;
+                g.stateTimer = 0; // счётчик пройденной дистанции
+              }
+              break;
+              
+            case 'dash':
+              // Быстрый рывок
+              {
+                const dashSpeed = CONFIG.BULL_SPEED * 4; // в 4 раза быстрее обычного
+                const moveDist = dashSpeed * dt;
+                let newX = g.x + g.dashDirX * moveDist;
+                let newY = g.y + g.dashDirY * moveDist;
+                
+                // Проверяем столкновение со стенами
+                const cellX = Math.floor(g.x / CP);
+                const cellY = Math.floor(g.y / CP);
+                const newCellX = Math.floor(newX / CP);
+                const newCellY = Math.floor(newY / CP);
+                
+                let hitWall = false;
+                // Проверяем выход за границы текущей или открытых клеток
+                if (!s.openCells.has(cellKey(newCellX, newCellY))) {
+                  hitWall = true;
+                }
+                
+                // Проверяем достижение максимальной дистанции рывка
+                const moved = Math.hypot(newX - g.x, newY - g.y);
+                g.stateTimer += moved;
+                
+                if (hitWall || g.stateTimer >= g.dashDistance) {
+                  // Попали в стену или прошли полную дистанцию — переходим в отдых
+                  g.state = 'rest';
+                  g.stateTimer = CONFIG.BULL_REST_TIME;
+                } else {
+                  g.x = newX;
+                  g.y = newY;
+                }
+                
+                // Проверяем попадание в игрока во время рывка
+                const newDist = Math.hypot(s.player.x - g.x, s.player.y - g.y);
+                if (newDist < hitDist) {
+                  if (s.player.invulnerable <= 0 && !CONFIG.DEBUG_INVULNERABLE) {
+                    s.player.lives--;
+                    s.player.invulnerable = CONFIG.PLAYER_INVULNERABLE_TIME;
+                  }
+                  // Бык не исчезает, просто переходит в отдых
+                  g.state = 'rest';
+                  g.stateTimer = CONFIG.BULL_REST_TIME;
+                }
+              }
+              break;
+              
+            case 'rest':
+              // Отдых — стоит на месте
+              g.stateTimer -= dt;
+              if (g.stateTimer <= 0) {
+                g.state = 'chase';
+              }
+              break;
+          }
+          
+          // Проверка касания игрока (для состояний chase/rest)
+          if (g.state !== 'dash' && dist < hitDist) {
+            if (s.player.invulnerable <= 0 && !CONFIG.DEBUG_INVULNERABLE) {
+              s.player.lives--;
+              s.player.invulnerable = CONFIG.PLAYER_INVULNERABLE_TIME;
+            }
+            s.activeGhosts.splice(i, 1);
+            for (let k = 0; k < CONFIG.PLAYER_HIT_PARTICLES_COUNT; k++) {
+              const a = Math.random() * Math.PI * 2;
+              s.particles.push({
+                x: s.player.x, y: s.player.y,
+                vx: Math.cos(a) * CONFIG.PLAYER_HIT_PARTICLES_SPEED, vy: Math.sin(a) * CONFIG.PLAYER_HIT_PARTICLES_SPEED,
+                life: CONFIG.PLAYER_HIT_PARTICLES_LIFE, maxLife: CONFIG.PLAYER_HIT_PARTICLES_LIFE, color: '#ff4444',
+              });
+            }
+            continue;
+          }
         } else {
-          // Обычный: летит к игроку
+          // Солдат: летит к игроку
           if (dist > 0) {
             g.x += (dx / dist) * CONFIG.GHOST_SPEED * dt;
             g.y += (dy / dist) * CONFIG.GHOST_SPEED * dt;
           }
           // Касание игрока
-          if (dist < CONFIG.GHOST_RADIUS + CONFIG.PLAYER_RADIUS) {
+          if (dist < (g.radius || CONFIG.GHOST_RADIUS) + CONFIG.PLAYER_RADIUS) {
             if (s.player.invulnerable <= 0 && !CONFIG.DEBUG_INVULNERABLE) {
               s.player.lives--;
               s.player.invulnerable = CONFIG.PLAYER_INVULNERABLE_TIME;
@@ -2607,7 +2901,7 @@
     }
 
     function drawGhost(g, baseAlpha, scale = 1, skipVisibilityCheck = false) {
-      const ghostRadius = CONFIG.GHOST_RADIUS * scale;
+      const ghostRadius = (g.radius || CONFIG.GHOST_RADIUS) * scale;
       if (!skipVisibilityCheck && (g.x + ghostRadius < camera.x || g.x - ghostRadius > camera.x + VIEW_W ||
         g.y + ghostRadius < camera.y || g.y - ghostRadius > camera.y + VIEW_H)) return;
 
@@ -2615,20 +2909,61 @@
       const r = ghostRadius + wave;
       const alpha = baseAlpha * (0.65 + 0.35 * Math.sin(g.phase * 1.3));
 
-      const isShooter = g.type === 'shooter';
+      const isPlevaka = g.type === 'plevaka' || g.type === 'shooter';
+      const isBull = g.type === 'bull';
+      const isSoldier = g.type === 'soldier' || g.type === 'chaser';
       ctx.globalAlpha = alpha;
-      ctx.fillStyle = isShooter ? '#ff6020' : '#228822';
-      ctx.shadowColor = isShooter ? '#ff2200' : '#114411';
+      
+      if (isBull) {
+        // Бык — крупный, тёмно-красный, массивный
+        ctx.fillStyle = '#8b0000';
+        ctx.shadowColor = '#4a0000';
+      } else if (isPlevaka) {
+        ctx.fillStyle = '#ff6020';
+        ctx.shadowColor = '#ff2200';
+      } else {
+        ctx.fillStyle = '#228822';
+        ctx.shadowColor = '#114411';
+      }
       ctx.shadowBlur = 18 * scale;
 
-      // Body (abdomen + cephalothorax)
-      ctx.beginPath(); ctx.ellipse(g.x, g.y + r * 0.25, r * 0.7, r * 0.75, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.ellipse(g.x, g.y - r * 0.55, r * 0.5, r * 0.5, 0, 0, Math.PI * 2); ctx.fill();
+      if (isBull) {
+        // Бык: массивное тело (более крупное и круглое)
+        ctx.beginPath(); ctx.ellipse(g.x, g.y, r * 0.9, r * 0.85, 0, 0, Math.PI * 2); ctx.fill();
+        // Дополнительное плечевое бронирование
+        ctx.beginPath(); ctx.ellipse(g.x, g.y - r * 0.3, r * 0.65, r * 0.6, 0, 0, Math.PI * 2); ctx.fill();
+        // Рога
+        ctx.fillStyle = '#cccccc';
+        ctx.shadowColor = '#888888';
+        ctx.shadowBlur = 8 * scale;
+        ctx.beginPath();
+        ctx.moveTo(g.x - r * 0.5, g.y - r * 0.6);
+        ctx.quadraticCurveTo(g.x - r * 0.8, g.y - r * 1.2, g.x - r * 0.6, g.y - r * 1.3);
+        ctx.quadraticCurveTo(g.x - r * 0.4, g.y - r * 0.9, g.x - r * 0.3, g.y - r * 0.7);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(g.x + r * 0.5, g.y - r * 0.6);
+        ctx.quadraticCurveTo(g.x + r * 0.8, g.y - r * 1.2, g.x + r * 0.6, g.y - r * 1.3);
+        ctx.quadraticCurveTo(g.x + r * 0.4, g.y - r * 0.9, g.x + r * 0.3, g.y - r * 0.7);
+        ctx.fill();
+      } else {
+        // Обычное тело (паук) — abdomen + cephalothorax
+        ctx.beginPath(); ctx.ellipse(g.x, g.y + r * 0.25, r * 0.7, r * 0.75, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(g.x, g.y - r * 0.55, r * 0.5, r * 0.5, 0, 0, Math.PI * 2); ctx.fill();
+      }
 
       // Legs (8 legs, 4 per side) — angles relative to horizontal, spread outward
       ctx.shadowBlur = 0;
-      ctx.strokeStyle = isShooter ? '#ff6020' : '#228822';
-      ctx.lineWidth = Math.max(1, r * 0.18);
+      if (isBull) {
+        ctx.strokeStyle = '#8b0000';
+        ctx.lineWidth = Math.max(2, r * 0.25);
+      } else if (isPlevaka) {
+        ctx.strokeStyle = '#ff6020';
+        ctx.lineWidth = Math.max(1, r * 0.18);
+      } else {
+        ctx.strokeStyle = '#228822';
+        ctx.lineWidth = Math.max(1, r * 0.18);
+      }
       ctx.globalAlpha = alpha * 0.85;
       // angOffsets: angle from horizontal (0=right/left), negative=up, positive=down
       const angOffsets = [-0.55, -0.18, 0.18, 0.55];
@@ -2638,10 +2973,11 @@
           // base angle: side=-1 means left (π), side=1 means right (0)
           const baseAng = (side === -1 ? Math.PI : 0) + angOffsets[li] * side;
           const midAng = baseAng + 0.3 * side;
-          const midX = g.x + Math.cos(baseAng) * r * 1.4;
-          const midY = g.y - r * 0.1 + Math.sin(baseAng) * r * 1.1 + legWave * r;
-          const tipX = g.x + Math.cos(midAng) * r * (2.4 + legWave);
-          const tipY = g.y + r * 0.5 + Math.sin(midAng) * r * (1.6 + legWave);
+          const legMult = isBull ? 1.1 : 1.0;
+          const midX = g.x + Math.cos(baseAng) * r * 1.4 * legMult;
+          const midY = g.y - r * 0.1 + Math.sin(baseAng) * r * 1.1 * legMult + legWave * r;
+          const tipX = g.x + Math.cos(midAng) * r * (2.4 + legWave) * legMult;
+          const tipY = g.y + r * 0.5 + Math.sin(midAng) * r * (1.6 + legWave) * legMult;
           ctx.beginPath();
           ctx.moveTo(g.x + side * r * 0.45, g.y - r * 0.1);
           ctx.quadraticCurveTo(midX, midY, tipX, tipY);
@@ -2651,21 +2987,62 @@
 
       // Eyes
       ctx.globalAlpha = 0.95;
-      ctx.fillStyle = isShooter ? '#ffaa00' : '#88ff44';
-      ctx.beginPath(); ctx.arc(g.x - r * 0.22, g.y - r * 0.6, r * 0.12, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(g.x + r * 0.22, g.y - r * 0.6, r * 0.12, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(g.x - r * 0.08, g.y - r * 0.72, r * 0.08, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(g.x + r * 0.08, g.y - r * 0.72, r * 0.08, 0, Math.PI * 2); ctx.fill();
+      if (isBull) {
+        ctx.fillStyle = '#ff0000'; // Красные глаза у быка
+      } else if (isPlevaka) {
+        ctx.fillStyle = '#ffaa00';
+      } else {
+        ctx.fillStyle = '#88ff44';
+      }
+      if (isBull) {
+        // Бык: более крупные глаза, агрессивные
+        ctx.beginPath(); ctx.arc(g.x - r * 0.25, g.y - r * 0.35, r * 0.15, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(g.x + r * 0.25, g.y - r * 0.35, r * 0.15, 0, Math.PI * 2); ctx.fill();
+        // Злой взгляд — дополнительные "брови"
+        ctx.fillStyle = '#4a0000';
+        ctx.beginPath(); ctx.arc(g.x - r * 0.25, g.y - r * 0.45, r * 0.08, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(g.x + r * 0.25, g.y - r * 0.45, r * 0.08, 0, Math.PI * 2); ctx.fill();
+      } else {
+        ctx.beginPath(); ctx.arc(g.x - r * 0.22, g.y - r * 0.6, r * 0.12, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(g.x + r * 0.22, g.y - r * 0.6, r * 0.12, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(g.x - r * 0.08, g.y - r * 0.72, r * 0.08, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(g.x + r * 0.08, g.y - r * 0.72, r * 0.08, 0, Math.PI * 2); ctx.fill();
+      }
 
       // HP бар
-      const maxHp = g.type === 'shooter' ? CONFIG.SHOOTER_HP : CONFIG.GHOST_HP;
+      let maxHp;
+      if (isBull) maxHp = CONFIG.BULL_HP;
+      else if (isPlevaka) maxHp = CONFIG.SHOOTER_HP;
+      else maxHp = CONFIG.GHOST_HP;
       if (g.hp !== undefined && g.hp < maxHp) {
         const hpFrac = Math.max(0, g.hp / maxHp);
         ctx.globalAlpha = 0.8;
         ctx.fillStyle = '#1a0030';
         ctx.fillRect(g.x - r, g.y - r - 8 * scale, r * 2, 3 * scale);
-        ctx.fillStyle = g.type === 'shooter' ? (hpFrac > 0.5 ? '#ff8800' : '#ff4400') : (hpFrac > 0.5 ? '#44cc22' : '#88ff44');
+        if (isBull) {
+          ctx.fillStyle = hpFrac > 0.5 ? '#cc4444' : '#ff0000';
+        } else if (isPlevaka) {
+          ctx.fillStyle = hpFrac > 0.5 ? '#ff8800' : '#ff4400';
+        } else {
+          ctx.fillStyle = hpFrac > 0.5 ? '#44cc22' : '#88ff44';
+        }
         ctx.fillRect(g.x - r, g.y - r - 8 * scale, r * 2 * hpFrac, 3 * scale);
+      }
+
+      // Индикатор состояния быка (подготовка/рывок)
+      if (isBull && g.state) {
+        if (g.state === 'prepare') {
+          // Пульсирующий индикатор подготовки
+          const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 100);
+          ctx.globalAlpha = pulse;
+          ctx.fillStyle = '#ffff00';
+          ctx.beginPath(); ctx.arc(g.x, g.y - r - 12 * scale, 3 * scale, 0, Math.PI * 2); ctx.fill();
+        } else if (g.state === 'dash') {
+          // Индикатор рывка
+          ctx.globalAlpha = 0.9;
+          ctx.fillStyle = '#ff0000';
+          ctx.beginPath(); ctx.arc(g.x, g.y - r - 12 * scale, 4 * scale, 0, Math.PI * 2); ctx.fill();
+        }
       }
 
       ctx.globalAlpha = 1;
