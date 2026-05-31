@@ -290,6 +290,7 @@
         retreat: 0,
         reflection: false,
       },
+      spawnedUpgrades: {}, // сколько раз каждый апгрейд заспавнился за всю игру
       weaponSlots: ['pistol', null],
       activeSlot: 0,
       maxSlots: 1,
@@ -424,7 +425,7 @@
       { id: 'reflection', label: 'Отражение', color: '#ff00ff', max: 1 },
       { id: 'cooldown', label: 'Перезарядка -15%', color: '#00ccff', max: 3 },
       { id: 'speed', label: 'Скорость бега +10%', color: '#44ff88', max: 3 },
-      { id: 'spread', label: 'Разброс +10%', color: '#ff66aa', max: 2 },
+      // { id: 'spread', label: 'Разброс +10%', color: '#ff66aa', max: 2 },
     ];
 
     function initState(level = 1) {
@@ -537,18 +538,41 @@
 
       // Расставляем апгрейды (после оружия, т.к. оружие в приоритете)
       const upgradeObjs = [];
-      const upgradePool = [];
+      // Количество апгрейдов на уровне: 1=4, 2=10, 3=16
+      const levelUpgradeCounts = { 1: 4, 2: 10, 3: 16 };
+      const targetCount = levelUpgradeCounts[level] || 4;
+
+      // Собираем доступные апгрейды (не превысили глобальный max)
+      const availableUpgrades = [];
       for (const upg of UPGRADE_TYPES) {
-        for (let n = 0; n < upg.max; n++) {
-          upgradePool.push(upg.id);
+        const spawnedCount = playerProgress.spawnedUpgrades[upg.id] || 0;
+        const remaining = upg.max - spawnedCount;
+        for (let i = 0; i < remaining; i++) {
+          availableUpgrades.push(upg.id);
         }
       }
-      // Перемешиваем
-      shuffleInPlace(upgradePool);
-      const upgsCount = Math.min(upgradePool.length, availableCells.length);
+
+      // Перемешиваем и берем уникальные для этого уровня
+      shuffleInPlace(availableUpgrades);
+      const uniqueUpgrades = [];
+      const usedInThisLevel = new Set();
+      for (const upgId of availableUpgrades) {
+        if (usedInThisLevel.has(upgId)) continue;
+        usedInThisLevel.add(upgId);
+        uniqueUpgrades.push(upgId);
+        if (uniqueUpgrades.length >= targetCount) break;
+      }
+
+      // Обновляем глобальный счетчик заспавненных
+      for (const upgId of uniqueUpgrades) {
+        playerProgress.spawnedUpgrades[upgId] = (playerProgress.spawnedUpgrades[upgId] || 0) + 1;
+      }
+
+      // Размещаем апгрейды
+      const upgsCount = Math.min(uniqueUpgrades.length, availableCells.length);
       for (let i = 0; i < upgsCount; i++) {
         const cell = availableCells.shift();
-        const upgId = upgradePool[i];
+        const upgId = uniqueUpgrades[i];
         const dist = Math.max(Math.abs(cell.x - cx), Math.abs(cell.y - cy));
         const enemyCount = (2 + Math.floor(Math.random() * 5)) * dist * levelMultiplier;
         cellContents.set(cell.k, { type: 'upgrade', upgradeType: upgId, enemyCount: enemyCount, enemiesReleased: false });
@@ -1920,7 +1944,7 @@
         }
       }
 
-      // Коллизии между врагами в battle (масштабированные)
+      // Коллизии между врагами в battle (масштабированные) - с учетом реальных радиусов
       for (let i = 0; i < b.activeSpiders.length; i++) {
         const g1 = b.activeSpiders[i];
         for (let j = i + 1; j < b.activeSpiders.length; j++) {
@@ -1928,16 +1952,42 @@
           const dx = g2.x - g1.x;
           const dy = g2.y - g1.y;
           const distSq = dx * dx + dy * dy;
-          const minDist = CONFIG.SPIDER_RADIUS * 2 * BATTLE_SCALE;
+          // Используем реальные радиусы врагов (масштабированные)
+          const r1 = (g1.radius || CONFIG.SPIDER_RADIUS) * BATTLE_SCALE;
+          const r2 = (g2.radius || CONFIG.SPIDER_RADIUS) * BATTLE_SCALE;
+          const minDist = r1 + r2;
           if (distSq < minDist * minDist && distSq > 0) {
             const dist = Math.sqrt(distSq);
             const overlap = minDist - dist;
             const nx = dx / dist;
             const ny = dy / dist;
-            g1.x -= nx * overlap * 0.5;
-            g1.y -= ny * overlap * 0.5;
-            g2.x += nx * overlap * 0.5;
-            g2.y += ny * overlap * 0.5;
+
+            // Быки и булдыги тяжелее - отталкивают других сильнее
+            const isHeavy1 = g1.type === 'bull' || g1.type === 'buldyga';
+            const isHeavy2 = g2.type === 'bull' || g2.type === 'buldyga';
+            let push1, push2;
+            if (isHeavy1 && !isHeavy2) { push1 = 0.3; push2 = 0.7; }
+            else if (!isHeavy1 && isHeavy2) { push1 = 0.7; push2 = 0.3; }
+            else { push1 = 0.5; push2 = 0.5; }
+
+            const newX1 = g1.x - nx * overlap * push1;
+            const newY1 = g1.y - ny * overlap * push1;
+            const newX2 = g2.x + nx * overlap * push2;
+            const newY2 = g2.y + ny * overlap * push2;
+
+            // Проверяем что новые позиции внутри открытых клеток battle-зоны
+            const cellX1 = Math.floor(newX1 / BATTLE_CELL_PX) + b.cellOffsetX;
+            const cellY1 = Math.floor(newY1 / BATTLE_CELL_PX) + b.cellOffsetY;
+            const cellX2 = Math.floor(newX2 / BATTLE_CELL_PX) + b.cellOffsetX;
+            const cellY2 = Math.floor(newY2 / BATTLE_CELL_PX) + b.cellOffsetY;
+            if (b.openCells.has(cellKey(cellX1, cellY1))) {
+              g1.x = newX1;
+              g1.y = newY1;
+            }
+            if (b.openCells.has(cellKey(cellX2, cellY2))) {
+              g2.x = newX2;
+              g2.y = newY2;
+            }
           }
         }
       }
@@ -2478,7 +2528,7 @@
         }
       }
 
-      // Коллизии между пауками - ОТДЕЛЬНЫЙ БЛОК
+      // Коллизии между врагами - с учетом реальных радиусов и проверкой стен
       for (let i = 0; i < s.activeSpiders.length; i++) {
         const g1 = s.activeSpiders[i];
         for (let j = i + 1; j < s.activeSpiders.length; j++) {
@@ -2487,7 +2537,10 @@
           const dx = g2.x - g1.x;
           const dy = g2.y - g1.y;
           const distSq = dx * dx + dy * dy;
-          const minDist = CONFIG.SPIDER_RADIUS * 2;
+          // Используем реальные радиусы врагов
+          const r1 = g1.radius || CONFIG.SPIDER_RADIUS;
+          const r2 = g2.radius || CONFIG.SPIDER_RADIUS;
+          const minDist = r1 + r2;
 
           if (distSq < minDist * minDist && distSq > 0) {
             const dist = Math.sqrt(distSq);
@@ -2495,10 +2548,30 @@
             const nx = dx / dist;
             const ny = dy / dist;
 
-            g1.x -= nx * overlap * 0.5;
-            g1.y -= ny * overlap * 0.5;
-            g2.x += nx * overlap * 0.5;
-            g2.y += ny * overlap * 0.5;
+            // Быки и булдыги тяжелее - отталкивают других сильнее
+            const isHeavy1 = g1.type === 'bull' || g1.type === 'buldyga';
+            const isHeavy2 = g2.type === 'bull' || g2.type === 'buldyga';
+            let push1, push2;
+            if (isHeavy1 && !isHeavy2) { push1 = 0.3; push2 = 0.7; }
+            else if (!isHeavy1 && isHeavy2) { push1 = 0.7; push2 = 0.3; }
+            else { push1 = 0.5; push2 = 0.5; }
+
+            const newX1 = g1.x - nx * overlap * push1;
+            const newY1 = g1.y - ny * overlap * push1;
+            const newX2 = g2.x + nx * overlap * push2;
+            const newY2 = g2.y + ny * overlap * push2;
+
+            // Проверяем что новые позиции внутри открытых клеток
+            const cell1 = cellOf(newX1, newY1);
+            const cell2 = cellOf(newX2, newY2);
+            if (s.openCells.has(cellKey(cell1.x, cell1.y))) {
+              g1.x = newX1;
+              g1.y = newY1;
+            }
+            if (s.openCells.has(cellKey(cell2.x, cell2.y))) {
+              g2.x = newX2;
+              g2.y = newY2;
+            }
           }
         }
       }
@@ -3784,7 +3857,11 @@
         const save = {
           version: 1,
           currentLevel,
-          playerProgress: { ...playerProgress, upgrades: { ...playerProgress.upgrades } },
+          playerProgress: {
+            ...playerProgress,
+            upgrades: { ...playerProgress.upgrades },
+            spawnedUpgrades: { ...playerProgress.spawnedUpgrades }
+          },
           state: serializeState(state),
         };
         localStorage.setItem(SAVE_KEY, JSON.stringify(save));
@@ -3801,6 +3878,10 @@
         if (!save || save.version !== 1) return false;
         currentLevel = save.currentLevel;
         playerProgress = save.playerProgress;
+        // Для старых сохранений без spawnedUpgrades
+        if (!playerProgress.spawnedUpgrades) {
+          playerProgress.spawnedUpgrades = {};
+        }
         state = deserializeState(save.state);
         return true;
       } catch (e) {
@@ -3860,6 +3941,7 @@
           retreat: 0,
           reflection: false,
         },
+        spawnedUpgrades: {},
         weaponSlots: ['pistol', null],
         activeSlot: 0,
         maxSlots: 1,
