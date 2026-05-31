@@ -98,8 +98,6 @@
       PLAYER_SPEED: 130,
       PLAYER_RADIUS: 6,
       SHOOTING_ENABLED: true,
-      SHOTGUN_PELLETS: 3,
-      SHOTGUN_SPREAD: 0.35,    // радиан
       BULLET_SPEED: 320,
       BULLET_DAMAGE: 35,
       BULLET_RADIUS: 3,
@@ -122,9 +120,9 @@
     // LEVEL CONFIGURATION
     // ============================================================
     const LEVEL_CONFIG = {
-      1: { gridSize: 5, keysRequired: 1, disabledCells: 6, heartsCount: 3 },
-      2: { gridSize: 7, keysRequired: 2, disabledCells: 11, heartsCount: 5 },
-      3: { gridSize: 9, keysRequired: 3, disabledCells: 20, heartsCount: 7 },
+      1: { gridSize: 5, keysRequired: 1, disabledCells: 6, heartsCount: 1 },
+      2: { gridSize: 7, keysRequired: 2, disabledCells: 11, heartsCount: 2 },
+      3: { gridSize: 9, keysRequired: 3, disabledCells: 20, heartsCount: 3 },
     };
 
     function getLevelConfig(level) {
@@ -254,6 +252,7 @@
         damage: 35,
         cooldown: 0.35,
         bulletSpeed: 400,
+        penetrate: 0,
       },
       shotgun: {
         id: 'shotgun',
@@ -264,6 +263,29 @@
         damage: 35,
         cooldown: 0.55,
         bulletSpeed: 320,
+        penetrate: 0,
+      },
+      smg: {
+        id: 'smg',
+        label: 'ПП',
+        color: '#ff44ff',
+        pellets: 1,
+        spread: 0.20,
+        damage: 10,
+        cooldown: 0.1,
+        bulletSpeed: 400,
+        penetrate: 0,
+      },
+      rifle: {
+        id: 'rifle',
+        label: 'ВИНТОВКА',
+        color: '#44ff44',
+        pellets: 1,
+        spread: 0,
+        damage: 100,
+        cooldown: 1,
+        bulletSpeed: 700,
+        penetrate: 2,
       },
     };
 
@@ -339,12 +361,6 @@
         cellContents.set(cell.k, { type: 'heart', enemyCount, enemiesReleased: false });
       }
 
-      // Резервируем клетку для дробовика на уровне 1 (до начала расстановки апгрейдов)
-      let shotgunCell = null;
-      if (level === 1 && availableCells.length > 0) {
-        shotgunCell = availableCells.shift();
-      }
-
       // Расставляем апгрейды
       const upgradeObjs = [];
       const upgradePool = [];
@@ -377,14 +393,19 @@
         }
       }
 
-      // Генерируем оружие на полу
+      // Генерируем оружие на полу (случайное, 1 на ур.1, 2 на ур.2, 3 на ур.3)
       const droppedWeapons = [];
-      if (shotgunCell) {
+      const weaponPool = ['shotgun', 'smg', 'rifle'];
+      shuffleInPlace(weaponPool);
+      const weaponCount = Math.min(level, availableCells.length, weaponPool.length);
+      for (let i = 0; i < weaponCount; i++) {
+        const cell = availableCells.shift();
+        const weaponId = weaponPool[i];
         droppedWeapons.push({
-          x: (shotgunCell.x + 0.5) * CP,
-          y: (shotgunCell.y + 0.5) * CP,
-          weaponId: 'shotgun',
-          cellKey: shotgunCell.k,
+          x: (cell.x + 0.5) * CP,
+          y: (cell.y + 0.5) * CP,
+          weaponId: weaponId,
+          cellKey: cell.k,
         });
       }
 
@@ -1046,6 +1067,8 @@
           vy: Math.sin(a) * weapon.bulletSpeed,
           life: 1.5,
           damage: weapon.damage,
+          penetrate: weapon.penetrate,
+          hitCount: 0,
         });
       }
 
@@ -1224,6 +1247,7 @@
 
       // Стрельба в battle mode
       s.shootCooldown = Math.max(0, s.shootCooldown - dt);
+      if (mouseHeld && s.shootCooldown <= 0) shootBattle(s);
 
       // Обновление пуль в battle
       for (let i = b.bullets.length - 1; i >= 0; i--) {
@@ -1258,6 +1282,7 @@
         // Попадание во врагов (масштабированные)
         for (let j = b.activeGhosts.length - 1; j >= 0; j--) {
           const g = b.activeGhosts[j];
+          if (bullet.hitGhosts && bullet.hitGhosts.has(j)) continue; // уже попадали в этого
           const dist = Math.hypot(bullet.x - g.x, bullet.y - g.y);
           if (dist < (CONFIG.GHOST_RADIUS + CONFIG.BULLET_RADIUS) * BATTLE_SCALE) {
             g.hp -= (bullet.damage || CONFIG.BULLET_DAMAGE);
@@ -1281,8 +1306,15 @@
                 });
               }
             }
-            b.bullets.splice(i, 1);
-            break;
+            // Логика пробития: отслеживаем сколько врагов прошла пуля
+            bullet.hitCount++;
+            if (!bullet.hitGhosts) bullet.hitGhosts = new Set();
+            bullet.hitGhosts.add(j);
+            // Пуля уничтожается если hitCount > penetrate (0=1 враг, 2=3 врага)
+            if (bullet.hitCount > bullet.penetrate) {
+              b.bullets.splice(i, 1);
+              break;
+            }
           }
         }
       }
@@ -1501,6 +1533,8 @@
           vy: Math.sin(a) * weapon.bulletSpeed * BATTLE_SCALE,
           life: 1.5,
           damage: weapon.damage,
+          penetrate: weapon.penetrate,
+          hitCount: 0,
         });
       }
 
@@ -1638,6 +1672,7 @@
 
       // Обновление кулдауна стрельбы и пуль
       s.shootCooldown = Math.max(0, s.shootCooldown - dt);
+      if (mouseHeld && s.shootCooldown <= 0) shoot(s);
       for (let i = s.bullets.length - 1; i >= 0; i--) {
         const b = s.bullets[i];
         b.x += b.vx * dt;
@@ -1661,7 +1696,7 @@
         let hit = false;
         for (let j = s.activeGhosts.length - 1; j >= 0; j--) {
           const g = s.activeGhosts[j];
-          if (b.hitGhosts && b.hitGhosts.has(j)) continue; // pierce
+          if (b.hitGhosts && b.hitGhosts.has(j)) continue; // уже попадали в этого
           const dist = Math.hypot(b.x - g.x, b.y - g.y);
           if (dist < CONFIG.GHOST_RADIUS + CONFIG.BULLET_RADIUS) {
             g.hp -= (b.damage || CONFIG.BULLET_DAMAGE);
@@ -1686,10 +1721,12 @@
                 });
               }
             }
-            if (s.upgrades.pierce) {
-              if (!b.hitGhosts) b.hitGhosts = new Set();
-              b.hitGhosts.add(j);
-            } else {
+            // Логика пробития: отслеживаем сколько врагов прошла пуля
+            b.hitCount++;
+            if (!b.hitGhosts) b.hitGhosts = new Set();
+            b.hitGhosts.add(j);
+            // Пуля уничтожается если hitCount > penetrate (0=1 враг, 2=3 врага)
+            if (b.hitCount > b.penetrate) {
               s.bullets.splice(i, 1);
               break;
             }
@@ -3351,21 +3388,10 @@
 
     C.addEventListener('contextmenu', e => e.preventDefault());
 
-    // Стрельба по удержанию ЛКМ
+    // Стрельба по удержанию ЛКМ (обрабатывается в игровом цикле для точной синхронизации с cooldown)
     let mouseHeld = false;
     C.addEventListener('mousedown', e => { if (e.button === 0) mouseHeld = true; });
     document.addEventListener('mouseup', e => { if (e.button === 0) mouseHeld = false; });
-
-    // Стрельба при удержании
-    setInterval(() => {
-      if (mouseHeld && state) {
-        if (state.phase === 'play') {
-          shoot(state);
-        } else if (state.phase === 'battle') {
-          shootBattle(state);
-        }
-      }
-    }, 50);
 
     // ============================================================
     // START
