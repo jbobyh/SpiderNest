@@ -171,7 +171,7 @@
       // Bull
       BULL_HP: 150,
       BULL_SPEED: 70,
-      BULL_RADIUS: 10,
+      BULL_RADIUS: 7,
       BULL_PREPARE_TIME: 0.5,         // время подготовки рывка (сек)
       BULL_DASH_DISTANCE: 0,          // заполняется после CP (2 клетки)
       BULL_REST_TIME: 3.0,            // время отдыха после рывка (сек)
@@ -182,7 +182,7 @@
       BULDYGA_HP: 150,
       BULDYGA_SPEED: 70,              // начальная скорость
       BULDYGA_SPEED_INCREMENT: 10,    // ускорение каждую секунду
-      BULDYGA_RADIUS: 10,
+      BULDYGA_RADIUS: 7,
 
       // Level generation
       DISABLED_CELLS_COUNT: 15,
@@ -506,7 +506,7 @@
           const nx = cx + dx, ny = cy + dy;
           if (nx >= 0 && nx < gridSize && ny >= 0 && ny < gridSize) {
             const k = cellKey(nx, ny);
-            if (!disabledCells.has(k)) {
+            if (!disabledCells.has(k) && !cellContents.has(k)) {
               weaponCells.push({ x: nx, y: ny, k });
             }
           }
