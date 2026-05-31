@@ -68,7 +68,7 @@
       <div class="rule-item"><strong>WASD</strong> — движение игрока</div>
       <div class="rule-item"><strong>ЛКМ</strong> — стрелять (удержание для автострельбы)</div>
       <div class="rule-item"><strong>1 / 2</strong> — выбрать слот оружия; <strong>F</strong> — переключить оружие</div>
-      <div class="rule-item"><strong>Оружие 🔫</strong> — подберись вплотную чтобы подобрать. Пистолет — 1 точная пуля. Дробовик — 3 пули с разбросом</div>
+      <div class="rule-item"><strong>Оружие 🔫</strong> — подберись вплотную чтобы подобрать. Пистолет — 1 точная пуля. Дробовик — 3 пули с разбросом. Револьвер — 1 пуля, урон 40. Карабин — очередь из 3 пуль</div>
       <div class="rule-item"><strong class="danger">3 жизни</strong> — начальное количество. Трать на открытие дверей
       </div>
       <div class="rule-item"><strong>ПКМ</strong> — открыть перегородку (–1 жизнь) или закрыть (+1 жизнь). Закрыть можно
@@ -409,6 +409,30 @@
         bulletSpeed: 700,
         penetrate: 2,
       },
+      revolver: {
+        id: 'revolver',
+        label: 'РЕВОЛЬВЕР',
+        color: '#8b4513',
+        pellets: 1,
+        spread: 0.08,
+        damage: 40,
+        cooldown: 0.5,
+        bulletSpeed: 450,
+        penetrate: 1,
+      },
+      carbine: {
+        id: 'carbine',
+        label: 'КАРАБИН',
+        color: '#556b2f',
+        pellets: 1,
+        spread: 0.15,
+        damage: 35,
+        cooldown: 1.0,
+        burstSize: 3,
+        burstCooldown: 0.1,
+        bulletSpeed: 380,
+        penetrate: 0,
+      },
     };
 
     // Типы апгрейдов и их пулы
@@ -494,7 +518,7 @@
       // Генерируем оружие на полу (случайное, 1 на ур.1, 2 на ур.2, 3 на ур.3)
       // Оружие имеет приоритет над апгрейдами и врагами!
       const droppedWeapons = [];
-      const weaponPool = ['shotgun', 'smg', 'rifle'];
+      const weaponPool = ['shotgun', 'smg', 'rifle', 'revolver', 'carbine'];
       shuffleInPlace(weaponPool);
       const weaponCount = Math.min(level, availableCells.length, weaponPool.length);
 
@@ -699,6 +723,9 @@
         bullets: [],
         enemyBullets: [],
         shootCooldown: 0,
+        burstCooldown: 0,
+        burstRemaining: 0,
+        burstWeaponId: null,
         particles: [],
 
         time: 0,
@@ -1434,13 +1461,43 @@
       return weaponId ? WEAPON_DEFS[weaponId] : null;
     }
 
+    function createBullet(s, weapon, baseAngle, bulletSpeed) {
+      const isCrit = Math.random() < s.upgrades.critChance;
+      let damage = weapon.damage * (1 + s.upgrades.damage);
+      if (isCrit) damage *= 2;
+      s.bullets.push({
+        x: s.player.x, y: s.player.y,
+        vx: Math.cos(baseAngle) * bulletSpeed,
+        vy: Math.sin(baseAngle) * bulletSpeed,
+        life: CONFIG.BULLET_LIFE,
+        damage: damage,
+        penetrate: weapon.penetrate + s.upgrades.penetrate,
+        hitCount: 0,
+        isCrit: isCrit,
+        enhancedPierceActive: false,
+      });
+    }
+
     function shoot(s) {
+      // Проверяем кд основного выстрела и кд между пулями в очереди
       if (s.shootCooldown > 0) return;
+
       const weapon = getActiveWeapon(s);
       if (!weapon) return;
+
+      // Проверяем, есть ли активная очередь карабина
+      if (s.burstRemaining > 0 && s.burstWeaponId === weapon.id) {
+        // Продолжаем очередь - проверяем кд между пулями
+        if (s.burstCooldown > 0) return;
+      } else if (s.burstRemaining > 0) {
+        // Сменили оружие во время очереди - сбрасываем
+        s.burstRemaining = 0;
+        s.burstWeaponId = null;
+        s.burstCooldown = 0;
+      }
+
       const killAccelMult = s.upgrades.killAccel ? Math.max(0.1, 1 - s.upgrades.killAccelPercent / 100) : 1.0;
       const cooldown = weapon.cooldown * s.upgrades.cooldownMult * killAccelMult;
-      s.shootCooldown = cooldown;
 
       const dx = s.mouse.x - s.player.x;
       const dy = s.mouse.y - s.player.y;
@@ -1449,23 +1506,45 @@
       const pellets = weapon.pellets + s.upgrades.pellets;
       const totalSpread = weapon.spread * s.upgrades.spreadMult;
       const bulletSpeed = weapon.bulletSpeed * s.upgrades.bulletSpeedMult;
+
+      // Дробовик - равномерное распределение, остальное - случайное
+      const isShotgun = weapon.id === 'shotgun';
+
       for (let i = 0; i < pellets; i++) {
-        const spread = pellets > 1 ? (-totalSpread / 2) + (i * totalSpread / (pellets - 1)) : 0;
+        let spread;
+        if (isShotgun && pellets > 1) {
+          // Равномерное распределение для дробовика
+          spread = (-totalSpread / 2) + (i * totalSpread / (pellets - 1));
+        } else {
+          // Случайный разброс в пределах [-spread/2, +spread/2]
+          spread = (Math.random() - 0.5) * totalSpread;
+        }
         const a = baseAngle + spread;
-        const isCrit = Math.random() < s.upgrades.critChance;
-        let damage = weapon.damage * (1 + s.upgrades.damage);
-        if (isCrit) damage *= 2;
-        s.bullets.push({
-          x: s.player.x, y: s.player.y,
-          vx: Math.cos(a) * bulletSpeed,
-          vy: Math.sin(a) * bulletSpeed,
-          life: CONFIG.BULLET_LIFE,
-          damage: damage,
-          penetrate: weapon.penetrate + s.upgrades.penetrate,
-          hitCount: 0,
-          isCrit: isCrit,
-          enhancedPierceActive: false,
-        });
+        createBullet(s, weapon, a, bulletSpeed);
+      }
+
+      // Проверяем, начинаем ли очередь карабина
+      if (weapon.burstSize && weapon.burstSize > 1) {
+        if (s.burstRemaining === 0) {
+          // Начинаем новую очередь
+          s.burstRemaining = weapon.burstSize - 1;
+          s.burstWeaponId = weapon.id;
+          s.burstCooldown = weapon.burstCooldown;
+          s.shootCooldown = 0; // Не блокируем, ждём burstCooldown
+        } else {
+          // Продолжаем очередь
+          s.burstRemaining--;
+          if (s.burstRemaining > 0) {
+            s.burstCooldown = weapon.burstCooldown;
+            s.shootCooldown = 0; // Не блокируем, ждём burstCooldown
+          } else {
+            // Очередь закончилась
+            s.burstWeaponId = null;
+            s.shootCooldown = cooldown; // Теперь кд между очередями
+          }
+        }
+      } else {
+        s.shootCooldown = cooldown;
       }
 
       // Particle muzzle flash
@@ -1622,7 +1701,11 @@
 
       // Стрельба в battle mode
       s.shootCooldown = Math.max(0, s.shootCooldown - dt);
-      if (mouseHeld && s.shootCooldown <= 0) shootBattle(s);
+      s.burstCooldown = Math.max(0, s.burstCooldown - dt);
+      // Стреляем если: (1) зажата кнопка и нет кд, или (2) активна очередь карабина
+      const weapon = getActiveWeapon(s);
+      const isBurstActive = weapon && weapon.burstSize && weapon.burstSize > 1 && s.burstRemaining > 0 && s.burstWeaponId === weapon.id;
+      if ((mouseHeld || isBurstActive) && s.shootCooldown <= 0) shootBattle(s);
 
       // Обновление пуль в battle
       for (let i = b.bullets.length - 1; i >= 0; i--) {
@@ -2059,42 +2142,84 @@
       }
     }
 
+    function createBulletBattle(b, weapon, baseAngle, bulletSpeed, upgrades) {
+      const isCrit = Math.random() < upgrades.critChance;
+      let damage = weapon.damage * (1 + upgrades.damage);
+      if (isCrit) damage *= 2;
+      b.bullets.push({
+        x: b.player.x, y: b.player.y,
+        vx: Math.cos(baseAngle) * bulletSpeed,
+        vy: Math.sin(baseAngle) * bulletSpeed,
+        life: CONFIG.BULLET_LIFE,
+        damage: damage,
+        penetrate: weapon.penetrate + upgrades.penetrate,
+        hitCount: 0,
+        isCrit: isCrit,
+        enhancedPierceActive: false,
+      });
+    }
+
     // Стрельба в battle mode
     function shootBattle(s) {
       if (s.shootCooldown > 0) return;
       if (!s.battle) return;
       const weapon = getActiveWeapon(s);
       if (!weapon) return;
+
+      // Проверяем, есть ли активная очередь карабина
+      if (s.burstRemaining > 0 && s.burstWeaponId === weapon.id) {
+        if (s.burstCooldown > 0) return;
+      } else if (s.burstRemaining > 0) {
+        s.burstRemaining = 0;
+        s.burstWeaponId = null;
+        s.burstCooldown = 0;
+      }
+
       const b = s.battle;
       const killAccelMult = s.upgrades.killAccel ? Math.max(0.1, 1 - s.upgrades.killAccelPercent / 100) : 1.0;
       const cooldown = weapon.cooldown * s.upgrades.cooldownMult * killAccelMult;
-      s.shootCooldown = cooldown;
 
       const dx = s.mouse.x - b.player.x;
       const dy = s.mouse.y - b.player.y;
       const baseAngle = Math.atan2(dy, dx);
 
-      // Пули игрока (масштабированная скорость)
       const pellets = weapon.pellets + s.upgrades.pellets;
       const totalSpread = weapon.spread * s.upgrades.spreadMult;
       const bulletSpeed = weapon.bulletSpeed * s.upgrades.bulletSpeedMult * BATTLE_SCALE;
+
+      // Дробовик - равномерное распределение, остальное - случайное
+      const isShotgun = weapon.id === 'shotgun';
+
       for (let i = 0; i < pellets; i++) {
-        const spread = pellets > 1 ? (-totalSpread / 2) + (i * totalSpread / (pellets - 1)) : 0;
+        let spread;
+        if (isShotgun && pellets > 1) {
+          spread = (-totalSpread / 2) + (i * totalSpread / (pellets - 1));
+        } else {
+          spread = (Math.random() - 0.5) * totalSpread;
+        }
         const a = baseAngle + spread;
-        const isCrit = Math.random() < s.upgrades.critChance;
-        let damage = weapon.damage * (1 + s.upgrades.damage);
-        if (isCrit) damage *= 2;
-        b.bullets.push({
-          x: b.player.x, y: b.player.y,
-          vx: Math.cos(a) * bulletSpeed,
-          vy: Math.sin(a) * bulletSpeed,
-          life: CONFIG.BULLET_LIFE,
-          damage: damage,
-          penetrate: weapon.penetrate + s.upgrades.penetrate,
-          hitCount: 0,
-          isCrit: isCrit,
-          enhancedPierceActive: false,
-        });
+        createBulletBattle(b, weapon, a, bulletSpeed, s.upgrades);
+      }
+
+      // Проверяем, начинаем ли очередь карабина
+      if (weapon.burstSize && weapon.burstSize > 1) {
+        if (s.burstRemaining === 0) {
+          s.burstRemaining = weapon.burstSize - 1;
+          s.burstWeaponId = weapon.id;
+          s.burstCooldown = weapon.burstCooldown;
+          s.shootCooldown = 0; // Не блокируем, ждём burstCooldown
+        } else {
+          s.burstRemaining--;
+          if (s.burstRemaining > 0) {
+            s.burstCooldown = weapon.burstCooldown;
+            s.shootCooldown = 0;
+          } else {
+            s.burstWeaponId = null;
+            s.shootCooldown = cooldown;
+          }
+        }
+      } else {
+        s.shootCooldown = cooldown;
       }
 
       // Particle muzzle flash (масштабированная скорость)
@@ -2210,7 +2335,11 @@
 
       // Обновление кулдауна стрельбы и пуль
       s.shootCooldown = Math.max(0, s.shootCooldown - dt);
-      if (mouseHeld && s.shootCooldown <= 0) shoot(s);
+      s.burstCooldown = Math.max(0, s.burstCooldown - dt);
+      // Стреляем если: (1) зажата кнопка и нет кд, или (2) активна очередь карабина
+      const weapon = getActiveWeapon(s);
+      const isBurstActive = weapon && weapon.burstSize && weapon.burstSize > 1 && s.burstRemaining > 0 && s.burstWeaponId === weapon.id;
+      if ((mouseHeld || isBurstActive) && s.shootCooldown <= 0) shoot(s);
       for (let i = s.bullets.length - 1; i >= 0; i--) {
         const b = s.bullets[i];
         b.x += b.vx * dt;
@@ -3901,6 +4030,9 @@
         enemyBullets: [],
         particles: [],
         shootCooldown: 0,
+        burstCooldown: 0,
+        burstRemaining: 0,
+        burstWeaponId: null,
         keys: {},
         mouse: { x: data.player.x, y: data.player.y },
         time: data.time || 0,
