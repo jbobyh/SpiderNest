@@ -268,3 +268,56 @@
     #upgrade-popup.visible {
       opacity: 1;
     }
+
+    #fullscreen-btn {
+      position: absolute;
+      bottom: 8px;
+      right: 8px;
+      width: 32px;
+      height: 32px;
+      background: rgba(10, 21, 32, 0.75);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      color: var(--dim);
+      font-size: 1.1rem;
+      line-height: 1;
+      cursor: pointer;
+      z-index: 15;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.15s, border-color 0.15s, background 0.15s;
+      padding: 0;
+    }
+
+    #fullscreen-btn:hover {
+      color: var(--accent);
+      border-color: var(--accent);
+      background: rgba(0, 212, 255, 0.1);
+    }
+
+    :fullscreen #fullscreen-btn,
+    :-webkit-full-screen #fullscreen-btn {
+      bottom: 12px;
+      right: 12px;
+    }
+
+    :fullscreen #canvas-container,
+    :-webkit-full-screen #canvas-container {
+      border: none;
+      box-shadow: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100vw !important;
+      height: 100vh !important;
+      background: #000;
+    }
+
+    :fullscreen canvas,
+    :-webkit-full-screen canvas {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }

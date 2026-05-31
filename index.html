@@ -53,6 +53,7 @@
     <div id="canvas-container">
       <canvas id="canvas"></canvas>
       <div id="upgrade-popup"></div>
+      <button id="fullscreen-btn" title="Полный экран">⛶</button>
       <div id="overlay">
         <h2 style="color:var(--accent)">SPIDER NEST</h2>
         <p>Найди выход. Не дай паукам добраться до тебя.</p>
@@ -234,8 +235,25 @@
     CONFIG.BULL_ATTACK_DIST = CP * 1.6;
     const VIEW_W = CONFIG.VIEW_W;
     const VIEW_H = CONFIG.VIEW_H;
+    let canvasScale = 1; // CSS px -> canvas px multiplier (changes in fullscreen)
     C.width = VIEW_W;
     C.height = VIEW_H;
+
+    function resizeCanvas(cssW, cssH) {
+      const dpr = window.devicePixelRatio || 1;
+      const scaleX = cssW / VIEW_W;
+      const scaleY = cssH / VIEW_H;
+      canvasScale = Math.min(scaleX, scaleY) * dpr;
+      C.width = Math.round(VIEW_W * canvasScale);
+      C.height = Math.round(VIEW_H * canvasScale);
+      C.style.width = Math.round(VIEW_W * Math.min(scaleX, scaleY)) + 'px';
+      C.style.height = Math.round(VIEW_H * Math.min(scaleX, scaleY)) + 'px';
+    }
+
+    function beginFrame() {
+      ctx.setTransform(canvasScale, 0, 0, canvasScale, 0, 0);
+      ctx.clearRect(0, 0, VIEW_W, VIEW_H);
+    }
     const W = G * CP;           // полный размер мира
     const H = G * CP;
 
@@ -2398,7 +2416,7 @@
       const b = s.battle;
       if (!b) return;
 
-      ctx.clearRect(0, 0, VIEW_W, VIEW_H);
+      beginFrame();
 
       // Статичная камера battle: всё поле умещается на экране
       const sc = b.staticScale || 1;
@@ -2608,7 +2626,7 @@
     // DRAW
     // ============================================================
     function draw(s) {
-      ctx.clearRect(0, 0, VIEW_W, VIEW_H);
+      beginFrame();
 
       // Камера всегда центрирована на игроке
       camera.x = s.player.x - VIEW_W / 2;
@@ -3289,7 +3307,7 @@
     // ZOOM DRAW (play map with zoom transform)
     // ============================================================
     function drawZoom(s, scale, camX, camY, progress, pendingCellKey, frozenAngle) {
-      ctx.clearRect(0, 0, VIEW_W, VIEW_H);
+      beginFrame();
       ctx.save();
       // Трансформация: зум от центра экрана
       ctx.translate(VIEW_W / 2, VIEW_H / 2);
@@ -4026,6 +4044,41 @@
     showStartOverlay();
     lastTime = performance.now();
     animId = requestAnimationFrame(loop);
+
+    // ============================================================
+    // FULLSCREEN
+    // ============================================================
+    const fsBtn = document.getElementById('fullscreen-btn');
+    const fsContainer = document.getElementById('canvas-container');
+
+    function isFullscreen() {
+      return !!(document.fullscreenElement || document.webkitFullscreenElement);
+    }
+
+    function updateFsIcon() {
+      fsBtn.textContent = isFullscreen() ? '🗗' : '⛶';
+      fsBtn.title = isFullscreen() ? 'Выйти из полного экрана' : 'Полный экран';
+      if (isFullscreen()) {
+        resizeCanvas(window.screen.width, window.screen.height);
+      } else {
+        canvasScale = 1;
+        C.width = VIEW_W;
+        C.height = VIEW_H;
+        C.style.width = '';
+        C.style.height = '';
+      }
+    }
+
+    fsBtn.addEventListener('click', () => {
+      if (!isFullscreen()) {
+        (fsContainer.requestFullscreen || fsContainer.webkitRequestFullscreen).call(fsContainer);
+      } else {
+        (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+      }
+    });
+
+    document.addEventListener('fullscreenchange', updateFsIcon);
+    document.addEventListener('webkitfullscreenchange', updateFsIcon);
   </script>
 
 </body>
