@@ -4,13 +4,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GHOST ROOM</title>
+  <title>SPIDER NEST</title>
   <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-  <h1>GHOST ROOM</h1>
+  <h1>SPIDER NEST</h1>
   <p class="subtitle">// survival · exploration · containment //</p>
 
   <div class="game-wrapper">
@@ -30,7 +30,7 @@
       </div>
       <div class="hud-item">
         <span class="hud-label">ВРАГИ</span>
-        <span class="hud-value" id="val-ghosts" style="color:var(--ghost)">0</span>
+        <span class="hud-value" id="val-ghosts" style="color:var(--spider)">0</span>
       </div>
       <div class="hud-item">
         <span class="hud-label">СЕРДЕЧКИ</span>
@@ -54,8 +54,8 @@
       <canvas id="canvas"></canvas>
       <div id="upgrade-popup"></div>
       <div id="overlay">
-        <h2 style="color:var(--accent)">GHOST ROOM</h2>
-        <p>Найди выход. Не дай призракам добраться до тебя.</p>
+        <h2 style="color:var(--accent)">SPIDER NEST</h2>
+        <p>Найди выход. Не дай паукам добраться до тебя.</p>
         <button class="btn" id="start-btn">НАЧАТЬ ИГРУ</button>
       </div>
     </div>
@@ -76,7 +76,7 @@
       <div class="rule-item"><strong class="ok">Сердечки</strong> — собери для +3 жизней (коснись). Разное количество на каждом уровне
       </div>
       <div class="rule-item"><strong class="ok">Ключи 🔑</strong> — собери все ключи, чтобы разблокировать выход (2-4 в зависимости от уровня)</div>
-      <div class="rule-item"><strong class="danger">Враги</strong> — в некоторых комнатах. Открытие выпускает их!
+      <div class="rule-item"><strong class="danger">Пауки</strong> — в некоторых комнатах. Открытие выпускает их!
         Уничтожай из дробовика!</div>
       <div class="rule-item"><strong>Зелёная клетка</strong> — выход! Зайди в неё со всеми ключами, чтобы победить</div>
       <div class="rule-item"><strong>Чёрные клетки</strong> — закрыты навсегда, больше не открыть</div>
@@ -1393,7 +1393,7 @@
               b.particles.push({
                 x: g.x, y: g.y,
                 vx: Math.cos(a) * CONFIG.HIT_PARTICLES_SPEED, vy: Math.sin(a) * CONFIG.HIT_PARTICLES_SPEED,
-                life: CONFIG.HIT_PARTICLES_LIFE, maxLife: CONFIG.HIT_PARTICLES_LIFE, color: '#b060ff',
+                life: CONFIG.HIT_PARTICLES_LIFE, maxLife: CONFIG.HIT_PARTICLES_LIFE, color: '#44cc22',
               });
             }
             if (g.hp <= 0) {
@@ -1404,7 +1404,7 @@
                   x: g.x, y: g.y,
                   vx: Math.cos(a) * (CONFIG.DEATH_PARTICLES_SPEED_MIN + Math.random() * (CONFIG.DEATH_PARTICLES_SPEED_MAX - CONFIG.DEATH_PARTICLES_SPEED_MIN)),
                   vy: Math.sin(a) * (CONFIG.DEATH_PARTICLES_SPEED_MIN + Math.random() * (CONFIG.DEATH_PARTICLES_SPEED_MAX - CONFIG.DEATH_PARTICLES_SPEED_MIN)),
-                  life: CONFIG.DEATH_PARTICLES_LIFE, maxLife: CONFIG.DEATH_PARTICLES_LIFE, color: k % 2 === 0 ? '#b060ff' : '#ff80ff',
+                  life: CONFIG.DEATH_PARTICLES_LIFE, maxLife: CONFIG.DEATH_PARTICLES_LIFE, color: k % 2 === 0 ? '#44cc22' : '#88ff44',
                 });
               }
             }
@@ -1808,7 +1808,7 @@
               s.particles.push({
                 x: g.x, y: g.y,
                 vx: Math.cos(a) * CONFIG.HIT_PARTICLES_SPEED, vy: Math.sin(a) * CONFIG.HIT_PARTICLES_SPEED,
-                life: CONFIG.HIT_PARTICLES_LIFE, maxLife: CONFIG.HIT_PARTICLES_LIFE, color: '#b060ff',
+                life: CONFIG.HIT_PARTICLES_LIFE, maxLife: CONFIG.HIT_PARTICLES_LIFE, color: '#44cc22',
               });
             }
             if (g.hp <= 0) {
@@ -1819,7 +1819,7 @@
                   x: g.x, y: g.y,
                   vx: Math.cos(a) * (CONFIG.DEATH_PARTICLES_SPEED_MIN + Math.random() * (CONFIG.DEATH_PARTICLES_SPEED_MAX - CONFIG.DEATH_PARTICLES_SPEED_MIN)),
                   vy: Math.sin(a) * (CONFIG.DEATH_PARTICLES_SPEED_MIN + Math.random() * (CONFIG.DEATH_PARTICLES_SPEED_MAX - CONFIG.DEATH_PARTICLES_SPEED_MIN)),
-                  life: CONFIG.DEATH_PARTICLES_LIFE, maxLife: CONFIG.DEATH_PARTICLES_LIFE, color: k % 2 === 0 ? '#b060ff' : '#ff80ff',
+                  life: CONFIG.DEATH_PARTICLES_LIFE, maxLife: CONFIG.DEATH_PARTICLES_LIFE, color: k % 2 === 0 ? '#44cc22' : '#88ff44',
                 });
               }
             }
@@ -2617,32 +2617,45 @@
 
       const isShooter = g.type === 'shooter';
       ctx.globalAlpha = alpha;
-      ctx.fillStyle = isShooter ? '#ff8040' : '#c080ff';
-      ctx.shadowColor = isShooter ? '#ff4400' : '#9040ff';
+      ctx.fillStyle = isShooter ? '#ff6020' : '#228822';
+      ctx.shadowColor = isShooter ? '#ff2200' : '#114411';
       ctx.shadowBlur = 18 * scale;
 
-      ctx.beginPath();
-      ctx.arc(g.x, g.y, r, Math.PI, 0);
-      const steps = 4;
-      const stepW = (2 * r) / steps;
-      for (let i = 0; i < steps; i++) {
-        const px1 = g.x + r - i * stepW;
-        const px2 = g.x + r - (i + 1) * stepW;
-        const mid = (px1 + px2) / 2;
-        const waveAmp = i % 2 === 0 ? r * 0.35 : -r * 0.2;
-        ctx.quadraticCurveTo(mid, g.y + r + waveAmp + wave * 0.5, px2, g.y + (i % 2 === 0 ? r * 0.1 : r * 0.2));
-      }
-      ctx.closePath();
-      ctx.fill();
+      // Body (abdomen + cephalothorax)
+      ctx.beginPath(); ctx.ellipse(g.x, g.y + r * 0.25, r * 0.7, r * 0.75, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(g.x, g.y - r * 0.55, r * 0.5, r * 0.5, 0, 0, Math.PI * 2); ctx.fill();
 
+      // Legs (8 legs, 4 per side) — angles relative to horizontal, spread outward
       ctx.shadowBlur = 0;
-      ctx.globalAlpha = 0.9;
-      ctx.fillStyle = isShooter ? '#330010' : '#220033';
-      ctx.beginPath(); ctx.arc(g.x - r * 0.28, g.y - r * 0.1, r * 0.2, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(g.x + r * 0.28, g.y - r * 0.1, r * 0.2, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = isShooter ? '#ffaa00' : '#ff80ff';
-      ctx.beginPath(); ctx.arc(g.x - r * 0.22, g.y - r * 0.15, r * 0.08, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(g.x + r * 0.34, g.y - r * 0.15, r * 0.08, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = isShooter ? '#ff6020' : '#228822';
+      ctx.lineWidth = Math.max(1, r * 0.18);
+      ctx.globalAlpha = alpha * 0.85;
+      // angOffsets: angle from horizontal (0=right/left), negative=up, positive=down
+      const angOffsets = [-0.55, -0.18, 0.18, 0.55];
+      for (let side = -1; side <= 1; side += 2) {
+        for (let li = 0; li < angOffsets.length; li++) {
+          const legWave = Math.sin(g.phase * 2 + li * 0.8) * 0.12;
+          // base angle: side=-1 means left (π), side=1 means right (0)
+          const baseAng = (side === -1 ? Math.PI : 0) + angOffsets[li] * side;
+          const midAng = baseAng + 0.3 * side;
+          const midX = g.x + Math.cos(baseAng) * r * 1.4;
+          const midY = g.y - r * 0.1 + Math.sin(baseAng) * r * 1.1 + legWave * r;
+          const tipX = g.x + Math.cos(midAng) * r * (2.4 + legWave);
+          const tipY = g.y + r * 0.5 + Math.sin(midAng) * r * (1.6 + legWave);
+          ctx.beginPath();
+          ctx.moveTo(g.x + side * r * 0.45, g.y - r * 0.1);
+          ctx.quadraticCurveTo(midX, midY, tipX, tipY);
+          ctx.stroke();
+        }
+      }
+
+      // Eyes
+      ctx.globalAlpha = 0.95;
+      ctx.fillStyle = isShooter ? '#ffaa00' : '#88ff44';
+      ctx.beginPath(); ctx.arc(g.x - r * 0.22, g.y - r * 0.6, r * 0.12, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(g.x + r * 0.22, g.y - r * 0.6, r * 0.12, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(g.x - r * 0.08, g.y - r * 0.72, r * 0.08, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(g.x + r * 0.08, g.y - r * 0.72, r * 0.08, 0, Math.PI * 2); ctx.fill();
 
       // HP бар
       const maxHp = g.type === 'shooter' ? CONFIG.SHOOTER_HP : CONFIG.GHOST_HP;
@@ -2651,7 +2664,7 @@
         ctx.globalAlpha = 0.8;
         ctx.fillStyle = '#1a0030';
         ctx.fillRect(g.x - r, g.y - r - 8 * scale, r * 2, 3 * scale);
-        ctx.fillStyle = g.type === 'shooter' ? (hpFrac > 0.5 ? '#ff8800' : '#ff4400') : (hpFrac > 0.5 ? '#aa44ff' : '#ff44aa');
+        ctx.fillStyle = g.type === 'shooter' ? (hpFrac > 0.5 ? '#ff8800' : '#ff4400') : (hpFrac > 0.5 ? '#44cc22' : '#88ff44');
         ctx.fillRect(g.x - r, g.y - r - 8 * scale, r * 2 * hpFrac, 3 * scale);
       }
 
@@ -2745,8 +2758,8 @@
       ov.style.display = 'flex';
       const saveExists = hasSave();
       ov.innerHTML = `
-    <h2 style="color:var(--accent)">GHOST ROOM</h2>
-    <p>Найди выход. Не дай призракам добраться до тебя.</p>
+    <h2 style="color:var(--accent)">SPIDER NEST</h2>
+    <p>Найди выход. Не дай паукам добраться до тебя.</p>
     ${saveExists ? `<button class="btn" id="continue-btn" style="border-color:#00ff88;color:#00ff88">ПРОДОЛЖИТЬ</button>` : ''}
     <button class="btn" id="start-btn">${saveExists ? 'НОВАЯ ИГРА' : 'НАЧАТЬ ИГРУ'}</button>
   `;
