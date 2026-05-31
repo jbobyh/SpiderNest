@@ -413,18 +413,18 @@
 
     // Типы апгрейдов и их пулы
     const UPGRADE_TYPES = [
-      { id: 'pellets', label: '+1 пуля к выстрелу', color: '#ffaa00', max: 2 },
-      { id: 'damage', label: '+100% урона от пули', color: '#ff4444', max: 2 },
-      { id: 'penetrate', label: '+1 пробитие врага', color: '#ff44ff', max: 2 },
-      { id: 'bulletSpeed', label: '+30% скорость пули', color: '#ffff44', max: 2 },
-      { id: 'critChance', label: '+5% шанс крита', color: '#ff0000', max: 3 },
-      { id: 'killAccel', label: 'Оружейный разгон', color: '#ff8800', max: 1 },
-      { id: 'enhancedPierce', label: 'Усиленное пробитие', color: '#aa44ff', max: 1 },
-      { id: 'shield', label: 'Щит', color: '#00aaff', max: 2 },
-      { id: 'retreat', label: 'Отступление', color: '#00ffaa', max: 2 },
-      { id: 'reflection', label: 'Отражение', color: '#ff00ff', max: 1 },
-      { id: 'cooldown', label: 'Перезарядка -15%', color: '#00ccff', max: 3 },
-      { id: 'speed', label: 'Скорость бега +10%', color: '#44ff88', max: 3 },
+      { id: 'pellets', label: '+1 пуля к выстрелу', description: 'Каждый выстрел выпускает на 1 пулю больше', color: '#ffaa00', max: 2 },
+      { id: 'damage', label: '+100% урона от пули', description: 'Удваивает урон каждой пули', color: '#ff4444', max: 2 },
+      { id: 'penetrate', label: '+1 пробитие врага', description: 'Пуля пролетает сквозь одного дополнительного врага', color: '#ff44ff', max: 2 },
+      { id: 'bulletSpeed', label: '+30% скорость пули', description: 'Пули летят быстрее и труднее уклониться', color: '#ffff44', max: 2 },
+      { id: 'critChance', label: '+5% шанс крита', description: 'Критический удар наносит двойной урон', color: '#ff0000', max: 3 },
+      { id: 'killAccel', label: 'Оружейный разгон', description: 'Каждое убийство ускоряет следующий выстрел', color: '#ff8800', max: 1 },
+      { id: 'enhancedPierce', label: 'Усиленное пробитие', description: 'Пуля, пробившая врага, наносит усиленный урон', color: '#aa44ff', max: 1 },
+      { id: 'shield', label: 'Щит', description: 'Поглощает один удар без потери жизни', color: '#00aaff', max: 2 },
+      { id: 'retreat', label: 'Отступление', description: 'Получив урон, мгновенно отпрыгиваешь назад', color: '#00ffaa', max: 2 },
+      { id: 'reflection', label: 'Отражение', description: 'Вражеские пули отражаются назад при попадании в тебя', color: '#ff00ff', max: 1 },
+      { id: 'cooldown', label: 'Перезарядка -15%', description: 'Уменьшает время между выстрелами на 15%', color: '#00ccff', max: 3 },
+      { id: 'speed', label: 'Скорость бега +10%', description: 'Увеличивает скорость передвижения на 10%', color: '#44ff88', max: 3 },
       // { id: 'spread', label: 'Разброс +10%', color: '#ff66aa', max: 2 },
     ];
 
@@ -2679,16 +2679,13 @@
         if (upg.collected) continue;
         const upgDef = UPGRADE_TYPES.find(u => u.id === upg.upgradeType);
         if (upgDef) {
-          const pulse = 0.8 + 0.2 * Math.sin(Date.now() * 0.008);
           ctx.fillStyle = upgDef.color;
           ctx.shadowColor = upgDef.color;
           ctx.shadowBlur = 15 * BATTLE_SCALE;
           ctx.font = `bold ${24 * BATTLE_SCALE}px "Share Tech Mono"`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText('⬆', upg.x, upg.y - 12 * BATTLE_SCALE);
-          ctx.font = `bold ${12 * BATTLE_SCALE}px "Share Tech Mono"`;
-          ctx.fillText(upgDef.label, upg.x, upg.y + 14 * BATTLE_SCALE);
+          ctx.fillText('⬆', upg.x, upg.y);
           ctx.shadowBlur = 0;
         }
       }
@@ -2806,6 +2803,22 @@
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
       ctx.fillText('⚔ BATTLE MODE', 10, 10);
+
+      // Tooltip апгрейда при наведении (battle mode)
+      const hoverR = BATTLE_CELL_PX * 0.2;
+      for (const upg of b.upgrades) {
+        if (upg.collected) continue;
+        const dist = Math.hypot(s.mouse.x - upg.x, s.mouse.y - upg.y);
+        if (dist < hoverR) {
+          const upgDef = UPGRADE_TYPES.find(u => u.id === upg.upgradeType);
+          if (upgDef) {
+            const sx = VIEW_W / 2 + (upg.x - b.width / 2) * sc;
+            const sy = VIEW_H / 2 + (upg.y - b.height / 2) * sc;
+            drawUpgradeTooltip(sx, sy, upgDef);
+          }
+          break;
+        }
+      }
 
       updateHUD(s);
     }
@@ -3016,16 +3029,13 @@
             const hy = (y + 0.5) * CP;
             const upgDef = UPGRADE_TYPES.find(u => u.id === content.upgradeType);
             if (upgDef) {
-              const pulse = 0.8 + 0.2 * Math.sin(Date.now() * 0.008);
               ctx.fillStyle = upgDef.color;
               ctx.shadowColor = upgDef.color;
               ctx.shadowBlur = 10;
               ctx.font = 'bold 20px "Share Tech Mono"';
               ctx.textAlign = 'center';
               ctx.textBaseline = 'middle';
-              ctx.fillText('⬆', hx, hy - 10);
-              ctx.font = 'bold 10px "Share Tech Mono"';
-              ctx.fillText(upgDef.label, hx, hy + 12);
+              ctx.fillText('⬆', hx, hy);
               ctx.shadowBlur = 0;
             }
           }
@@ -3087,16 +3097,13 @@
 
         const upgDef = UPGRADE_TYPES.find(u => u.id === upg.upgradeType);
         if (upgDef) {
-          const pulse = 0.8 + 0.2 * Math.sin(Date.now() * 0.008);
           ctx.fillStyle = upgDef.color;
           ctx.shadowColor = upgDef.color;
           ctx.shadowBlur = 15;
           ctx.font = 'bold 24px "Share Tech Mono"';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText('⬆', upg.x, upg.y - 12);
-          ctx.font = 'bold 12px "Share Tech Mono"';
-          ctx.fillText(upgDef.label, upg.x, upg.y + 14);
+          ctx.fillText('⬆', upg.x, upg.y);
           ctx.shadowBlur = 0;
         }
       }
@@ -3208,7 +3215,62 @@
         ctx.fillRect(0, 0, VIEW_W, VIEW_H);
       }
 
+      // Tooltip апгрейда при наведении (play mode, экранные координаты)
+      for (const upg of s.upgradeObjs) {
+        if (upg.collected) continue;
+        const uc = cellOf(upg.x, upg.y);
+        const upgCk = cellKey(uc.x, uc.y);
+        if (!s.everRevealedCells.has(upgCk)) continue;
+        const dist = Math.hypot(s.mouse.x - upg.x, s.mouse.y - upg.y);
+        if (dist < CP * 0.4) {
+          const upgDef = UPGRADE_TYPES.find(u => u.id === upg.upgradeType);
+          if (upgDef) {
+            const sx = upg.x - camera.x;
+            const sy = upg.y - camera.y;
+            drawUpgradeTooltip(sx, sy, upgDef);
+          }
+          break;
+        }
+      }
+
       updateHUD(s);
+    }
+
+    function drawUpgradeTooltip(screenX, screenY, upgDef) {
+      const label = upgDef.label;
+      const desc = upgDef.description || '';
+      const color = upgDef.color;
+      const pad = 10;
+      const lineGap = 6;
+      ctx.font = 'bold 13px "Share Tech Mono"';
+      const labelW = ctx.measureText(label).width;
+      ctx.font = '11px "Share Tech Mono"';
+      const descW = ctx.measureText(desc).width;
+      const boxW = Math.max(labelW, descW) + pad * 2;
+      const boxH = 13 + lineGap + 11 + pad * 2;
+      let tx = screenX + 18;
+      let ty = screenY - boxH / 2;
+      if (tx + boxW > VIEW_W - 4) tx = screenX - boxW - 10;
+      if (ty < 4) ty = 4;
+      if (ty + boxH > VIEW_H - 4) ty = VIEW_H - 4 - boxH;
+      ctx.save();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = 'rgba(5, 12, 22, 0.93)';
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(tx, ty, boxW, boxH, 4);
+      ctx.fill();
+      ctx.stroke();
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillStyle = color;
+      ctx.font = 'bold 13px "Share Tech Mono"';
+      ctx.fillText(label, tx + pad, ty + pad);
+      ctx.fillStyle = 'rgba(200,220,240,0.85)';
+      ctx.font = '11px "Share Tech Mono"';
+      ctx.fillText(desc, tx + pad, ty + pad + 13 + lineGap);
+      ctx.restore();
     }
 
     function drawSpider(g, baseAlpha, scale = 1, skipVisibilityCheck = false) {
@@ -3600,7 +3662,6 @@
         if (!s.openCells.has(cellKey(uc.x, uc.y))) continue;
         const upgDef = UPGRADE_TYPES.find(u => u.id === upg.upgradeType);
         if (upgDef) {
-          const pulse = 0.8 + 0.2 * Math.sin(Date.now() * 0.008);
           ctx.globalAlpha = fadeAlpha;
           ctx.fillStyle = upgDef.color;
           ctx.shadowColor = upgDef.color;
@@ -3608,9 +3669,7 @@
           ctx.font = 'bold 24px "Share Tech Mono"';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText('⬆', upg.x, upg.y - 12);
-          ctx.font = 'bold 12px "Share Tech Mono"';
-          ctx.fillText(upgDef.label, upg.x, upg.y + 14);
+          ctx.fillText('⬆', upg.x, upg.y);
           ctx.shadowBlur = 0;
         }
       }
