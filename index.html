@@ -688,6 +688,45 @@
     }
 
     // ============================================================
+    // PARTICLE POOL (оптимизация garbage collection)
+    // ============================================================
+    const particlePool = [];
+    const maxPoolSize = 200;
+
+    function getParticle() {
+      if (particlePool.length > 0) {
+        return particlePool.pop();
+      }
+      return {
+        x: 0, y: 0,
+        vx: 0, vy: 0,
+        life: 0, maxLife: 0,
+        color: '#ffffff',
+      };
+    }
+
+    function returnParticle(particle) {
+      if (particlePool.length < maxPoolSize) {
+        particlePool.push(particle);
+      }
+    }
+
+    function addParticles(x, y, count, speed, life, color) {
+      for (let i = 0; i < count; i++) {
+        const p = getParticle();
+        const a = Math.random() * Math.PI * 2;
+        p.x = x;
+        p.y = y;
+        p.vx = Math.cos(a) * speed;
+        p.vy = Math.sin(a) * speed;
+        p.life = life;
+        p.maxLife = life;
+        p.color = color;
+        state.particles.push(p);
+      }
+    }
+
+    // ============================================================
     // UTILITY
     // ============================================================
     const CARDINAL_DIRECTIONS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
@@ -1435,14 +1474,7 @@
           if (dist < CONFIG.PLAYER_RADIUS * BATTLE_SCALE + CONFIG.PICKUP_DISTANCE * BATTLE_SCALE) {
             heart.collected = true;
             s.player.lives += CONFIG.LIVES_PER_HEART;
-            for (let i = 0; i < CONFIG.PICKUP_PARTICLES_COUNT; i++) {
-              const a = Math.random() * Math.PI * 2;
-              b.particles.push({
-                x: heart.x, y: heart.y,
-                vx: Math.cos(a) * CONFIG.PICKUP_PARTICLES_SPEED, vy: Math.sin(a) * CONFIG.PICKUP_PARTICLES_SPEED,
-                life: CONFIG.PICKUP_PARTICLES_LIFE, maxLife: CONFIG.PICKUP_PARTICLES_LIFE, color: '#ff6b9d',
-              });
-            }
+            addParticles(heart.x, heart.y, CONFIG.PICKUP_PARTICLES_COUNT, CONFIG.PICKUP_PARTICLES_SPEED, CONFIG.PICKUP_PARTICLES_LIFE, '#ff6b9d');
           }
         }
       }
@@ -1453,14 +1485,7 @@
           const dist = Math.hypot(b.player.x - keyObj.x, b.player.y - keyObj.y);
           if (dist < CONFIG.PLAYER_RADIUS * BATTLE_SCALE + CONFIG.PICKUP_DISTANCE * BATTLE_SCALE) {
             keyObj.collected = true;
-            for (let i = 0; i < CONFIG.PICKUP_PARTICLES_COUNT; i++) {
-              const a = Math.random() * Math.PI * 2;
-              b.particles.push({
-                x: keyObj.x, y: keyObj.y,
-                vx: Math.cos(a) * CONFIG.PICKUP_PARTICLES_SPEED, vy: Math.sin(a) * CONFIG.PICKUP_PARTICLES_SPEED,
-                life: CONFIG.PICKUP_PARTICLES_LIFE, maxLife: CONFIG.PICKUP_PARTICLES_LIFE, color: '#ffd700',
-              });
-            }
+            addParticles(keyObj.x, keyObj.y, CONFIG.PICKUP_PARTICLES_COUNT, CONFIG.PICKUP_PARTICLES_SPEED, CONFIG.PICKUP_PARTICLES_LIFE, '#ffd700');
           }
         }
       }
@@ -1474,14 +1499,7 @@
             const upgDef = UPGRADE_TYPES.find(u => u.id === upg.upgradeType);
             const color = upgDef ? upgDef.color : '#ffcc00';
             if (upgDef) showUpgradePopup(upgDef.label, upgDef.color);
-            for (let i = 0; i < CONFIG.PICKUP_PARTICLES_COUNT; i++) {
-              const a = Math.random() * Math.PI * 2;
-              b.particles.push({
-                x: upg.x, y: upg.y,
-                vx: Math.cos(a) * CONFIG.PICKUP_PARTICLES_SPEED, vy: Math.sin(a) * CONFIG.PICKUP_PARTICLES_SPEED,
-                life: CONFIG.PICKUP_PARTICLES_LIFE, maxLife: CONFIG.PICKUP_PARTICLES_LIFE, color: color,
-              });
-            }
+            addParticles(upg.x, upg.y, CONFIG.PICKUP_PARTICLES_COUNT, CONFIG.PICKUP_PARTICLES_SPEED, CONFIG.PICKUP_PARTICLES_LIFE, color);
           }
         }
       }
@@ -1580,7 +1598,6 @@
       // Обновление врагов в battle
       for (let i = b.activeSpiders.length - 1; i >= 0; i--) {
         const g = b.activeSpiders[i];
-        g.phase += dt * 2;
 
         const dx = b.player.x - g.x;
         const dy = b.player.y - g.y;
@@ -1860,7 +1877,10 @@
         p.vx *= 0.9;
         p.vy *= 0.9;
         p.life -= dt;
-        if (p.life <= 0) b.particles.splice(i, 1);
+        if (p.life <= 0) {
+          returnParticle(p);
+          b.particles.splice(i, 1);
+        }
       }
 
       // Проверяем завершение боя: все враги убиты и содержимое ячейки собрано
@@ -2010,14 +2030,7 @@
             s.player.lives += CONFIG.LIVES_PER_HEART;
             s.heartsCollected++;
             // Частицы
-            for (let i = 0; i < CONFIG.PICKUP_PARTICLES_COUNT; i++) {
-              const a = Math.random() * Math.PI * 2;
-              s.particles.push({
-                x: heart.x, y: heart.y,
-                vx: Math.cos(a) * CONFIG.PICKUP_PARTICLES_SPEED, vy: Math.sin(a) * CONFIG.PICKUP_PARTICLES_SPEED,
-                life: CONFIG.PICKUP_PARTICLES_LIFE, maxLife: CONFIG.PICKUP_PARTICLES_LIFE, color: '#ff6b9d',
-              });
-            }
+            addParticles(heart.x, heart.y, CONFIG.PICKUP_PARTICLES_COUNT, CONFIG.PICKUP_PARTICLES_SPEED, CONFIG.PICKUP_PARTICLES_LIFE, '#ff6b9d');
           }
         }
       }
@@ -2031,14 +2044,7 @@
             s.cellContents.delete(keyObj.cellKey);
             s.keysCollected++;
             // Частицы
-            for (let i = 0; i < CONFIG.PICKUP_PARTICLES_COUNT; i++) {
-              const a = Math.random() * Math.PI * 2;
-              s.particles.push({
-                x: keyObj.x, y: keyObj.y,
-                vx: Math.cos(a) * CONFIG.PICKUP_PARTICLES_SPEED, vy: Math.sin(a) * CONFIG.PICKUP_PARTICLES_SPEED,
-                life: CONFIG.PICKUP_PARTICLES_LIFE, maxLife: CONFIG.PICKUP_PARTICLES_LIFE, color: '#ffd700',
-              });
-            }
+            addParticles(keyObj.x, keyObj.y, CONFIG.PICKUP_PARTICLES_COUNT, CONFIG.PICKUP_PARTICLES_SPEED, CONFIG.PICKUP_PARTICLES_LIFE, '#ffd700');
           }
         }
       }
@@ -2054,14 +2060,7 @@
             // Частицы
             const upgDef = UPGRADE_TYPES.find(u => u.id === upg.upgradeType);
             const color = upgDef ? upgDef.color : '#ffcc00';
-            for (let i = 0; i < CONFIG.PICKUP_PARTICLES_COUNT; i++) {
-              const a = Math.random() * Math.PI * 2;
-              s.particles.push({
-                x: upg.x, y: upg.y,
-                vx: Math.cos(a) * CONFIG.PICKUP_PARTICLES_SPEED, vy: Math.sin(a) * CONFIG.PICKUP_PARTICLES_SPEED,
-                life: CONFIG.PICKUP_PARTICLES_LIFE, maxLife: CONFIG.PICKUP_PARTICLES_LIFE, color: color,
-              });
-            }
+            addParticles(upg.x, upg.y, CONFIG.PICKUP_PARTICLES_COUNT, CONFIG.PICKUP_PARTICLES_SPEED, CONFIG.PICKUP_PARTICLES_LIFE, color);
           }
         }
       }
@@ -2096,14 +2095,7 @@
         b.life -= dt;
 
         if (!inRoom(b.x, b.y, s.openCells) || b.life <= 0) {
-          for (let j = 0; j < CONFIG.WALL_HIT_PARTICLES_COUNT; j++) {
-            const a = Math.random() * Math.PI * 2;
-            s.particles.push({
-              x: b.x, y: b.y,
-              vx: Math.cos(a) * CONFIG.WALL_HIT_PARTICLES_SPEED, vy: Math.sin(a) * CONFIG.WALL_HIT_PARTICLES_SPEED,
-              life: CONFIG.WALL_HIT_PARTICLES_LIFE, maxLife: CONFIG.WALL_HIT_PARTICLES_LIFE, color: '#88aaff',
-            });
-          }
+          addParticles(b.x, b.y, CONFIG.WALL_HIT_PARTICLES_COUNT, CONFIG.WALL_HIT_PARTICLES_SPEED, CONFIG.WALL_HIT_PARTICLES_LIFE, '#88aaff');
           s.bullets.splice(i, 1);
           continue;
         }
@@ -2121,24 +2113,13 @@
             }
             g.hp -= (b.damage || CONFIG.BULLET_DAMAGE);
             hit = true;
-            for (let k = 0; k < CONFIG.HIT_PARTICLES_COUNT; k++) {
-              const a = Math.random() * Math.PI * 2;
-              s.particles.push({
-                x: g.x, y: g.y,
-                vx: Math.cos(a) * CONFIG.HIT_PARTICLES_SPEED, vy: Math.sin(a) * CONFIG.HIT_PARTICLES_SPEED,
-                life: CONFIG.HIT_PARTICLES_LIFE, maxLife: CONFIG.HIT_PARTICLES_LIFE, color: '#44cc22',
-              });
-            }
+            addParticles(g.x, g.y, CONFIG.HIT_PARTICLES_COUNT, CONFIG.HIT_PARTICLES_SPEED, CONFIG.HIT_PARTICLES_LIFE, '#44cc22');
             if (g.hp <= 0) {
               s.activeSpiders.splice(j, 1);
               for (let k = 0; k < CONFIG.DEATH_PARTICLES_COUNT; k++) {
-                const a = Math.random() * Math.PI * 2;
-                s.particles.push({
-                  x: g.x, y: g.y,
-                  vx: Math.cos(a) * (CONFIG.DEATH_PARTICLES_SPEED_MIN + Math.random() * (CONFIG.DEATH_PARTICLES_SPEED_MAX - CONFIG.DEATH_PARTICLES_SPEED_MIN)),
-                  vy: Math.sin(a) * (CONFIG.DEATH_PARTICLES_SPEED_MIN + Math.random() * (CONFIG.DEATH_PARTICLES_SPEED_MAX - CONFIG.DEATH_PARTICLES_SPEED_MIN)),
-                  life: CONFIG.DEATH_PARTICLES_LIFE, maxLife: CONFIG.DEATH_PARTICLES_LIFE, color: k % 2 === 0 ? '#44cc22' : '#88ff44',
-                });
+                const speed = CONFIG.DEATH_PARTICLES_SPEED_MIN + Math.random() * (CONFIG.DEATH_PARTICLES_SPEED_MAX - CONFIG.DEATH_PARTICLES_SPEED_MIN);
+                const color = k % 2 === 0 ? '#44cc22' : '#88ff44';
+                addParticles(g.x, g.y, 1, speed, CONFIG.DEATH_PARTICLES_LIFE, color);
               }
               // Оружейный разгон: +0.2% за убийство, макс 90%
               if (s.upgrades.killAccel) {
@@ -2163,10 +2144,13 @@
         }
       }
 
-      // Обновление пауков в закрытых комнатах (летание внутри)
+      // Обновление пауков в закрытых комнатах (летание внутри) - с frustum culling
       for (const g of s.spiders) {
         if (g.trapped) {
-          g.phase += dt * CONFIG.SPIDER_PHASE_SPEED;
+          // Обновляем только если клетка видна на экране
+          if (!isCellVisible(g.homeX, g.homeY)) {
+            continue;
+          }
           // Летание внутри своей клетки
           const margin = CONFIG.SPIDER_RADIUS + CONFIG.SPIDER_SPAWN_MARGIN;
           const cellLeft = g.homeX * CP + margin;
@@ -2194,7 +2178,6 @@
       // Обновление активных пауков
       for (let i = s.activeSpiders.length - 1; i >= 0; i--) {
         const g = s.activeSpiders[i];
-        g.phase += dt * 2;
 
         const dx = s.player.x - g.x;
         const dy = s.player.y - g.y;
@@ -2470,7 +2453,10 @@
         p.vx *= 0.9;
         p.vy *= 0.9;
         p.life -= dt;
-        if (p.life <= 0) s.particles.splice(i, 1);
+        if (p.life <= 0) {
+          returnParticle(p);
+          s.particles.splice(i, 1);
+        }
       }
 
       // Смерть
@@ -2711,6 +2697,16 @@
       s.mouse.x = mouseScreen.x + camera.x;
       s.mouse.y = mouseScreen.y + camera.y;
 
+      // Кешируем видимые клетки для оптимизации
+      const visibleCells = new Set();
+      for (let y = 0; y < s.gridSize; y++) {
+        for (let x = 0; x < s.gridSize; x++) {
+          if (isCellVisible(x, y)) {
+            visibleCells.add(cellKey(x, y));
+          }
+        }
+      }
+
       ctx.save();
       ctx.translate(-camera.x, -camera.y);
 
@@ -2725,7 +2721,7 @@
         const { x, y } = cellFromKey(k);
         // Показываем только если хотя бы один сосед когда-либо был реально открыт
         if (!someAdjacentCell(x, y, (nx, ny, nk) => s.everOpenedCells.has(nk))) continue;
-        if (!isCellVisible(x, y)) continue;
+        if (!visibleCells.has(k)) continue;
         ctx.fillStyle = '#000000';
         ctx.fillRect(x * CP, y * CP, CP, CP);
       }
@@ -2737,7 +2733,7 @@
           // Пропускаем если клетка уже открыта, открывалась ранее, или недоступна
           if (s.openCells.has(k) || s.everRevealedCells.has(k) ||
               s.disabledCells.has(k) || s.permanentlyClosed.has(k)) continue;
-          if (!isCellVisible(x, y)) continue;
+          if (!visibleCells.has(k)) continue;
           if (closedCellImg.complete && closedCellImg.naturalWidth > 0) {
             ctx.drawImage(closedCellImg, x * CP, y * CP, CP, CP);
           } else {
@@ -2749,8 +2745,8 @@
 
       // Открытые клетки
       for (const k of s.openCells) {
+        if (!visibleCells.has(k)) continue;
         const { x, y } = cellFromKey(k);
-        if (!isCellVisible(x, y)) continue;
         const isExit = x === s.exitCell.x && y === s.exitCell.y;
 
         if (isExit) {
@@ -2800,10 +2796,9 @@
       for (const g of s.spiders) {
         if (!g.trapped) continue;
         const gc = cellOf(g.x, g.y);
-        // Видны если клетка когда-либо была смежной с открытой
-        const visible = s.everRevealedCells.has(cellKey(gc.x, gc.y));
-        if (!visible) continue;
-        if (!isCellVisible(gc.x, gc.y)) continue;
+        const cellKey_gc = cellKey(gc.x, gc.y);
+        // Видны если клетка когда-либо была смежной с открытой И сейчас видна
+        if (!s.everRevealedCells.has(cellKey_gc) || !visibleCells.has(cellKey_gc)) continue;
 
         drawSpider(g, 0.5); // Полупрозрачные т.к. за стенкой
       }
@@ -2821,9 +2816,9 @@
       }
 
       for (const k of adj) {
+        if (!visibleCells.has(k)) continue;
         const { x, y } = cellFromKey(k);
         if (x < 0 || x >= s.gridSize || y < 0 || y >= s.gridSize) continue;
-        if (!isCellVisible(x, y)) continue;
 
         // Фон смежной клетки
         if (playerAdjOpen.has(k)) {
@@ -2909,9 +2904,9 @@
       // Зелёная подсветка клеток у игрока, не попавших в adj (ещё не в everRevealedCells)
       for (const k of playerAdjOpen) {
         if (adj.has(k)) continue; // уже нарисована выше
+        if (!visibleCells.has(k)) continue;
         const { x, y } = cellFromKey(k);
         if (x < 0 || x >= s.gridSize || y < 0 || y >= s.gridSize) continue;
-        if (!isCellVisible(x, y)) continue;
         ctx.fillStyle = 'rgba(20,60,30,0.15)';
         ctx.fillRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
       }
@@ -2920,8 +2915,8 @@
       for (const heart of s.hearts) {
         if (heart.collected) continue;
         const hc = cellOf(heart.x, heart.y);
-        if (!s.openCells.has(cellKey(hc.x, hc.y))) continue;
-        if (!isCellVisible(hc.x, hc.y)) continue;
+        const heartCellKey = cellKey(hc.x, hc.y);
+        if (!s.openCells.has(heartCellKey) || !visibleCells.has(heartCellKey)) continue;
 
         const pulse = 0.8 + 0.2 * Math.sin(Date.now() * 0.008);
         ctx.fillStyle = `rgba(255, 107, 157, ${pulse})`;
@@ -2938,8 +2933,8 @@
       for (const keyObj of s.keyObjs) {
         if (keyObj.collected) continue;
         const kc = cellOf(keyObj.x, keyObj.y);
-        if (!s.openCells.has(cellKey(kc.x, kc.y))) continue;
-        if (!isCellVisible(kc.x, kc.y)) continue;
+        const keyCellKey = cellKey(kc.x, kc.y);
+        if (!s.openCells.has(keyCellKey) || !visibleCells.has(keyCellKey)) continue;
 
         const pulse = 0.8 + 0.2 * Math.sin(Date.now() * 0.008);
         ctx.fillStyle = `rgba(255, 215, 0, ${pulse})`;
@@ -2956,8 +2951,8 @@
       for (const upg of s.upgradeObjs) {
         if (upg.collected) continue;
         const uc = cellOf(upg.x, upg.y);
-        if (!s.openCells.has(cellKey(uc.x, uc.y))) continue;
-        if (!isCellVisible(uc.x, uc.y)) continue;
+        const upgCellKey = cellKey(uc.x, uc.y);
+        if (!s.openCells.has(upgCellKey) || !visibleCells.has(upgCellKey)) continue;
 
         const upgDef = UPGRADE_TYPES.find(u => u.id === upg.upgradeType);
         if (upgDef) {
@@ -2978,8 +2973,8 @@
       // Оружие на полу
       for (const dw of s.droppedWeapons) {
         const wc = cellOf(dw.x, dw.y);
-        if (!s.openCells.has(cellKey(wc.x, wc.y))) continue;
-        if (!isCellVisible(wc.x, wc.y)) continue;
+        const weaponCellKey = cellKey(wc.x, wc.y);
+        if (!s.openCells.has(weaponCellKey) || !visibleCells.has(weaponCellKey)) continue;
         const wDef = WEAPON_DEFS[dw.weaponId];
         if (!wDef) continue;
         const pulse = 0.7 + 0.3 * Math.sin(Date.now() * 0.007);
@@ -3090,15 +3085,14 @@
       if (!skipVisibilityCheck && (g.x + spiderRadius < camera.x || g.x - spiderRadius > camera.x + VIEW_W ||
         g.y + spiderRadius < camera.y || g.y - spiderRadius > camera.y + VIEW_H)) return;
 
-      const wave = Math.sin(g.phase) * g.wobble * 4 * scale;
-      const r = spiderRadius + wave;
-      const alpha = baseAlpha * (0.65 + 0.35 * Math.sin(g.phase * 1.3));
+      const r = spiderRadius;
+      const alpha = baseAlpha;
 
       const isPlevaka = g.type === 'plevaka' || g.type === 'shooter';
       const isBull = g.type === 'bull';
       const isBuldyga = g.type === 'buldyga';
       const isSoldier = g.type === 'soldier' || g.type === 'chaser';
-      ctx.globalAlpha = alpha;
+      ctx.globalAlpha = 1.0;
       
       if (isBull) {
         // Бык — крупный, тёмно-красный, массивный
@@ -3175,20 +3169,19 @@
         ctx.strokeStyle = '#228822';
         ctx.lineWidth = Math.max(1, r * 0.18);
       }
-      ctx.globalAlpha = alpha * 0.85;
+      ctx.globalAlpha = 1.0;
       // angOffsets: angle from horizontal (0=right/left), negative=up, positive=down
       const angOffsets = [-0.55, -0.18, 0.18, 0.55];
       for (let side = -1; side <= 1; side += 2) {
         for (let li = 0; li < angOffsets.length; li++) {
-          const legWave = Math.sin(g.phase * 2 + li * 0.8) * 0.12;
           // base angle: side=-1 means left (π), side=1 means right (0)
           const baseAng = (side === -1 ? Math.PI : 0) + angOffsets[li] * side;
           const midAng = baseAng + 0.3 * side;
           const legMult = (isBull || isBuldyga) ? 1.15 : 1.0;
           const midX = g.x + Math.cos(baseAng) * r * 1.4 * legMult;
-          const midY = g.y - r * 0.1 + Math.sin(baseAng) * r * 1.1 * legMult + legWave * r;
-          const tipX = g.x + Math.cos(midAng) * r * (2.4 + legWave) * legMult;
-          const tipY = g.y + r * 0.5 + Math.sin(midAng) * r * (1.6 + legWave) * legMult;
+          const midY = g.y - r * 0.1 + Math.sin(baseAng) * r * 1.1 * legMult;
+          const tipX = g.x + Math.cos(midAng) * r * 2.4 * legMult;
+          const tipY = g.y + r * 0.5 + Math.sin(midAng) * r * 1.6 * legMult;
           ctx.beginPath();
           ctx.moveTo(g.x + side * r * 0.45, g.y - r * 0.1);
           ctx.quadraticCurveTo(midX, midY, tipX, tipY);
@@ -3197,7 +3190,7 @@
       }
 
       // Eyes
-      ctx.globalAlpha = 0.95;
+      ctx.globalAlpha = 1.0;
       if (isBull) {
         ctx.fillStyle = '#ff0000'; // Красные глаза у быка
       } else if (isBuldyga) {
