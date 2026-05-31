@@ -286,6 +286,9 @@
         killAccel: false,
         killAccelPercent: 0,
         enhancedPierce: false,
+        shield: 0,
+        retreat: 0,
+        reflection: false,
       },
       weaponSlots: ['pistol', null],
       activeSlot: 0,
@@ -416,8 +419,11 @@
       { id: 'critChance', label: '+5% шанс крита', color: '#ff0000', max: 3 },
       { id: 'killAccel', label: 'Оружейный разгон', color: '#ff8800', max: 1 },
       { id: 'enhancedPierce', label: 'Усиленное пробитие', color: '#aa44ff', max: 1 },
+      { id: 'shield', label: 'Щит', color: '#00aaff', max: 2 },
+      { id: 'retreat', label: 'Отступление', color: '#00ffaa', max: 2 },
+      { id: 'reflection', label: 'Отражение', color: '#ff00ff', max: 1 },
       { id: 'cooldown', label: 'Перезарядка -15%', color: '#00ccff', max: 3 },
-      { id: 'speed', label: 'Скорость бега +10%', color: '#44ff88', max: 2 },
+      { id: 'speed', label: 'Скорость бега +10%', color: '#44ff88', max: 3 },
       { id: 'spread', label: 'Разброс +10%', color: '#ff66aa', max: 2 },
     ];
 
@@ -1299,6 +1305,18 @@
           s.upgrades.enhancedPierce = true;
           playerProgress.upgrades.enhancedPierce = true;
           break;
+        case 'shield':
+          s.upgrades.shield++;
+          playerProgress.upgrades.shield++;
+          break;
+        case 'retreat':
+          s.upgrades.retreat++;
+          playerProgress.upgrades.retreat++;
+          break;
+        case 'reflection':
+          s.upgrades.reflection = true;
+          playerProgress.upgrades.reflection = true;
+          break;
       }
       if (upg && showPopup) showUpgradePopup(upg.label, upg.color);
     }
@@ -1312,6 +1330,76 @@
       el.style.boxShadow = `0 0 20px ${color}44`;
       el.classList.add('visible');
       upgradePopupTimer = CONFIG.UPGRADE_POPUP_DURATION;
+    }
+
+    // ============================================================
+    // PLAYER DAMAGE HELPER
+    // ============================================================
+    function dealPlayerDamage(s, isBattleMode) {
+      if (s.player.invulnerable > 0 || CONFIG.DEBUG_INVULNERABLE) return false;
+
+      // Щит поглощает урон
+      if (s.upgrades.shield > 0) {
+        s.upgrades.shield--;
+        playerProgress.upgrades.shield--;
+        // Отражение: выпускаем 3 пули в ближайших врагов
+        if (s.upgrades.reflection) {
+          fireReflectionBullets(s, isBattleMode);
+        }
+        return true; // Урон поглощен щитом
+      }
+
+      // Обычный урон - отнимаем жизнь
+      s.player.lives--;
+
+      // Отступление: дополнительная неуязвимость
+      const retreatBonus = s.upgrades.retreat;
+      s.player.invulnerable = CONFIG.PLAYER_INVULNERABLE_TIME + retreatBonus;
+
+      // Отражение при получении урона
+      if (s.upgrades.reflection) {
+        fireReflectionBullets(s, isBattleMode);
+      }
+
+      return true;
+    }
+
+    function fireReflectionBullets(s, isBattleMode) {
+      const scale = isBattleMode ? BATTLE_SCALE : 1;
+      const bulletsArray = isBattleMode ? s.battle.bullets : s.bullets;
+      const enemiesArray = isBattleMode ? s.battle.activeSpiders : s.activeSpiders;
+      const playerX = isBattleMode ? s.battle.player.x : s.player.x;
+      const playerY = isBattleMode ? s.battle.player.y : s.player.y;
+
+      const weapon = getActiveWeapon(s);
+      if (!weapon) return;
+
+      // Находим до 3 ближайших врагов
+      const nearestEnemies = [];
+      for (const enemy of enemiesArray) {
+        const dist = Math.hypot(enemy.x - playerX, enemy.y - playerY);
+        nearestEnemies.push({ enemy, dist });
+      }
+      nearestEnemies.sort((a, b) => a.dist - b.dist);
+
+      const targets = nearestEnemies.slice(0, 3);
+      const bulletSpeed = weapon.bulletSpeed * s.upgrades.bulletSpeedMult * scale;
+
+      for (const target of targets) {
+        const angle = Math.atan2(target.enemy.y - playerY, target.enemy.x - playerX);
+        const damage = weapon.damage * (1 + s.upgrades.damage);
+        bulletsArray.push({
+          x: playerX, y: playerY,
+          vx: Math.cos(angle) * bulletSpeed,
+          vy: Math.sin(angle) * bulletSpeed,
+          life: CONFIG.BULLET_LIFE,
+          damage: damage,
+          penetrate: weapon.penetrate + s.upgrades.penetrate,
+          hitCount: 0,
+          isCrit: false,
+          enhancedPierceActive: false,
+        });
+      }
     }
 
     // ============================================================
@@ -1702,10 +1790,7 @@
                 // Проверяем попадание в игрока во время рывка
                 const newDist = Math.hypot(b.player.x - g.x, b.player.y - g.y);
                 if (newDist < hitDist) {
-                  if (s.player.invulnerable <= 0 && !CONFIG.DEBUG_INVULNERABLE) {
-                    s.player.lives--;
-                    s.player.invulnerable = CONFIG.PLAYER_INVULNERABLE_TIME;
-                  }
+                  dealPlayerDamage(s, true);
                   // Бык не исчезает, просто переходит в отдых
                   g.state = 'rest';
                   g.stateTimer = CONFIG.BULL_REST_TIME;
@@ -1724,10 +1809,7 @@
           
           // Проверка касания игрока (для состояний chase/rest)
           if (g.state !== 'dash' && dist < hitDist) {
-            if (s.player.invulnerable <= 0 && !CONFIG.DEBUG_INVULNERABLE) {
-              s.player.lives--;
-              s.player.invulnerable = CONFIG.PLAYER_INVULNERABLE_TIME;
-            }
+            dealPlayerDamage(s, true);
             b.activeSpiders.splice(i, 1);
             for (let k = 0; k < CONFIG.PLAYER_HIT_PARTICLES_COUNT; k++) {
               const a = Math.random() * Math.PI * 2;
@@ -1758,10 +1840,7 @@
           }
           // Касание игрока (масштабированное)
           if (dist < ((g.radius || CONFIG.BULDYGA_RADIUS) + CONFIG.PLAYER_RADIUS) * BATTLE_SCALE) {
-            if (s.player.invulnerable <= 0 && !CONFIG.DEBUG_INVULNERABLE) {
-              s.player.lives--;
-              s.player.invulnerable = CONFIG.PLAYER_INVULNERABLE_TIME;
-            }
+            dealPlayerDamage(s, true);
             b.activeSpiders.splice(i, 1);
             for (let k = 0; k < CONFIG.PLAYER_HIT_PARTICLES_COUNT; k++) {
               const a = Math.random() * Math.PI * 2;
@@ -1782,10 +1861,7 @@
           }
           // Касание игрока (масштабированное)
           if (dist < ((g.radius || CONFIG.SPIDER_RADIUS) + CONFIG.PLAYER_RADIUS) * BATTLE_SCALE) {
-            if (s.player.invulnerable <= 0 && !CONFIG.DEBUG_INVULNERABLE) {
-              s.player.lives--;
-              s.player.invulnerable = CONFIG.PLAYER_INVULNERABLE_TIME;
-            }
+            dealPlayerDamage(s, true);
             b.activeSpiders.splice(i, 1);
             for (let k = 0; k < CONFIG.PLAYER_HIT_PARTICLES_COUNT; k++) {
               const a = Math.random() * Math.PI * 2;
@@ -1831,10 +1907,7 @@
 
         const pd = Math.hypot(eb.x - b.player.x, eb.y - b.player.y);
         if (pd < CONFIG.PLAYER_RADIUS * BATTLE_SCALE + CONFIG.BULLET_RADIUS * BATTLE_SCALE) {
-          if (s.player.invulnerable <= 0 && !CONFIG.DEBUG_INVULNERABLE) {
-            s.player.lives--;
-            s.player.invulnerable = CONFIG.PLAYER_INVULNERABLE_TIME;
-          }
+          dealPlayerDamage(s, true);
           b.enemyBullets.splice(i, 1);
           for (let k = 0; k < 8; k++) {
             const a = Math.random() * Math.PI * 2;
@@ -2284,10 +2357,7 @@
                 // Проверяем попадание в игрока во время рывка
                 const newDist = Math.hypot(s.player.x - g.x, s.player.y - g.y);
                 if (newDist < hitDist) {
-                  if (s.player.invulnerable <= 0 && !CONFIG.DEBUG_INVULNERABLE) {
-                    s.player.lives--;
-                    s.player.invulnerable = CONFIG.PLAYER_INVULNERABLE_TIME;
-                  }
+                  dealPlayerDamage(s, false);
                   // Бык не исчезает, просто переходит в отдых
                   g.state = 'rest';
                   g.stateTimer = CONFIG.BULL_REST_TIME;
@@ -2306,10 +2376,7 @@
           
           // Проверка касания игрока (для состояний chase/rest)
           if (g.state !== 'dash' && dist < hitDist) {
-            if (s.player.invulnerable <= 0 && !CONFIG.DEBUG_INVULNERABLE) {
-              s.player.lives--;
-              s.player.invulnerable = CONFIG.PLAYER_INVULNERABLE_TIME;
-            }
+            dealPlayerDamage(s, false);
             s.activeSpiders.splice(i, 1);
             for (let k = 0; k < CONFIG.PLAYER_HIT_PARTICLES_COUNT; k++) {
               const a = Math.random() * Math.PI * 2;
@@ -2340,10 +2407,7 @@
           }
           // Касание игрока
           if (dist < (g.radius || CONFIG.BULDYGA_RADIUS) + CONFIG.PLAYER_RADIUS) {
-            if (s.player.invulnerable <= 0 && !CONFIG.DEBUG_INVULNERABLE) {
-              s.player.lives--;
-              s.player.invulnerable = CONFIG.PLAYER_INVULNERABLE_TIME;
-            }
+            dealPlayerDamage(s, false);
             s.activeSpiders.splice(i, 1);
             for (let k = 0; k < CONFIG.PLAYER_HIT_PARTICLES_COUNT; k++) {
               const a = Math.random() * Math.PI * 2;
@@ -2363,10 +2427,7 @@
           }
           // Касание игрока
           if (dist < (g.radius || CONFIG.SPIDER_RADIUS) + CONFIG.PLAYER_RADIUS) {
-            if (s.player.invulnerable <= 0 && !CONFIG.DEBUG_INVULNERABLE) {
-              s.player.lives--;
-              s.player.invulnerable = CONFIG.PLAYER_INVULNERABLE_TIME;
-            }
+            dealPlayerDamage(s, false);
             s.activeSpiders.splice(i, 1);
             for (let k = 0; k < CONFIG.PLAYER_HIT_PARTICLES_COUNT; k++) {
               const a = Math.random() * Math.PI * 2;
@@ -2404,10 +2465,7 @@
         // Попадание в игрока
         const pd = Math.hypot(eb.x - s.player.x, eb.y - s.player.y);
         if (pd < CONFIG.PLAYER_RADIUS + CONFIG.BULLET_RADIUS) {
-          if (s.player.invulnerable <= 0 && !CONFIG.DEBUG_INVULNERABLE) {
-            s.player.lives--;
-            s.player.invulnerable = CONFIG.PLAYER_INVULNERABLE_TIME;
-          }
+          dealPlayerDamage(s, false);
           s.enemyBullets.splice(i, 1);
           for (let k = 0; k < 8; k++) {
             const a = Math.random() * Math.PI * 2;
@@ -3798,6 +3856,9 @@
           killAccel: false,
           killAccelPercent: 0,
           enhancedPierce: false,
+          shield: 0,
+          retreat: 0,
+          reflection: false,
         },
         weaponSlots: ['pistol', null],
         activeSlot: 0,
