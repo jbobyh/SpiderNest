@@ -355,7 +355,7 @@
         color: '#44ff44',
         pellets: 1,
         spread: 0,
-        damage: 100,
+        damage: 51,
         cooldown: 1,
         bulletSpeed: 700,
         penetrate: 2,
@@ -420,7 +420,7 @@
         const cell = keyCandidates[i];
         availableCells.splice(availableCells.indexOf(cell), 1);
         const dist = Math.max(Math.abs(cell.x - cx), Math.abs(cell.y - cy));
-        const enemyCount = (5 + Math.floor(Math.random() * 8)) * dist * levelMultiplier;
+        const enemyCount = (4 + Math.floor(Math.random() * 5)) * dist * levelMultiplier;
         cellContents.set(cell.k, { type: 'key', enemyCount, enemiesReleased: false });
         keyObjs.push({ x: (cell.x + 0.5) * CP, y: (cell.y + 0.5) * CP, cellKey: cell.k, collected: false });
       }
@@ -494,7 +494,7 @@
         const cell = availableCells.shift();
         const upgId = upgradePool[i];
         const dist = Math.max(Math.abs(cell.x - cx), Math.abs(cell.y - cy));
-        const enemyCount = (4 + Math.floor(Math.random() * 6)) * dist * levelMultiplier;
+        const enemyCount = (2 + Math.floor(Math.random() * 5)) * dist * levelMultiplier;
         cellContents.set(cell.k, { type: 'upgrade', upgradeType: upgId, enemyCount: enemyCount, enemiesReleased: false });
         upgradeObjs.push({ x: (cell.x + 0.5) * CP, y: (cell.y + 0.5) * CP, cellKey: cell.k, upgradeType: upgId, collected: false });
       }
