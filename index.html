@@ -30,7 +30,7 @@
       </div>
       <div class="hud-item">
         <span class="hud-label">ВРАГИ</span>
-        <span class="hud-value" id="val-ghosts" style="color:var(--spider)">0</span>
+        <span class="hud-value" id="val-spiders" style="color:var(--spider)">0</span>
       </div>
       <div class="hud-item">
         <span class="hud-label">СЕРДЕЧКИ</span>
@@ -146,14 +146,14 @@
       PICKUP_PARTICLES_SPEED: 80,
       PICKUP_PARTICLES_LIFE: 0.6,
 
-      // Ghosts
-      GHOST_HP: 100,
-      GHOST_SPEED: 70,
-      GHOST_RADIUS: 7,
-      GHOST_PHASE_SPEED: 2,           // скорость анимации парения
-      GHOST_WOBBLE_MIN: 0.3,
-      GHOST_WOBBLE_MAX: 0.5,
-      GHOST_SPAWN_MARGIN: 10,         // отступ от стен при спавне
+      // Spiders
+      SPIDER_HP: 100,
+      SPIDER_SPEED: 70,
+      SPIDER_RADIUS: 7,
+      SPIDER_PHASE_SPEED: 2,          // скорость анимации парения
+      SPIDER_WOBBLE_MIN: 0.3,
+      SPIDER_WOBBLE_MAX: 0.5,
+      SPIDER_SPAWN_MARGIN: 10,        // отступ от стен при спавне
 
       // Shooters
       SHOOTER_HP: 100,
@@ -526,18 +526,18 @@
       }
 
       // Создаём врагов в закрытых комнатах
-      const trappedGhosts = [];
+      const trappedSpiders = [];
       for (const [k, content] of cellContents) {
         if (content.enemyCount > 0) {
           const { x, y } = cellFromKey(k);
           for (let i = 0; i < content.enemyCount; i++) {
-            const margin = CONFIG.GHOST_RADIUS + CONFIG.GHOST_SPAWN_MARGIN;
+            const margin = CONFIG.SPIDER_RADIUS + CONFIG.SPIDER_SPAWN_MARGIN;
             const gx = x * CP + margin + Math.random() * (CP - margin * 2);
             const gy = y * CP + margin + Math.random() * (CP - margin * 2);
             // Определяем тип врага
             let enemyType;
             let enemyHp;
-            let enemyRadius = CONFIG.GHOST_RADIUS;
+            let enemyRadius = CONFIG.SPIDER_RADIUS;
             if (level >= 2 && Math.random() < CONFIG.BULL_CHANCE) {
               enemyType = 'bull';
               enemyHp = CONFIG.BULL_HP;
@@ -545,14 +545,14 @@
             } else {
               const isPlevaka = Math.random() < CONFIG.SHOOTER_CHANCE;
               enemyType = isPlevaka ? 'plevaka' : 'soldier';
-              enemyHp = isPlevaka ? CONFIG.SHOOTER_HP : CONFIG.GHOST_HP;
+              enemyHp = isPlevaka ? CONFIG.SHOOTER_HP : CONFIG.SPIDER_HP;
             }
-            trappedGhosts.push({
+            trappedSpiders.push({
               x: gx, y: gy,
               homeX: x, homeY: y,
               trapped: true,
               phase: Math.random() * Math.PI * 2,
-              wobble: CONFIG.GHOST_WOBBLE_MIN + Math.random() * (CONFIG.GHOST_WOBBLE_MAX - CONFIG.GHOST_WOBBLE_MIN),
+              wobble: CONFIG.SPIDER_WOBBLE_MIN + Math.random() * (CONFIG.SPIDER_WOBBLE_MAX - CONFIG.SPIDER_WOBBLE_MIN),
               vx: 0, vy: 0,
               radius: enemyRadius,
               hp: enemyHp,
@@ -613,8 +613,8 @@
           invulnerable: 0,
         },
 
-        ghosts: trappedGhosts,
-        activeGhosts: [], // враги которые были выпущены
+        spiders: trappedSpiders,
+        activeSpiders: [], // враги которые были выпущены
         bullets: [],
         enemyBullets: [],
         shootCooldown: 0,
@@ -627,7 +627,7 @@
         phase: 'play', // 'play', 'battle', 'win', 'dead', 'stopped'
 
         // Battle mode state
-        battle: null, // { openCells, cellContents, hearts, keyObjs, upgradeObjs, ghosts, activeGhosts, ... }
+        battle: null, // { openCells, cellContents, hearts, keyObjs, upgradeObjs, spiders, activeSpiders, ... }
 
         droppedWeapons: droppedWeapons,
         weaponSlots: [...playerProgress.weaponSlots],
@@ -851,8 +851,8 @@
       const battleHearts = [];
       const battleKeys = [];
       const battleUpgrades = [];
-      const battleGhosts = [];
-      const battleActiveGhosts = [];
+      const battleSpiders = [];
+      const battleActiveSpiders = [];
 
       // Сердечки
       for (const heart of s.hearts) {
@@ -922,14 +922,14 @@
       if (openedContent && openedContent.enemyCount && !openedContent.enemiesReleased) {
         openedContent.enemiesReleased = true;
         const { x: ox, y: oy } = cellFromKey(openedCellKey);
-        for (let i = s.ghosts.length - 1; i >= 0; i--) {
-          const g = s.ghosts[i];
+        for (let i = s.spiders.length - 1; i >= 0; i--) {
+          const g = s.spiders[i];
           if (g.homeX === ox && g.homeY === oy) {
             g.trapped = false;
             // Конвертируем позицию врага в battle-координаты
             const battleX = (g.homeX - cellOffsetX) * BATTLE_CELL_PX + (g.x - g.homeX * CP) * BATTLE_SCALE;
             const battleY = (g.homeY - cellOffsetY) * BATTLE_CELL_PX + (g.y - g.homeY * CP) * BATTLE_SCALE;
-            battleActiveGhosts.push({
+            battleActiveSpiders.push({
               x: battleX, y: battleY,
               vx: 0, vy: 0,
               hp: g.hp,
@@ -946,18 +946,18 @@
               dashDirY: g.dashDirY,
               dashDistance: g.dashDistance,
             });
-            s.ghosts.splice(i, 1);
+            s.spiders.splice(i, 1);
           }
         }
       }
 
       // Уже активные враги -> тоже переносим в battle
-      for (const g of s.activeGhosts) {
+      for (const g of s.activeSpiders) {
         const gc = cellOf(g.x, g.y);
         if (battleCells.has(cellKey(gc.x, gc.y))) {
           const battleX = (gc.x - cellOffsetX) * BATTLE_CELL_PX + (g.x - gc.x * CP) * BATTLE_SCALE;
           const battleY = (gc.y - cellOffsetY) * BATTLE_CELL_PX + (g.y - gc.y * CP) * BATTLE_SCALE;
-          battleActiveGhosts.push({
+          battleActiveSpiders.push({
             x: battleX, y: battleY,
             vx: 0, vy: 0,
             hp: g.hp,
@@ -987,8 +987,8 @@
         keys: battleKeys,
         upgrades: battleUpgrades,
         weapons: battleWeapons,
-        ghosts: battleGhosts,
-        activeGhosts: battleActiveGhosts,
+        spiders: battleSpiders,
+        activeSpiders: battleActiveSpiders,
         bullets: [],
         enemyBullets: [],
         particles: [],
@@ -1075,15 +1075,15 @@
       s.player.y = mapCellY * CP + localY / BATTLE_SCALE;
 
       // Переносим оставшихся врагов обратно
-      s.activeGhosts = [];
-      for (const bg of b.activeGhosts) {
+      s.activeSpiders = [];
+      for (const bg of b.activeSpiders) {
         const bx = Math.floor(bg.x / BATTLE_CELL_PX);
         const by = Math.floor(bg.y / BATTLE_CELL_PX);
         const mx = bx + b.cellOffsetX;
         const my = by + b.cellOffsetY;
         const lx = bg.x - bx * BATTLE_CELL_PX;
         const ly = bg.y - by * BATTLE_CELL_PX;
-        s.activeGhosts.push({
+        s.activeSpiders.push({
           x: mx * CP + lx / BATTLE_SCALE,
           y: my * CP + ly / BATTLE_SCALE,
           vx: 0, vy: 0,
@@ -1441,11 +1441,11 @@
         }
 
         // Попадание во врагов (масштабированные)
-        for (let j = b.activeGhosts.length - 1; j >= 0; j--) {
-          const g = b.activeGhosts[j];
-          if (bullet.hitGhosts && bullet.hitGhosts.has(j)) continue; // уже попадали в этого
+        for (let j = b.activeSpiders.length - 1; j >= 0; j--) {
+          const g = b.activeSpiders[j];
+          if (bullet.hitSpiders && bullet.hitSpiders.has(j)) continue; // уже попадали в этого
           const dist = Math.hypot(bullet.x - g.x, bullet.y - g.y);
-          if (dist < (CONFIG.GHOST_RADIUS + CONFIG.BULLET_RADIUS) * BATTLE_SCALE) {
+          if (dist < (CONFIG.SPIDER_RADIUS + CONFIG.BULLET_RADIUS) * BATTLE_SCALE) {
             g.hp -= (bullet.damage || CONFIG.BULLET_DAMAGE);
             for (let k = 0; k < CONFIG.HIT_PARTICLES_COUNT; k++) {
               const a = Math.random() * Math.PI * 2;
@@ -1456,7 +1456,7 @@
               });
             }
             if (g.hp <= 0) {
-              b.activeGhosts.splice(j, 1);
+              b.activeSpiders.splice(j, 1);
               for (let k = 0; k < CONFIG.DEATH_PARTICLES_COUNT; k++) {
                 const a = Math.random() * Math.PI * 2;
                 b.particles.push({
@@ -1469,8 +1469,8 @@
             }
             // Логика пробития: отслеживаем сколько врагов прошла пуля
             bullet.hitCount++;
-            if (!bullet.hitGhosts) bullet.hitGhosts = new Set();
-            bullet.hitGhosts.add(j);
+            if (!bullet.hitSpiders) bullet.hitSpiders = new Set();
+            bullet.hitSpiders.add(j);
             // Пуля уничтожается если hitCount > penetrate (0=1 враг, 2=3 врага)
             if (bullet.hitCount > bullet.penetrate) {
               b.bullets.splice(i, 1);
@@ -1481,8 +1481,8 @@
       }
 
       // Обновление врагов в battle
-      for (let i = b.activeGhosts.length - 1; i >= 0; i--) {
-        const g = b.activeGhosts[i];
+      for (let i = b.activeSpiders.length - 1; i >= 0; i--) {
+        const g = b.activeSpiders[i];
         g.phase += dt * 2;
 
         const dx = b.player.x - g.x;
@@ -1614,7 +1614,7 @@
               s.player.lives--;
               s.player.invulnerable = CONFIG.PLAYER_INVULNERABLE_TIME;
             }
-            b.activeGhosts.splice(i, 1);
+            b.activeSpiders.splice(i, 1);
             for (let k = 0; k < CONFIG.PLAYER_HIT_PARTICLES_COUNT; k++) {
               const a = Math.random() * Math.PI * 2;
               b.particles.push({
@@ -1628,17 +1628,17 @@
         } else {
           // Солдат - летит к игроку (масштабированная скорость)
           if (dist > 0) {
-            const spd = CONFIG.GHOST_SPEED * BATTLE_SCALE;
+            const spd = CONFIG.SPIDER_SPEED * BATTLE_SCALE;
             g.x += (dx / dist) * spd * dt;
             g.y += (dy / dist) * spd * dt;
           }
           // Касание игрока (масштабированное)
-          if (dist < ((g.radius || CONFIG.GHOST_RADIUS) + CONFIG.PLAYER_RADIUS) * BATTLE_SCALE) {
+          if (dist < ((g.radius || CONFIG.SPIDER_RADIUS) + CONFIG.PLAYER_RADIUS) * BATTLE_SCALE) {
             if (s.player.invulnerable <= 0 && !CONFIG.DEBUG_INVULNERABLE) {
               s.player.lives--;
               s.player.invulnerable = CONFIG.PLAYER_INVULNERABLE_TIME;
             }
-            b.activeGhosts.splice(i, 1);
+            b.activeSpiders.splice(i, 1);
             for (let k = 0; k < CONFIG.PLAYER_HIT_PARTICLES_COUNT; k++) {
               const a = Math.random() * Math.PI * 2;
               b.particles.push({
@@ -1700,14 +1700,14 @@
       }
 
       // Коллизии между врагами в battle (масштабированные)
-      for (let i = 0; i < b.activeGhosts.length; i++) {
-        const g1 = b.activeGhosts[i];
-        for (let j = i + 1; j < b.activeGhosts.length; j++) {
-          const g2 = b.activeGhosts[j];
+      for (let i = 0; i < b.activeSpiders.length; i++) {
+        const g1 = b.activeSpiders[i];
+        for (let j = i + 1; j < b.activeSpiders.length; j++) {
+          const g2 = b.activeSpiders[j];
           const dx = g2.x - g1.x;
           const dy = g2.y - g1.y;
           const distSq = dx * dx + dy * dy;
-          const minDist = CONFIG.GHOST_RADIUS * 2 * BATTLE_SCALE;
+          const minDist = CONFIG.SPIDER_RADIUS * 2 * BATTLE_SCALE;
           if (distSq < minDist * minDist && distSq > 0) {
             const dist = Math.sqrt(distSq);
             const overlap = minDist - dist;
@@ -1733,7 +1733,7 @@
       }
 
       // Проверяем завершение боя: все враги убиты и содержимое ячейки собрано
-      const hasEnemies = b.activeGhosts.length > 0;
+      const hasEnemies = b.activeSpiders.length > 0;
       const cellContent = s.cellContents.get(b.openedCellKey);
       const cellContentCollected = !cellContent || cellContent.type === 'empty' || cellContent.type === 'enemies';
 
@@ -1972,11 +1972,11 @@
 
         // Попадание в выпущенных (активных) призраков
         let hit = false;
-        for (let j = s.activeGhosts.length - 1; j >= 0; j--) {
-          const g = s.activeGhosts[j];
-          if (b.hitGhosts && b.hitGhosts.has(j)) continue; // уже попадали в этого
+        for (let j = s.activeSpiders.length - 1; j >= 0; j--) {
+          const g = s.activeSpiders[j];
+          if (b.hitSpiders && b.hitSpiders.has(j)) continue; // уже попадали в этого
           const dist = Math.hypot(b.x - g.x, b.y - g.y);
-          if (dist < CONFIG.GHOST_RADIUS + CONFIG.BULLET_RADIUS) {
+          if (dist < CONFIG.SPIDER_RADIUS + CONFIG.BULLET_RADIUS) {
             g.hp -= (b.damage || CONFIG.BULLET_DAMAGE);
             hit = true;
             for (let k = 0; k < CONFIG.HIT_PARTICLES_COUNT; k++) {
@@ -1988,7 +1988,7 @@
               });
             }
             if (g.hp <= 0) {
-              s.activeGhosts.splice(j, 1);
+              s.activeSpiders.splice(j, 1);
               for (let k = 0; k < CONFIG.DEATH_PARTICLES_COUNT; k++) {
                 const a = Math.random() * Math.PI * 2;
                 s.particles.push({
@@ -2001,8 +2001,8 @@
             }
             // Логика пробития: отслеживаем сколько врагов прошла пуля
             b.hitCount++;
-            if (!b.hitGhosts) b.hitGhosts = new Set();
-            b.hitGhosts.add(j);
+            if (!b.hitSpiders) b.hitSpiders = new Set();
+            b.hitSpiders.add(j);
             // Пуля уничтожается если hitCount > penetrate (0=1 враг, 2=3 врага)
             if (b.hitCount > b.penetrate) {
               s.bullets.splice(i, 1);
@@ -2012,12 +2012,12 @@
         }
       }
 
-      // Обновление призраков в закрытых комнатах (летание внутри)
-      for (const g of s.ghosts) {
+      // Обновление пауков в закрытых комнатах (летание внутри)
+      for (const g of s.spiders) {
         if (g.trapped) {
-          g.phase += dt * CONFIG.GHOST_PHASE_SPEED;
+          g.phase += dt * CONFIG.SPIDER_PHASE_SPEED;
           // Летание внутри своей клетки
-          const margin = CONFIG.GHOST_RADIUS + CONFIG.GHOST_SPAWN_MARGIN;
+          const margin = CONFIG.SPIDER_RADIUS + CONFIG.SPIDER_SPAWN_MARGIN;
           const cellLeft = g.homeX * CP + margin;
           const cellRight = (g.homeX + 1) * CP - margin;
           const cellTop = g.homeY * CP + margin;
@@ -2040,9 +2040,9 @@
         }
       }
 
-      // Обновление активных призраков
-      for (let i = s.activeGhosts.length - 1; i >= 0; i--) {
-        const g = s.activeGhosts[i];
+      // Обновление активных пауков
+      for (let i = s.activeSpiders.length - 1; i >= 0; i--) {
+        const g = s.activeSpiders[i];
         g.phase += dt * 2;
 
         const dx = s.player.x - g.x;
@@ -2176,7 +2176,7 @@
               s.player.lives--;
               s.player.invulnerable = CONFIG.PLAYER_INVULNERABLE_TIME;
             }
-            s.activeGhosts.splice(i, 1);
+            s.activeSpiders.splice(i, 1);
             for (let k = 0; k < CONFIG.PLAYER_HIT_PARTICLES_COUNT; k++) {
               const a = Math.random() * Math.PI * 2;
               s.particles.push({
@@ -2190,16 +2190,16 @@
         } else {
           // Солдат: летит к игроку
           if (dist > 0) {
-            g.x += (dx / dist) * CONFIG.GHOST_SPEED * dt;
-            g.y += (dy / dist) * CONFIG.GHOST_SPEED * dt;
+            g.x += (dx / dist) * CONFIG.SPIDER_SPEED * dt;
+            g.y += (dy / dist) * CONFIG.SPIDER_SPEED * dt;
           }
           // Касание игрока
-          if (dist < (g.radius || CONFIG.GHOST_RADIUS) + CONFIG.PLAYER_RADIUS) {
+          if (dist < (g.radius || CONFIG.SPIDER_RADIUS) + CONFIG.PLAYER_RADIUS) {
             if (s.player.invulnerable <= 0 && !CONFIG.DEBUG_INVULNERABLE) {
               s.player.lives--;
               s.player.invulnerable = CONFIG.PLAYER_INVULNERABLE_TIME;
             }
-            s.activeGhosts.splice(i, 1);
+            s.activeSpiders.splice(i, 1);
             for (let k = 0; k < CONFIG.PLAYER_HIT_PARTICLES_COUNT; k++) {
               const a = Math.random() * Math.PI * 2;
               s.particles.push({
@@ -2252,16 +2252,16 @@
         }
       }
 
-      // Коллизии между призраками - ОТДЕЛЬНЫЙ БЛОК
-      for (let i = 0; i < s.activeGhosts.length; i++) {
-        const g1 = s.activeGhosts[i];
-        for (let j = i + 1; j < s.activeGhosts.length; j++) {
-          const g2 = s.activeGhosts[j];
+      // Коллизии между пауками - ОТДЕЛЬНЫЙ БЛОК
+      for (let i = 0; i < s.activeSpiders.length; i++) {
+        const g1 = s.activeSpiders[i];
+        for (let j = i + 1; j < s.activeSpiders.length; j++) {
+          const g2 = s.activeSpiders[j];
 
           const dx = g2.x - g1.x;
           const dy = g2.y - g1.y;
           const distSq = dx * dx + dy * dy;
-          const minDist = CONFIG.GHOST_RADIUS * 2;
+          const minDist = CONFIG.SPIDER_RADIUS * 2;
 
           if (distSq < minDist * minDist && distSq > 0) {
             const dist = Math.sqrt(distSq);
@@ -2439,8 +2439,8 @@
       ctx.shadowBlur = 0;
 
       // Враги в battle (масштабированы)
-      for (const g of b.activeGhosts) {
-        drawGhost(g, 1, BATTLE_SCALE, true);
+      for (const g of b.activeSpiders) {
+        drawSpider(g, 1, BATTLE_SCALE, true);
       }
 
       // Частицы
@@ -2611,8 +2611,8 @@
         if (!s.openCells.has(k) && !s.disabledCells.has(k) && !s.permanentlyClosed.has(k)) adj.add(k);
       }
 
-      // Призраки в закрытых комнатах (видны)
-      for (const g of s.ghosts) {
+      // Пауки в закрытых комнатах (видны)
+      for (const g of s.spiders) {
         if (!g.trapped) continue;
         const gc = cellOf(g.x, g.y);
         // Видны если клетка когда-либо была смежной с открытой
@@ -2620,7 +2620,7 @@
         if (!visible) continue;
         if (!isCellVisible(gc.x, gc.y)) continue;
 
-        drawGhost(g, 0.5); // Полупрозрачные т.к. за стенкой
+        drawSpider(g, 0.5); // Полупрозрачные т.к. за стенкой
       }
       
       // Клетки, смежные с игроком — доступны для открытия (ПКМ), подсвечиваем зелёным
@@ -2837,9 +2837,9 @@
       }
       ctx.shadowBlur = 0;
 
-      // Активные призраки (выпущенные)
-      for (const g of s.activeGhosts) {
-        drawGhost(g, 1);
+      // Активные пауки (выпущенные)
+      for (const g of s.activeSpiders) {
+        drawSpider(g, 1);
       }
 
       // Частицы
@@ -2900,13 +2900,13 @@
       updateHUD(s);
     }
 
-    function drawGhost(g, baseAlpha, scale = 1, skipVisibilityCheck = false) {
-      const ghostRadius = (g.radius || CONFIG.GHOST_RADIUS) * scale;
-      if (!skipVisibilityCheck && (g.x + ghostRadius < camera.x || g.x - ghostRadius > camera.x + VIEW_W ||
-        g.y + ghostRadius < camera.y || g.y - ghostRadius > camera.y + VIEW_H)) return;
+    function drawSpider(g, baseAlpha, scale = 1, skipVisibilityCheck = false) {
+      const spiderRadius = (g.radius || CONFIG.SPIDER_RADIUS) * scale;
+      if (!skipVisibilityCheck && (g.x + spiderRadius < camera.x || g.x - spiderRadius > camera.x + VIEW_W ||
+        g.y + spiderRadius < camera.y || g.y - spiderRadius > camera.y + VIEW_H)) return;
 
       const wave = Math.sin(g.phase) * g.wobble * 4 * scale;
-      const r = ghostRadius + wave;
+      const r = spiderRadius + wave;
       const alpha = baseAlpha * (0.65 + 0.35 * Math.sin(g.phase * 1.3));
 
       const isPlevaka = g.type === 'plevaka' || g.type === 'shooter';
@@ -3013,7 +3013,7 @@
       let maxHp;
       if (isBull) maxHp = CONFIG.BULL_HP;
       else if (isPlevaka) maxHp = CONFIG.SHOOTER_HP;
-      else maxHp = CONFIG.GHOST_HP;
+      else maxHp = CONFIG.SPIDER_HP;
       if (g.hp !== undefined && g.hp < maxHp) {
         const hpFrac = Math.max(0, g.hp / maxHp);
         ctx.globalAlpha = 0.8;
@@ -3074,7 +3074,7 @@
 
       // Остальное
       document.getElementById('val-area').textContent = s.openCells.size;
-      document.getElementById('val-ghosts').textContent = s.activeGhosts.length;
+      document.getElementById('val-spiders').textContent = s.activeSpiders.length;
       const levelCfg = getLevelConfig(currentLevel);
       document.getElementById('val-hearts').textContent = `${s.heartsCollected}/${levelCfg.heartsCount}`;
       document.getElementById('val-keys').textContent = `${s.keysCollected}/${s.keysRequired}`;
@@ -3268,8 +3268,8 @@
       }
       ctx.globalAlpha = 1;
 
-      // Призраки в закрытых клетках (fade-out, кроме pendingCellKey)
-      for (const g of s.ghosts) {
+      // Пауки в закрытых клетках (fade-out, кроме pendingCellKey)
+      for (const g of s.spiders) {
         if (!g.trapped) continue;
         const gc = cellOf(g.x, g.y);
         const cellK = cellKey(gc.x, gc.y);
@@ -3277,7 +3277,7 @@
         if (!visible) continue;
         const isPending = cellK === pendingCellKey;
         const gAlpha = isPending ? 1 : fadeAlpha;
-        drawGhost(g, gAlpha * 0.5, 1, true);
+        drawSpider(g, gAlpha * 0.5, 1, true);
       }
 
       // Игрок
@@ -3432,7 +3432,7 @@
     // ============================================================
     // SAVE / LOAD (localStorage)
     // ============================================================
-    const SAVE_KEY = 'ghostroom_save';
+    const SAVE_KEY = 'spidernest_save';
 
     function serializeState(s) {
       return {
@@ -3454,8 +3454,8 @@
         keyObjs: s.keyObjs,
         upgradeObjs: s.upgradeObjs,
         upgrades: { ...s.upgrades },
-        ghosts: s.ghosts.map(g => ({ ...g })),
-        activeGhosts: s.activeGhosts.map(g => ({ ...g })),
+        spiders: s.spiders.map(g => ({ ...g })),
+        activeSpiders: s.activeSpiders.map(g => ({ ...g })),
         droppedWeapons: s.droppedWeapons ? [...s.droppedWeapons] : [],
         weaponSlots: s.weaponSlots ? [...s.weaponSlots] : ['pistol', null],
         activeSlot: s.activeSlot || 0,
@@ -3484,8 +3484,8 @@
         keyObjs: data.keyObjs,
         upgradeObjs: data.upgradeObjs,
         upgrades: { ...data.upgrades },
-        ghosts: data.ghosts.map(g => ({ ...g })),
-        activeGhosts: (data.activeGhosts || []).map(g => ({ ...g })),
+        spiders: data.spiders.map(g => ({ ...g })),
+        activeSpiders: (data.activeSpiders || []).map(g => ({ ...g })),
         droppedWeapons: data.droppedWeapons ? [...data.droppedWeapons] : [],
         weaponSlots: data.weaponSlots ? [...data.weaponSlots] : ['pistol', null],
         activeSlot: data.activeSlot || 0,
