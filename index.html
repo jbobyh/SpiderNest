@@ -434,7 +434,52 @@
         cellContents.set(cell.k, { type: 'heart', enemyCount, enemiesReleased: false });
       }
 
-      // Расставляем апгрейды
+      // Генерируем оружие на полу (случайное, 1 на ур.1, 2 на ур.2, 3 на ур.3)
+      // Оружие имеет приоритет над апгрейдами и врагами!
+      const droppedWeapons = [];
+      const weaponPool = ['shotgun', 'smg', 'rifle'];
+      shuffleInPlace(weaponPool);
+      const weaponCount = Math.min(level, availableCells.length, weaponPool.length);
+
+      // На 1 уровне оружие спавнится на диагональных клетках от старта
+      let weaponCells = [];
+      if (level === 1) {
+        const diagonalOffsets = [[-1, -1], [1, -1], [-1, 1], [1, 1]];
+        for (const [dx, dy] of diagonalOffsets) {
+          const nx = cx + dx, ny = cy + dy;
+          if (nx >= 0 && nx < gridSize && ny >= 0 && ny < gridSize) {
+            const k = cellKey(nx, ny);
+            if (!disabledCells.has(k)) {
+              weaponCells.push({ x: nx, y: ny, k });
+            }
+          }
+        }
+        // Перемешиваем и берём нужное количество
+        shuffleInPlace(weaponCells);
+        weaponCells = weaponCells.slice(0, weaponCount);
+      }
+
+      for (let i = 0; i < weaponCount; i++) {
+        let cell;
+        if (level === 1 && i < weaponCells.length) {
+          cell = weaponCells[i];
+          // Удаляем эту клетку из availableCells чтобы не было конфликтов
+          const idx = availableCells.findIndex(c => c.k === cell.k);
+          if (idx >= 0) availableCells.splice(idx, 1);
+        } else {
+          cell = availableCells.shift();
+        }
+        if (!cell) continue;
+        const weaponId = weaponPool[i];
+        droppedWeapons.push({
+          x: (cell.x + 0.5) * CP,
+          y: (cell.y + 0.5) * CP,
+          weaponId: weaponId,
+          cellKey: cell.k,
+        });
+      }
+
+      // Расставляем апгрейды (после оружия, т.к. оружие в приоритете)
       const upgradeObjs = [];
       const upgradePool = [];
       for (const upg of UPGRADE_TYPES) {
@@ -454,7 +499,7 @@
         upgradeObjs.push({ x: (cell.x + 0.5) * CP, y: (cell.y + 0.5) * CP, cellKey: cell.k, upgradeType: upgId, collected: false });
       }
 
-      // Расставляем врагов в оставшиеся клетки (70% шанс)
+      // Расставляем врагов в оставшиеся клетки
       while (availableCells.length > 0) {
         const cell = availableCells.shift();
         if (Math.random() < CONFIG.ENEMY_SPAWN_CHANCE) {
@@ -464,22 +509,6 @@
         } else {
           cellContents.set(cell.k, { type: 'empty' });
         }
-      }
-
-      // Генерируем оружие на полу (случайное, 1 на ур.1, 2 на ур.2, 3 на ур.3)
-      const droppedWeapons = [];
-      const weaponPool = ['shotgun', 'smg', 'rifle'];
-      shuffleInPlace(weaponPool);
-      const weaponCount = Math.min(level, availableCells.length, weaponPool.length);
-      for (let i = 0; i < weaponCount; i++) {
-        const cell = availableCells.shift();
-        const weaponId = weaponPool[i];
-        droppedWeapons.push({
-          x: (cell.x + 0.5) * CP,
-          y: (cell.y + 0.5) * CP,
-          weaponId: weaponId,
-          cellKey: cell.k,
-        });
       }
 
       // Создаём врагов в закрытых комнатах
