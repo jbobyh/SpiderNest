@@ -79,7 +79,7 @@
       <div class="rule-item"><strong class="ok">Ключи 🔑</strong> — собери все ключи, чтобы разблокировать выход (2-4 в зависимости от уровня)</div>
       <div class="rule-item"><strong class="danger">Пауки</strong> — в некоторых комнатах. Открытие выпускает их!
         Уничтожай из дробовика!</div>
-      <div class="rule-item"><strong>Зелёная клетка</strong> — выход! Зайди в неё со всеми ключами, чтобы победить</div>
+      <div class="rule-item"><strong>Зелёная клетка</strong> — выход! Собери все ключи и нажми <strong>F</strong> на клетке выхода, чтобы уйти</div>
       <div class="rule-item"><strong>Чёрные клетки</strong> — закрыты навсегда, больше не открыть</div>
     </div>
   </div>
@@ -1265,18 +1265,6 @@
       }
 
       s.battle = null;
-
-      // Проверяем победу: игрок на выходе со всеми ключами
-      if (s.keysCollected >= s.keysRequired) {
-        const ec = s.exitCell;
-        const ex0 = ec.x * CP, ex1 = (ec.x + 1) * CP;
-        const ey0 = ec.y * CP, ey1 = (ec.y + 1) * CP;
-        if (s.player.x > ex0 && s.player.x < ex1 && s.player.y > ey0 && s.player.y < ey1) {
-          s.phase = 'level_complete';
-          return;
-        }
-      }
-
       s.phase = 'play';
     }
 
@@ -2328,17 +2316,6 @@
         upgradePopupTimer -= dt;
         if (upgradePopupTimer <= 0) {
           document.getElementById('upgrade-popup').classList.remove('visible');
-        }
-      }
-
-      // Выход?
-      if (s.keysCollected >= s.keysRequired) {
-        const ec = s.exitCell;
-        const ex0 = ec.x * CP, ex1 = (ec.x + 1) * CP;
-        const ey0 = ec.y * CP, ey1 = (ec.y + 1) * CP;
-        if (s.player.x > ex0 && s.player.x < ex1 && s.player.y > ey0 && s.player.y < ey1) {
-          s.phase = 'level_complete';
-          return;
         }
       }
 
@@ -4244,6 +4221,17 @@
                 weaponChanged = true;
                 break;
               }
+            }
+          }
+
+          // Проверка выхода: если на клетке выхода с ключами — выходим
+          if (!pickedUp && state.keysCollected >= state.keysRequired) {
+            const ec = state.exitCell;
+            const ex0 = ec.x * CP, ex1 = (ec.x + 1) * CP;
+            const ey0 = ec.y * CP, ey1 = (ec.y + 1) * CP;
+            if (state.player.x > ex0 && state.player.x < ex1 && state.player.y > ey0 && state.player.y < ey1) {
+              state.phase = 'level_complete';
+              return;
             }
           }
 
