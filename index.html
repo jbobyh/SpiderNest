@@ -281,6 +281,11 @@
         cooldownMult: 1.0,
         speedMult: 1.0,
         spreadMult: 1.0,
+        bulletSpeedMult: 1.0,
+        critChance: 0,
+        killAccel: false,
+        killAccelPercent: 0,
+        enhancedPierce: false,
       },
       weaponSlots: ['pistol', null],
       activeSlot: 0,
@@ -407,8 +412,12 @@
       { id: 'pellets', label: '+1 пуля к выстрелу', color: '#ffaa00', max: 2 },
       { id: 'damage', label: '+100% урона от пули', color: '#ff4444', max: 2 },
       { id: 'penetrate', label: '+1 пробитие врага', color: '#ff44ff', max: 2 },
+      { id: 'bulletSpeed', label: '+30% скорость пули', color: '#ffff44', max: 2 },
+      { id: 'critChance', label: '+5% шанс крита', color: '#ff0000', max: 3 },
+      { id: 'killAccel', label: 'Оружейный разгон', color: '#ff8800', max: 1 },
+      { id: 'enhancedPierce', label: 'Усиленное пробитие', color: '#aa44ff', max: 1 },
       { id: 'cooldown', label: 'Перезарядка -15%', color: '#00ccff', max: 3 },
-      { id: 'speed', label: 'Скорость +10%', color: '#44ff88', max: 2 },
+      { id: 'speed', label: 'Скорость бега +10%', color: '#44ff88', max: 2 },
       { id: 'spread', label: 'Разброс +10%', color: '#ff66aa', max: 2 },
     ];
 
@@ -1231,9 +1240,25 @@
           s.upgrades.speedMult += 0.10; 
           playerProgress.upgrades.speedMult = s.upgrades.speedMult; 
           break;
-        case 'spread': 
-          s.upgrades.spreadMult += 0.10; 
-          playerProgress.upgrades.spreadMult = s.upgrades.spreadMult; 
+        case 'spread':
+          s.upgrades.spreadMult += 0.10;
+          playerProgress.upgrades.spreadMult = s.upgrades.spreadMult;
+          break;
+        case 'bulletSpeed':
+          s.upgrades.bulletSpeedMult += 0.30;
+          playerProgress.upgrades.bulletSpeedMult = s.upgrades.bulletSpeedMult;
+          break;
+        case 'critChance':
+          s.upgrades.critChance += 0.05;
+          playerProgress.upgrades.critChance = s.upgrades.critChance;
+          break;
+        case 'killAccel':
+          s.upgrades.killAccel = true;
+          playerProgress.upgrades.killAccel = true;
+          break;
+        case 'enhancedPierce':
+          s.upgrades.enhancedPierce = true;
+          playerProgress.upgrades.enhancedPierce = true;
           break;
       }
       if (upg && showPopup) showUpgradePopup(upg.label, upg.color);
@@ -1262,7 +1287,8 @@
       if (s.shootCooldown > 0) return;
       const weapon = getActiveWeapon(s);
       if (!weapon) return;
-      const cooldown = weapon.cooldown * s.upgrades.cooldownMult;
+      const killAccelMult = s.upgrades.killAccel ? Math.max(0.1, 1 - s.upgrades.killAccelPercent / 100) : 1.0;
+      const cooldown = weapon.cooldown * s.upgrades.cooldownMult * killAccelMult;
       s.shootCooldown = cooldown;
 
       const dx = s.mouse.x - s.player.x;
@@ -1271,17 +1297,23 @@
 
       const pellets = weapon.pellets + s.upgrades.pellets;
       const totalSpread = weapon.spread * s.upgrades.spreadMult;
+      const bulletSpeed = weapon.bulletSpeed * s.upgrades.bulletSpeedMult;
       for (let i = 0; i < pellets; i++) {
         const spread = pellets > 1 ? (-totalSpread / 2) + (i * totalSpread / (pellets - 1)) : 0;
         const a = baseAngle + spread;
+        const isCrit = Math.random() < s.upgrades.critChance;
+        let damage = weapon.damage * (1 + s.upgrades.damage);
+        if (isCrit) damage *= 2;
         s.bullets.push({
           x: s.player.x, y: s.player.y,
-          vx: Math.cos(a) * weapon.bulletSpeed,
-          vy: Math.sin(a) * weapon.bulletSpeed,
+          vx: Math.cos(a) * bulletSpeed,
+          vy: Math.sin(a) * bulletSpeed,
           life: CONFIG.BULLET_LIFE,
-          damage: weapon.damage * (1 + s.upgrades.damage),
+          damage: damage,
           penetrate: weapon.penetrate + s.upgrades.penetrate,
           hitCount: 0,
+          isCrit: isCrit,
+          enhancedPierceActive: false,
         });
       }
 
@@ -1507,6 +1539,10 @@
                 life: CONFIG.HIT_PARTICLES_LIFE, maxLife: CONFIG.HIT_PARTICLES_LIFE, color: '#44cc22',
               });
             }
+            // Усиленное пробитие: пуля пробила врага -> 50% шанс двойного урона следующему
+            if (bullet.hitCount > 0 && s.upgrades.enhancedPierce && bullet.enhancedPierceActive) {
+              bullet.damage *= 2;
+            }
             if (g.hp <= 0) {
               b.activeSpiders.splice(j, 1);
               for (let k = 0; k < CONFIG.DEATH_PARTICLES_COUNT; k++) {
@@ -1518,11 +1554,20 @@
                   life: CONFIG.DEATH_PARTICLES_LIFE, maxLife: CONFIG.DEATH_PARTICLES_LIFE, color: k % 2 === 0 ? '#44cc22' : '#88ff44',
                 });
               }
+              // Оружейный разгон: +0.2% за убийство, макс 90%
+              if (s.upgrades.killAccel) {
+                s.upgrades.killAccelPercent = Math.min(90, s.upgrades.killAccelPercent + 0.2);
+                playerProgress.upgrades.killAccelPercent = s.upgrades.killAccelPercent;
+              }
             }
             // Логика пробития: отслеживаем сколько врагов прошла пуля
             bullet.hitCount++;
             if (!bullet.hitSpiders) bullet.hitSpiders = new Set();
             bullet.hitSpiders.add(j);
+            // Усиленное пробитие: 50% шанс активировать после первого пробития
+            if (bullet.hitCount === 1 && s.upgrades.enhancedPierce && !bullet.enhancedPierceActive) {
+              bullet.enhancedPierceActive = Math.random() < 0.5;
+            }
             // Пуля уничтожается если hitCount > penetrate (0=1 враг, 2=3 врага)
             if (bullet.hitCount > bullet.penetrate) {
               b.bullets.splice(i, 1);
@@ -1878,7 +1923,8 @@
       const weapon = getActiveWeapon(s);
       if (!weapon) return;
       const b = s.battle;
-      const cooldown = weapon.cooldown * s.upgrades.cooldownMult;
+      const killAccelMult = s.upgrades.killAccel ? Math.max(0.1, 1 - s.upgrades.killAccelPercent / 100) : 1.0;
+      const cooldown = weapon.cooldown * s.upgrades.cooldownMult * killAccelMult;
       s.shootCooldown = cooldown;
 
       const dx = s.mouse.x - b.player.x;
@@ -1888,17 +1934,23 @@
       // Пули игрока (масштабированная скорость)
       const pellets = weapon.pellets + s.upgrades.pellets;
       const totalSpread = weapon.spread * s.upgrades.spreadMult;
+      const bulletSpeed = weapon.bulletSpeed * s.upgrades.bulletSpeedMult * BATTLE_SCALE;
       for (let i = 0; i < pellets; i++) {
         const spread = pellets > 1 ? (-totalSpread / 2) + (i * totalSpread / (pellets - 1)) : 0;
         const a = baseAngle + spread;
+        const isCrit = Math.random() < s.upgrades.critChance;
+        let damage = weapon.damage * (1 + s.upgrades.damage);
+        if (isCrit) damage *= 2;
         b.bullets.push({
           x: b.player.x, y: b.player.y,
-          vx: Math.cos(a) * weapon.bulletSpeed * BATTLE_SCALE,
-          vy: Math.sin(a) * weapon.bulletSpeed * BATTLE_SCALE,
+          vx: Math.cos(a) * bulletSpeed,
+          vy: Math.sin(a) * bulletSpeed,
           life: CONFIG.BULLET_LIFE,
-          damage: weapon.damage * (1 + s.upgrades.damage),
+          damage: damage,
           penetrate: weapon.penetrate + s.upgrades.penetrate,
           hitCount: 0,
+          isCrit: isCrit,
+          enhancedPierceActive: false,
         });
       }
 
@@ -2063,6 +2115,10 @@
           if (b.hitSpiders && b.hitSpiders.has(j)) continue; // уже попадали в этого
           const dist = Math.hypot(b.x - g.x, b.y - g.y);
           if (dist < CONFIG.SPIDER_RADIUS + CONFIG.BULLET_RADIUS) {
+            // Усиленное пробитие: пуля пробила врага -> 50% шанс двойного урона следующему
+            if (b.hitCount > 0 && s.upgrades.enhancedPierce && b.enhancedPierceActive) {
+              b.damage *= 2;
+            }
             g.hp -= (b.damage || CONFIG.BULLET_DAMAGE);
             hit = true;
             for (let k = 0; k < CONFIG.HIT_PARTICLES_COUNT; k++) {
@@ -2084,11 +2140,20 @@
                   life: CONFIG.DEATH_PARTICLES_LIFE, maxLife: CONFIG.DEATH_PARTICLES_LIFE, color: k % 2 === 0 ? '#44cc22' : '#88ff44',
                 });
               }
+              // Оружейный разгон: +0.2% за убийство, макс 90%
+              if (s.upgrades.killAccel) {
+                s.upgrades.killAccelPercent = Math.min(90, s.upgrades.killAccelPercent + 0.2);
+                playerProgress.upgrades.killAccelPercent = s.upgrades.killAccelPercent;
+              }
             }
             // Логика пробития: отслеживаем сколько врагов прошла пуля
             b.hitCount++;
             if (!b.hitSpiders) b.hitSpiders = new Set();
             b.hitSpiders.add(j);
+            // Усиленное пробитие: 50% шанс активировать после первого пробития
+            if (b.hitCount === 1 && s.upgrades.enhancedPierce && !b.enhancedPierceActive) {
+              b.enhancedPierceActive = Math.random() < 0.5;
+            }
             // Пуля уничтожается если hitCount > penetrate (0=1 враг, 2=3 врага)
             if (b.hitCount > b.penetrate) {
               s.bullets.splice(i, 1);
@@ -3735,6 +3800,11 @@
           cooldownMult: 1.0,
           speedMult: 1.0,
           spreadMult: 1.0,
+          bulletSpeedMult: 1.0,
+          critChance: 0,
+          killAccel: false,
+          killAccelPercent: 0,
+          enhancedPierce: false,
         },
         weaponSlots: ['pistol', null],
         activeSlot: 0,
