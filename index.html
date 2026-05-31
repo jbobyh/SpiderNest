@@ -88,32 +88,105 @@
     // CONFIG
     // ============================================================
     const CONFIG = {
+      // Grid & View
       GRID_SIZE: 9,
       CELL_PX: 96 * 1.3,
       VIEW_W: 576 * 1.5,
       VIEW_H: 576,
+
+      // Player
       INITIAL_LIVES: 3,
       HEARTS_COUNT: 5,
       LIVES_PER_HEART: 1,
       PLAYER_SPEED: 130,
       PLAYER_RADIUS: 6,
+      PLAYER_INVULNERABLE_TIME: 1,    // секунд неуязвимости после урона
+
+      // Shooting (default values, weapon-specific in WEAPON_DEFS)
       SHOOTING_ENABLED: true,
       BULLET_SPEED: 320,
       BULLET_DAMAGE: 35,
       BULLET_RADIUS: 3,
+      BULLET_LIFE: 1.5,                 // время жизни пули (сек)
+
+      // Muzzle flash particles
+      MUZZLE_PARTICLES_COUNT: 8,
+      MUZZLE_PARTICLES_SPREAD: 0.8,
+      MUZZLE_PARTICLES_SPEED_MIN: 60,
+      MUZZLE_PARTICLES_SPEED_MAX: 80,
+      MUZZLE_PARTICLES_LIFE: 0.2,
+
+      // Hit particles (when bullet hits enemy)
+      HIT_PARTICLES_COUNT: 8,
+      HIT_PARTICLES_SPEED: 60,
+      HIT_PARTICLES_LIFE: 0.4,
+
+      // Death particles (when enemy dies)
+      DEATH_PARTICLES_COUNT: 16,
+      DEATH_PARTICLES_SPEED_MIN: 40,
+      DEATH_PARTICLES_SPEED_MAX: 80,
+      DEATH_PARTICLES_LIFE: 0.6,
+
+      // Wall hit particles
+      WALL_HIT_PARTICLES_COUNT: 5,
+      WALL_HIT_PARTICLES_SPEED: 40,
+      WALL_HIT_PARTICLES_LIFE: 0.3,
+
+      // Enemy bullet hit particles
+      ENEMY_BULLET_HIT_PARTICLES_COUNT: 5,
+      ENEMY_BULLET_HIT_PARTICLES_LIFE: 0.25,
+
+      // Player hit particles (when player takes damage)
+      PLAYER_HIT_PARTICLES_COUNT: 12,
+      PLAYER_HIT_PARTICLES_SPEED: 80,
+      PLAYER_HIT_PARTICLES_LIFE: 0.5,
+
+      // Collectible pickup particles
+      PICKUP_PARTICLES_COUNT: 12,
+      PICKUP_PARTICLES_SPEED: 80,
+      PICKUP_PARTICLES_LIFE: 0.6,
+
+      // Ghosts
       GHOST_HP: 100,
       GHOST_SPEED: 70,
       GHOST_RADIUS: 7,
+      GHOST_PHASE_SPEED: 2,           // скорость анимации парения
+      GHOST_WOBBLE_MIN: 0.3,
+      GHOST_WOBBLE_MAX: 0.5,
+      GHOST_SPAWN_MARGIN: 10,         // отступ от стен при спавне
+
+      // Shooters
       SHOOTER_HP: 100,
       SHOOTER_SPEED: 55,
       SHOOTER_RADIUS: 7,
       SHOOTER_BULLET_SPEED: 100,
-      SHOOTER_SHOOT_RANGE: 0,   // заполняется после CP
+      SHOOTER_SHOOT_RANGE: 0,         // заполняется после CP
       SHOOTER_SHOOT_CD: 2.0,
-      SHOOTER_STOP_DIST: 0,     // заполняется после CP
+      SHOOTER_STOP_DIST: 0,           // заполняется после CP
+      SHOOTER_CHANCE: 0.30,           // шанс что враг будет стрелком
+
+      // Level generation
       DISABLED_CELLS_COUNT: 15,
       BLOCK_CELLS_FOREVER: false,
-      DEBUG_INVULNERABLE: false, // дебаг: неуязвимость от врагов
+      MAX_GENERATION_ATTEMPTS: 1000,
+      ENEMY_SPAWN_CHANCE: 0.7,        // шанс спавна врагов в клетке
+
+      // Pickup distances
+      PICKUP_DISTANCE: 10,            // расстояние до предметов (добавляется к радиусу)
+      WEAPON_PICKUP_DISTANCE: 24,     // расстояние до оружия
+
+      // Upgrade popup
+      UPGRADE_POPUP_DURATION: 2.0,    // секунд
+
+      // Battle mode
+      BATTLE_SCALE: 10,               // во сколько раз больше клетки в бою
+      BATTLE_TRANSITION_DURATION: 1.0, // секунд на zoom
+
+      // Zoom/Transitions
+      ZOOM_DURATION: 1.0,             // секунд
+
+      // Debug
+      DEBUG_INVULNERABLE: false,      // дебаг: неуязвимость от врагов
     };
 
     // ============================================================
@@ -207,7 +280,7 @@
     }
 
     function generateDisabledCells(startX, startY, exitX, exitY, gridSize, disabledCount) {
-      const maxAttempts = 1000;
+      const maxAttempts = CONFIG.MAX_GENERATION_ATTEMPTS;
 
       for (let attempt = 0; attempt < maxAttempts; attempt++) {
         const disabled = new Set();
@@ -384,7 +457,7 @@
       // Расставляем врагов в оставшиеся клетки (70% шанс)
       while (availableCells.length > 0) {
         const cell = availableCells.shift();
-        if (Math.random() < 0.7) {
+        if (Math.random() < CONFIG.ENEMY_SPAWN_CHANCE) {
           const dist = Math.max(Math.abs(cell.x - cx), Math.abs(cell.y - cy));
           const enemyCount = (1 + Math.floor(Math.random() * 3)) * dist * levelMultiplier;
           cellContents.set(cell.k, { type: 'enemies', enemyCount, enemiesReleased: false, enemies: [] });
@@ -415,16 +488,16 @@
         if (content.enemyCount > 0) {
           const { x, y } = cellFromKey(k);
           for (let i = 0; i < content.enemyCount; i++) {
-            const margin = CONFIG.GHOST_RADIUS + 10;
+            const margin = CONFIG.GHOST_RADIUS + CONFIG.GHOST_SPAWN_MARGIN;
             const gx = x * CP + margin + Math.random() * (CP - margin * 2);
             const gy = y * CP + margin + Math.random() * (CP - margin * 2);
-            const isShooter = Math.random() < 0.30;
+            const isShooter = Math.random() < CONFIG.SHOOTER_CHANCE;
             trappedGhosts.push({
               x: gx, y: gy,
               homeX: x, homeY: y,
               trapped: true,
               phase: Math.random() * Math.PI * 2,
-              wobble: 0.3 + Math.random() * 0.5,
+              wobble: CONFIG.GHOST_WOBBLE_MIN + Math.random() * (CONFIG.GHOST_WOBBLE_MAX - CONFIG.GHOST_WOBBLE_MIN),
               vx: 0, vy: 0,
               hp: isShooter ? CONFIG.SHOOTER_HP : CONFIG.GHOST_HP,
               type: isShooter ? 'shooter' : 'chaser',
@@ -681,7 +754,7 @@
     // ============================================================
     // BATTLE MODE
     // ============================================================
-    const BATTLE_SCALE = 10; // Клетки в 2 раза больше чем на карте
+    const BATTLE_SCALE = CONFIG.BATTLE_SCALE;
     const BATTLE_CELL_PX = CP * BATTLE_SCALE;
 
     function enterBattleMode(s, openedCellKey) {
@@ -1034,7 +1107,7 @@
       el.style.textShadow = `0 0 12px ${color}`;
       el.style.boxShadow = `0 0 20px ${color}44`;
       el.classList.add('visible');
-      upgradePopupTimer = 2.0;
+      upgradePopupTimer = CONFIG.UPGRADE_POPUP_DURATION;
     }
 
     // ============================================================
@@ -1065,7 +1138,7 @@
           x: s.player.x, y: s.player.y,
           vx: Math.cos(a) * weapon.bulletSpeed,
           vy: Math.sin(a) * weapon.bulletSpeed,
-          life: 1.5,
+          life: CONFIG.BULLET_LIFE,
           damage: weapon.damage,
           penetrate: weapon.penetrate,
           hitCount: 0,
@@ -1073,13 +1146,13 @@
       }
 
       // Particle muzzle flash
-      for (let i = 0; i < 8; i++) {
-        const a = baseAngle + (Math.random() - 0.5) * 0.8;
+      for (let i = 0; i < CONFIG.MUZZLE_PARTICLES_COUNT; i++) {
+        const a = baseAngle + (Math.random() - 0.5) * CONFIG.MUZZLE_PARTICLES_SPREAD;
         s.particles.push({
           x: s.player.x, y: s.player.y,
-          vx: Math.cos(a) * (60 + Math.random() * 80),
-          vy: Math.sin(a) * (60 + Math.random() * 80),
-          life: 0.2, maxLife: 0.2, color: weapon.color,
+          vx: Math.cos(a) * (CONFIG.MUZZLE_PARTICLES_SPEED_MIN + Math.random() * (CONFIG.MUZZLE_PARTICLES_SPEED_MAX - CONFIG.MUZZLE_PARTICLES_SPEED_MIN)),
+          vy: Math.sin(a) * (CONFIG.MUZZLE_PARTICLES_SPEED_MIN + Math.random() * (CONFIG.MUZZLE_PARTICLES_SPEED_MAX - CONFIG.MUZZLE_PARTICLES_SPEED_MIN)),
+          life: CONFIG.MUZZLE_PARTICLES_LIFE, maxLife: CONFIG.MUZZLE_PARTICLES_LIFE, color: weapon.color,
         });
       }
     }
@@ -1113,12 +1186,12 @@
 
       // Партиклы
       const wDef = WEAPON_DEFS[weaponId];
-      for (let i = 0; i < 12; i++) {
+      for (let i = 0; i < CONFIG.PICKUP_PARTICLES_COUNT; i++) {
         const a = Math.random() * Math.PI * 2;
         particles.push({
           x: px, y: py,
-          vx: Math.cos(a) * 80 * scale, vy: Math.sin(a) * 80 * scale,
-          life: 0.6, maxLife: 0.6, color: wDef ? wDef.color : '#ffffff',
+          vx: Math.cos(a) * CONFIG.PICKUP_PARTICLES_SPEED * scale, vy: Math.sin(a) * CONFIG.PICKUP_PARTICLES_SPEED * scale,
+          life: CONFIG.PICKUP_PARTICLES_LIFE, maxLife: CONFIG.PICKUP_PARTICLES_LIFE, color: wDef ? wDef.color : '#ffffff',
         });
       }
 
@@ -1156,7 +1229,7 @@
       if (k['s'] || k['S'] || k['ы'] || k['Ы'] || k['ArrowDown'] || k['arrowdown']) mvy += 1;
       if (k['a'] || k['A'] || k['ф'] || k['Ф'] || k['ArrowLeft'] || k['arrowleft']) mvx -= 1;
       if (k['d'] || k['D'] || k['в'] || k['В'] || k['ArrowRight'] || k['arrowright']) mvx += 1;
-      if (mvx && mvy) { mvx *= 0.707; mvy *= 0.707; }
+      if (mvx && mvy) { mvx *= Math.SQRT1_2; mvy *= Math.SQRT1_2; }
 
       const pr = CONFIG.PLAYER_RADIUS * BATTLE_SCALE;
       let npx = b.player.x + mvx * spd * dt;
@@ -1187,15 +1260,15 @@
       for (const heart of b.hearts) {
         if (!heart.collected) {
           const dist = Math.hypot(b.player.x - heart.x, b.player.y - heart.y);
-          if (dist < CONFIG.PLAYER_RADIUS * BATTLE_SCALE + 10 * BATTLE_SCALE) {
+          if (dist < CONFIG.PLAYER_RADIUS * BATTLE_SCALE + CONFIG.PICKUP_DISTANCE * BATTLE_SCALE) {
             heart.collected = true;
             s.player.lives += CONFIG.LIVES_PER_HEART;
-            for (let i = 0; i < 12; i++) {
+            for (let i = 0; i < CONFIG.PICKUP_PARTICLES_COUNT; i++) {
               const a = Math.random() * Math.PI * 2;
               b.particles.push({
                 x: heart.x, y: heart.y,
-                vx: Math.cos(a) * 80, vy: Math.sin(a) * 80,
-                life: 0.6, maxLife: 0.6, color: '#ff6b9d',
+                vx: Math.cos(a) * CONFIG.PICKUP_PARTICLES_SPEED, vy: Math.sin(a) * CONFIG.PICKUP_PARTICLES_SPEED,
+                life: CONFIG.PICKUP_PARTICLES_LIFE, maxLife: CONFIG.PICKUP_PARTICLES_LIFE, color: '#ff6b9d',
               });
             }
           }
@@ -1206,14 +1279,14 @@
       for (const keyObj of b.keys) {
         if (!keyObj.collected) {
           const dist = Math.hypot(b.player.x - keyObj.x, b.player.y - keyObj.y);
-          if (dist < CONFIG.PLAYER_RADIUS * BATTLE_SCALE + 10 * BATTLE_SCALE) {
+          if (dist < CONFIG.PLAYER_RADIUS * BATTLE_SCALE + CONFIG.PICKUP_DISTANCE * BATTLE_SCALE) {
             keyObj.collected = true;
-            for (let i = 0; i < 12; i++) {
+            for (let i = 0; i < CONFIG.PICKUP_PARTICLES_COUNT; i++) {
               const a = Math.random() * Math.PI * 2;
               b.particles.push({
                 x: keyObj.x, y: keyObj.y,
-                vx: Math.cos(a) * 80, vy: Math.sin(a) * 80,
-                life: 0.6, maxLife: 0.6, color: '#ffd700',
+                vx: Math.cos(a) * CONFIG.PICKUP_PARTICLES_SPEED, vy: Math.sin(a) * CONFIG.PICKUP_PARTICLES_SPEED,
+                life: CONFIG.PICKUP_PARTICLES_LIFE, maxLife: CONFIG.PICKUP_PARTICLES_LIFE, color: '#ffd700',
               });
             }
           }
@@ -1224,17 +1297,17 @@
       for (const upg of b.upgrades) {
         if (!upg.collected) {
           const dist = Math.hypot(b.player.x - upg.x, b.player.y - upg.y);
-          if (dist < CONFIG.PLAYER_RADIUS * BATTLE_SCALE + 10 * BATTLE_SCALE) {
+          if (dist < CONFIG.PLAYER_RADIUS * BATTLE_SCALE + CONFIG.PICKUP_DISTANCE * BATTLE_SCALE) {
             upg.collected = true;
             const upgDef = UPGRADE_TYPES.find(u => u.id === upg.upgradeType);
             const color = upgDef ? upgDef.color : '#ffcc00';
             if (upgDef) showUpgradePopup(upgDef.label, upgDef.color);
-            for (let i = 0; i < 12; i++) {
+            for (let i = 0; i < CONFIG.PICKUP_PARTICLES_COUNT; i++) {
               const a = Math.random() * Math.PI * 2;
               b.particles.push({
                 x: upg.x, y: upg.y,
-                vx: Math.cos(a) * 80, vy: Math.sin(a) * 80,
-                life: 0.6, maxLife: 0.6, color: color,
+                vx: Math.cos(a) * CONFIG.PICKUP_PARTICLES_SPEED, vy: Math.sin(a) * CONFIG.PICKUP_PARTICLES_SPEED,
+                life: CONFIG.PICKUP_PARTICLES_LIFE, maxLife: CONFIG.PICKUP_PARTICLES_LIFE, color: color,
               });
             }
           }
@@ -1286,23 +1359,23 @@
           const dist = Math.hypot(bullet.x - g.x, bullet.y - g.y);
           if (dist < (CONFIG.GHOST_RADIUS + CONFIG.BULLET_RADIUS) * BATTLE_SCALE) {
             g.hp -= (bullet.damage || CONFIG.BULLET_DAMAGE);
-            for (let k = 0; k < 8; k++) {
+            for (let k = 0; k < CONFIG.HIT_PARTICLES_COUNT; k++) {
               const a = Math.random() * Math.PI * 2;
               b.particles.push({
                 x: g.x, y: g.y,
-                vx: Math.cos(a) * 60, vy: Math.sin(a) * 60,
-                life: 0.4, maxLife: 0.4, color: '#b060ff',
+                vx: Math.cos(a) * CONFIG.HIT_PARTICLES_SPEED, vy: Math.sin(a) * CONFIG.HIT_PARTICLES_SPEED,
+                life: CONFIG.HIT_PARTICLES_LIFE, maxLife: CONFIG.HIT_PARTICLES_LIFE, color: '#b060ff',
               });
             }
             if (g.hp <= 0) {
               b.activeGhosts.splice(j, 1);
-              for (let k = 0; k < 16; k++) {
+              for (let k = 0; k < CONFIG.DEATH_PARTICLES_COUNT; k++) {
                 const a = Math.random() * Math.PI * 2;
                 b.particles.push({
                   x: g.x, y: g.y,
-                  vx: Math.cos(a) * (40 + Math.random() * 80),
-                  vy: Math.sin(a) * (40 + Math.random() * 80),
-                  life: 0.6, maxLife: 0.6, color: k % 2 === 0 ? '#b060ff' : '#ff80ff',
+                  vx: Math.cos(a) * (CONFIG.DEATH_PARTICLES_SPEED_MIN + Math.random() * (CONFIG.DEATH_PARTICLES_SPEED_MAX - CONFIG.DEATH_PARTICLES_SPEED_MIN)),
+                  vy: Math.sin(a) * (CONFIG.DEATH_PARTICLES_SPEED_MIN + Math.random() * (CONFIG.DEATH_PARTICLES_SPEED_MAX - CONFIG.DEATH_PARTICLES_SPEED_MIN)),
+                  life: CONFIG.DEATH_PARTICLES_LIFE, maxLife: CONFIG.DEATH_PARTICLES_LIFE, color: k % 2 === 0 ? '#b060ff' : '#ff80ff',
                 });
               }
             }
@@ -1358,15 +1431,15 @@
           if (dist < (CONFIG.GHOST_RADIUS + CONFIG.PLAYER_RADIUS) * BATTLE_SCALE) {
             if (s.player.invulnerable <= 0 && !CONFIG.DEBUG_INVULNERABLE) {
               s.player.lives--;
-              s.player.invulnerable = 1.0;
+              s.player.invulnerable = CONFIG.PLAYER_INVULNERABLE_TIME;
             }
             b.activeGhosts.splice(i, 1);
-            for (let k = 0; k < 12; k++) {
+            for (let k = 0; k < CONFIG.PLAYER_HIT_PARTICLES_COUNT; k++) {
               const a = Math.random() * Math.PI * 2;
               b.particles.push({
                 x: b.player.x, y: b.player.y,
-                vx: Math.cos(a) * 80, vy: Math.sin(a) * 80,
-                life: 0.5, maxLife: 0.5, color: '#ff4444',
+                vx: Math.cos(a) * CONFIG.PLAYER_HIT_PARTICLES_SPEED, vy: Math.sin(a) * CONFIG.PLAYER_HIT_PARTICLES_SPEED,
+                life: CONFIG.PLAYER_HIT_PARTICLES_LIFE, maxLife: CONFIG.PLAYER_HIT_PARTICLES_LIFE, color: '#ff4444',
               });
             }
             continue;
@@ -1404,10 +1477,10 @@
         }
 
         const pd = Math.hypot(eb.x - b.player.x, eb.y - b.player.y);
-        if (pd < CONFIG.PLAYER_RADIUS * BATTLE_SCALE + 4 * BATTLE_SCALE) {
+        if (pd < CONFIG.PLAYER_RADIUS * BATTLE_SCALE + CONFIG.BULLET_RADIUS * BATTLE_SCALE) {
           if (s.player.invulnerable <= 0 && !CONFIG.DEBUG_INVULNERABLE) {
             s.player.lives--;
-            s.player.invulnerable = 1;
+            s.player.invulnerable = CONFIG.PLAYER_INVULNERABLE_TIME;
           }
           b.enemyBullets.splice(i, 1);
           for (let k = 0; k < 8; k++) {
@@ -1531,7 +1604,7 @@
           x: b.player.x, y: b.player.y,
           vx: Math.cos(a) * weapon.bulletSpeed * BATTLE_SCALE,
           vy: Math.sin(a) * weapon.bulletSpeed * BATTLE_SCALE,
-          life: 1.5,
+          life: CONFIG.BULLET_LIFE,
           damage: weapon.damage,
           penetrate: weapon.penetrate,
           hitCount: 0,
@@ -1539,13 +1612,13 @@
       }
 
       // Particle muzzle flash (масштабированная скорость)
-      for (let i = 0; i < 8; i++) {
-        const a = baseAngle + (Math.random() - 0.5) * 0.8;
+      for (let i = 0; i < CONFIG.MUZZLE_PARTICLES_COUNT; i++) {
+        const a = baseAngle + (Math.random() - 0.5) * CONFIG.MUZZLE_PARTICLES_SPREAD;
         b.particles.push({
           x: b.player.x, y: b.player.y,
-          vx: Math.cos(a) * (60 + Math.random() * 80) * BATTLE_SCALE,
-          vy: Math.sin(a) * (60 + Math.random() * 80) * BATTLE_SCALE,
-          life: 0.2, maxLife: 0.2, color: weapon.color,
+          vx: Math.cos(a) * (CONFIG.MUZZLE_PARTICLES_SPEED_MIN + Math.random() * (CONFIG.MUZZLE_PARTICLES_SPEED_MAX - CONFIG.MUZZLE_PARTICLES_SPEED_MIN)) * BATTLE_SCALE,
+          vy: Math.sin(a) * (CONFIG.MUZZLE_PARTICLES_SPEED_MIN + Math.random() * (CONFIG.MUZZLE_PARTICLES_SPEED_MAX - CONFIG.MUZZLE_PARTICLES_SPEED_MIN)) * BATTLE_SCALE,
+          life: CONFIG.MUZZLE_PARTICLES_LIFE, maxLife: CONFIG.MUZZLE_PARTICLES_LIFE, color: weapon.color,
         });
       }
     }
@@ -1568,7 +1641,7 @@
       if (k['s'] || k['S'] || k['ы'] || k['Ы'] || k['ArrowDown'] || k['arrowdown']) mvy += 1;
       if (k['a'] || k['A'] || k['ф'] || k['Ф'] || k['ArrowLeft'] || k['arrowleft']) mvx -= 1;
       if (k['d'] || k['D'] || k['в'] || k['В'] || k['ArrowRight'] || k['arrowright']) mvx += 1;
-      if (mvx && mvy) { mvx *= 0.707; mvy *= 0.707; }
+      if (mvx && mvy) { mvx *= Math.SQRT1_2; mvy *= Math.SQRT1_2; }
 
       const pr = CONFIG.PLAYER_RADIUS;
       let npx = s.player.x + mvx * spd * dt;
@@ -1588,18 +1661,18 @@
       for (const heart of s.hearts) {
         if (!heart.collected) {
           const dist = Math.hypot(s.player.x - heart.x, s.player.y - heart.y);
-          if (dist < CONFIG.PLAYER_RADIUS + 10) {
+          if (dist < CONFIG.PLAYER_RADIUS + CONFIG.PICKUP_DISTANCE) {
             heart.collected = true;
             s.cellContents.delete(heart.cellKey);
             s.player.lives += CONFIG.LIVES_PER_HEART;
             s.heartsCollected++;
             // Частицы
-            for (let i = 0; i < 12; i++) {
+            for (let i = 0; i < CONFIG.PICKUP_PARTICLES_COUNT; i++) {
               const a = Math.random() * Math.PI * 2;
               s.particles.push({
                 x: heart.x, y: heart.y,
-                vx: Math.cos(a) * 80, vy: Math.sin(a) * 80,
-                life: 0.6, maxLife: 0.6, color: '#ff6b9d',
+                vx: Math.cos(a) * CONFIG.PICKUP_PARTICLES_SPEED, vy: Math.sin(a) * CONFIG.PICKUP_PARTICLES_SPEED,
+                life: CONFIG.PICKUP_PARTICLES_LIFE, maxLife: CONFIG.PICKUP_PARTICLES_LIFE, color: '#ff6b9d',
               });
             }
           }
@@ -1610,17 +1683,17 @@
       for (const keyObj of s.keyObjs) {
         if (!keyObj.collected) {
           const dist = Math.hypot(s.player.x - keyObj.x, s.player.y - keyObj.y);
-          if (dist < CONFIG.PLAYER_RADIUS + 10) {
+          if (dist < CONFIG.PLAYER_RADIUS + CONFIG.PICKUP_DISTANCE) {
             keyObj.collected = true;
             s.cellContents.delete(keyObj.cellKey);
             s.keysCollected++;
             // Частицы
-            for (let i = 0; i < 12; i++) {
+            for (let i = 0; i < CONFIG.PICKUP_PARTICLES_COUNT; i++) {
               const a = Math.random() * Math.PI * 2;
               s.particles.push({
                 x: keyObj.x, y: keyObj.y,
-                vx: Math.cos(a) * 80, vy: Math.sin(a) * 80,
-                life: 0.6, maxLife: 0.6, color: '#ffd700',
+                vx: Math.cos(a) * CONFIG.PICKUP_PARTICLES_SPEED, vy: Math.sin(a) * CONFIG.PICKUP_PARTICLES_SPEED,
+                life: CONFIG.PICKUP_PARTICLES_LIFE, maxLife: CONFIG.PICKUP_PARTICLES_LIFE, color: '#ffd700',
               });
             }
           }
@@ -1631,19 +1704,19 @@
       for (const upg of s.upgradeObjs) {
         if (!upg.collected) {
           const dist = Math.hypot(s.player.x - upg.x, s.player.y - upg.y);
-          if (dist < CONFIG.PLAYER_RADIUS + 10) {
+          if (dist < CONFIG.PLAYER_RADIUS + CONFIG.PICKUP_DISTANCE) {
             upg.collected = true;
             s.cellContents.delete(upg.cellKey);
             applyUpgrade(s, upg.upgradeType);
             // Частицы
             const upgDef = UPGRADE_TYPES.find(u => u.id === upg.upgradeType);
             const color = upgDef ? upgDef.color : '#ffcc00';
-            for (let i = 0; i < 12; i++) {
+            for (let i = 0; i < CONFIG.PICKUP_PARTICLES_COUNT; i++) {
               const a = Math.random() * Math.PI * 2;
               s.particles.push({
                 x: upg.x, y: upg.y,
-                vx: Math.cos(a) * 80, vy: Math.sin(a) * 80,
-                life: 0.6, maxLife: 0.6, color: color,
+                vx: Math.cos(a) * CONFIG.PICKUP_PARTICLES_SPEED, vy: Math.sin(a) * CONFIG.PICKUP_PARTICLES_SPEED,
+                life: CONFIG.PICKUP_PARTICLES_LIFE, maxLife: CONFIG.PICKUP_PARTICLES_LIFE, color: color,
               });
             }
           }
@@ -1680,12 +1753,12 @@
         b.life -= dt;
 
         if (!inRoom(b.x, b.y, s.openCells) || b.life <= 0) {
-          for (let j = 0; j < 4; j++) {
+          for (let j = 0; j < CONFIG.WALL_HIT_PARTICLES_COUNT; j++) {
             const a = Math.random() * Math.PI * 2;
             s.particles.push({
               x: b.x, y: b.y,
-              vx: Math.cos(a) * 40, vy: Math.sin(a) * 40,
-              life: 0.3, maxLife: 0.3, color: '#88aaff',
+              vx: Math.cos(a) * CONFIG.WALL_HIT_PARTICLES_SPEED, vy: Math.sin(a) * CONFIG.WALL_HIT_PARTICLES_SPEED,
+              life: CONFIG.WALL_HIT_PARTICLES_LIFE, maxLife: CONFIG.WALL_HIT_PARTICLES_LIFE, color: '#88aaff',
             });
           }
           s.bullets.splice(i, 1);
@@ -1701,23 +1774,23 @@
           if (dist < CONFIG.GHOST_RADIUS + CONFIG.BULLET_RADIUS) {
             g.hp -= (b.damage || CONFIG.BULLET_DAMAGE);
             hit = true;
-            for (let k = 0; k < 8; k++) {
+            for (let k = 0; k < CONFIG.HIT_PARTICLES_COUNT; k++) {
               const a = Math.random() * Math.PI * 2;
               s.particles.push({
                 x: g.x, y: g.y,
-                vx: Math.cos(a) * 60, vy: Math.sin(a) * 60,
-                life: 0.4, maxLife: 0.4, color: '#b060ff',
+                vx: Math.cos(a) * CONFIG.HIT_PARTICLES_SPEED, vy: Math.sin(a) * CONFIG.HIT_PARTICLES_SPEED,
+                life: CONFIG.HIT_PARTICLES_LIFE, maxLife: CONFIG.HIT_PARTICLES_LIFE, color: '#b060ff',
               });
             }
             if (g.hp <= 0) {
               s.activeGhosts.splice(j, 1);
-              for (let k = 0; k < 16; k++) {
+              for (let k = 0; k < CONFIG.DEATH_PARTICLES_COUNT; k++) {
                 const a = Math.random() * Math.PI * 2;
                 s.particles.push({
                   x: g.x, y: g.y,
-                  vx: Math.cos(a) * (40 + Math.random() * 80),
-                  vy: Math.sin(a) * (40 + Math.random() * 80),
-                  life: 0.6, maxLife: 0.6, color: k % 2 === 0 ? '#b060ff' : '#ff80ff',
+                  vx: Math.cos(a) * (CONFIG.DEATH_PARTICLES_SPEED_MIN + Math.random() * (CONFIG.DEATH_PARTICLES_SPEED_MAX - CONFIG.DEATH_PARTICLES_SPEED_MIN)),
+                  vy: Math.sin(a) * (CONFIG.DEATH_PARTICLES_SPEED_MIN + Math.random() * (CONFIG.DEATH_PARTICLES_SPEED_MAX - CONFIG.DEATH_PARTICLES_SPEED_MIN)),
+                  life: CONFIG.DEATH_PARTICLES_LIFE, maxLife: CONFIG.DEATH_PARTICLES_LIFE, color: k % 2 === 0 ? '#b060ff' : '#ff80ff',
                 });
               }
             }
@@ -1737,9 +1810,9 @@
       // Обновление призраков в закрытых комнатах (летание внутри)
       for (const g of s.ghosts) {
         if (g.trapped) {
-          g.phase += dt * 2;
+          g.phase += dt * CONFIG.GHOST_PHASE_SPEED;
           // Летание внутри своей клетки
-          const margin = CONFIG.GHOST_RADIUS + 5;
+          const margin = CONFIG.GHOST_RADIUS + CONFIG.GHOST_SPAWN_MARGIN;
           const cellLeft = g.homeX * CP + margin;
           const cellRight = (g.homeX + 1) * CP - margin;
           const cellTop = g.homeY * CP + margin;
@@ -1801,15 +1874,15 @@
           if (dist < CONFIG.GHOST_RADIUS + CONFIG.PLAYER_RADIUS) {
             if (s.player.invulnerable <= 0 && !CONFIG.DEBUG_INVULNERABLE) {
               s.player.lives--;
-              s.player.invulnerable = 1.0;
+              s.player.invulnerable = CONFIG.PLAYER_INVULNERABLE_TIME;
             }
             s.activeGhosts.splice(i, 1);
-            for (let k = 0; k < 12; k++) {
+            for (let k = 0; k < CONFIG.PLAYER_HIT_PARTICLES_COUNT; k++) {
               const a = Math.random() * Math.PI * 2;
               s.particles.push({
                 x: s.player.x, y: s.player.y,
-                vx: Math.cos(a) * 80, vy: Math.sin(a) * 80,
-                life: 0.5, maxLife: 0.5, color: '#ff4444',
+                vx: Math.cos(a) * CONFIG.PLAYER_HIT_PARTICLES_SPEED, vy: Math.sin(a) * CONFIG.PLAYER_HIT_PARTICLES_SPEED,
+                life: CONFIG.PLAYER_HIT_PARTICLES_LIFE, maxLife: CONFIG.PLAYER_HIT_PARTICLES_LIFE, color: '#ff4444',
               });
             }
             continue;
@@ -1839,10 +1912,10 @@
 
         // Попадание в игрока
         const pd = Math.hypot(eb.x - s.player.x, eb.y - s.player.y);
-        if (pd < CONFIG.PLAYER_RADIUS + 4) {
+        if (pd < CONFIG.PLAYER_RADIUS + CONFIG.BULLET_RADIUS) {
           if (s.player.invulnerable <= 0 && !CONFIG.DEBUG_INVULNERABLE) {
             s.player.lives--;
-            s.player.invulnerable = 1;
+            s.player.invulnerable = CONFIG.PLAYER_INVULNERABLE_TIME;
           }
           s.enemyBullets.splice(i, 1);
           for (let k = 0; k < 8; k++) {
@@ -3137,7 +3210,7 @@
               const wc = cellOf(dw.x, dw.y);
               if (!state.openCells.has(cellKey(wc.x, wc.y))) continue;
               const dist = Math.hypot(state.player.x - dw.x, state.player.y - dw.y);
-              if (dist < CONFIG.PLAYER_RADIUS + 24) {
+              if (dist < CONFIG.PLAYER_RADIUS + CONFIG.WEAPON_PICKUP_DISTANCE) {
                 state.droppedWeapons.splice(i, 1);
                 pickupWeapon(state, dw.weaponId, state.particles, dw.x, dw.y, 1);
                 pickedUp = true;
@@ -3151,7 +3224,7 @@
               const bw = b.weapons[i];
               if (bw.picked) continue;
               const dist = Math.hypot(b.player.x - bw.x, b.player.y - bw.y);
-              if (dist < CONFIG.PLAYER_RADIUS * BATTLE_SCALE + 24 * BATTLE_SCALE) {
+              if (dist < CONFIG.PLAYER_RADIUS * BATTLE_SCALE + CONFIG.WEAPON_PICKUP_DISTANCE * BATTLE_SCALE) {
                 bw.picked = true;
                 const idx = state.droppedWeapons.findIndex(dw => Math.abs(dw.x - bw.originalX) < 1 && Math.abs(dw.y - bw.originalY) < 1);
                 if (idx >= 0) state.droppedWeapons.splice(idx, 1);
