@@ -66,12 +66,40 @@
         const snd = base.cloneNode();
         snd.volume = Sounds._volume;
         snd.play().catch(() => {});
+        Sounds.ambienceSyncVolume();
       },
       keycollect:     function() { Sounds.play('keycollect.wav'); },
       heartcollect:   function() { Sounds.play('heartcollect.wav'); },
       hit:            function() { Sounds.play('hit' + (Math.floor(Math.random() * 5) + 1) + '.wav'); },
       upgradecollect: function() { Sounds.play('upgradecollect.wav'); },
       shot:           function() { Sounds.play('shot1.wav'); },
+      wallhit:        function() { Sounds.play('wallhit' + (Math.floor(Math.random() * 3) + 1) + '.wav'); },
+      _footstepTimer: 0,
+      _ambience: null,
+      ambienceStart() {
+        if (!Sounds._ambience) {
+          Sounds._ambience = new Audio('sounds/Ambience.wav');
+          Sounds._ambience.loop = true;
+        }
+        Sounds._ambience.volume = Sounds._volume * 0.5;
+        if (Sounds._ambience.paused) Sounds._ambience.play().catch(() => {});
+      },
+      ambienceStop() {
+        if (Sounds._ambience && !Sounds._ambience.paused) {
+          Sounds._ambience.pause();
+          Sounds._ambience.currentTime = 0;
+        }
+      },
+      ambienceSyncVolume() {
+        if (Sounds._ambience) Sounds._ambience.volume = Sounds._volume * 0.5;
+      },
+      footstep: function(dt) {
+        Sounds._footstepTimer -= dt;
+        if (Sounds._footstepTimer <= 0) {
+          Sounds.play('footstep_concrete_00' + Math.floor(Math.random() * 5) + '.ogg');
+          Sounds._footstepTimer = 0.32;
+        }
+      },
     };
 
     // ============================================================
@@ -1848,6 +1876,7 @@
       if (k['a'] || k['A'] || k['ф'] || k['Ф'] || k['ArrowLeft'] || k['arrowleft']) mvx -= 1;
       if (k['d'] || k['D'] || k['в'] || k['В'] || k['ArrowRight'] || k['arrowright']) mvx += 1;
       if (mvx && mvy) { mvx *= Math.SQRT1_2; mvy *= Math.SQRT1_2; }
+      if (mvx !== 0 || mvy !== 0) Sounds.footstep(dt); else Sounds._footstepTimer = 0;
 
       // Обновление анимации персонажа
       updatePlayerAnim(mvx, mvy, s.mouse.x - b.player.x, s.mouse.y - b.player.y, dt);
@@ -1947,6 +1976,7 @@
         const bulletCellY = Math.floor(bullet.y / BATTLE_CELL_PX) + b.cellOffsetY;
         if (!b.openCells.has(cellKey(bulletCellX, bulletCellY))) {
           // Пуля в стене - уничтожаем
+          Sounds.wallhit();
           for (let k = 0; k < 5; k++) {
             const a = Math.random() * Math.PI * 2;
             b.particles.push({
@@ -2480,6 +2510,7 @@
       if (k['a'] || k['A'] || k['ф'] || k['Ф'] || k['ArrowLeft'] || k['arrowleft']) mvx -= 1;
       if (k['d'] || k['D'] || k['в'] || k['В'] || k['ArrowRight'] || k['arrowright']) mvx += 1;
       if (mvx && mvy) { mvx *= Math.SQRT1_2; mvy *= Math.SQRT1_2; }
+      if (mvx !== 0 || mvy !== 0) Sounds.footstep(dt); else Sounds._footstepTimer = 0;
 
       // Обновление анимации персонажа
       updatePlayerAnim(mvx, mvy, s.mouse.x - s.player.x, s.mouse.y - s.player.y, dt);
@@ -2569,6 +2600,7 @@
         b.life -= dt;
 
         if (!inRoom(b.x, b.y, s.openCells) || b.life <= 0) {
+          if (b.life > 0) Sounds.wallhit();
           addParticles(b.x, b.y, CONFIG.WALL_HIT_PARTICLES_COUNT, CONFIG.WALL_HIT_PARTICLES_SPEED, CONFIG.WALL_HIT_PARTICLES_LIFE, '#88aaff');
           s.bullets.splice(i, 1);
           continue;
@@ -4339,6 +4371,7 @@
         state.phase = 'stopped';
       } else if (state && state.phase === 'win') {
         draw(state);
+        Sounds.ambienceStop();
         showOverlay('ПОБЕДА!', '#ffd700',
           [`Все уровни пройдены!`, `Общее время: ${Math.round(state.time)}с`],
           'ИГРАТЬ СНОВА', 'startGame');
@@ -4351,6 +4384,7 @@
           draw(state);
         }
         const levelCfg = getLevelConfig(currentLevel);
+        Sounds.ambienceStop();
         showOverlay('GAME OVER', '#ff3a3a',
           ['Жизни закончились!', `Собрано сердечек: ${state.heartsCollected}/${levelCfg.heartsCount}`, `Время: ${Math.round(state.time)}с`],
           'ПОПРОБОВАТЬ СНОВА', 'startGame');
@@ -4550,6 +4584,7 @@
       };
       state = initState(currentLevel);
       draw(state);
+      Sounds.ambienceStart();
     }
 
     function continueGame() {
@@ -4559,6 +4594,7 @@
         return;
       }
       draw(state);
+      Sounds.ambienceStart();
     }
 
     // ============================================================
@@ -4689,6 +4725,7 @@
       if (pauseSliderDragging) {
         const ps = PAUSE;
         Sounds._volume = Math.max(0, Math.min(1, (p.x - ps.sliderX()) / ps.sliderW()));
+        Sounds.ambienceSyncVolume();
       }
     });
 
