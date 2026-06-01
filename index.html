@@ -71,6 +71,7 @@
       },
       keycollect:     function() { Sounds.play('keycollect.wav'); },
       heartcollect:   function() { Sounds.play('heartcollect.wav'); },
+      hearttravel:    function() { Sounds.play('hearttravel.wav'); },
       hit:            function() { Sounds.play('hit' + (Math.floor(Math.random() * 5) + 1) + '.wav'); },
       upgradecollect: function() { Sounds.play('upgradecollect.wav'); },
       shot:           function(weaponId) {
@@ -754,6 +755,7 @@
       const dist = Math.hypot(toX - fromX, toY - fromY);
       const duration = Math.max(0.18, Math.min(0.45, dist / (CP * 2.5)));
       flyingHeart = { x: fromX, y: fromY, startX: fromX, startY: fromY, targetX: toX, targetY: toY, t: 0, duration, onArrive, getTarget: getTarget || null };
+      Sounds.hearttravel();
     }
 
     function drawFlyingHeartInWorld() {
