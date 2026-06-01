@@ -22,7 +22,7 @@ const CONFIG = {
   SHOOTING_ENABLED: true, // включить стрельбу
   BULLET_SPEED: 100,      // скорость пули по умолчанию (пикс/сек)
   BULLET_DAMAGE: 100,      // урон пули по умолчанию
-  BULLET_RADIUS: 2,       // радиус пули
+  BULLET_RADIUS: 1.5,       // радиус пули
   BULLET_LIFE: 1.5,                 // время жизни пули (сек)
 
   // Muzzle flash particles
@@ -70,7 +70,7 @@ const CONFIG = {
   SHAKE_DECAY: 0.9,       // затухание тряски (множитель за кадр)
 
   // Spiders
-  SPIDER_HP: 2,         // здоровье паука
+  SPIDER_HP: 3,         // здоровье паука
   SPIDER_SPEED: 40,       // скорость паука (пикс/сек)
   SPIDER_RADIUS: 4,       // радиус коллизии паука
   SPIDER_PHASE_SPEED: 2,          // скорость анимации парения
@@ -79,7 +79,7 @@ const CONFIG = {
   SPIDER_SPAWN_MARGIN: 10,        // отступ от стен при спавне
 
   // Shooters
-  SHOOTER_HP: 1,             // здоровье плеваки
+  SHOOTER_HP: 2,             // здоровье плеваки
   SHOOTER_SPEED: 30,          // скорость плеваки (пикс/сек)
   SHOOTER_RADIUS: 5,          // радиус коллизии плеваки
   SHOOTER_BULLET_SPEED: 75,  // скорость пули плеваки
@@ -99,33 +99,31 @@ const CONFIG = {
   BULDYGA_CHANCE_LVL3: 0.20,      // шанс что враг будет булдыгой на 3 уровне (после быка)
 
   // Bull
-  BULL_HP: 4,           // здоровье быка
+  BULL_HP: 5,           // здоровье быка
   BULL_SPEED: 45,         // скорость быка (пикс/сек)
   BULL_RADIUS: 4,         // радиус коллизии быка
   BULL_PREPARE_TIME: 1,         // время подготовки рывка (сек)
-  BULL_DASH_DISTANCE_CELLS: 2.0,  // дистанция рывка быка (в клетках)
-  BULL_REST_TIME: 3.0,            // время отдыха после рывка (сек)
-  BULL_CHARGE_DIST_CELLS: 1.5,    // дистанция начала атаки быка (в клетках)
-  BULL_ATTACK_DIST_CELLS: 1.6,    // дистанция удара быка (в клетках)
+  BULL_DASH_DISTANCE_CELLS: 1.0,  // дистанция рывка быка (в клетках)
+  BULL_REST_TIME: 2.0,            // время отдыха после рывка (сек)
+  BULL_CHARGE_DIST_CELLS: 0.75,    // дистанция начала атаки быка (в клетках)
+  BULL_ATTACK_DIST_CELLS: 1.0,    // дистанция удара быка (в клетках)
 
   // Buldyga
-  BULDYGA_HP: 7,        // здоровье булдыги
+  BULDYGA_HP: 8,        // здоровье булдыги
   BULDYGA_SPEED: 40,              // начальная скорость
   BULDYGA_SPEED_INCREMENT: 5,    // ускорение каждую секунду
   BULDYGA_RADIUS: 6,     // радиус коллизии булдыги
 
   // Cocoon (spawner)
-  COCOON_HP: 100,         // здоровье кокона
-  COCOON_RADIUS: 10,      // радиус коллизии кокона
-  COCOON_SPAWN_INTERVAL: 5.0,     // секунд между спавнами солдат
-  COCOON_CHANCE: 0.30,            // шанс спавна кокона на уровне 3
+  COCOON_HP: 6,         // здоровье кокона
+  COCOON_RADIUS: 5,      // радиус коллизии кокона
+  COCOON_SPAWN_INTERVAL: 3.0,     // секунд между спавнами солдат
 
   // Bloated (explodes on death)
-  BLOATED_HP: 100,        // здоровье распухшего
-  BLOATED_SPEED: 70,      // скорость распухшего (пикс/сек)
-  BLOATED_RADIUS: 8,      // радиус коллизии распухшего
-  BLOATED_DEATH_SHOT_SPEED: 100,  // скорость пули при смерти (как у плеваки)
-  BLOATED_CHANCE: 0.30,           // шанс спавна распухшего на уровне 3 (после кокона)
+  BLOATED_HP: 4,        // здоровье распухшего
+  BLOATED_SPEED: 30,      // скорость распухшего (пикс/сек)
+  BLOATED_RADIUS: 6,      // радиус коллизии распухшего
+  BLOATED_DEATH_SHOT_SPEED: 90,  // скорость пули при смерти (как у плеваки)
 
   // Level generation
   DISABLED_CELLS_COUNT: 15,       // кол-во заблокированных клеток по умолчанию
@@ -189,7 +187,7 @@ const WEAPON_DEFS = {
     spread: 0.1,            // разброс (рад)
     damage: 1,             // урон одной пули
     cooldown: 0.5,         // задержка между выстрелами (сек)
-    bulletSpeed: 300,       // скорость пули (пикс/сек)
+    bulletSpeed: 200,       // скорость пули (пикс/сек)
     range: 8,              // дальность в клетках
     penetrate: 0,           // кол-во врагов, которых пробивает пуля
     shakeAmount: 1.5,       // сила тряски камеры
@@ -203,7 +201,7 @@ const WEAPON_DEFS = {
     spread: 0.35,
     damage: 1,
     cooldown: 0.75,
-    bulletSpeed: 420,
+    bulletSpeed: 320,
     range: 6,
     penetrate: 0,
     shakeAmount: 3.5,
@@ -217,7 +215,7 @@ const WEAPON_DEFS = {
     spread: 0.20,
     damage: 1,
     cooldown: 0.3,
-    bulletSpeed: 300,
+    bulletSpeed: 200,
     range: 8,
     penetrate: 0,
     shakeAmount: 1,
@@ -231,7 +229,7 @@ const WEAPON_DEFS = {
     spread: 0.05,
     damage: 3,
     cooldown: 2,
-    bulletSpeed: 550,
+    bulletSpeed: 350,
     range: 25,
     penetrate: 2,
     shakeAmount: 4.0,
@@ -245,8 +243,8 @@ const WEAPON_DEFS = {
     spread: 0.08,
     damage: 1,
     cooldown: 0.6,
-    bulletSpeed: 450,
-    range: 15,
+    bulletSpeed: 350,
+    range: 13,
     penetrate: 1,
     shakeAmount: 2.5,
   },
@@ -256,13 +254,13 @@ const WEAPON_DEFS = {
     description: 'Очередь из 3 пуль.',
     color: '#556b2f',
     pellets: 1,
-    spread: 0.2,
+    spread: 0.15,
     damage: 1,
     cooldown: 1.0,
     burstSize: 3,           // кол-во пуль в очереди
     burstCooldown: 0.08,     // задержка между пулями в очереди (сек)
-    bulletSpeed: 380,
-    range: 20,
+    bulletSpeed: 280,
+    range: 18,
     penetrate: 0,
     shakeAmount: 1.8,
   },
