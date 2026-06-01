@@ -104,7 +104,7 @@ const CONFIG = {
   BULL_SPEED: 45,
   BULL_RADIUS: 4,
   BULL_PREPARE_TIME: 1.5,         // время подготовки рывка (сек)
-  BULL_DASH_DISTANCE: 1.5,          // заполняется после CP (2 клетки)
+  BULL_DASH_DISTANCE: 0.2,          // заполняется после CP (2 клетки)
   BULL_REST_TIME: 3.0,            // время отдыха после рывка (сек)
   BULL_CHARGE_DIST: 0,            // заполняется после CP (1.5 клетки)
   BULL_ATTACK_DIST: 0,            // заполняется после CP (1.6 клетки)
@@ -188,7 +188,7 @@ const WEAPON_DEFS = {
     damage: 1,
     cooldown: 0.5,
     bulletSpeed: 300,
-    range: 10,
+    range: 8,
     penetrate: 0,
     shakeAmount: 1.5,
   },
@@ -244,7 +244,7 @@ const WEAPON_DEFS = {
     damage: 1,
     cooldown: 0.6,
     bulletSpeed: 450,
-    range: 20,
+    range: 15,
     penetrate: 1,
     shakeAmount: 2.5,
   },
