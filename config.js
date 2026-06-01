@@ -84,9 +84,9 @@ const CONFIG = {
   SHOOTER_SPEED: 30,          // скорость плеваки (пикс/сек)
   SHOOTER_RADIUS: 5,          // радиус коллизии плеваки
   SHOOTER_BULLET_SPEED: 75,  // скорость пули плеваки
-  SHOOTER_SHOOT_RANGE: 0,         // заполняется после CP
+  SHOOTER_SHOOT_RANGE: 10,         // заполняется после CP
   SHOOTER_SHOOT_CD: 1.5,     // кулдаун выстрела плеваки (сек)
-  SHOOTER_STOP_DIST: 0,           // заполняется после CP
+  SHOOTER_STOP_DIST: 5,           // заполняется после CP
   // Spawn chances by level
   // Level 1: only soldier/shooter
   SHOOTER_CHANCE: 0.30,           // шанс что враг будет плевакой (остальное - солдат)
@@ -103,11 +103,11 @@ const CONFIG = {
   BULL_HP: 4,           // здоровье быка
   BULL_SPEED: 45,         // скорость быка (пикс/сек)
   BULL_RADIUS: 4,         // радиус коллизии быка
-  BULL_PREPARE_TIME: 1.5,         // время подготовки рывка (сек)
+  BULL_PREPARE_TIME: 1,         // время подготовки рывка (сек)
   BULL_DASH_DISTANCE: 0.2,          // заполняется после CP (2 клетки)
   BULL_REST_TIME: 3.0,            // время отдыха после рывка (сек)
-  BULL_CHARGE_DIST: 0,            // заполняется после CP (1.5 клетки)
-  BULL_ATTACK_DIST: 0,            // заполняется после CP (1.6 клетки)
+  BULL_CHARGE_DIST: 2,            // заполняется после CP (1.5 клетки)
+  BULL_ATTACK_DIST: 2,            // заполняется после CP (1.6 клетки)
 
   // Buldyga
   BULDYGA_HP: 7,        // здоровье булдыги
@@ -258,8 +258,8 @@ const WEAPON_DEFS = {
     spread: 0.2,
     damage: 1,
     cooldown: 1.0,
-    burstSize: 2,           // кол-во пуль в очереди
-    burstCooldown: 0.05,     // задержка между пулями в очереди (сек)
+    burstSize: 3,           // кол-во пуль в очереди
+    burstCooldown: 0.08,     // задержка между пулями в очереди (сек)
     bulletSpeed: 380,
     range: 20,
     penetrate: 0,
