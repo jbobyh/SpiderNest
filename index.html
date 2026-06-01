@@ -74,6 +74,7 @@
       hearttravel:    function() { Sounds.play('hearttravel.wav'); },
       hit:            function() { Sounds.play('hit' + (Math.floor(Math.random() * 5) + 1) + '.wav'); },
       upgradecollect: function() { Sounds.play('upgradecollect.wav'); },
+      weaponcollect:  function() { Sounds.play('weaponcollect.wav'); },
       shot:           function(weaponId) {
         const map = { pistol: 'shotpistol.wav', shotgun: 'shotshotgun.wav', smg: 'shotsmg.wav', carbine: 'shotcarbine.wav', rifle: 'shotrifle.wav', revolver: 'shotrevolver.wav' };
         const base = Sounds._load(map[weaponId] || 'shot1.wav');
@@ -1648,6 +1649,9 @@
         }
         s.weaponSlots[s.activeSlot] = weaponId;
       }
+
+      // Звук подбора оружия
+      Sounds.weaponcollect();
 
       // Партиклы
       const wDef = WEAPON_DEFS[weaponId];
@@ -4637,6 +4641,7 @@
             playerProgress.activeSlot = 0;
             state.shootCooldown = 0;
             weaponChanged = true;
+            Sounds.weaponcollect();
           }
         } else if (e.key === '2') {
           if (state.maxSlots >= 2 && state.weaponSlots[1]) {
@@ -4644,6 +4649,7 @@
             playerProgress.activeSlot = 1;
             state.shootCooldown = 0;
             weaponChanged = true;
+            Sounds.weaponcollect();
           }
         } else if (e.key === 'q' || e.key === 'Q' || e.key === 'й' || e.key === 'Й') {
           // Q — чередование между слотами
@@ -4653,12 +4659,14 @@
             playerProgress.activeSlot = nextSlot;
             state.shootCooldown = 0;
             weaponChanged = true;
+            Sounds.weaponcollect();
           } else if (state.weaponSlots[state.activeSlot === 0 ? 0 : 1]) {
             // Если следующий слот пуст, возвращаемся к первому если он есть
             state.activeSlot = 0;
             playerProgress.activeSlot = 0;
             state.shootCooldown = 0;
             weaponChanged = true;
+            Sounds.weaponcollect();
           }
         } else if (e.key === 'f' || e.key === 'F' || e.key === 'а' || e.key === 'А') {
           // Сначала пытаемся подобрать оружие рядом
@@ -4707,20 +4715,6 @@
             if (state.player.x > ex0 && state.player.x < ex1 && state.player.y > ey0 && state.player.y < ey1) {
               state.phase = 'level_complete';
               return;
-            }
-          }
-
-          // Если ничего не подобрали — переключаем слот
-          if (!pickedUp) {
-            for (let i = 1; i <= state.maxSlots; i++) {
-              const next = (state.activeSlot + i) % state.maxSlots;
-              if (state.weaponSlots[next]) {
-                state.activeSlot = next;
-                playerProgress.activeSlot = next;
-                state.shootCooldown = 0;
-                weaponChanged = true;
-                break;
-              }
             }
           }
         }
