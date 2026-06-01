@@ -304,6 +304,10 @@
     let zoomTransition = null; // { fromCamX, fromCamY, fromScale, toCamX, toCamY, toScale, t, pendingCellKey }
     let zoomOutTransition = null; // { fromScale, toScale, t }
 
+    // Летящее сердечко при открытии/закрытии клетки
+    // { x, y, startX, startY, targetX, targetY, t, duration, onArrive }
+    let flyingHeart = null;
+
     // Проверка связности: все не-выключенные клетки достижимы из старта
     function checkConnectivity(startX, startY, disabledSet, gridSize) {
       const visited = new Set();
@@ -745,6 +749,31 @@
     function cellOf(px, py) { return { x: Math.floor(px / CP), y: Math.floor(py / CP) }; }
     function inBounds(x, y) { return x >= 0 && x < 11 && y >= 0 && y < 11; }
     function easeInOutQuad(t) { return t < 0.5 ? 2*t*t : -1+(4-2*t)*t; }
+
+    function launchFlyingHeart(fromX, fromY, toX, toY, onArrive, getTarget) {
+      const dist = Math.hypot(toX - fromX, toY - fromY);
+      const duration = Math.max(0.18, Math.min(0.45, dist / (CP * 2.5)));
+      flyingHeart = { x: fromX, y: fromY, startX: fromX, startY: fromY, targetX: toX, targetY: toY, t: 0, duration, onArrive, getTarget: getTarget || null };
+    }
+
+    function drawFlyingHeartInWorld() {
+      if (!flyingHeart) return;
+      const fh = flyingHeart;
+      const bx = fh.x;
+      const by = fh.y;
+      const p = Math.min(fh.t / fh.duration, 1);
+      const scale = 0.8 + 0.5 * Math.sin(p * Math.PI);
+      ctx.save();
+      ctx.font = `bold ${Math.round(20 * scale)}px "Share Tech Mono"`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#ff6b9d';
+      ctx.shadowColor = '#ff6b9d';
+      ctx.shadowBlur = 18;
+      ctx.fillText('♥', bx, by);
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    }
 
     // Direction constants: 0=right, 1=bottom, 2=left, 3=top
     const DIRECTION_RIGHT = 0, DIRECTION_BOTTOM = 1, DIRECTION_LEFT = 2, DIRECTION_TOP = 3;
@@ -2770,6 +2799,36 @@
         }
       }
 
+      // Летящее сердечко
+      if (flyingHeart) {
+        const fh = flyingHeart;
+        // Обновляем цель если есть homing
+        if (fh.getTarget) {
+          const t = fh.getTarget();
+          fh.targetX = t.x;
+          fh.targetY = t.y;
+        }
+        // Движение к текущей цели с постоянной скоростью
+        const dx = fh.targetX - fh.x;
+        const dy = fh.targetY - fh.y;
+        const dist = Math.hypot(dx, dy);
+        const speed = dist / Math.max(fh.duration - fh.t, 0.001);
+        if (dist < speed * dt || dist < 2) {
+          fh.x = fh.targetX;
+          fh.y = fh.targetY;
+          fh.t = fh.duration;
+        } else {
+          fh.x += (dx / dist) * speed * dt;
+          fh.y += (dy / dist) * speed * dt;
+        }
+        fh.t += dt;
+        if (fh.t >= fh.duration) {
+          const cb = fh.onArrive;
+          flyingHeart = null;
+          if (cb) cb();
+        }
+      }
+
       // Смерть
       if (s.player.lives <= 0) {
         s.player.lives = 0;
@@ -3365,6 +3424,9 @@
         ctx.fill();
       }
       ctx.globalAlpha = 1;
+
+      // Летящее сердечко (поверх всего в мировых координатах)
+      drawFlyingHeartInWorld();
 
       // Игрок
       const p = s.player;
@@ -4011,6 +4073,9 @@
       const HERO_DRAW_SCALE = (CONFIG.PLAYER_SPRITE_RADIUS * 2) / HERO_SW;
       drawPlayerSprite(p.x, p.y, HERO_DRAW_SCALE);
 
+      // Летящее сердечко (в мировых координатах зума)
+      drawFlyingHeartInWorld();
+
       ctx.restore();
 
       // Виньетка при малом количестве жизней
@@ -4151,6 +4216,47 @@
       paused = false;
       pauseSliderDragging = false;
       lastTime = performance.now();
+    }
+
+    // Открывает клетку после того как сердечко долетело (запускает zoom или сохраняет)
+    function doOpenCellAfterHeart(openKey, openCX, openCY) {
+      const content = state.cellContents.get(openKey);
+      const hasContent = content && (content.type === 'heart' || content.type === 'key' || content.type === 'upgrade' ||
+                         (content.enemyCount && content.enemyCount > 0 && !content.enemiesReleased));
+      if (hasContent) {
+        const allOpenCells = new Set([...state.openCells]);
+        allOpenCells.add(openKey);
+        const playerCell2 = cellOf(state.player.x, state.player.y);
+        const playerKey2 = cellKey(playerCell2.x, playerCell2.y);
+        const futureCells = getConnectedCells(allOpenCells, playerKey2);
+        const { minX: fMinX, minY: fMinY, maxX: fMaxX, maxY: fMaxY } = getCellBounds(futureCells);
+        const fCols = fMaxX - fMinX + 1;
+        const fRows = fMaxY - fMinY + 1;
+        const battleWallPad = BATTLE_CELL_PX * 0.125;
+        const battleW = fCols * BATTLE_CELL_PX + battleWallPad * 2;
+        const battleH = fRows * BATTLE_CELL_PX + battleWallPad * 2;
+        const staticScale = Math.min(VIEW_W / battleW, VIEW_H / battleH, 1);
+        const toScale = staticScale * BATTLE_SCALE;
+        const fCenterX = (fMinX + fCols / 2) * CP;
+        const fCenterY = (fMinY + fRows / 2) * CP;
+        const fromCenterX = camera.x + VIEW_W / 2;
+        const fromCenterY = camera.y + VIEW_H / 2;
+
+        zoomTransition = {
+          fromCenterX, fromCenterY,
+          toCenterX: fCenterX, toCenterY: fCenterY,
+          fromScale: 1,
+          toCamX: fCenterX - VIEW_W / (2 * toScale),
+          toCamY: fCenterY - VIEW_H / (2 * toScale),
+          toScale,
+          t: 0,
+          pendingCellKey: openKey,
+          frozenAngle: Math.atan2(state.mouse.y - state.player.y, state.mouse.x - state.player.x),
+        };
+        state.phase = 'zoom_transition';
+      } else {
+        saveGame();
+      }
     }
 
     // ============================================================
@@ -4402,6 +4508,7 @@
       if (currentLevel === 2) {
         playerProgress.maxSlots = 2;
       }
+      flyingHeart = null;
       state = initState(currentLevel);
       saveGame();
     }
@@ -4435,6 +4542,7 @@
         activeSlot: 0,
         maxSlots: 1,
       };
+      flyingHeart = null;
       state = initState(currentLevel);
       draw(state);
       Sounds.ambienceStart();
@@ -4634,10 +4742,17 @@
           const isAdjToPlayer = Math.abs(cx - playerC.x) + Math.abs(cy - playerC.y) === 1;
           if (!isAdjToPlayer) return;
 
+          // Блокируем если уже летит сердечко
+          if (flyingHeart) return;
+
           // Проверяем хватает ли жизней
           if (state.player.lives < 1) return;
 
-          // Если 1 жизнь — автозакрываем клетку (сначала отсоединённые, потом дальние по пути)
+          // Центр открываемой клетки (цель сердечка)
+          const targetCellCX = (cx + 0.5) * CP;
+          const targetCellCY = (cy + 0.5) * CP;
+
+          // Если 1 жизнь — автозакрываем клетку сначала, потом сердце летит из закрытой в открываемую
           if (state.player.lives === 1) {
             const playerCell = cellOf(state.player.x, state.player.y);
             const playerKey = cellKey(playerCell.x, playerCell.y);
@@ -4649,7 +4764,6 @@
             const candidates = [];
             for (const openKey of state.openCells) {
               if (openKey === playerKey) continue;
-              const { x: ox, y: oy } = cellFromKey(openKey);
               // Нельзя закрыть с несобранным ключом
               if (state.keyObjs.some(key => !key.collected && key.cellKey === openKey)) continue;
               // Нельзя закрыть с несобранным сердцем
@@ -4660,35 +4774,34 @@
             let cellToClose = null;
 
             // Шаг 1: Ищем отсоединённые клетки (не в connected)
-            const isolated = candidates.filter(k => !connected.has(k));
+            const isolated = candidates.filter(ck => !connected.has(ck));
             if (isolated.length > 0) {
-              // Закрываем любую отсоединённую (первая найденная)
               cellToClose = isolated[0];
             } else {
               // Шаг 2: Находим самую дальнюю по пути (BFS distance)
               const distances = new Map();
-              const queue = [[playerKey, 0]];
+              const bfsQueue = [[playerKey, 0]];
               distances.set(playerKey, 0);
 
-              while (queue.length) {
-                const [k, d] = queue.shift();
-                const { x, y } = cellFromKey(k);
+              while (bfsQueue.length) {
+                const [bk, d] = bfsQueue.shift();
+                const { x: bx2, y: by2 } = cellFromKey(bk);
                 for (const [dx, dy] of CARDINAL_DIRECTIONS) {
-                  const nk = cellKey(x + dx, y + dy);
+                  const nk = cellKey(bx2 + dx, by2 + dy);
                   if (state.openCells.has(nk) && !distances.has(nk)) {
                     distances.set(nk, d + 1);
-                    queue.push([nk, d + 1]);
+                    bfsQueue.push([nk, d + 1]);
                   }
                 }
               }
 
               let maxDist = -1;
-              for (const k of candidates) {
-                if (connected.has(k) && distances.has(k)) {
-                  const d = distances.get(k);
+              for (const ck of candidates) {
+                if (connected.has(ck) && distances.has(ck)) {
+                  const d = distances.get(ck);
                   if (d > maxDist) {
                     maxDist = d;
-                    cellToClose = k;
+                    cellToClose = ck;
                   }
                 }
               }
@@ -4697,72 +4810,60 @@
             // Если не нашли клетку для закрытия — отменяем
             if (!cellToClose) return;
 
-            // Закрываем клетку
+            // Закрываем клетку сразу
             state.openCells.delete(cellToClose);
             // Возвращаем жизнь за закрытие
             state.player.lives++;
+
+            // Сердце летит из центра закрытой клетки в центр открываемой клетки
+            const { x: ccx, y: ccy } = cellFromKey(cellToClose);
+            const fromX = (ccx + 0.5) * CP;
+            const fromY = (ccy + 0.5) * CP;
+            const openKey = k;
+            const openCX = cx, openCY = cy;
+
+            launchFlyingHeart(fromX, fromY, targetCellCX, targetCellCY, () => {
+              // Тратим жизнь
+              state.player.lives--;
+
+              // Открываем
+              state.openCells.add(openKey);
+              state.everRevealedCells.add(openKey);
+              state.everOpenedCells.add(openKey);
+              revealAdjacentCells(state.everRevealedCells, openCX, openCY, state.disabledCells, state.permanentlyClosed);
+
+              // Запускаем zoom transition или сохраняем
+              doOpenCellAfterHeart(openKey, openCX, openCY);
+            });
+            return;
           }
 
-          // Тратим жизнь на открытие
+          // Обычный случай (жизней > 1): сердце летит от игрока к клетке
+          const fromX = state.player.x;
+          const fromY = state.player.y;
+          const openKey = k;
+          const openCX = cx, openCY = cy;
+
+          // Тратим жизнь сразу (чтобы HUD обновился)
           state.player.lives--;
 
-          // Открываем
-          state.openCells.add(k);
-          state.everRevealedCells.add(k);
-          state.everOpenedCells.add(k);
-          // Добавляем смежные с новой клеткой в everRevealedCells
-          revealAdjacentCells(state.everRevealedCells, cx, cy, state.disabledCells, state.permanentlyClosed);
+          launchFlyingHeart(fromX, fromY, targetCellCX, targetCellCY, () => {
+            // Открываем когда долетело
+            state.openCells.add(openKey);
+            state.everRevealedCells.add(openKey);
+            state.everOpenedCells.add(openKey);
+            revealAdjacentCells(state.everRevealedCells, openCX, openCY, state.disabledCells, state.permanentlyClosed);
 
-          // Проверяем содержимое - если не пустая, переходим в battle mode через зум
-          const content = state.cellContents.get(k);
-          const hasContent = content && (content.type === 'heart' || content.type === 'key' || content.type === 'upgrade' ||
-                             (content.enemyCount && content.enemyCount > 0 && !content.enemiesReleased));
-          if (hasContent) {
-            // Вычисляем целевую камеру зума: совпадает с battle камерой
-            // Используем только клетки, связанные с позицией игрока (как в enterBattleMode)
-            const allOpenCells = new Set([...state.openCells]);
-            allOpenCells.add(k);
-            const playerCell = cellOf(state.player.x, state.player.y);
-            const playerKey = cellKey(playerCell.x, playerCell.y);
-            const futureCells = getConnectedCells(allOpenCells, playerKey);
-            const { minX: fMinX, minY: fMinY, maxX: fMaxX, maxY: fMaxY } = getCellBounds(futureCells);
-            const fCols = fMaxX - fMinX + 1;
-            const fRows = fMaxY - fMinY + 1;
-            const fW = fCols * CP;
-            const fH = fRows * CP;
-            // Масштаб как в battle: staticScale = min(VIEW_W / battleWidth, VIEW_H / battleHeight, 1)
-            // В play-координатах: zoomScale = staticScale * BATTLE_SCALE
-            const battleWallPad = BATTLE_CELL_PX * 0.125;
-            const battleW = fCols * BATTLE_CELL_PX + battleWallPad * 2;
-            const battleH = fRows * BATTLE_CELL_PX + battleWallPad * 2;
-            const staticScale = Math.min(VIEW_W / battleW, VIEW_H / battleH, 1);
-            const toScale = staticScale * BATTLE_SCALE;
-            const fCenterX = (fMinX + fCols / 2) * CP;
-            const fCenterY = (fMinY + fRows / 2) * CP;
-            const fromCenterX = camera.x + VIEW_W / 2;
-            const fromCenterY = camera.y + VIEW_H / 2;
-
-            zoomTransition = {
-              fromCenterX, fromCenterY,
-              toCenterX: fCenterX, toCenterY: fCenterY,
-              fromScale: 1,
-              toCamX: fCenterX - VIEW_W / (2 * toScale),
-              toCamY: fCenterY - VIEW_H / (2 * toScale),
-              toScale,
-              t: 0,
-              pendingCellKey: k,
-              frozenAngle: Math.atan2(state.mouse.y - state.player.y, state.mouse.x - state.player.x),
-            };
-            state.phase = 'zoom_transition';
-          } else {
-            // Пустая клетка — сразу сохраняем
-            saveGame();
-          }
+            doOpenCellAfterHeart(openKey, openCX, openCY);
+          });
 
         } else if (state.openCells.has(k)) {
-          // ЗАКРЫТЬ клетку навсегда
+          // ЗАКРЫТЬ клетку
           const playerCell = cellOf(state.player.x, state.player.y);
           if (k === cellKey(playerCell.x, playerCell.y)) return; // Нельзя закрыть клетку с игроком
+
+          // Блокируем если уже летит сердечко
+          if (flyingHeart) return;
 
           // Нельзя закрыть клетку с несобранным ключом
           const hasUncollectedKey = state.keyObjs.some(key => !key.collected && key.cellKey === k);
@@ -4778,18 +4879,24 @@
           const playerKey = cellKey(playerCell.x, playerCell.y);
           if (openWithoutThis.has(playerKey)) {
             const remainingConnected = getConnectedCells(openWithoutThis, playerKey);
-            if (remainingConnected.size !== openWithoutThis.size) return; // Есть отсоединённые клетки
+            if (remainingConnected.size !== openWithoutThis.size) return;
           }
 
-          // Возвращаем жизнь
+          // Возвращаем жизнь сразу
           state.player.lives++;
 
-          // Закрываем
+          // Закрываем сразу
           state.openCells.delete(k);
           if (CONFIG.BLOCK_CELLS_FOREVER) {
             state.permanentlyClosed.add(k);
           }
-          saveGame();
+
+          // Сердце летит из центра закрытой клетки к игроку (с преследованием)
+          const closedCX = (cx + 0.5) * CP;
+          const closedCY = (cy + 0.5) * CP;
+          launchFlyingHeart(closedCX, closedCY, state.player.x, state.player.y, () => {
+            saveGame();
+          }, () => ({ x: state.player.x, y: state.player.y }));
         }
       }
     });
