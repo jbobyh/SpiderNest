@@ -1828,7 +1828,7 @@
             const damage = bullet.damage || CONFIG.BULLET_DAMAGE;
             g.hp -= damage;
             Sounds.hit();
-            spawnDamageNumber(g.x, g.y - CONFIG.SPIDER_RADIUS * BATTLE_SCALE, damage, false);
+            spawnDamageNumber(g.x, g.y - CONFIG.SPIDER_RADIUS * BATTLE_SCALE, damage, bullet.isCrit);
             // Green blood particles - fly in bullet direction
             const bulletAngle = Math.atan2(bullet.vy, bullet.vx);
             for (let k = 0; k < CONFIG.HIT_PARTICLES_COUNT; k++) {
