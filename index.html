@@ -1534,7 +1534,7 @@
 
       for (const target of targets) {
         const angle = Math.atan2(target.enemy.y - playerY, target.enemy.x - playerX);
-        const damage = weapon.damage * s.upgrades.damage;
+        const damage = weapon.damage + s.upgrades.damage;
         bulletsArray.push({
           x: playerX, y: playerY,
           vx: Math.cos(angle) * bulletSpeed,
@@ -1559,7 +1559,7 @@
 
     function createBullet(s, weapon, baseAngle, bulletSpeed) {
       const isCrit = Math.random() < s.upgrades.critChance;
-      let damage = weapon.damage * s.upgrades.damage;
+      let damage = weapon.damage + s.upgrades.damage;
       if (isCrit) damage *= 2;
       screenShake = { amount: weapon.shakeAmount || CONFIG.SHAKE_AMOUNT, angle: baseAngle };
       s.bullets.push({
@@ -2355,7 +2355,7 @@
 
     function createBulletBattle(b, weapon, baseAngle, bulletSpeed, upgrades) {
       const isCrit = Math.random() < upgrades.critChance;
-      let damage = weapon.damage * (1 + upgrades.damage);
+      let damage = weapon.damage + upgrades.damage;
       if (isCrit) damage *= 2;
       screenShake = { amount: weapon.shakeAmount || CONFIG.SHAKE_AMOUNT, angle: baseAngle };
       b.bullets.push({
