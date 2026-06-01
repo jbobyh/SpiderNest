@@ -1949,8 +1949,6 @@
                 // Переход в подготовку
                 g.state = 'prepare';
                 g.stateTimer = CONFIG.BULL_PREPARE_TIME;
-                g.dashTargetX = b.player.x;
-                g.dashTargetY = b.player.y;
               }
               break;
               
@@ -1958,10 +1956,10 @@
               // Стоит на месте, готовится к рывку
               g.stateTimer -= dt;
               if (g.stateTimer <= 0) {
-                // Начинаем рывок в направлении запомненной позиции
+                // Запоминаем позицию игрока в момент окончания подготовки
                 g.state = 'dash';
-                const ddx = g.dashTargetX - g.x;
-                const ddy = g.dashTargetY - g.y;
+                const ddx = b.player.x - g.x;
+                const ddy = b.player.y - g.y;
                 const ddist = Math.hypot(ddx, ddy);
                 if (ddist > 0) {
                   g.dashDirX = ddx / ddist;
@@ -2574,8 +2572,6 @@
                 // Переход в подготовку
                 g.state = 'prepare';
                 g.stateTimer = CONFIG.BULL_PREPARE_TIME;
-                g.dashTargetX = s.player.x;
-                g.dashTargetY = s.player.y;
               }
               break;
               
@@ -2583,10 +2579,10 @@
               // Стоит на месте, готовится к рывку
               g.stateTimer -= dt;
               if (g.stateTimer <= 0) {
-                // Начинаем рывок в направлении запомненной позиции
+                // Запоминаем позицию игрока в момент окончания подготовки
                 g.state = 'dash';
-                const ddx = g.dashTargetX - g.x;
-                const ddy = g.dashTargetY - g.y;
+                const ddx = s.player.x - g.x;
+                const ddy = s.player.y - g.y;
                 const ddist = Math.hypot(ddx, ddy);
                 if (ddist > 0) {
                   g.dashDirX = ddx / ddist;
