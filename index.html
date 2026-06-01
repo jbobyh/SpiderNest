@@ -101,6 +101,7 @@
       LIVES_PER_HEART: 1,
       PLAYER_SPEED: 130,
       PLAYER_RADIUS: 6,
+      PLAYER_SPRITE_RADIUS: 20,        // визуальный радиус спрайта (половина ширины отрисовки)
       PLAYER_INVULNERABLE_TIME: 1,    // секунд неуязвимости после урона
 
       // Shooting (default values, weapon-specific in WEAPON_DEFS)
@@ -284,6 +285,108 @@
 
     const floor4ExitImg = new Image();
     floor4ExitImg.src = 'img/floor-4exit-blue.png';
+
+    const heroImg = new Image();
+    heroImg.src = 'img/hero.png';
+
+    // ============================================================
+    // PLAYER ANIMATION
+    // ============================================================
+    // Sprite sheet: 2500x3000, each sprite 500x500 (5 cols x 6 rows)
+    // Row 0: idle face-forward (5 frames)
+    // Row 1: idle face-left    (5 frames)
+    // Row 2: run  face-forward (4 frames)
+    // Row 3: run  face-left    (4 frames)
+    // Row 4: (unused)
+    // Row 5: run  face-back    (4 frames)
+    const HERO_SW = 500, HERO_SH = 500; // source sprite size
+    const HERO_ANIMS = {
+      idle_forward: { row: 0, frames: 5, fps: 8 },
+      idle_left:    { row: 1, frames: 5, fps: 8 },
+      idle_back:    { row: 2, frames: 5, fps: 8 },
+      run_forward:  { row: 3, frames: 4, fps: 10 },
+      run_left:     { row: 4, frames: 4, fps: 10 },
+      run_back:     { row: 5, frames: 4, fps: 10 },
+    };
+
+    const playerAnim = {
+      key: 'idle_forward',
+      frame: 0,
+      timer: 0,
+      flip: false, // mirror horizontally for right-facing
+    };
+
+    function getPlayerAnimKey(mvx, mvy, mouseDx, mouseDy) {
+      const moving = (mvx !== 0 || mvy !== 0);
+      const angle = Math.atan2(mouseDy, mouseDx); // angle from player to mouse
+      // Determine direction quadrant:
+      // down  (facing camera): angle in [-45°, 135°) roughly => sin > 0 or |angle| < PI/4
+      // We split into 4 sectors using angle:
+      //   right: -PI/4 .. PI/4
+      //   down:   PI/4 .. 3PI/4
+      //   left:  3PI/4 .. PI  or -PI .. -3PI/4
+      //   up:   -3PI/4 .. -PI/4
+      let dir;
+      const a = angle;
+      if (a > -Math.PI / 4 && a <= Math.PI / 4) {
+        dir = 'right';
+      } else if (a > Math.PI / 4 && a <= 3 * Math.PI / 4) {
+        dir = 'down';
+      } else if (a > -3 * Math.PI / 4 && a <= -Math.PI / 4) {
+        dir = 'up';
+      } else {
+        dir = 'left';
+      }
+
+      let key, flip = false;
+      if (moving) {
+        if (dir === 'right') { key = 'run_left';    flip = true; }
+        else if (dir === 'left')  { key = 'run_left';    flip = false; }
+        else if (dir === 'up')    { key = 'run_back';    flip = false; }
+        else                      { key = 'run_forward'; flip = false; }
+      } else {
+        if (dir === 'right') { key = 'idle_left';    flip = true; }
+        else if (dir === 'left')  { key = 'idle_left';    flip = false; }
+        else if (dir === 'up')    { key = 'idle_back';    flip = false; }
+        else                      { key = 'idle_forward'; flip = false; }
+      }
+      return { key, flip };
+    }
+
+    function updatePlayerAnim(mvx, mvy, mouseDx, mouseDy, dt) {
+      const { key, flip } = getPlayerAnimKey(mvx, mvy, mouseDx, mouseDy);
+      if (key !== playerAnim.key) {
+        playerAnim.key = key;
+        playerAnim.frame = 0;
+        playerAnim.timer = 0;
+      }
+      playerAnim.flip = flip;
+      const anim = HERO_ANIMS[key];
+      playerAnim.timer += dt;
+      const frameDur = 1 / anim.fps;
+      while (playerAnim.timer >= frameDur) {
+        playerAnim.timer -= frameDur;
+        playerAnim.frame = (playerAnim.frame + 1) % anim.frames;
+      }
+    }
+
+    function drawPlayerSprite(cx2, cy2, scale, alpha) {
+      if (!heroImg.complete || heroImg.naturalWidth === 0) return;
+      const anim = HERO_ANIMS[playerAnim.key];
+      const sx = playerAnim.frame * HERO_SW;
+      const sy = anim.row * HERO_SH;
+      const drawSize = HERO_SW * scale;
+      ctx.save();
+      ctx.globalAlpha = alpha !== undefined ? alpha : 1;
+      ctx.translate(cx2, cy2);
+      if (playerAnim.flip) ctx.scale(-1, 1);
+      ctx.drawImage(
+        heroImg,
+        sx, sy, HERO_SW, HERO_SH,
+        -drawSize / 2, -drawSize / 2, drawSize, drawSize
+      );
+      ctx.restore();
+    }
 
     let state = null;
     let currentLevel = 1;
@@ -1744,6 +1847,9 @@
       if (k['d'] || k['D'] || k['в'] || k['В'] || k['ArrowRight'] || k['arrowright']) mvx += 1;
       if (mvx && mvy) { mvx *= Math.SQRT1_2; mvy *= Math.SQRT1_2; }
 
+      // Обновление анимации персонажа
+      updatePlayerAnim(mvx, mvy, s.mouse.x - b.player.x, s.mouse.y - b.player.y, dt);
+
       const pr = CONFIG.PLAYER_RADIUS * BATTLE_SCALE;
       let npx = b.player.x + mvx * spd * dt;
       let npy = b.player.y + mvy * spd * dt;
@@ -2363,6 +2469,9 @@
       if (k['d'] || k['D'] || k['в'] || k['В'] || k['ArrowRight'] || k['arrowright']) mvx += 1;
       if (mvx && mvy) { mvx *= Math.SQRT1_2; mvy *= Math.SQRT1_2; }
 
+      // Обновление анимации персонажа
+      updatePlayerAnim(mvx, mvy, s.mouse.x - s.player.x, s.mouse.y - s.player.y, dt);
+
       const pr = CONFIG.PLAYER_RADIUS;
       let npx = s.player.x + mvx * spd * dt;
       let npy = s.player.y + mvy * spd * dt;
@@ -2977,27 +3086,8 @@
       const p = b.player;
       const blinkOk = s.player.invulnerable <= 0 || Math.floor(s.player.invulnerable * 10) % 2 === 0;
       if (blinkOk) {
-        ctx.fillStyle = '#00d4ff';
-        ctx.shadowColor = '#00aaff';
-        ctx.shadowBlur = 20 * BATTLE_SCALE;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, CONFIG.PLAYER_RADIUS * BATTLE_SCALE, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.shadowBlur = 0;
-
-        // Прицел
-        const dx = s.mouse.x - p.x;
-        const dy = s.mouse.y - p.y;
-        const a = Math.atan2(dy, dx);
-        const d = 14 * BATTLE_SCALE;
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2 * BATTLE_SCALE;
-        ctx.shadowBlur = 6 * BATTLE_SCALE;
-        ctx.beginPath();
-        ctx.moveTo(p.x + Math.cos(a) * 10 * BATTLE_SCALE, p.y + Math.sin(a) * 10 * BATTLE_SCALE);
-        ctx.lineTo(p.x + Math.cos(a) * d, p.y + Math.sin(a) * d);
-        ctx.stroke();
-        ctx.shadowBlur = 0;
+        const HERO_DRAW_SCALE = (CONFIG.PLAYER_SPRITE_RADIUS * 2 * BATTLE_SCALE) / HERO_SW;
+        drawPlayerSprite(p.x, p.y, HERO_DRAW_SCALE);
       }
 
       ctx.restore();
@@ -3390,27 +3480,8 @@
       const p = s.player;
       const blinkOk = s.player.invulnerable <= 0 || Math.floor(s.player.invulnerable * 10) % 2 === 0;
       if (blinkOk) {
-        ctx.fillStyle = '#00d4ff';
-        ctx.shadowColor = '#00aaff';
-        ctx.shadowBlur = 20;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, CONFIG.PLAYER_RADIUS, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.shadowBlur = 0;
-
-        // Прицел - направление к мышке
-        const dx = s.mouse.x - p.x;
-        const dy = s.mouse.y - p.y;
-        const a = Math.atan2(dy, dx);
-        const d = 14;
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2;
-        ctx.shadowBlur = 6;
-        ctx.beginPath();
-        ctx.moveTo(p.x + Math.cos(a) * 10, p.y + Math.sin(a) * 10);
-        ctx.lineTo(p.x + Math.cos(a) * d, p.y + Math.sin(a) * d);
-        ctx.stroke();
-        ctx.shadowBlur = 0;
+        const HERO_DRAW_SCALE = (CONFIG.PLAYER_SPRITE_RADIUS * 2) / HERO_SW;
+        drawPlayerSprite(p.x, p.y, HERO_DRAW_SCALE);
       }
 
       ctx.restore();
@@ -3887,25 +3958,8 @@
 
       // Игрок
       const p = s.player;
-      ctx.fillStyle = '#00d4ff';
-      ctx.shadowColor = '#00aaff';
-      ctx.shadowBlur = 20;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, CONFIG.PLAYER_RADIUS, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.shadowBlur = 0;
-
-      // Прицел - зафиксированный угол на момент начала перехода
-      const za = (frozenAngle !== undefined) ? frozenAngle : Math.atan2(s.mouse.y - p.y, s.mouse.x - p.x);
-      const zd = 14;
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2;
-      ctx.shadowBlur = 6;
-      ctx.beginPath();
-      ctx.moveTo(p.x + Math.cos(za) * 10, p.y + Math.sin(za) * 10);
-      ctx.lineTo(p.x + Math.cos(za) * zd, p.y + Math.sin(za) * zd);
-      ctx.stroke();
-      ctx.shadowBlur = 0;
+      const HERO_DRAW_SCALE = (CONFIG.PLAYER_SPRITE_RADIUS * 2) / HERO_SW;
+      drawPlayerSprite(p.x, p.y, HERO_DRAW_SCALE);
 
       ctx.restore();
 
