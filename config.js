@@ -133,6 +133,7 @@ const CONFIG = {
   // Sound
   DEFAULT_VOLUME: 0.4,
   AMBIENCE_VOLUME_MULT: 0.5,      // громкость амбиента относительно основной
+  SHOT_VOLUME_MULT: 0.5,          // громкость выстрелов относительно основной
   FOOTSTEP_INTERVAL: 0.32,        // секунд между шагами
 
   // Debug
