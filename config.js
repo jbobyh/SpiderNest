@@ -14,16 +14,16 @@ const CONFIG = {
   INITIAL_LIVES: 3,
   HEARTS_COUNT: 5,
   LIVES_PER_HEART: 1,
-  PLAYER_SPEED: 130,
-  PLAYER_RADIUS: 6,
-  PLAYER_SPRITE_RADIUS: 20,        // визуальный радиус спрайта (половина ширины отрисовки)
+  PLAYER_SPEED: 70,
+  PLAYER_RADIUS: 3,
+  PLAYER_SPRITE_RADIUS: 15,        // визуальный радиус спрайта (половина ширины отрисовки)
   PLAYER_INVULNERABLE_TIME: 1,    // секунд неуязвимости после урона
 
   // Shooting (default values, weapon-specific in WEAPON_DEFS)
   SHOOTING_ENABLED: true,
-  BULLET_SPEED: 320,
-  BULLET_DAMAGE: 35,
-  BULLET_RADIUS: 3,
+  BULLET_SPEED: 100,
+  BULLET_DAMAGE: 100,
+  BULLET_RADIUS: 2,
   BULLET_LIFE: 1.5,                 // время жизни пули (сек)
 
   // Muzzle flash particles
@@ -71,41 +71,41 @@ const CONFIG = {
   SHAKE_DECAY: 0.9,
 
   // Spiders
-  SPIDER_HP: 100,
-  SPIDER_SPEED: 70,
-  SPIDER_RADIUS: 7,
+  SPIDER_HP: 2,
+  SPIDER_SPEED: 40,
+  SPIDER_RADIUS: 4,
   SPIDER_PHASE_SPEED: 2,          // скорость анимации парения
-  SPIDER_WOBBLE_MIN: 0.3,
-  SPIDER_WOBBLE_MAX: 0.5,
+  SPIDER_WOBBLE_MIN: 0.2,
+  SPIDER_WOBBLE_MAX: 0.3,
   SPIDER_SPAWN_MARGIN: 10,        // отступ от стен при спавне
 
   // Shooters
-  SHOOTER_HP: 70,
-  SHOOTER_SPEED: 55,
-  SHOOTER_RADIUS: 7,
-  SHOOTER_BULLET_SPEED: 100,
+  SHOOTER_HP: 1,
+  SHOOTER_SPEED: 30,
+  SHOOTER_RADIUS: 5,
+  SHOOTER_BULLET_SPEED: 75,
   SHOOTER_SHOOT_RANGE: 0,         // заполняется после CP
-  SHOOTER_SHOOT_CD: 2.0,
+  SHOOTER_SHOOT_CD: 1.5,
   SHOOTER_STOP_DIST: 0,           // заполняется после CP
   SHOOTER_CHANCE: 0.30,           // шанс что враг будет плевакой (только для типов кроме быка/булдыги)
   BULL_CHANCE: 0.30,              // шанс что враг будет быком (только на уровнях 2-3)
   BULDYGA_CHANCE: 0.30,           // шанс что враг будет булдыгой (только на уровнях 2-3)
 
   // Bull
-  BULL_HP: 150,
-  BULL_SPEED: 70,
-  BULL_RADIUS: 7,
-  BULL_PREPARE_TIME: 0.5,         // время подготовки рывка (сек)
-  BULL_DASH_DISTANCE: 0,          // заполняется после CP (2 клетки)
+  BULL_HP: 4,
+  BULL_SPEED: 45,
+  BULL_RADIUS: 4,
+  BULL_PREPARE_TIME: 1.5,         // время подготовки рывка (сек)
+  BULL_DASH_DISTANCE: 1.5,          // заполняется после CP (2 клетки)
   BULL_REST_TIME: 3.0,            // время отдыха после рывка (сек)
   BULL_CHARGE_DIST: 0,            // заполняется после CP (1.5 клетки)
   BULL_ATTACK_DIST: 0,            // заполняется после CP (1.6 клетки)
 
   // Buldyga
-  BULDYGA_HP: 150,
-  BULDYGA_SPEED: 70,              // начальная скорость
-  BULDYGA_SPEED_INCREMENT: 10,    // ускорение каждую секунду
-  BULDYGA_RADIUS: 7,
+  BULDYGA_HP: 7,
+  BULDYGA_SPEED: 40,              // начальная скорость
+  BULDYGA_SPEED_INCREMENT: 5,    // ускорение каждую секунду
+  BULDYGA_RADIUS: 6,
 
   // Level generation
   DISABLED_CELLS_COUNT: 15,
@@ -162,9 +162,9 @@ const WEAPON_DEFS = {
     color: '#00d4ff',
     pellets: 1,
     spread: 0.1,
-    damage: 35,
-    cooldown: 0.35,
-    bulletSpeed: 400,
+    damage: 1,
+    cooldown: 0.5,
+    bulletSpeed: 300,
     penetrate: 0,
   },
   shotgun: {
@@ -173,9 +173,9 @@ const WEAPON_DEFS = {
     color: '#ffaa00',
     pellets: 3,
     spread: 0.35,
-    damage: 35,
-    cooldown: 0.55,
-    bulletSpeed: 320,
+    damage: 1,
+    cooldown: 0.75,
+    bulletSpeed: 420,
     penetrate: 0,
   },
   smg: {
@@ -184,9 +184,9 @@ const WEAPON_DEFS = {
     color: '#ff44ff',
     pellets: 1,
     spread: 0.20,
-    damage: 15,
-    cooldown: 0.1,
-    bulletSpeed: 400,
+    damage: 1,
+    cooldown: 0.3,
+    bulletSpeed: 300,
     penetrate: 0,
   },
   rifle: {
@@ -194,10 +194,10 @@ const WEAPON_DEFS = {
     label: 'ВИНТОВКА',
     color: '#44ff44',
     pellets: 1,
-    spread: 0,
-    damage: 51,
-    cooldown: 1,
-    bulletSpeed: 700,
+    spread: 0.05,
+    damage: 3,
+    cooldown: 2,
+    bulletSpeed: 550,
     penetrate: 2,
   },
   revolver: {
@@ -206,8 +206,8 @@ const WEAPON_DEFS = {
     color: '#8b4513',
     pellets: 1,
     spread: 0.08,
-    damage: 40,
-    cooldown: 0.5,
+    damage: 1,
+    cooldown: 0.6,
     bulletSpeed: 450,
     penetrate: 1,
   },
@@ -216,11 +216,11 @@ const WEAPON_DEFS = {
     label: 'КАРАБИН',
     color: '#556b2f',
     pellets: 1,
-    spread: 0.15,
-    damage: 35,
+    spread: 0.2,
+    damage: 1,
     cooldown: 1.0,
-    burstSize: 3,
-    burstCooldown: 0.1,
+    burstSize: 2,
+    burstCooldown: 0.05,
     bulletSpeed: 380,
     penetrate: 0,
   },
