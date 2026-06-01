@@ -2117,23 +2117,16 @@
         const fromScale = b.playZoomScale || (b.staticScale || 1) * BATTLE_SCALE;
         const zoneCX = b.playCenterX || playPX;
         const zoneCY = b.playCenterY || playPY;
-        const fromCamX = zoneCX - VIEW_W / (2 * fromScale);
-        const fromCamY = zoneCY - VIEW_H / (2 * fromScale);
-
         // Конечная камера: play режим, центрирована на play-игроке
-        let toCamX = playPX - VIEW_W / 2;
-        let toCamY = playPY - VIEW_H / 2;
         const worldW = s.gridSize * CP;
         const worldH = s.gridSize * CP;
-        // toCamX = Math.max(0, Math.min(toCamX, worldW - VIEW_W));
-        // toCamY = Math.max(0, Math.min(toCamY, worldH - VIEW_H));
 
         syncBattleCollectibles(s);
 
         zoomOutTransition = { 
           fromScale, toScale: 1, 
-          fromCamX, fromCamY, 
-          toCamX, toCamY,
+          fromCenterX: zoneCX, fromCenterY: zoneCY,
+          toCenterX: playPX, toCenterY: playPY,
           playerX: playPX, playerY: playPY,
           t: 0,
           frozenAngle: Math.atan2(s.mouse.y - playPY, s.mouse.x - playPX),
@@ -4083,8 +4076,10 @@
         const zt = zoomTransition;
         const p = easeInOutQuad(zt.t / ZOOM_DUR);
         const curScale = zt.fromScale + (zt.toScale - zt.fromScale) * p;
-        const curCamX = zt.fromCamX + (zt.toCamX - zt.fromCamX) * p;
-        const curCamY = zt.fromCamY + (zt.toCamY - zt.fromCamY) * p;
+        const curCenterX = zt.fromCenterX + (zt.toCenterX - zt.fromCenterX) * p;
+        const curCenterY = zt.fromCenterY + (zt.toCenterY - zt.fromCenterY) * p;
+        const curCamX = curCenterX - VIEW_W / (2 * curScale);
+        const curCamY = curCenterY - VIEW_H / (2 * curScale);
         camera.x = curCamX;
         camera.y = curCamY;
         drawZoom(state, curScale, curCamX, curCamY, zt.t / ZOOM_DUR, zt.pendingCellKey, zt.frozenAngle);
@@ -4100,8 +4095,10 @@
         const zot = zoomOutTransition;
         const p = easeInOutQuad(zot.t / ZOOM_OUT_DUR);
         const curScale = zot.fromScale + (zot.toScale - zot.fromScale) * p;
-        const curCamX = zot.fromCamX + (zot.toCamX - zot.fromCamX) * p;
-        const curCamY = zot.fromCamY + (zot.toCamY - zot.fromCamY) * p;
+        const curCenterX = zot.fromCenterX + (zot.toCenterX - zot.fromCenterX) * p;
+        const curCenterY = zot.fromCenterY + (zot.toCenterY - zot.fromCenterY) * p;
+        const curCamX = curCenterX - VIEW_W / (2 * curScale);
+        const curCamY = curCenterY - VIEW_H / (2 * curScale);
         camera.x = curCamX;
         camera.y = curCamY;
         drawZoomOut(state, curScale, curCamX, curCamY, zot.t / ZOOM_OUT_DUR, zot.playerX, zot.playerY, zot.frozenAngle);
@@ -4638,14 +4635,16 @@
             const toScale = staticScale * BATTLE_SCALE;
             const fCenterX = (fMinX + fCols / 2) * CP;
             const fCenterY = (fMinY + fRows / 2) * CP;
-            const toCamX = fCenterX - VIEW_W / (2 * toScale);
-            const toCamY = fCenterY - VIEW_H / (2 * toScale);
+            const fromCenterX = camera.x + VIEW_W / 2;
+            const fromCenterY = camera.y + VIEW_H / 2;
 
             zoomTransition = {
-              fromCamX: camera.x,
-              fromCamY: camera.y,
+              fromCenterX, fromCenterY,
+              toCenterX: fCenterX, toCenterY: fCenterY,
               fromScale: 1,
-              toCamX, toCamY, toScale,
+              toCamX: fCenterX - VIEW_W / (2 * toScale),
+              toCamY: fCenterY - VIEW_H / (2 * toScale),
+              toScale,
               t: 0,
               pendingCellKey: k,
               frozenAngle: Math.atan2(state.mouse.y - state.player.y, state.mouse.x - state.player.x),
