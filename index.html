@@ -1791,6 +1791,7 @@
         // Проверка границ battle
         if (bullet.x < 0 || bullet.x > b.width || bullet.y < 0 || bullet.y > b.height || bullet.life <= 0) {
           if (bullet.life <= 0) {
+            Sounds.wallhit();
             for (let k = 0; k < CONFIG.WALL_HIT_PARTICLES_COUNT; k++) {
               const a = Math.random() * Math.PI * 2;
               b.particles.push({
@@ -2433,7 +2434,7 @@
         b.life -= dt;
 
         if (!inRoom(b.x, b.y, s.openCells) || b.life <= 0) {
-          if (b.life > 0) Sounds.wallhit();
+          Sounds.wallhit();
           addParticles(b.x, b.y, CONFIG.WALL_HIT_PARTICLES_COUNT, CONFIG.WALL_HIT_PARTICLES_SPEED, CONFIG.WALL_HIT_PARTICLES_LIFE, '#88aaff');
           s.bullets.splice(i, 1);
           continue;
@@ -3169,7 +3170,7 @@
 
         if (isExit) {
           const pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.005);
-          ctx.font = 'bold 11px "Share Tech Mono"';
+          ctx.font = 'bold 10px "Share Tech Mono"';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           if (s.keysCollected >= s.keysRequired) {
@@ -3183,7 +3184,7 @@
             ctx.lineWidth = 2;
             ctx.strokeRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
             ctx.fillStyle = `rgba(255,170,0,${0.6 + pulse * 0.4})`;
-            ctx.fillText(`ВЫХОД (ЗАКРЫТ ${s.keysCollected}/${s.keysRequired})`, (x + 0.5) * CP, (y + 0.5) * CP);
+            ctx.fillText(`ВЫХОД (КЛЮЧИ ${s.keysCollected}/${s.keysRequired})`, (x + 0.5) * CP, (y + 0.5) * CP);
           }
         }
       }
