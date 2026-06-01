@@ -83,6 +83,7 @@
         snd.play().catch(() => {});
       },
       wallhit:        function() { Sounds.play('wallhit' + (Math.floor(Math.random() * 3) + 1) + '.wav'); },
+      zoom:           function() { Sounds.play('zoom.wav'); },
       _footstepTimer: 0,
       _ambience: null,
       ambienceStart() {
@@ -2478,6 +2479,7 @@
           t: 0,
           frozenAngle: Math.atan2(s.mouse.y - playPY, s.mouse.x - playPX),
         };
+        Sounds.zoom();
         s.phase = 'zoom_out_transition';
         return;
       }
@@ -4902,6 +4904,7 @@
           pendingCellKey: openKey,
           frozenAngle: Math.atan2(state.mouse.y - state.player.y, state.mouse.x - state.player.x),
         };
+        Sounds.zoom();
         state.phase = 'zoom_transition';
       } else {
         saveGame();
