@@ -3313,8 +3313,7 @@
       // Проклятые сундуки в battle
       for (const bc of (b.chests || [])) {
         if (bc.collected) continue;
-        const pulse = 0.75 + 0.25 * Math.sin(Date.now() * 0.004);
-        ctx.globalAlpha = pulse;
+        ctx.globalAlpha = 1;
         ctx.shadowColor = '#cc44ff';
         ctx.shadowBlur = 18 * BATTLE_SCALE;
         ctx.font = `bold ${26 * BATTLE_SCALE}px serif`;
@@ -3793,8 +3792,8 @@
         const isOpen = s.openCells.has(ck);
         const isRevealed = s.everRevealedCells.has(ck);
         if (!isOpen && !isRevealed) continue;
-        const pulse = 0.75 + 0.25 * Math.sin(Date.now() * 0.004);
-        ctx.globalAlpha = pulse;
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#ffffff';
         ctx.shadowColor = '#cc44ff';
         ctx.shadowBlur = isOpen ? 18 : 8;
         ctx.font = 'bold 26px serif';
@@ -3802,7 +3801,6 @@
         ctx.textBaseline = 'middle';
         ctx.fillText('📦', chest.x, chest.y);
         ctx.shadowBlur = 0;
-        ctx.globalAlpha = 1;
       }
 
       // Оружие на полу
@@ -4537,6 +4535,25 @@
           ctx.fillText('⬆', upg.x, upg.y);
           ctx.shadowBlur = 0;
         }
+      }
+      ctx.globalAlpha = 1;
+
+      // Проклятые сундуки (открытые + revealed)
+      for (const chest of (s.chestObjs || [])) {
+        if (chest.collected) continue;
+        const cc = cellOf(chest.x, chest.y);
+        const ck = cellKey(cc.x, cc.y);
+        const isOpen = s.openCells.has(ck);
+        const isRevealed = s.everRevealedCells.has(ck);
+        if (!isOpen && !isRevealed) continue;
+        ctx.globalAlpha = 1;
+        ctx.shadowColor = '#cc44ff';
+        ctx.shadowBlur = isOpen ? 18 : 8;
+        ctx.font = 'bold 26px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('📦', chest.x, chest.y);
+        ctx.shadowBlur = 0;
       }
       ctx.globalAlpha = 1;
 
