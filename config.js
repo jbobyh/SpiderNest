@@ -16,7 +16,7 @@ const CONFIG = {
   LIVES_PER_HEART: 1,
   PLAYER_SPEED: 70,
   PLAYER_RADIUS: 3,
-  PLAYER_SPRITE_RADIUS: 15,        // визуальный радиус спрайта (половина ширины отрисовки)
+  PLAYER_SPRITE_RADIUS: 10,        // визуальный радиус спрайта (половина ширины отрисовки)
   PLAYER_INVULNERABLE_TIME: 1,    // секунд неуязвимости после урона
 
   // Shooting (default values, weapon-specific in WEAPON_DEFS)
@@ -167,7 +167,7 @@ const WEAPON_DEFS = {
     damage: 1,
     cooldown: 0.5,
     bulletSpeed: 300,
-    range: 15,
+    range: 10,
     penetrate: 0,
     shakeAmount: 1.5,
   },
@@ -181,7 +181,7 @@ const WEAPON_DEFS = {
     damage: 1,
     cooldown: 0.75,
     bulletSpeed: 420,
-    range: 10,
+    range: 6,
     penetrate: 0,
     shakeAmount: 3.5,
   },
@@ -195,7 +195,7 @@ const WEAPON_DEFS = {
     damage: 1,
     cooldown: 0.3,
     bulletSpeed: 300,
-    range: 15,
+    range: 8,
     penetrate: 0,
     shakeAmount: 1,
   },
@@ -209,7 +209,7 @@ const WEAPON_DEFS = {
     damage: 3,
     cooldown: 2,
     bulletSpeed: 550,
-    range: 40,
+    range: 25,
     penetrate: 2,
     shakeAmount: 4.0,
   },
@@ -223,7 +223,7 @@ const WEAPON_DEFS = {
     damage: 1,
     cooldown: 0.6,
     bulletSpeed: 450,
-    range: 30,
+    range: 20,
     penetrate: 1,
     shakeAmount: 2.5,
   },
@@ -239,7 +239,7 @@ const WEAPON_DEFS = {
     burstSize: 2,
     burstCooldown: 0.05,
     bulletSpeed: 380,
-    range: 35,
+    range: 20,
     penetrate: 0,
     shakeAmount: 1.8,
   },
