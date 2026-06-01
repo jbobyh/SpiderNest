@@ -74,7 +74,7 @@
       hit:            function() { Sounds.play('hit' + (Math.floor(Math.random() * 5) + 1) + '.wav'); },
       upgradecollect: function() { Sounds.play('upgradecollect.wav'); },
       shot:           function(weaponId) {
-        const map = { pistol: 'shotpistol.wav', carbine: 'shotcarbine.wav', rifle: 'shotrifle.wav', revolver: 'shotrevolver.wav' };
+        const map = { pistol: 'shotpistol.wav', shotgun: 'shotshotgun.wav', carbine: 'shotcarbine.wav', rifle: 'shotrifle.wav', revolver: 'shotrevolver.wav' };
         Sounds.play(map[weaponId] || 'shot1.wav');
       },
       wallhit:        function() { Sounds.play('wallhit' + (Math.floor(Math.random() * 3) + 1) + '.wav'); },
