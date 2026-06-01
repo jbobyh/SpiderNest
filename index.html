@@ -1461,7 +1461,7 @@
       const isCrit = Math.random() < s.upgrades.critChance;
       let damage = weapon.damage * (1 + s.upgrades.damage);
       if (isCrit) damage *= 2;
-      screenShake = { amount: CONFIG.SHAKE_AMOUNT, angle: baseAngle };
+      screenShake = { amount: weapon.shakeAmount || CONFIG.SHAKE_AMOUNT, angle: baseAngle };
       s.bullets.push({
         x: s.player.x, y: s.player.y,
         vx: Math.cos(baseAngle) * bulletSpeed,
@@ -2139,7 +2139,7 @@
       const isCrit = Math.random() < upgrades.critChance;
       let damage = weapon.damage * (1 + upgrades.damage);
       if (isCrit) damage *= 2;
-      screenShake = { amount: CONFIG.SHAKE_AMOUNT, angle: baseAngle };
+      screenShake = { amount: weapon.shakeAmount || CONFIG.SHAKE_AMOUNT, angle: baseAngle };
       b.bullets.push({
         x: b.player.x, y: b.player.y,
         vx: Math.cos(baseAngle) * bulletSpeed,

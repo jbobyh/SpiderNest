@@ -168,6 +168,7 @@ const WEAPON_DEFS = {
     cooldown: 0.35,
     bulletSpeed: 400,
     penetrate: 0,
+    shakeAmount: 1.5,
   },
   shotgun: {
     id: 'shotgun',
@@ -180,6 +181,7 @@ const WEAPON_DEFS = {
     cooldown: 0.55,
     bulletSpeed: 320,
     penetrate: 0,
+    shakeAmount: 3.5,
   },
   smg: {
     id: 'smg',
@@ -192,6 +194,7 @@ const WEAPON_DEFS = {
     cooldown: 0.1,
     bulletSpeed: 400,
     penetrate: 0,
+    shakeAmount: 1,
   },
   rifle: {
     id: 'rifle',
@@ -204,6 +207,7 @@ const WEAPON_DEFS = {
     cooldown: 1,
     bulletSpeed: 700,
     penetrate: 2,
+    shakeAmount: 4.0,
   },
   revolver: {
     id: 'revolver',
@@ -216,6 +220,7 @@ const WEAPON_DEFS = {
     cooldown: 0.5,
     bulletSpeed: 450,
     penetrate: 1,
+    shakeAmount: 2.5,
   },
   carbine: {
     id: 'carbine',
@@ -230,6 +235,7 @@ const WEAPON_DEFS = {
     burstCooldown: 0.1,
     bulletSpeed: 380,
     penetrate: 0,
+    shakeAmount: 1.8,
   },
 };
 
