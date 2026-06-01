@@ -83,9 +83,9 @@ const CONFIG = {
   SHOOTER_SPEED: 55,          // скорость плеваки (пикс/сек)
   SHOOTER_RADIUS: 7,          // радиус коллизии плеваки
   SHOOTER_BULLET_SPEED: 100,  // скорость пули плеваки
-  SHOOTER_SHOOT_RANGE: 0,         // заполняется после CP
+  SHOOTER_SHOOT_RANGE_CELLS: 1.0, // дальность стрельбы плеваки (в клетках)
   SHOOTER_SHOOT_CD: 2.0,     // кулдаун выстрела плеваки (сек)
-  SHOOTER_STOP_DIST: 0,           // заполняется после CP
+  SHOOTER_STOP_DIST_CELLS: 0.9,   // дистанция остановки плеваки (в клетках)
   // Spawn chances by level
   // Level 1: only soldier/shooter
   SHOOTER_CHANCE: 0.30,           // шанс что враг будет плевакой (остальное - солдат)
@@ -103,10 +103,10 @@ const CONFIG = {
   BULL_SPEED: 70,         // скорость быка (пикс/сек)
   BULL_RADIUS: 7,         // радиус коллизии быка
   BULL_PREPARE_TIME: 0.5,         // время подготовки рывка (сек)
-  BULL_DASH_DISTANCE: 0,          // заполняется после CP (2 клетки)
+  BULL_DASH_DISTANCE_CELLS: 2.0,  // дистанция рывка быка (в клетках)
   BULL_REST_TIME: 3.0,            // время отдыха после рывка (сек)
-  BULL_CHARGE_DIST: 0,            // заполняется после CP (1.5 клетки)
-  BULL_ATTACK_DIST: 0,            // заполняется после CP (1.6 клетки)
+  BULL_CHARGE_DIST_CELLS: 1.5,    // дистанция начала атаки быка (в клетках)
+  BULL_ATTACK_DIST_CELLS: 1.6,    // дистанция удара быка (в клетках)
 
   // Buldyga
   BULDYGA_HP: 150,        // здоровье булдыги

@@ -122,11 +122,11 @@
     const ctx = C.getContext('2d');
     const G = CONFIG.GRID_SIZE;
     const CP = CONFIG.CELL_PX;
-    CONFIG.SHOOTER_SHOOT_RANGE = CP * 1.0;
-    CONFIG.SHOOTER_STOP_DIST = CP * 0.9;
-    CONFIG.BULL_DASH_DISTANCE = CP * 2.0;
-    CONFIG.BULL_CHARGE_DIST = CP * 1.5;
-    CONFIG.BULL_ATTACK_DIST = CP * 1.6;
+    const SHOOTER_SHOOT_RANGE = CONFIG.SHOOTER_SHOOT_RANGE_CELLS * CP;
+    const SHOOTER_STOP_DIST   = CONFIG.SHOOTER_STOP_DIST_CELLS   * CP;
+    const BULL_DASH_DISTANCE  = CONFIG.BULL_DASH_DISTANCE_CELLS  * CP;
+    const BULL_CHARGE_DIST    = CONFIG.BULL_CHARGE_DIST_CELLS    * CP;
+    const BULL_ATTACK_DIST    = CONFIG.BULL_ATTACK_DIST_CELLS    * CP;
     const VIEW_W = CONFIG.VIEW_W;
     const VIEW_H = CONFIG.VIEW_H;
     let canvasScale = 1; // CSS px -> canvas px multiplier (changes in fullscreen)
@@ -2069,13 +2069,13 @@
 
         if (g.type === 'plevaka' || g.type === 'shooter') {
           // Плевака
-          if (dist > CONFIG.SHOOTER_STOP_DIST * BATTLE_SCALE && dist > 0) {
+          if (dist > SHOOTER_STOP_DIST * BATTLE_SCALE && dist > 0) {
             const spd = CONFIG.SHOOTER_SPEED * BATTLE_SCALE;
             g.x += (dx / dist) * spd * dt;
             g.y += (dy / dist) * spd * dt;
           }
           if (g.shootCd > 0) g.shootCd -= dt;
-          if (dist <= CONFIG.SHOOTER_SHOOT_RANGE * BATTLE_SCALE && g.shootCd <= 0) {
+          if (dist <= SHOOTER_SHOOT_RANGE * BATTLE_SCALE && g.shootCd <= 0) {
             g.shootCd = CONFIG.SHOOTER_SHOOT_CD;
             if (dist > 0) {
               b.enemyBullets.push({
@@ -2090,8 +2090,8 @@
           // Бык: FSM — chase → prepare → dash → rest → chase
           const effectiveRadius = (g.radius || CONFIG.BULL_RADIUS) * BATTLE_SCALE;
           const hitDist = effectiveRadius + CONFIG.PLAYER_RADIUS * BATTLE_SCALE;
-          const chargeDist = CONFIG.BULL_CHARGE_DIST * BATTLE_SCALE;
-          const dashDist = CONFIG.BULL_DASH_DISTANCE * BATTLE_SCALE;
+          const chargeDist = BULL_CHARGE_DIST * BATTLE_SCALE;
+          const dashDist = BULL_DASH_DISTANCE * BATTLE_SCALE;
           
           if (!g.state) g.state = 'chase';
           if (g.stateTimer === undefined) g.stateTimer = 0;
@@ -2826,14 +2826,14 @@
 
         if (g.type === 'plevaka' || g.type === 'shooter') {
           // Плевака: движется к игроку, пока не достигнет дистанции SHOOTER_STOP_DIST
-          if (dist > CONFIG.SHOOTER_STOP_DIST && dist > 0) {
+          if (dist > SHOOTER_STOP_DIST && dist > 0) {
             const spd = CONFIG.SHOOTER_SPEED;
             g.x += (dx / dist) * spd * dt;
             g.y += (dy / dist) * spd * dt;
           }
           // Стрельба
           if (g.shootCd > 0) g.shootCd -= dt;
-          if (dist <= CONFIG.SHOOTER_SHOOT_RANGE && g.shootCd <= 0) {
+          if (dist <= SHOOTER_SHOOT_RANGE && g.shootCd <= 0) {
             g.shootCd = CONFIG.SHOOTER_SHOOT_CD;
             if (dist > 0) {
               s.enemyBullets.push({
@@ -2855,11 +2855,11 @@
           switch (g.state) {
             case 'chase':
               // Идёт к игроку пока не достигнет дистанции CHARGE_DIST
-              if (dist > CONFIG.BULL_CHARGE_DIST && dist > 0) {
+              if (dist > BULL_CHARGE_DIST && dist > 0) {
                 const spd = CONFIG.BULL_SPEED;
                 g.x += (dx / dist) * spd * dt;
                 g.y += (dy / dist) * spd * dt;
-              } else if (dist <= CONFIG.BULL_CHARGE_DIST) {
+              } else if (dist <= BULL_CHARGE_DIST) {
                 // Переход в подготовку
                 g.state = 'prepare';
                 g.stateTimer = CONFIG.BULL_PREPARE_TIME;
@@ -2882,7 +2882,7 @@
                   g.dashDirX = dx / dist;
                   g.dashDirY = dy / dist;
                 }
-                g.dashDistance = CONFIG.BULL_DASH_DISTANCE;
+                g.dashDistance = BULL_DASH_DISTANCE;
                 g.stateTimer = 0; // счётчик пройденной дистанции
               }
               break;
