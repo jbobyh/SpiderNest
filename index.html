@@ -2954,24 +2954,6 @@
         }
       }
 
-      // Tooltip оружия при наведении (battle mode)
-      if (b.weapons) {
-        const hoverR = BATTLE_CELL_PX * 0.2;
-        for (const bw of b.weapons) {
-          if (bw.picked) continue;
-          const dist = Math.hypot(s.mouse.x - bw.x, s.mouse.y - bw.y);
-          if (dist < hoverR) {
-            const wDef = WEAPON_DEFS[bw.weaponId];
-            if (wDef) {
-              const sx = VIEW_W / 2 + (bw.x - b.width / 2) * sc;
-              const sy = VIEW_H / 2 + (bw.y - b.height / 2) * sc;
-              drawUpgradeTooltip(sx, sy, wDef);
-            }
-            break;
-          }
-        }
-      }
-
       // Пули игрока
       for (const b of s.battle.bullets) {
         ctx.fillStyle = '#ffffaa';
@@ -3058,19 +3040,39 @@
       ctx.textBaseline = 'top';
       ctx.fillText('⚔ BATTLE MODE', 10, 10);
 
-      // Tooltip апгрейда при наведении (battle mode)
-      const hoverR = BATTLE_CELL_PX * 0.2;
-      for (const upg of b.upgrades) {
-        if (upg.collected) continue;
-        const dist = Math.hypot(s.mouse.x - upg.x, s.mouse.y - upg.y);
-        if (dist < hoverR) {
-          const upgDef = UPGRADE_TYPES.find(u => u.id === upg.upgradeType);
-          if (upgDef) {
-            const sx = VIEW_W / 2 + (upg.x - b.width / 2) * sc;
-            const sy = VIEW_H / 2 + (upg.y - b.height / 2) * sc;
-            drawUpgradeTooltip(sx, sy, upgDef);
+      // Tooltip оружия при наведении (battle mode) — только когда все враги убиты
+      if (b.weapons && b.activeSpiders.length === 0) {
+        const hoverR = BATTLE_CELL_PX * 0.2;
+        for (const bw of b.weapons) {
+          if (bw.picked) continue;
+          const dist = Math.hypot(s.mouse.x - bw.x, s.mouse.y - bw.y);
+          if (dist < hoverR) {
+            const wDef = WEAPON_DEFS[bw.weaponId];
+            if (wDef) {
+              const sx = VIEW_W / 2 + (bw.x - b.width / 2) * sc;
+              const sy = VIEW_H / 2 + (bw.y - b.height / 2) * sc;
+              drawUpgradeTooltip(sx, sy, wDef);
+            }
+            break;
           }
-          break;
+        }
+      }
+
+      // Tooltip апгрейда при наведении (battle mode) — только когда все враги убиты
+      if (b.activeSpiders.length === 0) {
+        const hoverR = BATTLE_CELL_PX * 0.2;
+        for (const upg of b.upgrades) {
+          if (upg.collected) continue;
+          const dist = Math.hypot(s.mouse.x - upg.x, s.mouse.y - upg.y);
+          if (dist < hoverR) {
+            const upgDef = UPGRADE_TYPES.find(u => u.id === upg.upgradeType);
+            if (upgDef) {
+              const sx = VIEW_W / 2 + (upg.x - b.width / 2) * sc;
+              const sy = VIEW_H / 2 + (upg.y - b.height / 2) * sc;
+              drawUpgradeTooltip(sx, sy, upgDef);
+            }
+            break;
+          }
         }
       }
 
@@ -3294,6 +3296,30 @@
             }
           }
         }
+
+        // Оружие в закрытых смежных клетках (видно через стены)
+        for (const dw of s.droppedWeapons) {
+          const wc = cellOf(dw.x, dw.y);
+          if (cellKey(wc.x, wc.y) !== k) continue;
+          const wDef = WEAPON_DEFS[dw.weaponId];
+          if (!wDef) continue;
+          const pulse = 0.7 + 0.3 * Math.sin(Date.now() * 0.007);
+          ctx.fillStyle = wDef.color;
+          ctx.shadowColor = wDef.color;
+          ctx.shadowBlur = 12;
+          ctx.globalAlpha = pulse * 0.7; // Полупрозрачное как пауки
+          ctx.font = 'bold 18px "Share Tech Mono"';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('🔫', dw.x, dw.y - 8);
+          ctx.font = 'bold 9px "Share Tech Mono"';
+          ctx.fillStyle = '#ffffff';
+          ctx.shadowBlur = 0;
+          ctx.globalAlpha = 0.6; // Полупрозрачное название
+          ctx.fillText(wDef.label, dw.x, dw.y + 8);
+          ctx.globalAlpha = 1;
+          ctx.shadowBlur = 0;
+        }
       }
 
       // Зелёная подсветка клеток у игрока, не попавших в adj (ещё не в everRevealedCells)
@@ -3514,7 +3540,7 @@
       for (const dw of s.droppedWeapons) {
         const wc = cellOf(dw.x, dw.y);
         const wck = cellKey(wc.x, wc.y);
-        if (!s.openCells.has(wck) || !visibleCells.has(wck)) continue;
+        if (!s.everRevealedCells.has(wck) || !visibleCells.has(wck)) continue;
         const dist = Math.hypot(s.mouse.x - dw.x, s.mouse.y - dw.y);
         if (dist < CP * 0.4) {
           const wDef = WEAPON_DEFS[dw.weaponId];
@@ -4053,6 +4079,30 @@
           ctx.fillText('⬆', upg.x, upg.y);
           ctx.shadowBlur = 0;
         }
+      }
+      ctx.globalAlpha = 1;
+
+      // Оружие в открытых клетках
+      for (const dw of s.droppedWeapons) {
+        const wc = cellOf(dw.x, dw.y);
+        if (!s.openCells.has(cellKey(wc.x, wc.y))) continue;
+        const wDef = WEAPON_DEFS[dw.weaponId];
+        if (!wDef) continue;
+        const pulse = 0.7 + 0.3 * Math.sin(Date.now() * 0.007);
+        ctx.globalAlpha = fadeAlpha * pulse;
+        ctx.fillStyle = wDef.color;
+        ctx.shadowColor = wDef.color;
+        ctx.shadowBlur = 12;
+        ctx.font = 'bold 18px "Share Tech Mono"';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('🔫', dw.x, dw.y - 8);
+        ctx.font = 'bold 9px "Share Tech Mono"';
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = fadeAlpha * 0.9;
+        ctx.fillText(wDef.label, dw.x, dw.y + 8);
+        ctx.shadowBlur = 0;
       }
       ctx.globalAlpha = 1;
 
