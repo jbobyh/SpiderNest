@@ -87,9 +87,17 @@ const CONFIG = {
   SHOOTER_SHOOT_RANGE: 0,         // заполняется после CP
   SHOOTER_SHOOT_CD: 1.5,
   SHOOTER_STOP_DIST: 0,           // заполняется после CP
-  SHOOTER_CHANCE: 0.30,           // шанс что враг будет плевакой (только для типов кроме быка/булдыги)
-  BULL_CHANCE: 0.30,              // шанс что враг будет быком (только на уровнях 2-3)
-  BULDYGA_CHANCE: 0.30,           // шанс что враг будет булдыгой (только на уровнях 2-3)
+  // Spawn chances by level
+  // Level 1: only soldier/shooter
+  SHOOTER_CHANCE: 0.30,           // шанс что враг будет плевакой (остальное - солдат)
+  // Level 2: bull/buldyga + soldier/shooter
+  BULL_CHANCE: 0.30,              // шанс что враг будет быком
+  BULDYGA_CHANCE: 0.30,           // шанс что враг будет булдыгой (после быка)
+  // Level 3: cocoon/bloated/bull/buldyga + soldier/shooter
+  COCOON_CHANCE: 0.30,           // шанс что враг будет коконом
+  BLOATED_CHANCE: 0.30,           // шанс что враг будет распухшим (после кокона)
+  BULL_CHANCE_LVL3: 0.20,         // шанс что враг будет быком на 3 уровне (после распухшего)
+  BULDYGA_CHANCE_LVL3: 0.20,      // шанс что враг будет булдыгой на 3 уровне (после быка)
 
   // Bull
   BULL_HP: 4,
@@ -106,6 +114,19 @@ const CONFIG = {
   BULDYGA_SPEED: 40,              // начальная скорость
   BULDYGA_SPEED_INCREMENT: 5,    // ускорение каждую секунду
   BULDYGA_RADIUS: 6,
+
+  // Cocoon (spawner)
+  COCOON_HP: 100,
+  COCOON_RADIUS: 10,
+  COCOON_SPAWN_INTERVAL: 5.0,     // секунд между спавнами солдат
+  COCOON_CHANCE: 0.30,            // шанс спавна кокона на уровне 3
+
+  // Bloated (explodes on death)
+  BLOATED_HP: 100,
+  BLOATED_SPEED: 70,
+  BLOATED_RADIUS: 8,
+  BLOATED_DEATH_SHOT_SPEED: 100,  // скорость пули при смерти (как у плеваки)
+  BLOATED_CHANCE: 0.30,           // шанс спавна распухшего на уровне 3 (после кокона)
 
   // Level generation
   DISABLED_CELLS_COUNT: 15,

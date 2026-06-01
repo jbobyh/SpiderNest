@@ -71,8 +71,10 @@
       },
       keycollect:     function() { Sounds.play('keycollect.wav'); },
       heartcollect:   function() { Sounds.play('heartcollect.wav'); },
+      hearttravel:    function() { Sounds.play('hearttravel.wav'); },
       hit:            function() { Sounds.play('hit' + (Math.floor(Math.random() * 5) + 1) + '.wav'); },
       upgradecollect: function() { Sounds.play('upgradecollect.wav'); },
+      weaponcollect:  function() { Sounds.play('weaponcollect.wav'); },
       shot:           function(weaponId) {
         const map = { pistol: 'shotpistol.wav', shotgun: 'shotshotgun.wav', smg: 'shotsmg.wav', carbine: 'shotcarbine.wav', rifle: 'shotrifle.wav', revolver: 'shotrevolver.wav' };
         const base = Sounds._load(map[weaponId] || 'shot1.wav');
@@ -303,6 +305,10 @@
     // Состояние зум-перехода перед battle
     let zoomTransition = null; // { fromCamX, fromCamY, fromScale, toCamX, toCamY, toScale, t, pendingCellKey }
     let zoomOutTransition = null; // { fromScale, toScale, t }
+
+    // Летящее сердечко при открытии/закрытии клетки
+    // { x, y, startX, startY, targetX, targetY, t, duration, onArrive }
+    let flyingHeart = null;
 
     // Проверка связности: все не-выключенные клетки достижимы из старта
     function checkConnectivity(startX, startY, disabledSet, gridSize) {
@@ -541,8 +547,31 @@
             let enemyHp;
             let enemyRadius = CONFIG.SPIDER_RADIUS;
             const roll = Math.random();
-            if (level >= 2) {
-              // На уровнях 2+ распределяем между быком, булдыгой и обычными
+            if (level >= 3) {
+              // На уровне 3: кокон/распухший/бык/булдыга/солдат/плевака
+              if (roll < CONFIG.COCOON_CHANCE) {
+                enemyType = 'cocoon';
+                enemyHp = CONFIG.COCOON_HP;
+                enemyRadius = CONFIG.COCOON_RADIUS;
+              } else if (roll < CONFIG.COCOON_CHANCE + CONFIG.BLOATED_CHANCE) {
+                enemyType = 'bloated';
+                enemyHp = CONFIG.BLOATED_HP;
+                enemyRadius = CONFIG.BLOATED_RADIUS;
+              } else if (roll < CONFIG.COCOON_CHANCE + CONFIG.BLOATED_CHANCE + CONFIG.BULL_CHANCE_LVL3) {
+                enemyType = 'bull';
+                enemyHp = CONFIG.BULL_HP;
+                enemyRadius = CONFIG.BULL_RADIUS;
+              } else if (roll < CONFIG.COCOON_CHANCE + CONFIG.BLOATED_CHANCE + CONFIG.BULL_CHANCE_LVL3 + CONFIG.BULDYGA_CHANCE_LVL3) {
+                enemyType = 'buldyga';
+                enemyHp = CONFIG.BULDYGA_HP;
+                enemyRadius = CONFIG.BULDYGA_RADIUS;
+              } else {
+                const isPlevaka = Math.random() < CONFIG.SHOOTER_CHANCE;
+                enemyType = isPlevaka ? 'plevaka' : 'soldier';
+                enemyHp = isPlevaka ? CONFIG.SHOOTER_HP : CONFIG.SPIDER_HP;
+              }
+            } else if (level >= 2) {
+              // На уровнях 2 распределяем между быком, булдыгой и обычными
               if (roll < CONFIG.BULL_CHANCE) {
                 enemyType = 'bull';
                 enemyHp = CONFIG.BULL_HP;
@@ -583,6 +612,8 @@
               // Поля для булдыги
               currentSpeed: enemyType === 'buldyga' ? CONFIG.BULDYGA_SPEED : undefined,
               speedAccumulator: 0,
+              // Поля для кокона
+              spawnTimer: enemyType === 'cocoon' ? CONFIG.COCOON_SPAWN_INTERVAL : undefined,
             });
           }
         }
@@ -745,6 +776,32 @@
     function cellOf(px, py) { return { x: Math.floor(px / CP), y: Math.floor(py / CP) }; }
     function inBounds(x, y) { return x >= 0 && x < 11 && y >= 0 && y < 11; }
     function easeInOutQuad(t) { return t < 0.5 ? 2*t*t : -1+(4-2*t)*t; }
+
+    function launchFlyingHeart(fromX, fromY, toX, toY, onArrive, getTarget) {
+      const dist = Math.hypot(toX - fromX, toY - fromY);
+      const duration = Math.max(0.18, Math.min(0.45, dist / (CP * 2.5)));
+      flyingHeart = { x: fromX, y: fromY, startX: fromX, startY: fromY, targetX: toX, targetY: toY, t: 0, duration, onArrive, getTarget: getTarget || null };
+      Sounds.hearttravel();
+    }
+
+    function drawFlyingHeartInWorld() {
+      if (!flyingHeart) return;
+      const fh = flyingHeart;
+      const bx = fh.x;
+      const by = fh.y;
+      const p = Math.min(fh.t / fh.duration, 1);
+      const scale = 0.8 + 0.5 * Math.sin(p * Math.PI);
+      ctx.save();
+      ctx.font = `bold ${Math.round(20 * scale)}px "Share Tech Mono"`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#ff6b9d';
+      ctx.shadowColor = '#ff6b9d';
+      ctx.shadowBlur = 18;
+      ctx.fillText('♥', bx, by);
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    }
 
     // Direction constants: 0=right, 1=bottom, 2=left, 3=top
     const DIRECTION_RIGHT = 0, DIRECTION_BOTTOM = 1, DIRECTION_LEFT = 2, DIRECTION_TOP = 3;
@@ -1477,7 +1534,7 @@
 
       for (const target of targets) {
         const angle = Math.atan2(target.enemy.y - playerY, target.enemy.x - playerX);
-        const damage = weapon.damage * (1 + s.upgrades.damage);
+        const damage = weapon.damage * s.upgrades.damage;
         bulletsArray.push({
           x: playerX, y: playerY,
           vx: Math.cos(angle) * bulletSpeed,
@@ -1502,7 +1559,7 @@
 
     function createBullet(s, weapon, baseAngle, bulletSpeed) {
       const isCrit = Math.random() < s.upgrades.critChance;
-      let damage = weapon.damage * (1 + s.upgrades.damage);
+      let damage = weapon.damage * s.upgrades.damage;
       if (isCrit) damage *= 2;
       screenShake = { amount: weapon.shakeAmount || CONFIG.SHAKE_AMOUNT, angle: baseAngle };
       s.bullets.push({
@@ -1617,6 +1674,9 @@
         }
         s.weaponSlots[s.activeSlot] = weaponId;
       }
+
+      // Звук подбора оружия
+      Sounds.weaponcollect();
 
       // Партиклы
       const wDef = WEAPON_DEFS[weaponId];
@@ -1756,6 +1816,7 @@
         // Проверка границ battle
         if (bullet.x < 0 || bullet.x > b.width || bullet.y < 0 || bullet.y > b.height || bullet.life <= 0) {
           if (bullet.life <= 0) {
+            Sounds.wallhit();
             for (let k = 0; k < CONFIG.WALL_HIT_PARTICLES_COUNT; k++) {
               const a = Math.random() * Math.PI * 2;
               b.particles.push({
@@ -1797,7 +1858,7 @@
             const damage = bullet.damage || CONFIG.BULLET_DAMAGE;
             g.hp -= damage;
             Sounds.hit();
-            spawnDamageNumber(g.x, g.y - CONFIG.SPIDER_RADIUS * BATTLE_SCALE, damage, false);
+            spawnDamageNumber(g.x, g.y - CONFIG.SPIDER_RADIUS * BATTLE_SCALE, damage, bullet.isCrit);
             // Green blood particles - fly in bullet direction
             const bulletAngle = Math.atan2(bullet.vy, bullet.vx);
             for (let k = 0; k < CONFIG.HIT_PARTICLES_COUNT; k++) {
@@ -1829,6 +1890,20 @@
               if (s.upgrades.killAccel) {
                 s.upgrades.killAccelPercent = Math.min(90, s.upgrades.killAccelPercent + 0.2);
                 playerProgress.upgrades.killAccelPercent = s.upgrades.killAccelPercent;
+              }
+              // Распухший: выстрел при смерти в игрока (масштабированный)
+              if (g.type === 'bloated') {
+                const pdx = b.player.x - g.x;
+                const pdy = b.player.y - g.y;
+                const pdist = Math.hypot(pdx, pdy);
+                if (pdist > 0) {
+                  b.enemyBullets.push({
+                    x: g.x, y: g.y,
+                    vx: (pdx / pdist) * CONFIG.BLOATED_DEATH_SHOT_SPEED * BATTLE_SCALE,
+                    vy: (pdy / pdist) * CONFIG.BLOATED_DEATH_SHOT_SPEED * BATTLE_SCALE,
+                    life: 6,
+                  });
+                }
               }
             }
             // Логика пробития: отслеживаем сколько врагов прошла пуля
@@ -1988,7 +2063,7 @@
           // Булдыга: как солдат, но ускоряется на 10 каждую секунду (масштабировано)
           if (g.currentSpeed === undefined) g.currentSpeed = CONFIG.BULDYGA_SPEED * BATTLE_SCALE;
           if (g.speedAccumulator === undefined) g.speedAccumulator = 0;
-          
+
           // Ускорение каждую секунду
           g.speedAccumulator += dt;
           if (g.speedAccumulator >= 1.0) {
@@ -1996,10 +2071,19 @@
             g.currentSpeed += CONFIG.BULDYGA_SPEED_INCREMENT * BATTLE_SCALE * secondsPassed;
             g.speedAccumulator -= secondsPassed;
           }
-          
+
+          let newX = g.x;
+          let newY = g.y;
           if (dist > 0) {
-            g.x += (dx / dist) * g.currentSpeed * dt;
-            g.y += (dy / dist) * g.currentSpeed * dt;
+            newX += (dx / dist) * g.currentSpeed * dt;
+            newY += (dy / dist) * g.currentSpeed * dt;
+          }
+          // Проверка стен battle-зоны
+          const newCellX = Math.floor(newX / BATTLE_CELL_PX) + b.cellOffsetX;
+          const newCellY = Math.floor(newY / BATTLE_CELL_PX) + b.cellOffsetY;
+          if (b.openCells.has(cellKey(newCellX, newCellY))) {
+            g.x = newX;
+            g.y = newY;
           }
           // Касание игрока (масштабированное)
           if (dist < ((g.radius || CONFIG.BULDYGA_RADIUS) + CONFIG.PLAYER_RADIUS) * BATTLE_SCALE) {
@@ -2015,12 +2099,78 @@
             }
             continue;
           }
+        } else if (g.type === 'bloated') {
+          // Распухший: как солдат (масштабированный)
+          let newX = g.x;
+          let newY = g.y;
+          if (dist > 0) {
+            const spd = CONFIG.BLOATED_SPEED * BATTLE_SCALE;
+            newX += (dx / dist) * spd * dt;
+            newY += (dy / dist) * spd * dt;
+          }
+          // Проверка стен battle-зоны
+          const newCellX = Math.floor(newX / BATTLE_CELL_PX) + b.cellOffsetX;
+          const newCellY = Math.floor(newY / BATTLE_CELL_PX) + b.cellOffsetY;
+          if (b.openCells.has(cellKey(newCellX, newCellY))) {
+            g.x = newX;
+            g.y = newY;
+          }
+          // Касание игрока (масштабированное)
+          if (dist < ((g.radius || CONFIG.BLOATED_RADIUS) + CONFIG.PLAYER_RADIUS) * BATTLE_SCALE) {
+            dealPlayerDamage(s, true);
+            b.activeSpiders.splice(i, 1);
+            for (let k = 0; k < CONFIG.PLAYER_HIT_PARTICLES_COUNT; k++) {
+              const a = Math.random() * Math.PI * 2;
+              b.particles.push({
+                x: b.player.x, y: b.player.y,
+                vx: Math.cos(a) * CONFIG.PLAYER_HIT_PARTICLES_SPEED, vy: Math.sin(a) * CONFIG.PLAYER_HIT_PARTICLES_SPEED,
+                life: CONFIG.PLAYER_HIT_PARTICLES_LIFE, maxLife: CONFIG.PLAYER_HIT_PARTICLES_LIFE, color: '#ff4444',
+              });
+            }
+            continue;
+          }
+        } else if (g.type === 'cocoon') {
+          // Кокон: стоит на месте, спавнит солдат (масштабированный)
+          if (g.spawnTimer === undefined) g.spawnTimer = CONFIG.COCOON_SPAWN_INTERVAL;
+          g.spawnTimer -= dt;
+          if (g.spawnTimer <= 0) {
+            g.spawnTimer = CONFIG.COCOON_SPAWN_INTERVAL;
+            // Спавним солдата рядом с коконом
+            const spawnAngle = Math.random() * Math.PI * 2;
+            const spawnDist = ((g.radius || CONFIG.COCOON_RADIUS) + CONFIG.SPIDER_RADIUS + 5) * BATTLE_SCALE;
+            b.activeSpiders.push({
+              x: g.x + Math.cos(spawnAngle) * spawnDist,
+              y: g.y + Math.sin(spawnAngle) * spawnDist,
+              vx: 0, vy: 0,
+              radius: CONFIG.SPIDER_RADIUS,
+              hp: CONFIG.SPIDER_HP,
+              type: 'soldier',
+              shootCd: 0,
+              state: 'chase',
+              stateTimer: 0,
+              dashTargetX: 0, dashTargetY: 0,
+              dashDirX: 0, dashDirY: 0,
+              dashDistance: 0,
+              currentSpeed: undefined,
+              speedAccumulator: 0,
+              spawnTimer: undefined,
+            });
+          }
         } else {
           // Солдат - летит к игроку (масштабированная скорость)
+          let newX = g.x;
+          let newY = g.y;
           if (dist > 0) {
             const spd = CONFIG.SPIDER_SPEED * BATTLE_SCALE;
-            g.x += (dx / dist) * spd * dt;
-            g.y += (dy / dist) * spd * dt;
+            newX += (dx / dist) * spd * dt;
+            newY += (dy / dist) * spd * dt;
+          }
+          // Проверка стен battle-зоны
+          const newCellX = Math.floor(newX / BATTLE_CELL_PX) + b.cellOffsetX;
+          const newCellY = Math.floor(newY / BATTLE_CELL_PX) + b.cellOffsetY;
+          if (b.openCells.has(cellKey(newCellX, newCellY))) {
+            g.x = newX;
+            g.y = newY;
           }
           // Касание игрока (масштабированное)
           if (dist < ((g.radius || CONFIG.SPIDER_RADIUS) + CONFIG.PLAYER_RADIUS) * BATTLE_SCALE) {
@@ -2398,7 +2548,7 @@
         b.life -= dt;
 
         if (!inRoom(b.x, b.y, s.openCells) || b.life <= 0) {
-          if (b.life > 0) Sounds.wallhit();
+          Sounds.wallhit();
           addParticles(b.x, b.y, CONFIG.WALL_HIT_PARTICLES_COUNT, CONFIG.WALL_HIT_PARTICLES_SPEED, CONFIG.WALL_HIT_PARTICLES_LIFE, '#88aaff');
           s.bullets.splice(i, 1);
           continue;
@@ -2430,6 +2580,20 @@
               if (s.upgrades.killAccel) {
                 s.upgrades.killAccelPercent = Math.min(90, s.upgrades.killAccelPercent + 0.2);
                 playerProgress.upgrades.killAccelPercent = s.upgrades.killAccelPercent;
+              }
+              // Распухший: выстрел при смерти в игрока
+              if (g.type === 'bloated') {
+                const pdx = s.player.x - g.x;
+                const pdy = s.player.y - g.y;
+                const pdist = Math.hypot(pdx, pdy);
+                if (pdist > 0) {
+                  s.enemyBullets.push({
+                    x: g.x, y: g.y,
+                    vx: (pdx / pdist) * CONFIG.BLOATED_DEATH_SHOT_SPEED,
+                    vy: (pdy / pdist) * CONFIG.BLOATED_DEATH_SHOT_SPEED,
+                    life: 6,
+                  });
+                }
               }
             }
             // Логика пробития: отслеживаем сколько врагов прошла пуля
@@ -2622,7 +2786,7 @@
           // Булдыга: как солдат, но ускоряется на 10 каждую секунду
           if (g.currentSpeed === undefined) g.currentSpeed = CONFIG.BULDYGA_SPEED;
           if (g.speedAccumulator === undefined) g.speedAccumulator = 0;
-          
+
           // Ускорение каждую секунду
           g.speedAccumulator += dt;
           if (g.speedAccumulator >= 1.0) {
@@ -2630,10 +2794,19 @@
             g.currentSpeed += CONFIG.BULDYGA_SPEED_INCREMENT * secondsPassed;
             g.speedAccumulator -= secondsPassed;
           }
-          
+
+          let newX = g.x;
+          let newY = g.y;
           if (dist > 0) {
-            g.x += (dx / dist) * g.currentSpeed * dt;
-            g.y += (dy / dist) * g.currentSpeed * dt;
+            newX += (dx / dist) * g.currentSpeed * dt;
+            newY += (dy / dist) * g.currentSpeed * dt;
+          }
+          // Проверка стен - не выходим за открытые клетки
+          const newCellX = Math.floor(newX / CP);
+          const newCellY = Math.floor(newY / CP);
+          if (s.openCells.has(cellKey(newCellX, newCellY))) {
+            g.x = newX;
+            g.y = newY;
           }
           // Касание игрока
           if (dist < (g.radius || CONFIG.BULDYGA_RADIUS) + CONFIG.PLAYER_RADIUS) {
@@ -2649,11 +2822,76 @@
             }
             continue;
           }
+        } else if (g.type === 'bloated') {
+          // Распухший: как солдат, но взрывается при смерти
+          let newX = g.x;
+          let newY = g.y;
+          if (dist > 0) {
+            newX += (dx / dist) * CONFIG.BLOATED_SPEED * dt;
+            newY += (dy / dist) * CONFIG.BLOATED_SPEED * dt;
+          }
+          // Проверка стен
+          const newCellX = Math.floor(newX / CP);
+          const newCellY = Math.floor(newY / CP);
+          if (s.openCells.has(cellKey(newCellX, newCellY))) {
+            g.x = newX;
+            g.y = newY;
+          }
+          // Касание игрока
+          if (dist < (g.radius || CONFIG.BLOATED_RADIUS) + CONFIG.PLAYER_RADIUS) {
+            dealPlayerDamage(s, false);
+            s.activeSpiders.splice(i, 1);
+            for (let k = 0; k < CONFIG.PLAYER_HIT_PARTICLES_COUNT; k++) {
+              const a = Math.random() * Math.PI * 2;
+              s.particles.push({
+                x: s.player.x, y: s.player.y,
+                vx: Math.cos(a) * CONFIG.PLAYER_HIT_PARTICLES_SPEED, vy: Math.sin(a) * CONFIG.PLAYER_HIT_PARTICLES_SPEED,
+                life: CONFIG.PLAYER_HIT_PARTICLES_LIFE, maxLife: CONFIG.PLAYER_HIT_PARTICLES_LIFE, color: '#ff4444',
+              });
+            }
+            continue;
+          }
+        } else if (g.type === 'cocoon') {
+          // Кокон: стоит на месте, спавнит солдат
+          if (g.spawnTimer === undefined) g.spawnTimer = CONFIG.COCOON_SPAWN_INTERVAL;
+          g.spawnTimer -= dt;
+          if (g.spawnTimer <= 0) {
+            g.spawnTimer = CONFIG.COCOON_SPAWN_INTERVAL;
+            // Спавним солдата рядом с коконом
+            const spawnAngle = Math.random() * Math.PI * 2;
+            const spawnDist = (g.radius || CONFIG.COCOON_RADIUS) + CONFIG.SPIDER_RADIUS + 5;
+            s.activeSpiders.push({
+              x: g.x + Math.cos(spawnAngle) * spawnDist,
+              y: g.y + Math.sin(spawnAngle) * spawnDist,
+              vx: 0, vy: 0,
+              radius: CONFIG.SPIDER_RADIUS,
+              hp: CONFIG.SPIDER_HP,
+              type: 'soldier',
+              shootCd: 0,
+              state: 'chase',
+              stateTimer: 0,
+              dashTargetX: 0, dashTargetY: 0,
+              dashDirX: 0, dashDirY: 0,
+              dashDistance: 0,
+              currentSpeed: undefined,
+              speedAccumulator: 0,
+              spawnTimer: undefined,
+            });
+          }
         } else {
           // Солдат: летит к игроку
+          let newX = g.x;
+          let newY = g.y;
           if (dist > 0) {
-            g.x += (dx / dist) * CONFIG.SPIDER_SPEED * dt;
-            g.y += (dy / dist) * CONFIG.SPIDER_SPEED * dt;
+            newX += (dx / dist) * CONFIG.SPIDER_SPEED * dt;
+            newY += (dy / dist) * CONFIG.SPIDER_SPEED * dt;
+          }
+          // Проверка стен
+          const newCellX = Math.floor(newX / CP);
+          const newCellY = Math.floor(newY / CP);
+          if (s.openCells.has(cellKey(newCellX, newCellY))) {
+            g.x = newX;
+            g.y = newY;
           }
           // Касание игрока
           if (dist < (g.radius || CONFIG.SPIDER_RADIUS) + CONFIG.PLAYER_RADIUS) {
@@ -2767,6 +3005,36 @@
         if (p.life <= 0) {
           returnParticle(p);
           s.particles.splice(i, 1);
+        }
+      }
+
+      // Летящее сердечко
+      if (flyingHeart) {
+        const fh = flyingHeart;
+        // Обновляем цель если есть homing
+        if (fh.getTarget) {
+          const t = fh.getTarget();
+          fh.targetX = t.x;
+          fh.targetY = t.y;
+        }
+        // Движение к текущей цели с постоянной скоростью
+        const dx = fh.targetX - fh.x;
+        const dy = fh.targetY - fh.y;
+        const dist = Math.hypot(dx, dy);
+        const speed = dist / Math.max(fh.duration - fh.t, 0.001);
+        if (dist < speed * dt || dist < 2) {
+          fh.x = fh.targetX;
+          fh.y = fh.targetY;
+          fh.t = fh.duration;
+        } else {
+          fh.x += (dx / dist) * speed * dt;
+          fh.y += (dy / dist) * speed * dt;
+        }
+        fh.t += dt;
+        if (fh.t >= fh.duration) {
+          const cb = fh.onArrive;
+          flyingHeart = null;
+          if (cb) cb();
         }
       }
 
@@ -2895,24 +3163,6 @@
         }
       }
 
-      // Tooltip оружия при наведении (battle mode)
-      if (b.weapons) {
-        const hoverR = BATTLE_CELL_PX * 0.2;
-        for (const bw of b.weapons) {
-          if (bw.picked) continue;
-          const dist = Math.hypot(s.mouse.x - bw.x, s.mouse.y - bw.y);
-          if (dist < hoverR) {
-            const wDef = WEAPON_DEFS[bw.weaponId];
-            if (wDef) {
-              const sx = VIEW_W / 2 + (bw.x - b.width / 2) * sc;
-              const sy = VIEW_H / 2 + (bw.y - b.height / 2) * sc;
-              drawUpgradeTooltip(sx, sy, wDef);
-            }
-            break;
-          }
-        }
-      }
-
       // Пули игрока
       for (const b of s.battle.bullets) {
         ctx.fillStyle = '#ffffaa';
@@ -2999,19 +3249,39 @@
       ctx.textBaseline = 'top';
       ctx.fillText('⚔ BATTLE MODE', 10, 10);
 
-      // Tooltip апгрейда при наведении (battle mode)
-      const hoverR = BATTLE_CELL_PX * 0.2;
-      for (const upg of b.upgrades) {
-        if (upg.collected) continue;
-        const dist = Math.hypot(s.mouse.x - upg.x, s.mouse.y - upg.y);
-        if (dist < hoverR) {
-          const upgDef = UPGRADE_TYPES.find(u => u.id === upg.upgradeType);
-          if (upgDef) {
-            const sx = VIEW_W / 2 + (upg.x - b.width / 2) * sc;
-            const sy = VIEW_H / 2 + (upg.y - b.height / 2) * sc;
-            drawUpgradeTooltip(sx, sy, upgDef);
+      // Tooltip оружия при наведении (battle mode) — только когда все враги убиты
+      if (b.weapons && b.activeSpiders.length === 0) {
+        const hoverR = BATTLE_CELL_PX * 0.2;
+        for (const bw of b.weapons) {
+          if (bw.picked) continue;
+          const dist = Math.hypot(s.mouse.x - bw.x, s.mouse.y - bw.y);
+          if (dist < hoverR) {
+            const wDef = WEAPON_DEFS[bw.weaponId];
+            if (wDef) {
+              const sx = VIEW_W / 2 + (bw.x - b.width / 2) * sc;
+              const sy = VIEW_H / 2 + (bw.y - b.height / 2) * sc;
+              drawUpgradeTooltip(sx, sy, wDef);
+            }
+            break;
           }
-          break;
+        }
+      }
+
+      // Tooltip апгрейда при наведении (battle mode) — только когда все враги убиты
+      if (b.activeSpiders.length === 0) {
+        const hoverR = BATTLE_CELL_PX * 0.2;
+        for (const upg of b.upgrades) {
+          if (upg.collected) continue;
+          const dist = Math.hypot(s.mouse.x - upg.x, s.mouse.y - upg.y);
+          if (dist < hoverR) {
+            const upgDef = UPGRADE_TYPES.find(u => u.id === upg.upgradeType);
+            if (upgDef) {
+              const sx = VIEW_W / 2 + (upg.x - b.width / 2) * sc;
+              const sy = VIEW_H / 2 + (upg.y - b.height / 2) * sc;
+              drawUpgradeTooltip(sx, sy, upgDef);
+            }
+            break;
+          }
         }
       }
 
@@ -3102,7 +3372,7 @@
 
         if (isExit) {
           const pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.005);
-          ctx.font = 'bold 11px "Share Tech Mono"';
+          ctx.font = 'bold 10px "Share Tech Mono"';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           if (s.keysCollected >= s.keysRequired) {
@@ -3116,7 +3386,7 @@
             ctx.lineWidth = 2;
             ctx.strokeRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
             ctx.fillStyle = `rgba(255,170,0,${0.6 + pulse * 0.4})`;
-            ctx.fillText(`ВЫХОД (ЗАКРЫТ ${s.keysCollected}/${s.keysRequired})`, (x + 0.5) * CP, (y + 0.5) * CP);
+            ctx.fillText(`ВЫХОД (КЛЮЧИ ${s.keysCollected}/${s.keysRequired})`, (x + 0.5) * CP, (y + 0.5) * CP);
           }
         }
       }
@@ -3234,6 +3504,30 @@
               ctx.shadowBlur = 0;
             }
           }
+        }
+
+        // Оружие в закрытых смежных клетках (видно через стены)
+        for (const dw of s.droppedWeapons) {
+          const wc = cellOf(dw.x, dw.y);
+          if (cellKey(wc.x, wc.y) !== k) continue;
+          const wDef = WEAPON_DEFS[dw.weaponId];
+          if (!wDef) continue;
+          const pulse = 0.7 + 0.3 * Math.sin(Date.now() * 0.007);
+          ctx.fillStyle = wDef.color;
+          ctx.shadowColor = wDef.color;
+          ctx.shadowBlur = 12;
+          ctx.globalAlpha = pulse * 0.7; // Полупрозрачное как пауки
+          ctx.font = 'bold 18px "Share Tech Mono"';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('🔫', dw.x, dw.y - 8);
+          ctx.font = 'bold 9px "Share Tech Mono"';
+          ctx.fillStyle = '#ffffff';
+          ctx.shadowBlur = 0;
+          ctx.globalAlpha = 0.6; // Полупрозрачное название
+          ctx.fillText(wDef.label, dw.x, dw.y + 8);
+          ctx.globalAlpha = 1;
+          ctx.shadowBlur = 0;
         }
       }
 
@@ -3366,6 +3660,9 @@
       }
       ctx.globalAlpha = 1;
 
+      // Летящее сердечко (поверх всего в мировых координатах)
+      drawFlyingHeartInWorld();
+
       // Игрок
       const p = s.player;
       const blinkOk = s.player.invulnerable <= 0 || Math.floor(s.player.invulnerable * 10) % 2 === 0;
@@ -3452,7 +3749,7 @@
       for (const dw of s.droppedWeapons) {
         const wc = cellOf(dw.x, dw.y);
         const wck = cellKey(wc.x, wc.y);
-        if (!s.openCells.has(wck) || !visibleCells.has(wck)) continue;
+        if (!s.everRevealedCells.has(wck) || !visibleCells.has(wck)) continue;
         const dist = Math.hypot(s.mouse.x - dw.x, s.mouse.y - dw.y);
         if (dist < CP * 0.4) {
           const wDef = WEAPON_DEFS[dw.weaponId];
@@ -3535,9 +3832,19 @@
       const isBull = g.type === 'bull';
       const isBuldyga = g.type === 'buldyga';
       const isSoldier = g.type === 'soldier' || g.type === 'chaser';
+      const isCocoon = g.type === 'cocoon';
+      const isBloated = g.type === 'bloated';
       ctx.globalAlpha = 1.0;
-      
-      if (isBull) {
+
+      if (isCocoon) {
+        // Кокон — белый/серый, овальный, неподвижный
+        ctx.fillStyle = '#cccccc';
+        ctx.shadowColor = '#888888';
+      } else if (isBloated) {
+        // Распухший — жёлто-зелёный, вздутый
+        ctx.fillStyle = '#88aa22';
+        ctx.shadowColor = '#556611';
+      } else if (isBull) {
         // Бык — крупный, тёмно-красный, массивный
         ctx.fillStyle = '#8b0000';
         ctx.shadowColor = '#4a0000';
@@ -3554,7 +3861,26 @@
       }
       ctx.shadowBlur = 18 * scale;
 
-      if (isBull) {
+      if (isCocoon) {
+        // Кокон: овальная форма, без ног, с текстурой
+        ctx.beginPath(); ctx.ellipse(g.x, g.y, r * 0.8, r * 1.0, 0, 0, Math.PI * 2); ctx.fill();
+        // Внутренняя тень
+        ctx.fillStyle = '#aaaaaa';
+        ctx.shadowColor = '#666666';
+        ctx.shadowBlur = 4 * scale;
+        ctx.beginPath(); ctx.ellipse(g.x - r * 0.2, g.y - r * 0.2, r * 0.4, r * 0.5, 0, 0, Math.PI * 2); ctx.fill();
+      } else if (isBloated) {
+        // Распухший: вздутое тело, почти круглое
+        ctx.beginPath(); ctx.ellipse(g.x, g.y + r * 0.1, r * 0.9, r * 0.9, 0, 0, Math.PI * 2); ctx.fill();
+        // Верхняя часть
+        ctx.beginPath(); ctx.ellipse(g.x, g.y - r * 0.5, r * 0.6, r * 0.6, 0, 0, Math.PI * 2); ctx.fill();
+        // Пузырьки/вздутость
+        ctx.fillStyle = '#aacc33';
+        ctx.shadowColor = '#88aa22';
+        ctx.shadowBlur = 4 * scale;
+        ctx.beginPath(); ctx.arc(g.x + r * 0.3, g.y, r * 0.25, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(g.x - r * 0.3, g.y + r * 0.2, r * 0.2, 0, Math.PI * 2); ctx.fill();
+      } else if (isBull) {
         // Бык: массивное тело (более крупное и круглое)
         ctx.beginPath(); ctx.ellipse(g.x, g.y, r * 0.9, r * 0.85, 0, 0, Math.PI * 2); ctx.fill();
         // Дополнительное плечевое бронирование
@@ -3599,7 +3925,13 @@
 
       // Legs (8 legs, 4 per side) — angles relative to horizontal, spread outward
       ctx.shadowBlur = 0;
-      if (isBull) {
+      if (isCocoon) {
+        // Кокон не имеет ног
+        return;
+      } else if (isBloated) {
+        ctx.strokeStyle = '#88aa22';
+        ctx.lineWidth = Math.max(1, r * 0.15);
+      } else if (isBull) {
         ctx.strokeStyle = '#8b0000';
         ctx.lineWidth = Math.max(2, r * 0.25);
       } else if (isBuldyga) {
@@ -3671,6 +4003,8 @@
       if (isBull) maxHp = CONFIG.BULL_HP;
       else if (isBuldyga) maxHp = CONFIG.BULDYGA_HP;
       else if (isPlevaka) maxHp = CONFIG.SHOOTER_HP;
+      else if (isCocoon) maxHp = CONFIG.COCOON_HP;
+      else if (isBloated) maxHp = CONFIG.BLOATED_HP;
       else maxHp = CONFIG.SPIDER_HP;
       if (g.hp !== undefined && g.hp < maxHp) {
         const hpFrac = Math.max(0, g.hp / maxHp);
@@ -3683,6 +4017,10 @@
           ctx.fillStyle = hpFrac > 0.5 ? '#9932cc' : '#dda0dd';
         } else if (isPlevaka) {
           ctx.fillStyle = hpFrac > 0.5 ? '#ff8800' : '#ff4400';
+        } else if (isCocoon) {
+          ctx.fillStyle = hpFrac > 0.5 ? '#aaaaaa' : '#666666';
+        } else if (isBloated) {
+          ctx.fillStyle = hpFrac > 0.5 ? '#aacc33' : '#88aa22';
         } else {
           ctx.fillStyle = hpFrac > 0.5 ? '#44cc22' : '#88ff44';
         }
@@ -3994,6 +4332,30 @@
       }
       ctx.globalAlpha = 1;
 
+      // Оружие в открытых клетках
+      for (const dw of s.droppedWeapons) {
+        const wc = cellOf(dw.x, dw.y);
+        if (!s.openCells.has(cellKey(wc.x, wc.y))) continue;
+        const wDef = WEAPON_DEFS[dw.weaponId];
+        if (!wDef) continue;
+        const pulse = 0.7 + 0.3 * Math.sin(Date.now() * 0.007);
+        ctx.globalAlpha = fadeAlpha * pulse;
+        ctx.fillStyle = wDef.color;
+        ctx.shadowColor = wDef.color;
+        ctx.shadowBlur = 12;
+        ctx.font = 'bold 18px "Share Tech Mono"';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('🔫', dw.x, dw.y - 8);
+        ctx.font = 'bold 9px "Share Tech Mono"';
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = fadeAlpha * 0.9;
+        ctx.fillText(wDef.label, dw.x, dw.y + 8);
+        ctx.shadowBlur = 0;
+      }
+      ctx.globalAlpha = 1;
+
       // Пауки в закрытых клетках (fade-out, кроме pendingCellKey)
       for (const g of s.spiders) {
         if (!g.trapped) continue;
@@ -4010,6 +4372,9 @@
       const p = s.player;
       const HERO_DRAW_SCALE = (CONFIG.PLAYER_SPRITE_RADIUS * 2) / HERO_SW;
       drawPlayerSprite(p.x, p.y, HERO_DRAW_SCALE);
+
+      // Летящее сердечко (в мировых координатах зума)
+      drawFlyingHeartInWorld();
 
       ctx.restore();
 
@@ -4151,6 +4516,47 @@
       paused = false;
       pauseSliderDragging = false;
       lastTime = performance.now();
+    }
+
+    // Открывает клетку после того как сердечко долетело (запускает zoom или сохраняет)
+    function doOpenCellAfterHeart(openKey, openCX, openCY) {
+      const content = state.cellContents.get(openKey);
+      const hasContent = content && (content.type === 'heart' || content.type === 'key' || content.type === 'upgrade' ||
+                         (content.enemyCount && content.enemyCount > 0 && !content.enemiesReleased));
+      if (hasContent) {
+        const allOpenCells = new Set([...state.openCells]);
+        allOpenCells.add(openKey);
+        const playerCell2 = cellOf(state.player.x, state.player.y);
+        const playerKey2 = cellKey(playerCell2.x, playerCell2.y);
+        const futureCells = getConnectedCells(allOpenCells, playerKey2);
+        const { minX: fMinX, minY: fMinY, maxX: fMaxX, maxY: fMaxY } = getCellBounds(futureCells);
+        const fCols = fMaxX - fMinX + 1;
+        const fRows = fMaxY - fMinY + 1;
+        const battleWallPad = BATTLE_CELL_PX * 0.125;
+        const battleW = fCols * BATTLE_CELL_PX + battleWallPad * 2;
+        const battleH = fRows * BATTLE_CELL_PX + battleWallPad * 2;
+        const staticScale = Math.min(VIEW_W / battleW, VIEW_H / battleH, 1);
+        const toScale = staticScale * BATTLE_SCALE;
+        const fCenterX = (fMinX + fCols / 2) * CP;
+        const fCenterY = (fMinY + fRows / 2) * CP;
+        const fromCenterX = camera.x + VIEW_W / 2;
+        const fromCenterY = camera.y + VIEW_H / 2;
+
+        zoomTransition = {
+          fromCenterX, fromCenterY,
+          toCenterX: fCenterX, toCenterY: fCenterY,
+          fromScale: 1,
+          toCamX: fCenterX - VIEW_W / (2 * toScale),
+          toCamY: fCenterY - VIEW_H / (2 * toScale),
+          toScale,
+          t: 0,
+          pendingCellKey: openKey,
+          frozenAngle: Math.atan2(state.mouse.y - state.player.y, state.mouse.x - state.player.x),
+        };
+        state.phase = 'zoom_transition';
+      } else {
+        saveGame();
+      }
     }
 
     // ============================================================
@@ -4402,6 +4808,7 @@
       if (currentLevel === 2) {
         playerProgress.maxSlots = 2;
       }
+      flyingHeart = null;
       state = initState(currentLevel);
       saveGame();
     }
@@ -4435,6 +4842,7 @@
         activeSlot: 0,
         maxSlots: 1,
       };
+      flyingHeart = null;
       state = initState(currentLevel);
       draw(state);
       Sounds.ambienceStart();
@@ -4477,6 +4885,7 @@
             playerProgress.activeSlot = 0;
             state.shootCooldown = 0;
             weaponChanged = true;
+            Sounds.weaponcollect();
           }
         } else if (e.key === '2') {
           if (state.maxSlots >= 2 && state.weaponSlots[1]) {
@@ -4484,6 +4893,7 @@
             playerProgress.activeSlot = 1;
             state.shootCooldown = 0;
             weaponChanged = true;
+            Sounds.weaponcollect();
           }
         } else if (e.key === 'q' || e.key === 'Q' || e.key === 'й' || e.key === 'Й') {
           // Q — чередование между слотами
@@ -4493,12 +4903,14 @@
             playerProgress.activeSlot = nextSlot;
             state.shootCooldown = 0;
             weaponChanged = true;
+            Sounds.weaponcollect();
           } else if (state.weaponSlots[state.activeSlot === 0 ? 0 : 1]) {
             // Если следующий слот пуст, возвращаемся к первому если он есть
             state.activeSlot = 0;
             playerProgress.activeSlot = 0;
             state.shootCooldown = 0;
             weaponChanged = true;
+            Sounds.weaponcollect();
           }
         } else if (e.key === 'f' || e.key === 'F' || e.key === 'а' || e.key === 'А') {
           // Сначала пытаемся подобрать оружие рядом
@@ -4547,20 +4959,6 @@
             if (state.player.x > ex0 && state.player.x < ex1 && state.player.y > ey0 && state.player.y < ey1) {
               state.phase = 'level_complete';
               return;
-            }
-          }
-
-          // Если ничего не подобрали — переключаем слот
-          if (!pickedUp) {
-            for (let i = 1; i <= state.maxSlots; i++) {
-              const next = (state.activeSlot + i) % state.maxSlots;
-              if (state.weaponSlots[next]) {
-                state.activeSlot = next;
-                playerProgress.activeSlot = next;
-                state.shootCooldown = 0;
-                weaponChanged = true;
-                break;
-              }
             }
           }
         }
@@ -4634,10 +5032,17 @@
           const isAdjToPlayer = Math.abs(cx - playerC.x) + Math.abs(cy - playerC.y) === 1;
           if (!isAdjToPlayer) return;
 
+          // Блокируем если уже летит сердечко
+          if (flyingHeart) return;
+
           // Проверяем хватает ли жизней
           if (state.player.lives < 1) return;
 
-          // Если 1 жизнь — автозакрываем клетку (сначала отсоединённые, потом дальние по пути)
+          // Центр открываемой клетки (цель сердечка)
+          const targetCellCX = (cx + 0.5) * CP;
+          const targetCellCY = (cy + 0.5) * CP;
+
+          // Если 1 жизнь — автозакрываем клетку сначала, потом сердце летит из закрытой в открываемую
           if (state.player.lives === 1) {
             const playerCell = cellOf(state.player.x, state.player.y);
             const playerKey = cellKey(playerCell.x, playerCell.y);
@@ -4649,7 +5054,6 @@
             const candidates = [];
             for (const openKey of state.openCells) {
               if (openKey === playerKey) continue;
-              const { x: ox, y: oy } = cellFromKey(openKey);
               // Нельзя закрыть с несобранным ключом
               if (state.keyObjs.some(key => !key.collected && key.cellKey === openKey)) continue;
               // Нельзя закрыть с несобранным сердцем
@@ -4660,35 +5064,34 @@
             let cellToClose = null;
 
             // Шаг 1: Ищем отсоединённые клетки (не в connected)
-            const isolated = candidates.filter(k => !connected.has(k));
+            const isolated = candidates.filter(ck => !connected.has(ck));
             if (isolated.length > 0) {
-              // Закрываем любую отсоединённую (первая найденная)
               cellToClose = isolated[0];
             } else {
               // Шаг 2: Находим самую дальнюю по пути (BFS distance)
               const distances = new Map();
-              const queue = [[playerKey, 0]];
+              const bfsQueue = [[playerKey, 0]];
               distances.set(playerKey, 0);
 
-              while (queue.length) {
-                const [k, d] = queue.shift();
-                const { x, y } = cellFromKey(k);
+              while (bfsQueue.length) {
+                const [bk, d] = bfsQueue.shift();
+                const { x: bx2, y: by2 } = cellFromKey(bk);
                 for (const [dx, dy] of CARDINAL_DIRECTIONS) {
-                  const nk = cellKey(x + dx, y + dy);
+                  const nk = cellKey(bx2 + dx, by2 + dy);
                   if (state.openCells.has(nk) && !distances.has(nk)) {
                     distances.set(nk, d + 1);
-                    queue.push([nk, d + 1]);
+                    bfsQueue.push([nk, d + 1]);
                   }
                 }
               }
 
               let maxDist = -1;
-              for (const k of candidates) {
-                if (connected.has(k) && distances.has(k)) {
-                  const d = distances.get(k);
+              for (const ck of candidates) {
+                if (connected.has(ck) && distances.has(ck)) {
+                  const d = distances.get(ck);
                   if (d > maxDist) {
                     maxDist = d;
-                    cellToClose = k;
+                    cellToClose = ck;
                   }
                 }
               }
@@ -4697,72 +5100,60 @@
             // Если не нашли клетку для закрытия — отменяем
             if (!cellToClose) return;
 
-            // Закрываем клетку
+            // Закрываем клетку сразу
             state.openCells.delete(cellToClose);
             // Возвращаем жизнь за закрытие
             state.player.lives++;
+
+            // Сердце летит из центра закрытой клетки в центр открываемой клетки
+            const { x: ccx, y: ccy } = cellFromKey(cellToClose);
+            const fromX = (ccx + 0.5) * CP;
+            const fromY = (ccy + 0.5) * CP;
+            const openKey = k;
+            const openCX = cx, openCY = cy;
+
+            launchFlyingHeart(fromX, fromY, targetCellCX, targetCellCY, () => {
+              // Тратим жизнь
+              state.player.lives--;
+
+              // Открываем
+              state.openCells.add(openKey);
+              state.everRevealedCells.add(openKey);
+              state.everOpenedCells.add(openKey);
+              revealAdjacentCells(state.everRevealedCells, openCX, openCY, state.disabledCells, state.permanentlyClosed);
+
+              // Запускаем zoom transition или сохраняем
+              doOpenCellAfterHeart(openKey, openCX, openCY);
+            });
+            return;
           }
 
-          // Тратим жизнь на открытие
+          // Обычный случай (жизней > 1): сердце летит от игрока к клетке
+          const fromX = state.player.x;
+          const fromY = state.player.y;
+          const openKey = k;
+          const openCX = cx, openCY = cy;
+
+          // Тратим жизнь сразу (чтобы HUD обновился)
           state.player.lives--;
 
-          // Открываем
-          state.openCells.add(k);
-          state.everRevealedCells.add(k);
-          state.everOpenedCells.add(k);
-          // Добавляем смежные с новой клеткой в everRevealedCells
-          revealAdjacentCells(state.everRevealedCells, cx, cy, state.disabledCells, state.permanentlyClosed);
+          launchFlyingHeart(fromX, fromY, targetCellCX, targetCellCY, () => {
+            // Открываем когда долетело
+            state.openCells.add(openKey);
+            state.everRevealedCells.add(openKey);
+            state.everOpenedCells.add(openKey);
+            revealAdjacentCells(state.everRevealedCells, openCX, openCY, state.disabledCells, state.permanentlyClosed);
 
-          // Проверяем содержимое - если не пустая, переходим в battle mode через зум
-          const content = state.cellContents.get(k);
-          const hasContent = content && (content.type === 'heart' || content.type === 'key' || content.type === 'upgrade' ||
-                             (content.enemyCount && content.enemyCount > 0 && !content.enemiesReleased));
-          if (hasContent) {
-            // Вычисляем целевую камеру зума: совпадает с battle камерой
-            // Используем только клетки, связанные с позицией игрока (как в enterBattleMode)
-            const allOpenCells = new Set([...state.openCells]);
-            allOpenCells.add(k);
-            const playerCell = cellOf(state.player.x, state.player.y);
-            const playerKey = cellKey(playerCell.x, playerCell.y);
-            const futureCells = getConnectedCells(allOpenCells, playerKey);
-            const { minX: fMinX, minY: fMinY, maxX: fMaxX, maxY: fMaxY } = getCellBounds(futureCells);
-            const fCols = fMaxX - fMinX + 1;
-            const fRows = fMaxY - fMinY + 1;
-            const fW = fCols * CP;
-            const fH = fRows * CP;
-            // Масштаб как в battle: staticScale = min(VIEW_W / battleWidth, VIEW_H / battleHeight, 1)
-            // В play-координатах: zoomScale = staticScale * BATTLE_SCALE
-            const battleWallPad = BATTLE_CELL_PX * 0.125;
-            const battleW = fCols * BATTLE_CELL_PX + battleWallPad * 2;
-            const battleH = fRows * BATTLE_CELL_PX + battleWallPad * 2;
-            const staticScale = Math.min(VIEW_W / battleW, VIEW_H / battleH, 1);
-            const toScale = staticScale * BATTLE_SCALE;
-            const fCenterX = (fMinX + fCols / 2) * CP;
-            const fCenterY = (fMinY + fRows / 2) * CP;
-            const fromCenterX = camera.x + VIEW_W / 2;
-            const fromCenterY = camera.y + VIEW_H / 2;
-
-            zoomTransition = {
-              fromCenterX, fromCenterY,
-              toCenterX: fCenterX, toCenterY: fCenterY,
-              fromScale: 1,
-              toCamX: fCenterX - VIEW_W / (2 * toScale),
-              toCamY: fCenterY - VIEW_H / (2 * toScale),
-              toScale,
-              t: 0,
-              pendingCellKey: k,
-              frozenAngle: Math.atan2(state.mouse.y - state.player.y, state.mouse.x - state.player.x),
-            };
-            state.phase = 'zoom_transition';
-          } else {
-            // Пустая клетка — сразу сохраняем
-            saveGame();
-          }
+            doOpenCellAfterHeart(openKey, openCX, openCY);
+          });
 
         } else if (state.openCells.has(k)) {
-          // ЗАКРЫТЬ клетку навсегда
+          // ЗАКРЫТЬ клетку
           const playerCell = cellOf(state.player.x, state.player.y);
           if (k === cellKey(playerCell.x, playerCell.y)) return; // Нельзя закрыть клетку с игроком
+
+          // Блокируем если уже летит сердечко
+          if (flyingHeart) return;
 
           // Нельзя закрыть клетку с несобранным ключом
           const hasUncollectedKey = state.keyObjs.some(key => !key.collected && key.cellKey === k);
@@ -4778,18 +5169,24 @@
           const playerKey = cellKey(playerCell.x, playerCell.y);
           if (openWithoutThis.has(playerKey)) {
             const remainingConnected = getConnectedCells(openWithoutThis, playerKey);
-            if (remainingConnected.size !== openWithoutThis.size) return; // Есть отсоединённые клетки
+            if (remainingConnected.size !== openWithoutThis.size) return;
           }
 
-          // Возвращаем жизнь
+          // Возвращаем жизнь сразу
           state.player.lives++;
 
-          // Закрываем
+          // Закрываем сразу
           state.openCells.delete(k);
           if (CONFIG.BLOCK_CELLS_FOREVER) {
             state.permanentlyClosed.add(k);
           }
-          saveGame();
+
+          // Сердце летит из центра закрытой клетки к игроку (с преследованием)
+          const closedCX = (cx + 0.5) * CP;
+          const closedCY = (cy + 0.5) * CP;
+          launchFlyingHeart(closedCX, closedCY, state.player.x, state.player.y, () => {
+            saveGame();
+          }, () => ({ x: state.player.x, y: state.player.y }));
         }
       }
     });
