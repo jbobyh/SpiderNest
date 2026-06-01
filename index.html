@@ -69,8 +69,9 @@
       },
       keycollect:     function() { Sounds.play('keycollect.wav'); },
       heartcollect:   function() { Sounds.play('heartcollect.wav'); },
-      hit:            function() { Sounds.play('hit.wav'); },
+      hit:            function() { Sounds.play('hit' + (Math.floor(Math.random() * 5) + 1) + '.wav'); },
       upgradecollect: function() { Sounds.play('upgradecollect.wav'); },
+      shot:           function() { Sounds.play('shot1.wav'); },
     };
 
     // ============================================================
@@ -1711,6 +1712,7 @@
 
       const killAccelMult = s.upgrades.killAccel ? Math.max(0.1, 1 - s.upgrades.killAccelPercent / 100) : 1.0;
       const cooldown = weapon.cooldown * s.upgrades.cooldownMult * killAccelMult;
+      Sounds.shot();
 
       const dx = s.mouse.x - s.player.x;
       const dy = s.mouse.y - s.player.y;
@@ -2402,6 +2404,7 @@
       const b = s.battle;
       const killAccelMult = s.upgrades.killAccel ? Math.max(0.1, 1 - s.upgrades.killAccelPercent / 100) : 1.0;
       const cooldown = weapon.cooldown * s.upgrades.cooldownMult * killAccelMult;
+      Sounds.shot();
 
       const dx = s.mouse.x - b.player.x;
       const dy = s.mouse.y - b.player.y;
