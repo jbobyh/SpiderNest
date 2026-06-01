@@ -12,7 +12,6 @@ const CONFIG = {
 
   // Player
   INITIAL_LIVES: 3,       // начальное кол-во жизней
-  HEARTS_COUNT: 5,        // максимум сердец в HUD
   LIVES_PER_HEART: 1,     // жизней на одно сердце
   PLAYER_SPEED: 70,      // скорость игрока (пикс/сек)
   PLAYER_RADIUS: 3,       // радиус коллизии игрока
@@ -84,9 +83,9 @@ const CONFIG = {
   SHOOTER_SPEED: 30,          // скорость плеваки (пикс/сек)
   SHOOTER_RADIUS: 5,          // радиус коллизии плеваки
   SHOOTER_BULLET_SPEED: 75,  // скорость пули плеваки
-  SHOOTER_SHOOT_RANGE: 10,         // заполняется после CP
+  SHOOTER_SHOOT_RANGE_CELLS: 1.0, // дальность стрельбы плеваки (в клетках)
   SHOOTER_SHOOT_CD: 1.5,     // кулдаун выстрела плеваки (сек)
-  SHOOTER_STOP_DIST: 5,           // заполняется после CP
+  SHOOTER_STOP_DIST_CELLS: 0.9,   // дистанция остановки плеваки (в клетках)
   // Spawn chances by level
   // Level 1: only soldier/shooter
   SHOOTER_CHANCE: 0.30,           // шанс что враг будет плевакой (остальное - солдат)
@@ -104,10 +103,10 @@ const CONFIG = {
   BULL_SPEED: 45,         // скорость быка (пикс/сек)
   BULL_RADIUS: 4,         // радиус коллизии быка
   BULL_PREPARE_TIME: 1,         // время подготовки рывка (сек)
-  BULL_DASH_DISTANCE: 0.2,          // заполняется после CP (2 клетки)
+  BULL_DASH_DISTANCE_CELLS: 2.0,  // дистанция рывка быка (в клетках)
   BULL_REST_TIME: 3.0,            // время отдыха после рывка (сек)
-  BULL_CHARGE_DIST: 2,            // заполняется после CP (1.5 клетки)
-  BULL_ATTACK_DIST: 2,            // заполняется после CP (1.6 клетки)
+  BULL_CHARGE_DIST_CELLS: 1.5,    // дистанция начала атаки быка (в клетках)
+  BULL_ATTACK_DIST_CELLS: 1.6,    // дистанция удара быка (в клетках)
 
   // Buldyga
   BULDYGA_HP: 7,        // здоровье булдыги
@@ -174,6 +173,8 @@ const LEVEL_CONFIG = {
 // Количество оружия и апгрейдов на каждом уровне
 const LEVEL_WEAPON_COUNTS  = { 1: 1, 2: 2, 3: 2 };
 const LEVEL_UPGRADE_COUNTS = { 1: 4, 2: 10, 3: 16 };
+// Количество проклятых сундуков на каждом уровне
+const LEVEL_CHEST_COUNTS   = { 1: 1, 2: 2, 3: 3 };
 
 // ============================================================
 // WEAPON DEFINITIONS
@@ -284,6 +285,33 @@ const UPGRADE_TYPES = [
   { id: 'cooldown',      label: 'Перезарядка -15%',        description: 'Уменьшает время между выстрелами на 15%',                    color: '#00ccff', max: 3 },
   { id: 'speed',         label: 'Скорость бега +10%',      description: 'Увеличивает скорость передвижения на 10%',                    color: '#44ff88', max: 3 },
   // { id: 'spread', label: 'Разброс +10%', color: '#ff66aa', max: 2 },
+];
+
+// ============================================================
+// CURSED UPGRADE TYPES (проклятые апгрейды — отдельный список)
+// ============================================================
+const CURSED_UPGRADE_TYPES = [
+  {
+    id: 'infinitePenetrate',
+    label: 'Бесконечное пробитие',
+    description: 'Пули пробивают всех врагов насквозь, но -20% скорости перезарядки',
+    color: '#cc44ff',
+    max: 1,
+  },
+  {
+    id: 'infiniteRange',
+    label: 'Бесконечная дальность',
+    description: 'Пули летят бесконечно, но -30% скорости передвижения',
+    color: '#ff6622',
+    max: 1,
+  },
+  {
+    id: 'ricochet',
+    label: 'Рикошет',
+    description: 'Пули отскакивают от стен, +50% к дальности',
+    color: '#22ffdd',
+    max: 1,
+  },
 ];
 
 // ============================================================

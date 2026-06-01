@@ -122,11 +122,11 @@
     const ctx = C.getContext('2d');
     const G = CONFIG.GRID_SIZE;
     const CP = CONFIG.CELL_PX;
-    CONFIG.SHOOTER_SHOOT_RANGE = CP * 1.0;
-    CONFIG.SHOOTER_STOP_DIST = CP * 0.9;
-    CONFIG.BULL_DASH_DISTANCE = CP * 2.0;
-    CONFIG.BULL_CHARGE_DIST = CP * 1.5;
-    CONFIG.BULL_ATTACK_DIST = CP * 1.6;
+    const SHOOTER_SHOOT_RANGE = CONFIG.SHOOTER_SHOOT_RANGE_CELLS * CP;
+    const SHOOTER_STOP_DIST   = CONFIG.SHOOTER_STOP_DIST_CELLS   * CP;
+    const BULL_DASH_DISTANCE  = CONFIG.BULL_DASH_DISTANCE_CELLS  * CP;
+    const BULL_CHARGE_DIST    = CONFIG.BULL_CHARGE_DIST_CELLS    * CP;
+    const BULL_ATTACK_DIST    = CONFIG.BULL_ATTACK_DIST_CELLS    * CP;
     const VIEW_W = CONFIG.VIEW_W;
     const VIEW_H = CONFIG.VIEW_H;
     let canvasScale = 1; // CSS px -> canvas px multiplier (changes in fullscreen)
@@ -287,6 +287,9 @@
         shield: 0,
         retreat: 0,
         reflection: false,
+        infinitePenetrate: false,
+        infiniteRange: false,
+        ricochet: false,
       },
       spawnedUpgrades: {}, // сколько раз каждый апгрейд заспавнился за всю игру
       spawnedWeapons: [], // какие оружия уже заспавнились за всю игру
@@ -300,6 +303,7 @@
     let mouseScreen = { x: 0, y: 0 }; // экранные координаты курсора (пикселей канваса)
     let paused = false;
     let pauseSliderDragging = false;
+    let cursedChoiceState = null; // { offers: [{id,label,description,color}], chest }
     Sounds._volume = CONFIG.DEFAULT_VOLUME;
 
     // Состояние зум-перехода перед battle
@@ -521,6 +525,18 @@
         upgradeObjs.push({ x: (cell.x + 0.5) * CP, y: (cell.y + 0.5) * CP, cellKey: cell.k, upgradeType: upgId, collected: false });
       }
 
+      // Расставляем проклятые сундуки
+      const chestObjs = [];
+      const chestCount = Math.min(LEVEL_CHEST_COUNTS[level] || 1, availableCells.length);
+      for (let i = 0; i < chestCount; i++) {
+        const cell = availableCells.shift();
+        if (!cell) break;
+        const dist = Math.max(Math.abs(cell.x - cx), Math.abs(cell.y - cy));
+        const enemyCount = (2 + Math.floor(Math.random() * 4)) * Math.max(1, dist) * levelMultiplier;
+        cellContents.set(cell.k, { type: 'chest', enemyCount, enemiesReleased: false });
+        chestObjs.push({ x: (cell.x + 0.5) * CP, y: (cell.y + 0.5) * CP, cellKey: cell.k, collected: false });
+      }
+
       // Расставляем врагов в оставшиеся клетки
       while (availableCells.length > 0) {
         const cell = availableCells.shift();
@@ -650,6 +666,7 @@
         keyObjs: keyObjs,
         keysCollected: 0,
         upgradeObjs: upgradeObjs,
+        chestObjs: chestObjs,
         revealedExit: false,
 
         upgrades: { ...playerProgress.upgrades },
@@ -1154,6 +1171,22 @@
         }
       }
 
+      // Проклятые сундуки в battle
+      const battleChests = [];
+      for (const chest of (s.chestObjs || [])) {
+        if (chest.collected) continue;
+        const cc = cellOf(chest.x, chest.y);
+        const ck = cellKey(cc.x, cc.y);
+        if (battleCells.has(ck)) {
+          battleChests.push({
+            x: (cc.x - cellOffsetX) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
+            y: (cc.y - cellOffsetY) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
+            originalCellKey: ck,
+            collected: false,
+          });
+        }
+      }
+
       // Оружие на полу в battle
       const battleWeapons = [];
       for (const dw of s.droppedWeapons) {
@@ -1244,6 +1277,7 @@
         hearts: battleHearts,
         keys: battleKeys,
         upgrades: battleUpgrades,
+        chests: battleChests,
         weapons: battleWeapons,
         spiders: battleSpiders,
         activeSpiders: battleActiveSpiders,
@@ -1313,6 +1347,16 @@
             upg.collected = true;
             s.cellContents.delete(bu.originalCellKey);
             applyUpgrade(s, bu.upgradeType, false);
+          }
+        }
+      }
+
+      for (const bc of (b.chests || [])) {
+        if (bc.collected) {
+          const chest = (s.chestObjs || []).find(c => c.cellKey === bc.originalCellKey);
+          if (chest && !chest.collected) {
+            chest.collected = true;
+            s.cellContents.delete(bc.originalCellKey);
           }
         }
       }
@@ -1464,8 +1508,25 @@
           s.upgrades.reflection = true;
           playerProgress.upgrades.reflection = true;
           break;
+        case 'infinitePenetrate':
+          s.upgrades.infinitePenetrate = true;
+          playerProgress.upgrades.infinitePenetrate = true;
+          s.upgrades.cooldownMult *= 1.20;
+          playerProgress.upgrades.cooldownMult = s.upgrades.cooldownMult;
+          break;
+        case 'infiniteRange':
+          s.upgrades.infiniteRange = true;
+          playerProgress.upgrades.infiniteRange = true;
+          s.upgrades.speedMult *= 0.70;
+          playerProgress.upgrades.speedMult = s.upgrades.speedMult;
+          break;
+        case 'ricochet':
+          s.upgrades.ricochet = true;
+          playerProgress.upgrades.ricochet = true;
+          break;
       }
-      if (upg && showPopup) showUpgradePopup(upg.label, upg.color);
+      const upgDef = UPGRADE_TYPES.find(u => u.id === type) || CURSED_UPGRADE_TYPES.find(u => u.id === type);
+      if (upgDef && showPopup) showUpgradePopup(upgDef.label, upgDef.color);
     }
 
     function showUpgradePopup(text, color) {
@@ -1539,12 +1600,15 @@
           x: playerX, y: playerY,
           vx: Math.cos(angle) * bulletSpeed,
           vy: Math.sin(angle) * bulletSpeed,
-          life: (weapon.range != null ? weapon.range * RANGE_SCALE * scale : CONFIG.BULLET_LIFE * weapon.bulletSpeed) / bulletSpeed,
+          life: s.upgrades.infiniteRange
+            ? 999999
+            : (weapon.range != null ? weapon.range * RANGE_SCALE * scale : CONFIG.BULLET_LIFE * weapon.bulletSpeed) / bulletSpeed * (s.upgrades.ricochet ? 1.5 : 1),
           damage: damage,
-          penetrate: weapon.penetrate + s.upgrades.penetrate,
+          penetrate: s.upgrades.infinitePenetrate ? Infinity : weapon.penetrate + s.upgrades.penetrate,
           hitCount: 0,
           isCrit: false,
           enhancedPierceActive: false,
+          ricochet: s.upgrades.ricochet ? true : false,
         });
       }
     }
@@ -1562,16 +1626,20 @@
       let damage = weapon.damage + s.upgrades.damage;
       if (isCrit) damage *= 2;
       screenShake = { amount: weapon.shakeAmount || CONFIG.SHAKE_AMOUNT, angle: baseAngle };
+      const bulletLife = s.upgrades.infiniteRange
+        ? 999999
+        : (weapon.range != null ? weapon.range * RANGE_SCALE : CONFIG.BULLET_LIFE * weapon.bulletSpeed) / bulletSpeed * (s.upgrades.ricochet ? 1.5 : 1);
       s.bullets.push({
         x: s.player.x, y: s.player.y,
         vx: Math.cos(baseAngle) * bulletSpeed,
         vy: Math.sin(baseAngle) * bulletSpeed,
-        life: (weapon.range != null ? weapon.range * RANGE_SCALE : CONFIG.BULLET_LIFE * weapon.bulletSpeed) / bulletSpeed,
+        life: bulletLife,
         damage: damage,
-        penetrate: weapon.penetrate + s.upgrades.penetrate,
+        penetrate: s.upgrades.infinitePenetrate ? Infinity : weapon.penetrate + s.upgrades.penetrate,
         hitCount: 0,
         isCrit: isCrit,
         enhancedPierceActive: false,
+        ricochet: s.upgrades.ricochet ? true : false,
       });
     }
 
@@ -1794,6 +1862,20 @@
         }
       }
 
+      // Сбор проклятых сундуков в battle
+      for (const bc of (b.chests || [])) {
+        if (!bc.collected) {
+          const dist = Math.hypot(b.player.x - bc.x, b.player.y - bc.y);
+          if (dist < CONFIG.PLAYER_RADIUS * BATTLE_SCALE + CONFIG.PICKUP_DISTANCE * BATTLE_SCALE) {
+            const chestRef = (s.chestObjs || []).find(c => c.cellKey === bc.originalCellKey);
+            if (chestRef) {
+              openCursedChoice(s, chestRef);
+              bc.collected = true;
+            }
+            break;
+          }
+        }
+      }
 
       // Синхронизируем собранные предметы с основным состоянием
       syncBattleCollectibles(s);
@@ -1814,39 +1896,93 @@
         bullet.life -= dt;
 
         // Проверка границ battle
-        if (bullet.x < 0 || bullet.x > b.width || bullet.y < 0 || bullet.y > b.height || bullet.life <= 0) {
-          if (bullet.life <= 0) {
-            Sounds.wallhit();
-            for (let k = 0; k < CONFIG.WALL_HIT_PARTICLES_COUNT; k++) {
-              const a = Math.random() * Math.PI * 2;
-              b.particles.push({
-                x: bullet.x, y: bullet.y,
-                vx: Math.cos(a) * CONFIG.WALL_HIT_PARTICLES_SPEED * BATTLE_SCALE,
-                vy: Math.sin(a) * CONFIG.WALL_HIT_PARTICLES_SPEED * BATTLE_SCALE,
-                life: CONFIG.WALL_HIT_PARTICLES_LIFE, maxLife: CONFIG.WALL_HIT_PARTICLES_LIFE, color: '#88aaff',
-              });
-            }
+        if (bullet.life <= 0) {
+          Sounds.wallhit();
+          for (let k = 0; k < CONFIG.WALL_HIT_PARTICLES_COUNT; k++) {
+            const a = Math.random() * Math.PI * 2;
+            b.particles.push({
+              x: bullet.x, y: bullet.y,
+              vx: Math.cos(a) * CONFIG.WALL_HIT_PARTICLES_SPEED * BATTLE_SCALE,
+              vy: Math.sin(a) * CONFIG.WALL_HIT_PARTICLES_SPEED * BATTLE_SCALE,
+              life: CONFIG.WALL_HIT_PARTICLES_LIFE, maxLife: CONFIG.WALL_HIT_PARTICLES_LIFE, color: '#88aaff',
+            });
           }
           b.bullets.splice(i, 1);
           continue;
+        }
+        const outOfBounds = bullet.x < 0 || bullet.x > b.width || bullet.y < 0 || bullet.y > b.height;
+        let bouncedThisFrame = false;
+        if (outOfBounds) {
+          if (bullet.ricochet && !bullet._ricocheted) {
+            bullet._ricocheted = true;
+            bouncedThisFrame = true;
+            if (bullet.x < 0 || bullet.x > b.width) {
+              bullet.vx = -bullet.vx;
+              bullet.x = bullet.x < 0 ? 0.1 : b.width - 0.1;
+            }
+            if (bullet.y < 0 || bullet.y > b.height) {
+              bullet.vy = -bullet.vy;
+              bullet.y = bullet.y < 0 ? 0.1 : b.height - 0.1;
+            }
+            bullet.hitSpiders = undefined;
+            Sounds.wallhit();
+            for (let k = 0; k < 5; k++) {
+              const a = Math.random() * Math.PI * 2;
+              b.particles.push({
+                x: bullet.x, y: bullet.y,
+                vx: Math.cos(a) * 40 * BATTLE_SCALE, vy: Math.sin(a) * 40 * BATTLE_SCALE,
+                life: 0.3, maxLife: 0.3, color: '#22ffdd',
+              });
+            }
+          } else {
+            b.bullets.splice(i, 1);
+            continue;
+          }
         }
 
         // Проверка столкновения со стенами (вне открытых клеток)
         const bulletCellX = Math.floor(bullet.x / BATTLE_CELL_PX) + b.cellOffsetX;
         const bulletCellY = Math.floor(bullet.y / BATTLE_CELL_PX) + b.cellOffsetY;
-        if (!b.openCells.has(cellKey(bulletCellX, bulletCellY))) {
-          // Пуля в стене - уничтожаем
-          Sounds.wallhit();
-          for (let k = 0; k < 5; k++) {
-            const a = Math.random() * Math.PI * 2;
-            b.particles.push({
-              x: bullet.x, y: bullet.y,
-              vx: Math.cos(a) * 40 * BATTLE_SCALE, vy: Math.sin(a) * 40 * BATTLE_SCALE,
-              life: 0.3, maxLife: 0.3, color: '#888888',
-            });
+        if (!bouncedThisFrame && !b.openCells.has(cellKey(bulletCellX, bulletCellY))) {
+          if (bullet.ricochet && !bullet._ricocheted) {
+            bullet._ricocheted = true;
+            const prevX = bullet.x - bullet.vx * dt;
+            const prevY = bullet.y - bullet.vy * dt;
+            const prevCellXx = Math.floor(bullet.x / BATTLE_CELL_PX) + b.cellOffsetX;
+            const prevCellXy = Math.floor(prevY / BATTLE_CELL_PX) + b.cellOffsetY;
+            const prevCellYx = Math.floor(prevX / BATTLE_CELL_PX) + b.cellOffsetX;
+            const prevCellYy = Math.floor(bullet.y / BATTLE_CELL_PX) + b.cellOffsetY;
+            const xOk = b.openCells.has(cellKey(prevCellXx, prevCellXy));
+            const yOk = b.openCells.has(cellKey(prevCellYx, prevCellYy));
+            if (xOk) { bullet.vy = -bullet.vy; bullet.y = prevY; }
+            else if (yOk) { bullet.vx = -bullet.vx; bullet.x = prevX; }
+            else { bullet.vx = -bullet.vx; bullet.vy = -bullet.vy; bullet.x = prevX; bullet.y = prevY; }
+            bullet.hitSpiders = undefined;
+            Sounds.wallhit();
+            for (let k = 0; k < 5; k++) {
+              const a = Math.random() * Math.PI * 2;
+              b.particles.push({
+                x: bullet.x, y: bullet.y,
+                vx: Math.cos(a) * 40 * BATTLE_SCALE, vy: Math.sin(a) * 40 * BATTLE_SCALE,
+                life: 0.3, maxLife: 0.3, color: '#22ffdd',
+              });
+            }
+          } else {
+            // Пуля в стене - уничтожаем
+            Sounds.wallhit();
+            for (let k = 0; k < 5; k++) {
+              const a = Math.random() * Math.PI * 2;
+              b.particles.push({
+                x: bullet.x, y: bullet.y,
+                vx: Math.cos(a) * 40 * BATTLE_SCALE, vy: Math.sin(a) * 40 * BATTLE_SCALE,
+                life: 0.3, maxLife: 0.3, color: '#888888',
+              });
+            }
+            b.bullets.splice(i, 1);
+            continue;
           }
-          b.bullets.splice(i, 1);
-          continue;
+        } else {
+          bullet._ricocheted = false;
         }
 
         // Попадание во врагов (масштабированные)
@@ -1933,13 +2069,13 @@
 
         if (g.type === 'plevaka' || g.type === 'shooter') {
           // Плевака
-          if (dist > CONFIG.SHOOTER_STOP_DIST * BATTLE_SCALE && dist > 0) {
+          if (dist > SHOOTER_STOP_DIST * BATTLE_SCALE && dist > 0) {
             const spd = CONFIG.SHOOTER_SPEED * BATTLE_SCALE;
             g.x += (dx / dist) * spd * dt;
             g.y += (dy / dist) * spd * dt;
           }
           if (g.shootCd > 0) g.shootCd -= dt;
-          if (dist <= CONFIG.SHOOTER_SHOOT_RANGE * BATTLE_SCALE && g.shootCd <= 0) {
+          if (dist <= SHOOTER_SHOOT_RANGE * BATTLE_SCALE && g.shootCd <= 0) {
             g.shootCd = CONFIG.SHOOTER_SHOOT_CD;
             if (dist > 0) {
               b.enemyBullets.push({
@@ -1954,8 +2090,8 @@
           // Бык: FSM — chase → prepare → dash → rest → chase
           const effectiveRadius = (g.radius || CONFIG.BULL_RADIUS) * BATTLE_SCALE;
           const hitDist = effectiveRadius + CONFIG.PLAYER_RADIUS * BATTLE_SCALE;
-          const chargeDist = CONFIG.BULL_CHARGE_DIST * BATTLE_SCALE;
-          const dashDist = CONFIG.BULL_DASH_DISTANCE * BATTLE_SCALE;
+          const chargeDist = BULL_CHARGE_DIST * BATTLE_SCALE;
+          const dashDist = BULL_DASH_DISTANCE * BATTLE_SCALE;
           
           if (!g.state) g.state = 'chase';
           if (g.stateTimer === undefined) g.stateTimer = 0;
@@ -2358,16 +2494,20 @@
       let damage = weapon.damage + upgrades.damage;
       if (isCrit) damage *= 2;
       screenShake = { amount: weapon.shakeAmount || CONFIG.SHAKE_AMOUNT, angle: baseAngle };
+      const bBulletLife = upgrades.infiniteRange
+        ? 999999
+        : (weapon.range != null ? weapon.range * RANGE_SCALE * BATTLE_SCALE : CONFIG.BULLET_LIFE * weapon.bulletSpeed) / bulletSpeed * (upgrades.ricochet ? 1.5 : 1);
       b.bullets.push({
         x: b.player.x, y: b.player.y,
         vx: Math.cos(baseAngle) * bulletSpeed,
         vy: Math.sin(baseAngle) * bulletSpeed,
-        life: (weapon.range != null ? weapon.range * RANGE_SCALE * BATTLE_SCALE : CONFIG.BULLET_LIFE * weapon.bulletSpeed) / bulletSpeed,
+        life: bBulletLife,
         damage: damage,
-        penetrate: weapon.penetrate + upgrades.penetrate,
+        penetrate: upgrades.infinitePenetrate ? Infinity : weapon.penetrate + upgrades.penetrate,
         hitCount: 0,
         isCrit: isCrit,
         enhancedPierceActive: false,
+        ricochet: upgrades.ricochet ? true : false,
       });
     }
 
@@ -2525,6 +2665,16 @@
         }
       }
 
+      // Сбор проклятых сундуков
+      for (const chest of (s.chestObjs || [])) {
+        if (!chest.collected) {
+          const dist = Math.hypot(s.player.x - chest.x, s.player.y - chest.y);
+          if (dist < CONFIG.PLAYER_RADIUS + CONFIG.PICKUP_DISTANCE) {
+            openCursedChoice(s, chest);
+            break;
+          }
+        }
+      }
 
       // Таймер попапа апгрейда
       if (upgradePopupTimer > 0) {
@@ -2547,11 +2697,33 @@
         b.y += b.vy * dt;
         b.life -= dt;
 
-        if (!inRoom(b.x, b.y, s.openCells) || b.life <= 0) {
+        if (b.life <= 0) {
           Sounds.wallhit();
           addParticles(b.x, b.y, CONFIG.WALL_HIT_PARTICLES_COUNT, CONFIG.WALL_HIT_PARTICLES_SPEED, CONFIG.WALL_HIT_PARTICLES_LIFE, '#88aaff');
           s.bullets.splice(i, 1);
           continue;
+        }
+        if (!inRoom(b.x, b.y, s.openCells)) {
+          if (b.ricochet && !b._ricocheted) {
+            b._ricocheted = true;
+            const prevX = b.x - b.vx * dt;
+            const prevY = b.y - b.vy * dt;
+            const xOk = inRoom(b.x, prevY, s.openCells);
+            const yOk = inRoom(prevX, b.y, s.openCells);
+            if (xOk) { b.vy = -b.vy; b.y = prevY; }
+            else if (yOk) { b.vx = -b.vx; b.x = prevX; }
+            else { b.vx = -b.vx; b.vy = -b.vy; b.x = prevX; b.y = prevY; }
+            b.hitSpiders = undefined;
+            Sounds.wallhit();
+            addParticles(b.x, b.y, CONFIG.WALL_HIT_PARTICLES_COUNT, CONFIG.WALL_HIT_PARTICLES_SPEED, CONFIG.WALL_HIT_PARTICLES_LIFE, '#22ffdd');
+          } else {
+            Sounds.wallhit();
+            addParticles(b.x, b.y, CONFIG.WALL_HIT_PARTICLES_COUNT, CONFIG.WALL_HIT_PARTICLES_SPEED, CONFIG.WALL_HIT_PARTICLES_LIFE, '#88aaff');
+            s.bullets.splice(i, 1);
+            continue;
+          }
+        } else {
+          b._ricocheted = false;
         }
 
         // Попадание в выпущенных (активных) призраков
@@ -2654,14 +2826,14 @@
 
         if (g.type === 'plevaka' || g.type === 'shooter') {
           // Плевака: движется к игроку, пока не достигнет дистанции SHOOTER_STOP_DIST
-          if (dist > CONFIG.SHOOTER_STOP_DIST && dist > 0) {
+          if (dist > SHOOTER_STOP_DIST && dist > 0) {
             const spd = CONFIG.SHOOTER_SPEED;
             g.x += (dx / dist) * spd * dt;
             g.y += (dy / dist) * spd * dt;
           }
           // Стрельба
           if (g.shootCd > 0) g.shootCd -= dt;
-          if (dist <= CONFIG.SHOOTER_SHOOT_RANGE && g.shootCd <= 0) {
+          if (dist <= SHOOTER_SHOOT_RANGE && g.shootCd <= 0) {
             g.shootCd = CONFIG.SHOOTER_SHOOT_CD;
             if (dist > 0) {
               s.enemyBullets.push({
@@ -2683,11 +2855,11 @@
           switch (g.state) {
             case 'chase':
               // Идёт к игроку пока не достигнет дистанции CHARGE_DIST
-              if (dist > CONFIG.BULL_CHARGE_DIST && dist > 0) {
+              if (dist > BULL_CHARGE_DIST && dist > 0) {
                 const spd = CONFIG.BULL_SPEED;
                 g.x += (dx / dist) * spd * dt;
                 g.y += (dy / dist) * spd * dt;
-              } else if (dist <= CONFIG.BULL_CHARGE_DIST) {
+              } else if (dist <= BULL_CHARGE_DIST) {
                 // Переход в подготовку
                 g.state = 'prepare';
                 g.stateTimer = CONFIG.BULL_PREPARE_TIME;
@@ -2710,7 +2882,7 @@
                   g.dashDirX = dx / dist;
                   g.dashDirY = dy / dist;
                 }
-                g.dashDistance = CONFIG.BULL_DASH_DISTANCE;
+                g.dashDistance = BULL_DASH_DISTANCE;
                 g.stateTimer = 0; // счётчик пройденной дистанции
               }
               break;
@@ -3136,6 +3308,21 @@
           ctx.fillText('⬆', upg.x, upg.y);
           ctx.shadowBlur = 0;
         }
+      }
+
+      // Проклятые сундуки в battle
+      for (const bc of (b.chests || [])) {
+        if (bc.collected) continue;
+        const pulse = 0.75 + 0.25 * Math.sin(Date.now() * 0.004);
+        ctx.globalAlpha = pulse;
+        ctx.shadowColor = '#cc44ff';
+        ctx.shadowBlur = 18 * BATTLE_SCALE;
+        ctx.font = `bold ${26 * BATTLE_SCALE}px serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('📦', bc.x, bc.y);
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1;
       }
 
       // Оружие на полу в battle
@@ -3595,6 +3782,27 @@
           ctx.fillText('⬆', upg.x, upg.y);
           ctx.shadowBlur = 0;
         }
+      }
+
+      // Проклятые сундуки (видны в открытых И в revealed-клетках)
+      for (const chest of (s.chestObjs || [])) {
+        if (chest.collected) continue;
+        const cc = cellOf(chest.x, chest.y);
+        const ck = cellKey(cc.x, cc.y);
+        if (!visibleCells.has(ck)) continue;
+        const isOpen = s.openCells.has(ck);
+        const isRevealed = s.everRevealedCells.has(ck);
+        if (!isOpen && !isRevealed) continue;
+        const pulse = 0.75 + 0.25 * Math.sin(Date.now() * 0.004);
+        ctx.globalAlpha = pulse;
+        ctx.shadowColor = '#cc44ff';
+        ctx.shadowBlur = isOpen ? 18 : 8;
+        ctx.font = 'bold 26px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('📦', chest.x, chest.y);
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1;
       }
 
       // Оружие на полу
@@ -4518,10 +4726,134 @@
       lastTime = performance.now();
     }
 
+    // ============================================================
+    // CURSED CHOICE PANEL
+    // ============================================================
+    function openCursedChoice(s, chest) {
+      const available = CURSED_UPGRADE_TYPES.filter(u => !s.upgrades[u.id]);
+      shuffleInPlace(available);
+      const offers = available.slice(0, Math.min(3, available.length));
+      if (offers.length === 0) {
+        chest.collected = true;
+        s.cellContents.delete(chest.cellKey);
+        return;
+      }
+      cursedChoiceState = { offers, chest };
+      paused = true;
+    }
+
+    function drawCursedChoice() {
+      if (!cursedChoiceState) return;
+      const { offers } = cursedChoiceState;
+      const mx = mouseScreen.x, my = mouseScreen.y;
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(0,0,0,0.72)';
+      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+
+      const panelW = Math.min(VIEW_W - 40, 680);
+      const cardW = Math.floor((panelW - 48) / 3);
+      const cardH = 190;
+      const panelH = cardH + 90;
+      const panelX = (VIEW_W - panelW) / 2;
+      const panelY = (VIEW_H - panelH) / 2;
+
+      ctx.shadowBlur = 40;
+      ctx.shadowColor = 'rgba(180,0,255,0.25)';
+      ctx.fillStyle = 'rgba(8,4,20,0.97)';
+      ctx.beginPath();
+      ctx.roundRect(panelX, panelY, panelW, panelH, 14);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      ctx.strokeStyle = 'rgba(180,60,255,0.45)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(panelX, panelY, panelW, panelH, 14);
+      ctx.stroke();
+
+      ctx.font = 'bold 15px "Share Tech Mono"';
+      ctx.fillStyle = '#cc88ff';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText('☠ ПРОКЛЯТЫЕ УЛУЧШЕНИЯ — ВЫБЕРИ ОДНО', VIEW_W / 2, panelY + 16);
+
+      ctx.font = '10px "Share Tech Mono"';
+      ctx.fillStyle = 'rgba(180,100,255,0.55)';
+      ctx.fillText('Эффект активен постоянно. Отмена невозможна.', VIEW_W / 2, panelY + 36);
+
+      for (let i = 0; i < offers.length; i++) {
+        const upg = offers[i];
+        const cx = panelX + 16 + i * (cardW + 8);
+        const cy = panelY + 58;
+        const hovered = mx >= cx && mx <= cx + cardW && my >= cy && my <= cy + cardH;
+
+        ctx.shadowBlur = hovered ? 24 : 8;
+        ctx.shadowColor = upg.color + (hovered ? 'cc' : '44');
+        ctx.fillStyle = hovered ? `${upg.color}22` : 'rgba(20,8,40,0.9)';
+        ctx.beginPath();
+        ctx.roundRect(cx, cy, cardW, cardH, 10);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        ctx.strokeStyle = hovered ? upg.color : upg.color + '66';
+        ctx.lineWidth = hovered ? 2 : 1.2;
+        ctx.beginPath();
+        ctx.roundRect(cx, cy, cardW, cardH, 10);
+        ctx.stroke();
+
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('📦', cx + cardW / 2, cy + 36);
+
+        ctx.font = `bold 11px "Share Tech Mono"`;
+        ctx.fillStyle = hovered ? '#ffffff' : upg.color;
+        ctx.textBaseline = 'top';
+        ctx.textAlign = 'center';
+
+        const labelLines = wrapText(upg.label, cardW - 16);
+        let ty = cy + 66;
+        for (const line of labelLines) {
+          ctx.fillText(line, cx + cardW / 2, ty);
+          ty += 14;
+        }
+
+        ctx.font = '9px "Share Tech Mono"';
+        ctx.fillStyle = hovered ? 'rgba(255,255,255,0.85)' : 'rgba(200,160,255,0.7)';
+        const descLines = wrapText(upg.description, cardW - 16);
+        ty += 4;
+        for (const line of descLines) {
+          ctx.fillText(line, cx + cardW / 2, ty);
+          ty += 12;
+        }
+      }
+
+      ctx.restore();
+    }
+
+    function wrapText(text, maxWidth) {
+      const words = text.split(' ');
+      const lines = [];
+      let line = '';
+      ctx.font = '9px "Share Tech Mono"';
+      for (const word of words) {
+        const test = line ? line + ' ' + word : word;
+        if (ctx.measureText(test).width > maxWidth && line) {
+          lines.push(line);
+          line = word;
+        } else {
+          line = test;
+        }
+      }
+      if (line) lines.push(line);
+      return lines;
+    }
+
     // Открывает клетку после того как сердечко долетело (запускает zoom или сохраняет)
     function doOpenCellAfterHeart(openKey, openCX, openCY) {
       const content = state.cellContents.get(openKey);
-      const hasContent = content && (content.type === 'heart' || content.type === 'key' || content.type === 'upgrade' ||
+      const hasContent = content && (content.type === 'heart' || content.type === 'key' || content.type === 'upgrade' || content.type === 'chest' ||
                          (content.enemyCount && content.enemyCount > 0 && !content.enemiesReleased));
       if (hasContent) {
         const allOpenCells = new Set([...state.openCells]);
@@ -4571,7 +4903,11 @@
           if (state.phase === 'play') draw(state);
           else if (state.phase === 'battle') drawBattle(state);
         }
-        drawPauseMenu();
+        if (cursedChoiceState) {
+          drawCursedChoice();
+        } else {
+          drawPauseMenu();
+        }
         animId = requestAnimationFrame(loop);
         return;
       }
@@ -4686,6 +5022,7 @@
         hearts: s.hearts,
         keyObjs: s.keyObjs,
         upgradeObjs: s.upgradeObjs,
+        chestObjs: s.chestObjs || [],
         upgrades: { ...s.upgrades },
         spiders: s.spiders.map(g => ({ ...g })),
         activeSpiders: s.activeSpiders.map(g => ({ ...g })),
@@ -4716,6 +5053,7 @@
         hearts: data.hearts,
         keyObjs: data.keyObjs,
         upgradeObjs: data.upgradeObjs,
+        chestObjs: data.chestObjs || [],
         upgrades: { ...data.upgrades },
         spiders: data.spiders.map(g => ({ ...g })),
         activeSpiders: (data.activeSpiders || []).map(g => ({ ...g })),
@@ -4773,6 +5111,10 @@
         if (!playerProgress.spawnedWeapons) {
           playerProgress.spawnedWeapons = [];
         }
+        // Для старых сохранений без проклятых апгрейдов
+        if (playerProgress.upgrades.infinitePenetrate === undefined) playerProgress.upgrades.infinitePenetrate = false;
+        if (playerProgress.upgrades.infiniteRange === undefined) playerProgress.upgrades.infiniteRange = false;
+        if (playerProgress.upgrades.ricochet === undefined) playerProgress.upgrades.ricochet = false;
         state = deserializeState(save.state);
         return true;
       } catch (e) {
@@ -4809,6 +5151,7 @@
         playerProgress.maxSlots = 2;
       }
       flyingHeart = null;
+      cursedChoiceState = null;
       state = initState(currentLevel);
       saveGame();
     }
@@ -4835,6 +5178,9 @@
           shield: 0,
           retreat: 0,
           reflection: false,
+          infinitePenetrate: false,
+          infiniteRange: false,
+          ricochet: false,
         },
         spawnedUpgrades: {},
         spawnedWeapons: [],
@@ -4843,6 +5189,7 @@
         maxSlots: 1,
       };
       flyingHeart = null;
+      cursedChoiceState = null;
       state = initState(currentLevel);
       draw(state);
       Sounds.ambienceStart();
@@ -4867,6 +5214,7 @@
 
       // Смена слотов / оружия
       if (e.key === 'Escape') {
+        if (cursedChoiceState) { e.preventDefault(); return; }
         if (state.phase === 'play' || state.phase === 'battle') {
           if (paused) resumeGame();
           else { paused = true; }
@@ -4987,6 +5335,31 @@
         e.preventDefault();
         const pointer = getCanvasPoint(e);
         const mx = pointer.x, my = pointer.y;
+
+        // Клик по проклятому выбору
+        if (cursedChoiceState) {
+          const { offers, chest } = cursedChoiceState;
+          const panelW = Math.min(VIEW_W - 40, 680);
+          const cardW = Math.floor((panelW - 48) / 3);
+          const cardH = 190;
+          const panelX = (VIEW_W - panelW) / 2;
+          const panelY = (VIEW_H - (cardH + 90)) / 2;
+          for (let i = 0; i < offers.length; i++) {
+            const cx = panelX + 16 + i * (cardW + 8);
+            const cy = panelY + 58;
+            if (mx >= cx && mx <= cx + cardW && my >= cy && my <= cy + cardH) {
+              chest.collected = true;
+              state.cellContents.delete(chest.cellKey);
+              applyUpgrade(state, offers[i].id);
+              addParticles(chest.x, chest.y, CONFIG.PICKUP_PARTICLES_COUNT, CONFIG.PICKUP_PARTICLES_SPEED, CONFIG.PICKUP_PARTICLES_LIFE, offers[i].color);
+              cursedChoiceState = null;
+              resumeGame();
+              return;
+            }
+          }
+          return;
+        }
+
         const p = PAUSE;
         const sx = p.sliderX(), sy = p.sliderY(), sw = p.sliderW(), sh = p.sliderH;
         if (mx >= sx - 8 && mx <= sx + sw + 8 && my >= sy - 10 && my <= sy + sh + 10) {
