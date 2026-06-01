@@ -160,6 +160,7 @@ const WEAPON_DEFS = {
   pistol: {
     id: 'pistol',
     label: 'ПИСТОЛЕТ',
+    description: 'Обычный пистолет',
     color: '#00d4ff',
     pellets: 1,
     spread: 0.1,
@@ -171,6 +172,7 @@ const WEAPON_DEFS = {
   shotgun: {
     id: 'shotgun',
     label: 'ДРОБОВИК',
+    description: 'Стреляет дробью.',
     color: '#ffaa00',
     pellets: 3,
     spread: 0.35,
@@ -182,6 +184,7 @@ const WEAPON_DEFS = {
   smg: {
     id: 'smg',
     label: 'ПП',
+    description: 'Высокая скорострельность.',
     color: '#ff44ff',
     pellets: 1,
     spread: 0.20,
@@ -193,6 +196,7 @@ const WEAPON_DEFS = {
   rifle: {
     id: 'rifle',
     label: 'ВИНТОВКА',
+    description: 'Высокая точность и урон. Пробивает 2 врагов.',
     color: '#44ff44',
     pellets: 1,
     spread: 0,
@@ -204,6 +208,7 @@ const WEAPON_DEFS = {
   revolver: {
     id: 'revolver',
     label: 'РЕВОЛЬВЕР',
+    description: 'Высокая точность. Пробивает 1 врага.',
     color: '#8b4513',
     pellets: 1,
     spread: 0.08,
@@ -215,6 +220,7 @@ const WEAPON_DEFS = {
   carbine: {
     id: 'carbine',
     label: 'КАРАБИН',
+    description: 'Очередь из 3 пуль.',
     color: '#556b2f',
     pellets: 1,
     spread: 0.15,

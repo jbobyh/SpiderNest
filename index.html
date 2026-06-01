@@ -2845,6 +2845,24 @@
         }
       }
 
+      // Tooltip оружия при наведении (battle mode)
+      if (b.weapons) {
+        const hoverR = BATTLE_CELL_PX * 0.2;
+        for (const bw of b.weapons) {
+          if (bw.picked) continue;
+          const dist = Math.hypot(s.mouse.x - bw.x, s.mouse.y - bw.y);
+          if (dist < hoverR) {
+            const wDef = WEAPON_DEFS[bw.weaponId];
+            if (wDef) {
+              const sx = VIEW_W / 2 + (bw.x - b.width / 2) * sc;
+              const sy = VIEW_H / 2 + (bw.y - b.height / 2) * sc;
+              drawUpgradeTooltip(sx, sy, wDef);
+            }
+            break;
+          }
+        }
+      }
+
       // Пули игрока
       for (const b of s.battle.bullets) {
         ctx.fillStyle = '#ffffaa';
@@ -3026,13 +3044,13 @@
             ctx.lineWidth = 2;
             ctx.strokeRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
             ctx.fillStyle = `rgba(0,255,100,${0.6 + pulse * 0.4})`;
-            ctx.fillText('EXIT', (x + 0.5) * CP, (y + 0.5) * CP);
+            ctx.fillText('ВЫХОД', (x + 0.5) * CP, (y + 0.5) * CP);
           } else {
             ctx.strokeStyle = `rgba(255,170,0,${0.5 + pulse * 0.5})`;
             ctx.lineWidth = 2;
             ctx.strokeRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
             ctx.fillStyle = `rgba(255,170,0,${0.6 + pulse * 0.4})`;
-            ctx.fillText(`EXIT (LOCKED ${s.keysCollected}/${s.keysRequired})`, (x + 0.5) * CP, (y + 0.5) * CP);
+            ctx.fillText(`ВЫХОД (ЗАКРЫТ ${s.keysCollected}/${s.keysRequired})`, (x + 0.5) * CP, (y + 0.5) * CP);
           }
         }
       }
@@ -3093,10 +3111,10 @@
           ctx.textBaseline = 'middle';
           if (s.keysCollected >= s.keysRequired) {
             ctx.fillStyle = `rgba(0,255,100,${0.6 + pulse * 0.4})`;
-            ctx.fillText('EXIT', (x + 0.5) * CP, (y + 0.5) * CP);
+            ctx.fillText('ВЫХОД', (x + 0.5) * CP, (y + 0.5) * CP);
           } else {
             ctx.fillStyle = `rgba(255,170,0,${0.6 + pulse * 0.4})`;
-            ctx.fillText('EXIT (LOCKED)', (x + 0.5) * CP, (y + 0.5) * CP);
+            ctx.fillText('ВЫХОД (ЗАКРЫТ)', (x + 0.5) * CP, (y + 0.5) * CP);
           }
         }
 
@@ -3361,6 +3379,23 @@
           ctx.textAlign = 'left';
           ctx.fillText(onExit ? 'Выход' : 'Подобрать', kx + keySize + 6, by);
           ctx.restore();
+        }
+      }
+
+      // Tooltip оружия при наведении (play mode)
+      for (const dw of s.droppedWeapons) {
+        const wc = cellOf(dw.x, dw.y);
+        const wck = cellKey(wc.x, wc.y);
+        if (!s.openCells.has(wck) || !visibleCells.has(wck)) continue;
+        const dist = Math.hypot(s.mouse.x - dw.x, s.mouse.y - dw.y);
+        if (dist < CP * 0.4) {
+          const wDef = WEAPON_DEFS[dw.weaponId];
+          if (wDef) {
+            const sx = dw.x - camera.x;
+            const sy = dw.y - camera.y;
+            drawUpgradeTooltip(sx, sy, wDef);
+          }
+          break;
         }
       }
 
