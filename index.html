@@ -14,41 +14,6 @@
   <p class="subtitle">// survival · exploration · containment //</p>
 
   <div class="game-wrapper">
-    <div id="hud">
-      <div class="hud-item">
-        <span class="hud-label">ЖИЗНИ</span>
-        <div class="lives-container" id="lives-container"></div>
-        <span class="hud-value" id="val-lives" style="color:var(--danger)">3</span>
-      </div>
-      <div class="hud-item">
-        <span class="hud-label">УРОВЕНЬ</span>
-        <span class="hud-value" id="val-level" style="color:var(--accent)">1</span>
-      </div>
-      <div class="hud-item">
-        <span class="hud-label">КОМНАТЫ</span>
-        <span class="hud-value" id="val-area" style="color:var(--text)">1</span>
-      </div>
-      <div class="hud-item">
-        <span class="hud-label">ВРАГИ</span>
-        <span class="hud-value" id="val-spiders" style="color:var(--spider)">0</span>
-      </div>
-      <div class="hud-item">
-        <span class="hud-label">СЕРДЕЧКИ</span>
-        <span class="hud-value" id="val-hearts" style="color:#ff6b9d">0/3</span>
-      </div>
-      <div class="hud-item">
-        <span class="hud-label">КЛЮЧИ</span>
-        <span class="hud-value" id="val-keys" style="color:#ffd700">0/2</span>
-      </div>
-      <div class="hud-item">
-        <span class="hud-label">UPGRADES</span>
-        <span class="hud-value" id="val-upgrades" style="color:#ffcc00;font-size:0.7rem">—</span>
-      </div>
-      <div class="hud-item">
-        <span class="hud-label">WEAPON</span>
-        <span class="hud-value" id="val-weapon" style="font-size:0.7rem">—</span>
-      </div>
-    </div>
 
     <div id="canvas-container">
       <canvas id="canvas"></canvas>
@@ -1823,7 +1788,7 @@
       playerProgress.weaponSlots = [...s.weaponSlots];
       playerProgress.activeSlot = s.activeSlot;
       playerProgress.maxSlots = s.maxSlots;
-      updateHUD(s);
+      drawHUD(s);
     }
 
     // ============================================================
@@ -3149,7 +3114,7 @@
         }
       }
 
-      updateHUD(s);
+      drawHUD(s);
     }
 
     // ============================================================
@@ -3600,7 +3565,7 @@
         }
       }
 
-      updateHUD(s);
+      drawHUD(s);
     }
 
     function drawUpgradeTooltip(screenX, screenY, upgDef) {
@@ -3833,51 +3798,137 @@
         y + CP > camera.y && y < camera.y + VIEW_H;
     }
 
-    function updateHUD(s) {
+    function drawHUD(s) {
       if (!s) return;
-      // Уровень
-      document.getElementById('val-level').textContent = currentLevel;
-      
-      // Жизни
-      const livesContainer = document.getElementById('lives-container');
-      livesContainer.innerHTML = '';
-      for (let i = 0; i < Math.max(3, s.player.lives); i++) {
-        const heart = document.createElement('span');
-        heart.className = 'life-heart' + (i >= s.player.lives ? ' lost' : '');
-        heart.textContent = '♥';
-        livesContainer.appendChild(heart);
+      const barH = 36;
+      const pad = 12;
+
+      ctx.save();
+      ctx.setTransform(canvasScale, 0, 0, canvasScale, 0, 0);
+
+      // Background bar
+      ctx.fillStyle = 'rgba(5,10,15,0.82)';
+      ctx.fillRect(0, 0, VIEW_W, barH);
+      ctx.strokeStyle = 'rgba(26,58,92,0.9)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, barH - 0.5);
+      ctx.lineTo(VIEW_W, barH - 0.5);
+      ctx.stroke();
+
+      const cy = barH / 2;
+      let cursor = pad;
+
+      // Helper: label + value side by side
+      function hudItem(label, value, valueColor, extraWidth) {
+        const gap = 4;
+        ctx.font = '9px "Share Tech Mono"';
+        ctx.fillStyle = 'rgba(42,74,106,1)';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, cursor, cy - 7);
+        ctx.font = 'bold 13px "Orbitron", sans-serif';
+        ctx.fillStyle = valueColor;
+        ctx.fillText(value, cursor, cy + 6);
+        const w = Math.max(ctx.measureText(label).width, ctx.measureText(value).width);
+        cursor += (extraWidth || w) + 20;
       }
-      document.getElementById('val-lives').textContent = s.player.lives;
 
-      // Остальное
-      document.getElementById('val-area').textContent = s.openCells.size;
-      document.getElementById('val-spiders').textContent = s.activeSpiders.length;
-      const levelCfg = getLevelConfig(currentLevel);
-      document.getElementById('val-hearts').textContent = `${s.heartsCollected}/${levelCfg.heartsCount}`;
-      document.getElementById('val-keys').textContent = `${s.keysCollected}/${s.keysRequired}`;
+      // УРОВЕНЬ
+      hudItem('УРОВЕНЬ', String(currentLevel), '#00d4ff');
 
+      // Separator
+      ctx.strokeStyle = 'rgba(26,58,92,0.6)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(cursor - 10, 6);
+      ctx.lineTo(cursor - 10, barH - 6);
+      ctx.stroke();
+
+      // ЖИЗНИ — hearts
+      ctx.font = '9px "Share Tech Mono"';
+      ctx.fillStyle = 'rgba(42,74,106,1)';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('ЖИЗНИ', cursor, cy - 7);
+      const maxHearts = Math.max(3, s.player.lives);
+      for (let i = 0; i < maxHearts; i++) {
+        ctx.font = '13px sans-serif';
+        ctx.fillStyle = i < s.player.lives ? '#ff3a3a' : 'rgba(42,74,106,0.5)';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('♥', cursor + i * 16, cy + 6);
+      }
+      cursor += maxHearts * 16 + 20;
+
+      // Separator
+      ctx.strokeStyle = 'rgba(26,58,92,0.6)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(cursor - 10, 6);
+      ctx.lineTo(cursor - 10, barH - 6);
+      ctx.stroke();
+
+      // КЛЮЧИ
+      hudItem('КЛЮЧИ', `${s.keysCollected}/${s.keysRequired}`, '#ffd700');
+
+      // Separator
+      ctx.strokeStyle = 'rgba(26,58,92,0.6)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(cursor - 10, 6);
+      ctx.lineTo(cursor - 10, barH - 6);
+      ctx.stroke();
+
+      // ОРУЖИЕ — slots
+      ctx.font = '9px "Share Tech Mono"';
+      ctx.fillStyle = 'rgba(42,74,106,1)';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('ОРУЖИЕ', cursor, cy - 7);
+      let wCursor = cursor;
+      for (let i = 0; i < s.maxSlots; i++) {
+        const wId = s.weaponSlots[i];
+        const wDef = wId ? WEAPON_DEFS[wId] : null;
+        const label = wDef ? wDef.label : '—';
+        const active = i === s.activeSlot;
+        ctx.font = `${active ? 'bold' : ''} 11px "Share Tech Mono"`;
+        ctx.fillStyle = active ? (wDef ? wDef.color : '#ffffff') : 'rgba(42,74,106,1)';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`[${i+1}]${label}`, wCursor, cy + 6);
+        wCursor += ctx.measureText(`[${i+1}]${label}`).width + 10;
+      }
+      cursor = wCursor + 10;
+
+      // Separator
+      ctx.strokeStyle = 'rgba(26,58,92,0.6)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(cursor - 10, 6);
+      ctx.lineTo(cursor - 10, barH - 6);
+      ctx.stroke();
+
+      // UPGRADES
       const u = s.upgrades;
       const parts = [];
       if (u.pellets > 0) parts.push(`P+${u.pellets}`);
       if (u.cooldownMult < 1.0) parts.push(`CD${Math.round(u.cooldownMult * 100)}%`);
-      if (u.pierce) parts.push(`PCR`);
+      if (u.penetrate > 0) parts.push(`PCR+${u.penetrate}`);
       if (u.speedMult > 1.0) parts.push(`S+${Math.round((u.speedMult - 1) * 100)}%`);
-      if (u.spreadMult > 1.0) parts.push(`SPR+${Math.round((u.spreadMult - 1) * 100)}%`);
-      document.getElementById('val-upgrades').textContent = parts.length ? parts.join(' ') : '—';
+      if (u.critChance > 0) parts.push(`CRIT${Math.round(u.critChance * 100)}%`);
+      if (u.shield > 0) parts.push(`SHD${u.shield}`);
+      const upgText = parts.length ? parts.join(' ') : '—';
+      ctx.font = '9px "Share Tech Mono"';
+      ctx.fillStyle = 'rgba(42,74,106,1)';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('УСИЛЕНИЯ', cursor, cy - 7);
+      ctx.font = 'bold 11px "Share Tech Mono"';
+      ctx.fillStyle = '#ffcc00';
+      ctx.fillText(upgText, cursor, cy + 6);
 
-      // Слоты оружия
-      const weaponEl = document.getElementById('val-weapon');
-      if (weaponEl && s.weaponSlots) {
-        const slotParts = [];
-        for (let i = 0; i < s.maxSlots; i++) {
-          const wId = s.weaponSlots[i];
-          const wDef = wId ? WEAPON_DEFS[wId] : null;
-          const label = wDef ? wDef.label : '—';
-          const active = i === s.activeSlot;
-          slotParts.push(`<span style="color:${active ? (wDef ? wDef.color : '#fff') : '#888'};${active ? 'text-decoration:underline' : ''}">[${i+1}]${label}</span>`);
-        }
-        weaponEl.innerHTML = slotParts.join(' ');
-      }
+      ctx.restore();
     }
 
     // ============================================================
@@ -4317,7 +4368,6 @@
       }
       state = initState(currentLevel);
       saveGame();
-      updateHUD(state);
     }
 
     function startGame() {
@@ -4350,7 +4400,6 @@
         maxSlots: 1,
       };
       state = initState(currentLevel);
-      updateHUD(state);
       draw(state);
     }
 
@@ -4360,7 +4409,6 @@
         startGame();
         return;
       }
-      updateHUD(state);
       draw(state);
     }
 
@@ -4467,7 +4515,6 @@
             }
           }
         }
-        if (weaponChanged) updateHUD(state);
       }
     });
     document.addEventListener('keyup', e => {
