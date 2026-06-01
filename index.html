@@ -51,6 +51,29 @@
 
   <script>
     // ============================================================
+    // SOUNDS
+    // ============================================================
+    const Sounds = {
+      _cache: {},
+      _load(name) {
+        if (!this._cache[name]) {
+          this._cache[name] = new Audio('sounds/' + name);
+        }
+        return this._cache[name];
+      },
+      play(name) {
+        const base = this._load(name);
+        const snd = base.cloneNode();
+        snd.volume = Sounds._volume;
+        snd.play().catch(() => {});
+      },
+      keycollect:     function() { Sounds.play('keycollect.wav'); },
+      heartcollect:   function() { Sounds.play('heartcollect.wav'); },
+      hit:            function() { Sounds.play('hit.wav'); },
+      upgradecollect: function() { Sounds.play('upgradecollect.wav'); },
+    };
+
+    // ============================================================
     // CONFIG
     // ============================================================
     const CONFIG = {
@@ -392,6 +415,9 @@
     let lastTime = 0;
     let camera = { x: 0, y: 0 };  // позиция камеры в мире
     let mouseScreen = { x: 0, y: 0 }; // экранные координаты курсора (пикселей канваса)
+    let paused = false;
+    let pauseSliderDragging = false;
+    Sounds._volume = 0.4;
 
     // Состояние зум-перехода перед battle
     let zoomTransition = null; // { fromCamX, fromCamY, fromScale, toCamX, toCamY, toScale, t, pendingCellKey }
@@ -1856,6 +1882,7 @@
           if (dist < CONFIG.PLAYER_RADIUS * BATTLE_SCALE + CONFIG.PICKUP_DISTANCE * BATTLE_SCALE) {
             heart.collected = true;
             s.player.lives += CONFIG.LIVES_PER_HEART;
+            Sounds.heartcollect();
             addParticles(heart.x, heart.y, CONFIG.PICKUP_PARTICLES_COUNT, CONFIG.PICKUP_PARTICLES_SPEED, CONFIG.PICKUP_PARTICLES_LIFE, '#ff6b9d');
           }
         }
@@ -1867,6 +1894,7 @@
           const dist = Math.hypot(b.player.x - keyObj.x, b.player.y - keyObj.y);
           if (dist < CONFIG.PLAYER_RADIUS * BATTLE_SCALE + CONFIG.PICKUP_DISTANCE * BATTLE_SCALE) {
             keyObj.collected = true;
+            Sounds.keycollect();
             addParticles(keyObj.x, keyObj.y, CONFIG.PICKUP_PARTICLES_COUNT, CONFIG.PICKUP_PARTICLES_SPEED, CONFIG.PICKUP_PARTICLES_LIFE, '#ffd700');
           }
         }
@@ -1881,6 +1909,7 @@
             const upgDef = UPGRADE_TYPES.find(u => u.id === upg.upgradeType);
             const color = upgDef ? upgDef.color : '#ffcc00';
             if (upgDef) showUpgradePopup(upgDef.label, upgDef.color);
+            Sounds.upgradecollect();
             addParticles(upg.x, upg.y, CONFIG.PICKUP_PARTICLES_COUNT, CONFIG.PICKUP_PARTICLES_SPEED, CONFIG.PICKUP_PARTICLES_LIFE, color);
           }
         }
@@ -1935,6 +1964,7 @@
           const dist = Math.hypot(bullet.x - g.x, bullet.y - g.y);
           if (dist < (CONFIG.SPIDER_RADIUS + CONFIG.BULLET_RADIUS) * BATTLE_SCALE) {
             g.hp -= (bullet.damage || CONFIG.BULLET_DAMAGE);
+            Sounds.hit();
             // Green blood particles - fly in bullet direction
             const bulletAngle = Math.atan2(bullet.vy, bullet.vx);
             for (let k = 0; k < CONFIG.HIT_PARTICLES_COUNT; k++) {
@@ -2474,6 +2504,7 @@
             s.cellContents.delete(heart.cellKey);
             s.player.lives += CONFIG.LIVES_PER_HEART;
             s.heartsCollected++;
+            Sounds.heartcollect();
             // Частицы
             addParticles(heart.x, heart.y, CONFIG.PICKUP_PARTICLES_COUNT, CONFIG.PICKUP_PARTICLES_SPEED, CONFIG.PICKUP_PARTICLES_LIFE, '#ff6b9d');
           }
@@ -2488,6 +2519,7 @@
             keyObj.collected = true;
             s.cellContents.delete(keyObj.cellKey);
             s.keysCollected++;
+            Sounds.keycollect();
             // Частицы
             addParticles(keyObj.x, keyObj.y, CONFIG.PICKUP_PARTICLES_COUNT, CONFIG.PICKUP_PARTICLES_SPEED, CONFIG.PICKUP_PARTICLES_LIFE, '#ffd700');
           }
@@ -2502,6 +2534,7 @@
             upg.collected = true;
             s.cellContents.delete(upg.cellKey);
             applyUpgrade(s, upg.upgradeType);
+            Sounds.upgradecollect();
             // Частицы
             const upgDef = UPGRADE_TYPES.find(u => u.id === upg.upgradeType);
             const color = upgDef ? upgDef.color : '#ffcc00';
@@ -2551,6 +2584,7 @@
             }
             g.hp -= (b.damage || CONFIG.BULLET_DAMAGE);
             hit = true;
+            Sounds.hit();
             addParticles(g.x, g.y, CONFIG.HIT_PARTICLES_COUNT, CONFIG.HIT_PARTICLES_SPEED, CONFIG.HIT_PARTICLES_LIFE, '#44cc22');
             if (g.hp <= 0) {
               s.activeSpiders.splice(j, 1);
@@ -4134,11 +4168,123 @@
     }
 
     // ============================================================
+    // PAUSE MENU
+    // ============================================================
+    const PAUSE = {
+      w: 320, h: 180,
+      get x() { return (VIEW_W - this.w) / 2; },
+      get y() { return (VIEW_H - this.h) / 2; },
+      sliderX() { return this.x + 24; },
+      sliderY() { return this.y + 110; },
+      sliderW() { return this.w - 48; },
+      sliderH: 6,
+      btnX() { return this.x + (this.w - 160) / 2; },
+      btnY() { return this.y + 134; },
+      btnW: 160, btnH: 30,
+    };
+
+    function drawPauseMenu() {
+      const p = PAUSE;
+      ctx.save();
+
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+
+      ctx.shadowBlur = 24;
+      ctx.shadowColor = 'rgba(0,180,255,0.18)';
+      ctx.fillStyle = 'rgba(5,14,28,0.97)';
+      const r = 12;
+      ctx.beginPath();
+      ctx.roundRect(p.x, p.y, p.w, p.h, r);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      ctx.strokeStyle = 'rgba(0,180,255,0.35)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(p.x, p.y, p.w, p.h, r);
+      ctx.stroke();
+
+      ctx.font = 'bold 20px "Share Tech Mono"';
+      ctx.fillStyle = '#e0f0ff';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText('ПАУЗА', VIEW_W / 2, p.y + 20);
+
+      ctx.font = '12px "Share Tech Mono"';
+      ctx.fillStyle = 'rgba(160,200,240,0.8)';
+      ctx.textAlign = 'left';
+      ctx.fillText('ГРОМКОСТЬ', p.sliderX(), p.sliderY() - 18);
+
+      const sx = p.sliderX(), sy = p.sliderY(), sw = p.sliderW(), sh = p.sliderH;
+      ctx.fillStyle = 'rgba(0,100,180,0.35)';
+      ctx.beginPath();
+      ctx.roundRect(sx, sy, sw, sh, 3);
+      ctx.fill();
+
+      const filled = sw * Sounds._volume;
+      ctx.fillStyle = '#1ab4ff';
+      ctx.beginPath();
+      ctx.roundRect(sx, sy, filled, sh, 3);
+      ctx.fill();
+
+      const kx = sx + filled;
+      const ky = sy + sh / 2;
+      ctx.beginPath();
+      ctx.arc(kx, ky, 8, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+      ctx.strokeStyle = '#1ab4ff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.font = '11px "Share Tech Mono"';
+      ctx.fillStyle = 'rgba(160,200,240,0.7)';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(Math.round(Sounds._volume * 100) + '%', p.x + p.w - 24, p.sliderY() + sh / 2);
+
+      const bx = p.btnX(), by = p.btnY(), bw = p.btnW, bh = p.btnH;
+      const mx = mouseScreen.x, my = mouseScreen.y;
+      const hovered = mx >= bx && mx <= bx + bw && my >= by && my <= by + bh;
+      ctx.beginPath();
+      ctx.roundRect(bx, by, bw, bh, 6);
+      ctx.fillStyle = hovered ? 'rgba(0,200,120,0.3)' : 'rgba(0,140,80,0.2)';
+      ctx.fill();
+      ctx.strokeStyle = hovered ? '#00e87a' : '#00aa55';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.font = 'bold 13px "Share Tech Mono"';
+      ctx.fillStyle = hovered ? '#00ff99' : '#00cc66';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('ПРОДОЛЖИТЬ', bx + bw / 2, by + bh / 2);
+
+      ctx.restore();
+    }
+
+    function resumeGame() {
+      paused = false;
+      pauseSliderDragging = false;
+      lastTime = performance.now();
+    }
+
+    // ============================================================
     // GAME LOOP
     // ============================================================
     function loop(ts) {
       const dt = Math.min((ts - lastTime) / 1000, 0.05);
       lastTime = ts;
+
+      if (paused) {
+        if (state) {
+          if (state.phase === 'play') draw(state);
+          else if (state.phase === 'battle') drawBattle(state);
+        }
+        drawPauseMenu();
+        animId = requestAnimationFrame(loop);
+        return;
+      }
 
       if (state && state.phase === 'play') {
         update(state, dt);
@@ -4420,6 +4566,17 @@
       state.keys[e.key.toLowerCase()] = true;
 
       // Смена слотов / оружия
+      if (e.key === 'Escape') {
+        if (state.phase === 'play' || state.phase === 'battle') {
+          if (paused) resumeGame();
+          else { paused = true; }
+          e.preventDefault();
+          return;
+        }
+      }
+
+      if (paused) return;
+
       if (state.phase === 'play' || state.phase === 'battle') {
         let weaponChanged = false;
         if (e.key === '1') {
@@ -4526,10 +4683,32 @@
       const p = getCanvasPoint(e);
       mouseScreen.x = p.x;
       mouseScreen.y = p.y;
+      if (pauseSliderDragging) {
+        const ps = PAUSE;
+        Sounds._volume = Math.max(0, Math.min(1, (p.x - ps.sliderX()) / ps.sliderW()));
+      }
     });
 
     C.addEventListener('mousedown', e => {
       if (!state) return;
+
+      if (paused && e.button === 0) {
+        e.preventDefault();
+        const pointer = getCanvasPoint(e);
+        const mx = pointer.x, my = pointer.y;
+        const p = PAUSE;
+        const sx = p.sliderX(), sy = p.sliderY(), sw = p.sliderW(), sh = p.sliderH;
+        if (mx >= sx - 8 && mx <= sx + sw + 8 && my >= sy - 10 && my <= sy + sh + 10) {
+          pauseSliderDragging = true;
+          Sounds._volume = Math.max(0, Math.min(1, (mx - sx) / sw));
+        }
+        const bx = p.btnX(), by = p.btnY(), bw = p.btnW, bh = p.btnH;
+        if (mx >= bx && mx <= bx + bw && my >= by && my <= by + bh) {
+          resumeGame();
+        }
+        return;
+      }
+
       // ПКМ только в play mode, ЛКМ в play и battle
       if (e.button === 2 && state.phase !== 'play') return;
       if (e.button === 0 && state.phase !== 'play' && state.phase !== 'battle') return;
@@ -4725,7 +4904,12 @@
     // Стрельба по удержанию ЛКМ (обрабатывается в игровом цикле для точной синхронизации с cooldown)
     let mouseHeld = false;
     C.addEventListener('mousedown', e => { if (e.button === 0) mouseHeld = true; });
-    document.addEventListener('mouseup', e => { if (e.button === 0) mouseHeld = false; });
+    document.addEventListener('mouseup', e => {
+      if (e.button === 0) {
+        mouseHeld = false;
+        pauseSliderDragging = false;
+      }
+    });
 
     // ============================================================
     // START
