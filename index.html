@@ -151,6 +151,10 @@
       PICKUP_PARTICLES_SPEED: 80,
       PICKUP_PARTICLES_LIFE: 0.6,
 
+      // Camera shake on shoot
+      SHAKE_AMOUNT: 2.0,
+      SHAKE_DECAY: 0.9,
+
       // Spiders
       SPIDER_HP: 100,
       SPIDER_SPEED: 70,
@@ -393,6 +397,7 @@
 
     let state = null;
     let currentLevel = 1;
+    let screenShake = { amount: 0, angle: 0 };
     let playerProgress = {
       totalLives: 3,
       totalHeartsCollected: 0,
@@ -1681,6 +1686,7 @@
       const isCrit = Math.random() < s.upgrades.critChance;
       let damage = weapon.damage * (1 + s.upgrades.damage);
       if (isCrit) damage *= 2;
+      screenShake = { amount: CONFIG.SHAKE_AMOUNT, angle: baseAngle };
       s.bullets.push({
         x: s.player.x, y: s.player.y,
         vx: Math.cos(baseAngle) * bulletSpeed,
@@ -2368,6 +2374,7 @@
       const isCrit = Math.random() < upgrades.critChance;
       let damage = weapon.damage * (1 + upgrades.damage);
       if (isCrit) damage *= 2;
+      screenShake = { amount: CONFIG.SHAKE_AMOUNT, angle: baseAngle };
       b.bullets.push({
         x: b.player.x, y: b.player.y,
         vx: Math.cos(baseAngle) * bulletSpeed,
@@ -2952,12 +2959,17 @@
       camera.x = b.staticCamX || 0;
       camera.y = b.staticCamY || 0;
 
+      // Apply screen shake in bullet direction
+      const shakeX = Math.cos(screenShake.angle) * screenShake.amount;
+      const shakeY = Math.sin(screenShake.angle) * screenShake.amount;
+      screenShake.amount *= CONFIG.SHAKE_DECAY;
+
       // Пересчитываем мировые координаты мыши каждый кадр (battle)
       s.mouse.x = (mouseScreen.x - VIEW_W / 2) / sc + b.width / 2;
       s.mouse.y = (mouseScreen.y - VIEW_H / 2) / sc + b.height / 2;
 
       ctx.save();
-      ctx.translate(VIEW_W / 2, VIEW_H / 2);
+      ctx.translate(VIEW_W / 2 + shakeX, VIEW_H / 2 + shakeY);
       ctx.scale(sc, sc);
       ctx.translate(-b.width / 2, -b.height / 2);
 
@@ -3168,8 +3180,13 @@
         }
       }
 
+      // Apply screen shake in bullet direction
+      const shakeX = Math.cos(screenShake.angle) * screenShake.amount;
+      const shakeY = Math.sin(screenShake.angle) * screenShake.amount;
+      screenShake.amount *= CONFIG.SHAKE_DECAY;
+
       ctx.save();
-      ctx.translate(-camera.x, -camera.y);
+      ctx.translate(-camera.x + shakeX, -camera.y + shakeY);
 
       // Фон
       ctx.fillStyle = '#030810';
