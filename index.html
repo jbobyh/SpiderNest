@@ -1505,18 +1505,8 @@
       const totalSpread = weapon.spread * s.upgrades.spreadMult;
       const bulletSpeed = weapon.bulletSpeed * s.upgrades.bulletSpeedMult;
 
-      // Дробовик - равномерное распределение, остальное - случайное
-      const isShotgun = weapon.id === 'shotgun';
-
       for (let i = 0; i < pellets; i++) {
-        let spread;
-        if (isShotgun && pellets > 1) {
-          // Равномерное распределение для дробовика
-          spread = (-totalSpread / 2) + (i * totalSpread / (pellets - 1));
-        } else {
-          // Случайный разброс в пределах [-spread/2, +spread/2]
-          spread = (Math.random() - 0.5) * totalSpread;
-        }
+        const spread = (Math.random() - 0.5) * totalSpread;
         const a = baseAngle + spread;
         createBullet(s, weapon, a, bulletSpeed);
       }
@@ -2192,16 +2182,8 @@
       const totalSpread = weapon.spread * s.upgrades.spreadMult;
       const bulletSpeed = weapon.bulletSpeed * s.upgrades.bulletSpeedMult * BATTLE_SCALE;
 
-      // Дробовик - равномерное распределение, остальное - случайное
-      const isShotgun = weapon.id === 'shotgun';
-
       for (let i = 0; i < pellets; i++) {
-        let spread;
-        if (isShotgun && pellets > 1) {
-          spread = (-totalSpread / 2) + (i * totalSpread / (pellets - 1));
-        } else {
-          spread = (Math.random() - 0.5) * totalSpread;
-        }
+        const spread = (Math.random() - 0.5) * totalSpread;
         const a = baseAngle + spread;
         createBulletBattle(b, weapon, a, bulletSpeed, s.upgrades);
       }
