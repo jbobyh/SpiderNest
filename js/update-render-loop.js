@@ -668,24 +668,6 @@
       ctx.fillStyle = '#030810';
       ctx.fillRect(0, 0, b.width, b.height);
 
-      // Закрытые клетки внутри battle-области (не входящие в openCells)
-      const bCols = Math.round(b.width / BATTLE_CELL_PX);
-      const bRows = Math.round(b.height / BATTLE_CELL_PX);
-      for (let row = 0; row < bRows; row++) {
-        for (let col = 0; col < bCols; col++) {
-          const mk = cellKey(col + b.cellOffsetX, row + b.cellOffsetY);
-          if (b.openCells.has(mk)) continue;
-          const bx = col * BATTLE_CELL_PX;
-          const by = row * BATTLE_CELL_PX;
-          if (closedCellImg.complete && closedCellImg.naturalWidth > 0) {
-            ctx.drawImage(closedCellImg, bx, by, BATTLE_CELL_PX, BATTLE_CELL_PX);
-          } else {
-            ctx.fillStyle = '#1a1a2e';
-            ctx.fillRect(bx, by, BATTLE_CELL_PX, BATTLE_CELL_PX);
-          }
-        }
-      }
-
       // Отрисовка клеток battle
       for (const k of b.openCells) {
         const { x, y } = cellFromKey(k);
@@ -998,14 +980,22 @@
       const blackCells = new Set([...s.permanentlyClosed, ...s.disabledCells]);
       for (const k of blackCells) {
         const { x, y } = cellFromKey(k);
-        // Показываем только если хотя бы один сосед когда-либо был реально открыт
-        if (!someAdjacentCell(x, y, (nx, ny, nk) => s.everOpenedCells.has(nk))) continue;
         if (!visibleCells.has(k)) continue;
-        if (rockImg.complete && rockImg.naturalWidth > 0) {
-          ctx.drawImage(rockImg, x * CP, y * CP, CP, CP);
+        const revealed = someAdjacentCell(x, y, (nx, ny, nk) => s.everOpenedCells.has(nk));
+        if (revealed) {
+          if (rockImg.complete && rockImg.naturalWidth > 0) {
+            ctx.drawImage(rockImg, x * CP, y * CP, CP, CP);
+          } else {
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(x * CP, y * CP, CP, CP);
+          }
         } else {
-          ctx.fillStyle = '#000000';
-          ctx.fillRect(x * CP, y * CP, CP, CP);
+          if (closedCellImg.complete && closedCellImg.naturalWidth > 0) {
+            ctx.drawImage(closedCellImg, x * CP, y * CP, CP, CP);
+          } else {
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(x * CP, y * CP, CP, CP);
+          }
         }
       }
 
@@ -2238,12 +2228,21 @@
       ctx.globalAlpha = fadeAlpha;
       for (const k of blackCellsZ) {
         const { x, y } = cellFromKey(k);
-        if (!someAdjacentCell(x, y, (nx, ny, nk) => s.everOpenedCells.has(nk))) continue;
-        if (rockImg.complete && rockImg.naturalWidth > 0) {
-          ctx.drawImage(rockImg, x * CP, y * CP, CP, CP);
+        const revealedZ = someAdjacentCell(x, y, (nx, ny, nk) => s.everOpenedCells.has(nk));
+        if (revealedZ) {
+          if (rockImg.complete && rockImg.naturalWidth > 0) {
+            ctx.drawImage(rockImg, x * CP, y * CP, CP, CP);
+          } else {
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(x * CP, y * CP, CP, CP);
+          }
         } else {
-          ctx.fillStyle = '#000000';
-          ctx.fillRect(x * CP, y * CP, CP, CP);
+          if (closedCellImg.complete && closedCellImg.naturalWidth > 0) {
+            ctx.drawImage(closedCellImg, x * CP, y * CP, CP, CP);
+          } else {
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(x * CP, y * CP, CP, CP);
+          }
         }
       }
       ctx.globalAlpha = 1;
