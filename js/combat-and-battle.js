@@ -219,7 +219,9 @@
       const dy = s.mouse.y - s.player.y;
       const baseAngle = Math.atan2(dy, dx);
 
-      const pellets = weapon.pellets + s.upgrades.pellets;
+      const isBurstWeapon = weapon.burstSize && weapon.burstSize > 1;
+      const pellets = isBurstWeapon ? weapon.pellets : weapon.pellets + s.upgrades.pellets;
+      const burstSizeTotal = isBurstWeapon ? weapon.burstSize + s.upgrades.pellets : weapon.burstSize;
       const totalSpread = weapon.spread * s.upgrades.spreadMult;
       const bulletSpeed = weapon.bulletSpeed * s.upgrades.bulletSpeedMult;
 
@@ -230,10 +232,10 @@
       }
 
       // Проверяем, начинаем ли очередь карабина
-      if (weapon.burstSize && weapon.burstSize > 1) {
+      if (isBurstWeapon) {
         if (s.burstRemaining === 0) {
           // Начинаем новую очередь
-          s.burstRemaining = weapon.burstSize - 1;
+          s.burstRemaining = burstSizeTotal - 1;
           s.burstWeaponId = weapon.id;
           s.burstCooldown = weapon.burstCooldown;
           s.shootCooldown = 0; // Не блокируем, ждём burstCooldown
@@ -1087,7 +1089,9 @@
       const dy = s.mouse.y - b.player.y;
       const baseAngle = Math.atan2(dy, dx);
 
-      const pellets = weapon.pellets + s.upgrades.pellets;
+      const isBurstWeapon = weapon.burstSize && weapon.burstSize > 1;
+      const pellets = isBurstWeapon ? weapon.pellets : weapon.pellets + s.upgrades.pellets;
+      const burstSizeTotal = isBurstWeapon ? weapon.burstSize + s.upgrades.pellets : weapon.burstSize;
       const totalSpread = weapon.spread * s.upgrades.spreadMult;
       const bulletSpeed = weapon.bulletSpeed * s.upgrades.bulletSpeedMult * BATTLE_SCALE;
 
@@ -1098,9 +1102,9 @@
       }
 
       // Проверяем, начинаем ли очередь карабина
-      if (weapon.burstSize && weapon.burstSize > 1) {
+      if (isBurstWeapon) {
         if (s.burstRemaining === 0) {
-          s.burstRemaining = weapon.burstSize - 1;
+          s.burstRemaining = burstSizeTotal - 1;
           s.burstWeaponId = weapon.id;
           s.burstCooldown = weapon.burstCooldown;
           s.shootCooldown = 0; // Не блокируем, ждём burstCooldown
