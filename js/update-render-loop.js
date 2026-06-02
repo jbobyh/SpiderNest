@@ -995,10 +995,12 @@
         const bgW = backgroundImg.naturalWidth;
         const bgH = backgroundImg.naturalHeight;
         const PARALLAX = 0.20;
-        const offX = ((-camera.x + shakeX) * PARALLAX) % bgW;
-        const offY = ((-camera.y + shakeY) * PARALLAX) % bgH;
-        const startX = ((offX % bgW) + bgW) % bgW - bgW;
-        const startY = ((offY % bgH) + bgH) % bgH - bgH;
+        const shiftX = bgW * 0.7;
+        const shiftY = bgH * 0.5;
+        const offX = ((-camera.x + shakeX) * PARALLAX + shiftX) % bgW;
+        const offY = ((-camera.y + shakeY) * PARALLAX + shiftY) % bgH;
+        const startX = ((offX % bgW) + bgW) % bgW - bgW * 3;
+        const startY = ((offY % bgH) + bgH) % bgH - bgH * 3;
         for (let ty = startY; ty < VIEW_H; ty += bgH) {
           for (let tx = startX; tx < VIEW_W; tx += bgW) {
             ctx.drawImage(backgroundImg, tx, ty, bgW, bgH);
