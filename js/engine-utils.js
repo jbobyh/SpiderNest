@@ -81,6 +81,7 @@
     // ============================================================
     const CARDINAL_DIRECTIONS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
     const WALL_DIRECTIONS = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+    const DIAGONAL_DIRECTIONS = [[1, 1], [-1, 1], [1, -1], [-1, -1]];
 
     function cellKey(x, y) { return `${x},${y}`; }
     function cellFromKey(k) { const [x, y] = k.split(','); return { x: +x, y: +y }; }
@@ -264,6 +265,16 @@
 
     function revealAdjacentCells(targetSet, x, y, disabledCells, permanentlyClosed = null, requireBounds = true) {
       for (const [dx, dy] of CARDINAL_DIRECTIONS) {
+        const nx = x + dx, ny = y + dy;
+        const nk = cellKey(nx, ny);
+        if ((!requireBounds || inBounds(nx, ny)) && !disabledCells.has(nk) && !permanentlyClosed?.has(nk)) {
+          targetSet.add(nk);
+        }
+      }
+    }
+
+    function revealDiagonalCells(targetSet, x, y, disabledCells, permanentlyClosed = null, requireBounds = true) {
+      for (const [dx, dy] of DIAGONAL_DIRECTIONS) {
         const nx = x + dx, ny = y + dy;
         const nk = cellKey(nx, ny);
         if ((!requireBounds || inBounds(nx, ny)) && !disabledCells.has(nk) && !permanentlyClosed?.has(nk)) {

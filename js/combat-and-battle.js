@@ -116,6 +116,10 @@
             showUpgradePopup(`ПОЛУЧЕНО БОНУСОВ: ${bonusesToGive.length}`, '#ff00ff');
           }
           break;
+        case 'farSight':
+          s.upgrades.farSight = true;
+          playerProgress.upgrades.farSight = true;
+          break;
       }
       const upgDef = UPGRADE_TYPES.find(u => u.id === type) || CURSED_UPGRADE_TYPES.find(u => u.id === type);
       if (upgDef && showPopup) showUpgradePopup(upgDef.label, upgDef.color);

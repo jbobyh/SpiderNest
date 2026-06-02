@@ -128,6 +128,7 @@
         if (playerProgress.upgrades.battleSpeed === undefined) playerProgress.upgrades.battleSpeed = false;
         if (playerProgress.upgrades.freeze === undefined) playerProgress.upgrades.freeze = false;
         if (playerProgress.upgrades.randomBonus === undefined) playerProgress.upgrades.randomBonus = false;
+        if (playerProgress.upgrades.farSight === undefined) playerProgress.upgrades.farSight = false;
         state = deserializeState(save.state);
         return true;
       } catch (e) {
@@ -198,6 +199,7 @@
           battleSpeed: false,
           freeze: false,
           randomBonus: false,
+          farSight: false,
         },
         spawnedUpgrades: {},
         spawnedWeapons: [],
@@ -538,6 +540,10 @@
               state.everRevealedCells.add(openKey);
               state.everOpenedCells.add(openKey);
               revealAdjacentCells(state.everRevealedCells, openCX, openCY, state.disabledCells, state.permanentlyClosed);
+              // Далеко гляжу: раскрываем диагональные клетки
+              if (state.upgrades.farSight) {
+                revealDiagonalCells(state.everRevealedCells, openCX, openCY, state.disabledCells, state.permanentlyClosed);
+              }
 
               // Запускаем zoom transition или сохраняем
               doOpenCellAfterHeart(openKey, openCX, openCY);
@@ -560,6 +566,10 @@
             state.everRevealedCells.add(openKey);
             state.everOpenedCells.add(openKey);
             revealAdjacentCells(state.everRevealedCells, openCX, openCY, state.disabledCells, state.permanentlyClosed);
+            // Далеко гляжу: раскрываем диагональные клетки
+            if (state.upgrades.farSight) {
+              revealDiagonalCells(state.everRevealedCells, openCX, openCY, state.disabledCells, state.permanentlyClosed);
+            }
 
             doOpenCellAfterHeart(openKey, openCX, openCY);
           });
