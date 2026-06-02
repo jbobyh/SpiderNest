@@ -15,7 +15,7 @@ const CONFIG = {
   LIVES_PER_HEART: 1,     // жизней на одно сердце
   PLAYER_SPEED: 80,      // скорость игрока (пикс/сек)
   PLAYER_RADIUS: 3,       // радиус коллизии игрока
-  PLAYER_SPRITE_RADIUS: 10,        // визуальный радиус спрайта (половина ширины отрисовки)
+  PLAYER_SPRITE_RADIUS: 15,        // визуальный радиус спрайта (половина ширины отрисовки)
   PLAYER_INVULNERABLE_TIME: 1,    // секунд неуязвимости после урона
 
   // Shooting (default values, weapon-specific in WEAPON_DEFS)
