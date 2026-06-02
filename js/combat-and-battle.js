@@ -399,10 +399,12 @@
             // Очередь закончилась
             s.burstWeaponId = null;
             s.shootCooldown = cooldown; // Теперь кд между очередями
+            s.maxShootCooldown = cooldown;
           }
         }
       } else {
         s.shootCooldown = cooldown;
+        s.maxShootCooldown = cooldown;
       }
 
       // Particle muzzle flash
@@ -1367,10 +1369,12 @@
           } else {
             s.burstWeaponId = null;
             s.shootCooldown = cooldown;
+            s.maxShootCooldown = cooldown;
           }
         }
       } else {
         s.shootCooldown = cooldown;
+        s.maxShootCooldown = cooldown;
       }
 
       // Particle muzzle flash (масштабированная скорость)

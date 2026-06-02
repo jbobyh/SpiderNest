@@ -77,6 +77,7 @@
         enemyBullets: [],
         particles: [],
         shootCooldown: 0,
+        maxShootCooldown: 0,
         burstCooldown: 0,
         burstRemaining: 0,
         burstWeaponId: null,

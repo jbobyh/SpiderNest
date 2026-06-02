@@ -14,6 +14,29 @@
     }
 
     // ============================================================
+    // COOLDOWN BAR UNDER CURSOR
+    // ============================================================
+    function drawCursorCooldownBar(s, mouseX, mouseY) {
+      if (s.shootCooldown <= 0 || s.maxShootCooldown <= 0) return;
+      const progress = 1 - (s.shootCooldown / s.maxShootCooldown);
+      const barW = 32;
+      const barH = 3;
+      const offsetY = 18;
+      const x = mouseX - barW / 2;
+      const y = mouseY + offsetY;
+      ctx.save();
+      // Background
+      ctx.fillStyle = 'rgba(255,255,255,0.25)';
+      ctx.fillRect(x, y, barW, barH);
+      // Fill (left to right)
+      const weapon = getActiveWeapon(s);
+      const fillColor = weapon ? weapon.color : '#00d4ff';
+      ctx.fillStyle = fillColor;
+      ctx.fillRect(x, y, barW * progress, barH);
+      ctx.restore();
+    }
+
+    // ============================================================
     // UPDATE
     // ============================================================
     function update(s, dt) {
@@ -899,6 +922,9 @@
 
       ctx.restore();
 
+      // Cooldown bar under cursor (screen space)
+      drawCursorCooldownBar(s, mouseScreen.x, mouseScreen.y);
+
       // Виньетка при малом количестве жизней
       if (s.player.lives === 2) {
         const grad = ctx.createRadialGradient(VIEW_W / 2, VIEW_H / 2, VIEW_H / 3, VIEW_W / 2, VIEW_H / 2, Math.sqrt((VIEW_W) ** 2 + (VIEW_H) ** 2));
@@ -1437,6 +1463,9 @@
       }
 
       ctx.restore();
+
+      // Cooldown bar under cursor (screen space)
+      drawCursorCooldownBar(s, mouseScreen.x, mouseScreen.y);
 
       // Виньетка при малом количестве жизней
       if (s.player.lives === 2) {
