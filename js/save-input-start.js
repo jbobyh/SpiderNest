@@ -126,6 +126,8 @@
         if (playerProgress.upgrades.ricochet === undefined) playerProgress.upgrades.ricochet = false;
         if (playerProgress.upgrades.lastLife === undefined) playerProgress.upgrades.lastLife = false;
         if (playerProgress.upgrades.battleSpeed === undefined) playerProgress.upgrades.battleSpeed = false;
+        if (playerProgress.upgrades.freeze === undefined) playerProgress.upgrades.freeze = false;
+        if (playerProgress.upgrades.randomBonus === undefined) playerProgress.upgrades.randomBonus = false;
         state = deserializeState(save.state);
         return true;
       } catch (e) {
@@ -194,6 +196,8 @@
           ricochet: false,
           lastLife: false,
           battleSpeed: false,
+          freeze: false,
+          randomBonus: false,
         },
         spawnedUpgrades: {},
         spawnedWeapons: [],

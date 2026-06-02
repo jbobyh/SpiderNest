@@ -197,6 +197,7 @@
         bullets: [],
         enemyBullets: [],
         particles: [],
+        freezeTimer: s.upgrades.freeze ? 1.5 : 0, // Таймер заморозки врагов
         damageNumbers: [],
         player: {
           x: playerBattleX,

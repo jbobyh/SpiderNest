@@ -1819,24 +1819,69 @@
       ctx.lineTo(cursor - 10, barH - 6);
       ctx.stroke();
 
-      // UPGRADES
-      const u = s.upgrades;
-      const parts = [];
-      if (u.pellets > 0) parts.push(`P+${u.pellets}`);
-      if (u.cooldownMult < 1.0) parts.push(`CD${Math.round(u.cooldownMult * 100)}%`);
-      if (u.penetrate > 0) parts.push(`PCR+${u.penetrate}`);
-      if (u.speedMult > 1.0) parts.push(`S+${Math.round((u.speedMult - 1) * 100)}%`);
-      if (u.critChance > 0) parts.push(`CRIT${Math.round(u.critChance * 100)}%`);
-      if (u.shield > 0) parts.push(`SHD${u.shield}`);
-      const upgText = parts.length ? parts.join(' ') : '—';
+      // UPGRADES - иконки
       ctx.font = '9px "Share Tech Mono"';
       ctx.fillStyle = 'rgba(42,74,106,1)';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
       ctx.fillText('УСИЛЕНИЯ', cursor, cy - 7);
-      ctx.font = 'bold 11px "Share Tech Mono"';
-      ctx.fillStyle = '#ffcc00';
-      ctx.fillText(upgText, cursor, cy + 6);
+      
+      // Отображаем иконки активных улучшений
+      let iconCursor = cursor;
+      const iconSize = 16;
+      const iconGap = 4;
+      
+      // Собираем активные улучшения с их уровнями
+      const activeUpgrades = [];
+      for (const upg of UPGRADE_TYPES) {
+        let level = 0;
+        if (upg.id === 'pellets') level = s.upgrades.pellets || 0;
+        else if (upg.id === 'damage') level = s.upgrades.damage || 0;
+        else if (upg.id === 'penetrate') level = s.upgrades.penetrate || 0;
+        else if (upg.id === 'bulletSpeed') level = s.upgrades.bulletSpeedMult > 1 ? 1 : 0;
+        else if (upg.id === 'critChance') level = s.upgrades.critChance > 0 ? Math.ceil(s.upgrades.critChance * 20) : 0;
+        else if (upg.id === 'killAccel') level = s.upgrades.killAccel ? 1 : 0;
+        else if (upg.id === 'enhancedPierce') level = s.upgrades.enhancedPierce ? 1 : 0;
+        else if (upg.id === 'shield') level = s.upgrades.shield || 0;
+        else if (upg.id === 'retreat') level = s.upgrades.retreat > 0 ? 1 : 0;
+        else if (upg.id === 'reflection') level = s.upgrades.reflection ? 1 : 0;
+        else if (upg.id === 'cooldown') level = s.upgrades.cooldownMult < 1 ? Math.ceil((1 - s.upgrades.cooldownMult) * 6.67) : 0;
+        else if (upg.id === 'speed') level = s.upgrades.speedMult > 1 ? Math.ceil((s.upgrades.speedMult - 1) * 10) : 0;
+        
+        if (level > 0) {
+          activeUpgrades.push({ ...upg, level: Math.min(level, upg.max) });
+        }
+      }
+      
+      // Рисуем иконки
+      for (const upg of activeUpgrades) {
+        ctx.font = '14px sans-serif';
+        ctx.fillStyle = upg.color;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(upg.icon, iconCursor, cy + 6);
+        
+        // Если уровень > 1, показываем цифру
+        if (upg.level > 1) {
+          ctx.font = 'bold 9px "Share Tech Mono"';
+          ctx.fillStyle = '#ffffff';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'bottom';
+          ctx.fillText(String(upg.level), iconCursor + 7, cy + 2);
+        }
+        
+        iconCursor += iconSize + iconGap;
+      }
+      
+      // Если нет улучшений, показываем прочерк
+      if (activeUpgrades.length === 0) {
+        ctx.font = 'bold 11px "Share Tech Mono"';
+        ctx.fillStyle = 'rgba(42,74,106,1)';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('—', cursor, cy + 6);
+        iconCursor += 20;
+      }
 
       ctx.restore();
     }

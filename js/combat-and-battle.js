@@ -88,6 +88,34 @@
           s.upgrades.battleSpeed = true;
           playerProgress.upgrades.battleSpeed = true;
           break;
+        case 'freeze':
+          s.upgrades.freeze = true;
+          playerProgress.upgrades.freeze = true;
+          break;
+        case 'randomBonus':
+          // Даем 3 случайных обычных бонуса с проверкой max
+          const availableUpgrades = [];
+          for (const upg of UPGRADE_TYPES) {
+            const currentLevel = s.upgrades[upg.id] || 0;
+            if (currentLevel < upg.max) {
+              availableUpgrades.push(upg.id);
+            }
+          }
+          
+          // Перемешиваем и берем первые 3
+          shuffleInPlace(availableUpgrades);
+          const bonusesToGive = availableUpgrades.slice(0, 3);
+          
+          // Применяем бонусы без попапов (покажем один общий попап в конце)
+          for (const bonusId of bonusesToGive) {
+            applyUpgrade(s, bonusId, false);
+          }
+          
+          // Показываем общий попап
+          if (bonusesToGive.length > 0) {
+            showUpgradePopup(`ПОЛУЧЕНО БОНУСОВ: ${bonusesToGive.length}`, '#ff00ff');
+          }
+          break;
       }
       const upgDef = UPGRADE_TYPES.find(u => u.id === type) || CURSED_UPGRADE_TYPES.find(u => u.id === type);
       if (upgDef && showPopup) showUpgradePopup(upgDef.label, upgDef.color);
@@ -418,6 +446,16 @@
       // Инвулнерабельность
       if (s.player.invulnerable > 0) s.player.invulnerable -= dt;
 
+      // Таймер заморозки врагов
+      if (b.freezeTimer > 0) {
+        b.freezeTimer -= dt;
+        if (b.freezeTimer <= 0) {
+          b.freezeTimer = 0;
+          // Показываем попап о конце заморозки
+          showUpgradePopup('ВРАГИ РАЗМОРОЖЕНЫ!', '#00ccff');
+        }
+      }
+
       // Движение игрока в battle mode (масштабированная скорость)
       let speedMult = s.upgrades.speedMult;
       
@@ -718,7 +756,7 @@
 
         if (g.type === 'plevaka' || g.type === 'shooter') {
           // Плевака
-          if (dist > SHOOTER_STOP_DIST * BATTLE_SCALE && dist > 0) {
+          if (b.freezeTimer <= 0 && dist > SHOOTER_STOP_DIST * BATTLE_SCALE && dist > 0) {
             const spd = CONFIG.SHOOTER_SPEED * BATTLE_SCALE;
             g.x += (dx / dist) * spd * dt;
             g.y += (dy / dist) * spd * dt;
@@ -748,7 +786,7 @@
           switch (g.state) {
             case 'chase':
               // Идёт к игроку пока не достигнет дистанции CHARGE_DIST
-              if (dist > chargeDist && dist > 0) {
+              if (b.freezeTimer <= 0 && dist > chargeDist && dist > 0) {
                 const spd = CONFIG.BULL_SPEED * BATTLE_SCALE;
                 g.x += (dx / dist) * spd * dt;
                 g.y += (dy / dist) * spd * dt;
@@ -859,7 +897,7 @@
 
           let newX = g.x;
           let newY = g.y;
-          if (dist > 0) {
+          if (b.freezeTimer <= 0 && dist > 0) {
             newX += (dx / dist) * g.currentSpeed * dt;
             newY += (dy / dist) * g.currentSpeed * dt;
           }
@@ -888,7 +926,7 @@
           // Распухший: как солдат (масштабированный)
           let newX = g.x;
           let newY = g.y;
-          if (dist > 0) {
+          if (b.freezeTimer <= 0 && dist > 0) {
             const spd = CONFIG.BLOATED_SPEED * BATTLE_SCALE;
             newX += (dx / dist) * spd * dt;
             newY += (dy / dist) * spd * dt;
@@ -945,7 +983,7 @@
           // Солдат - летит к игроку (масштабированная скорость)
           let newX = g.x;
           let newY = g.y;
-          if (dist > 0) {
+          if (b.freezeTimer <= 0 && dist > 0) {
             const spd = CONFIG.SPIDER_SPEED * BATTLE_SCALE;
             newX += (dx / dist) * spd * dt;
             newY += (dy / dist) * spd * dt;
