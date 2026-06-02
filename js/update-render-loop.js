@@ -815,6 +815,37 @@
         drawPlayerSprite(p.x, p.y, HERO_DRAW_SCALE);
       }
 
+      // Индикатор разброса в battle
+      if (CONFIG.DEBUG_SPREAD_INDICATOR) {
+        const weapon = getActiveWeapon(s);
+        if (weapon) {
+          let totalSpread = weapon.spread * s.upgrades.spreadMult;
+          if (s.upgrades.sniper && s.battle && s.battle.openCells) {
+            const roomCount = s.battle.openCells.size;
+            if (roomCount <= 2) totalSpread = 0;
+            else totalSpread *= (1 + 0.10 * (roomCount - 2));
+          }
+          const aimA = Math.atan2(s.mouse.y - b.player.y, s.mouse.x - b.player.x);
+          const lineLen = (weapon.range != null ? weapon.range * RANGE_SCALE : 150) * BATTLE_SCALE;
+          const startOffset = CONFIG.PLAYER_SPRITE_RADIUS * BATTLE_SCALE + 2;
+          const halfSpread = totalSpread / 2;
+          ctx.save();
+          ctx.globalAlpha = 0.35;
+          ctx.strokeStyle = '#aaaaaa';
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([6 * BATTLE_SCALE, 5 * BATTLE_SCALE]);
+          for (const side of [-1, 1]) {
+            const a = aimA + side * halfSpread;
+            ctx.beginPath();
+            ctx.moveTo(b.player.x + Math.cos(a) * startOffset, b.player.y + Math.sin(a) * startOffset);
+            ctx.lineTo(b.player.x + Math.cos(a) * (startOffset + lineLen), b.player.y + Math.sin(a) * (startOffset + lineLen));
+            ctx.stroke();
+          }
+          ctx.setLineDash([]);
+          ctx.restore();
+        }
+      }
+
       ctx.restore();
 
       // Виньетка при малом количестве жизней
@@ -1283,6 +1314,37 @@
       if (blinkOk) {
         const HERO_DRAW_SCALE = (CONFIG.PLAYER_SPRITE_RADIUS * 2) / HERO_SW;
         drawPlayerSprite(p.x, p.y, HERO_DRAW_SCALE);
+      }
+
+      // Индикатор разброса: две полупрозрачных линии от игрока
+      if (CONFIG.DEBUG_SPREAD_INDICATOR) {
+        const weapon = getActiveWeapon(s);
+        if (weapon) {
+          let totalSpread = weapon.spread * s.upgrades.spreadMult;
+          if (s.upgrades.sniper && s.battle && s.battle.openCells) {
+            const roomCount = s.battle.openCells.size;
+            if (roomCount <= 2) totalSpread = 0;
+            else totalSpread *= (1 + 0.10 * (roomCount - 2));
+          }
+          const aimA = Math.atan2(s.mouse.y - s.player.y, s.mouse.x - s.player.x);
+          const lineLen = (weapon.range != null ? weapon.range * RANGE_SCALE : 150);
+          const startOffset = CONFIG.PLAYER_SPRITE_RADIUS + 2;
+          const halfSpread = totalSpread / 2;
+          ctx.save();
+          ctx.globalAlpha = 0.35;
+          ctx.strokeStyle = '#aaaaaa';
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([6, 5]);
+          for (const side of [-1, 1]) {
+            const a = aimA + side * halfSpread;
+            ctx.beginPath();
+            ctx.moveTo(s.player.x + Math.cos(a) * startOffset, s.player.y + Math.sin(a) * startOffset);
+            ctx.lineTo(s.player.x + Math.cos(a) * (startOffset + lineLen), s.player.y + Math.sin(a) * (startOffset + lineLen));
+            ctx.stroke();
+          }
+          ctx.setLineDash([]);
+          ctx.restore();
+        }
       }
 
       ctx.restore();
