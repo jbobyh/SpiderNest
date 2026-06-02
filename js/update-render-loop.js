@@ -1,4 +1,19 @@
     // ============================================================
+    // WEAPON SPRITE DRAWING
+    // ============================================================
+    function drawWeaponSprite(ctx, weaponId, x, y, size, alpha, pulse) {
+      const img = weaponImages[weaponId];
+      if (!img || !img.complete || img.naturalWidth === 0) return;
+      const a = alpha !== undefined ? alpha : 1;
+      const p = pulse !== undefined ? pulse : 1;
+      ctx.save();
+      ctx.globalAlpha = a * p;
+      const drawSize = size || 32;
+      ctx.drawImage(img, x - drawSize / 2, y - drawSize / 2, drawSize, drawSize);
+      ctx.restore();
+    }
+
+    // ============================================================
     // UPDATE
     // ============================================================
     function update(s, dt) {
@@ -735,21 +750,17 @@
           const wDef = WEAPON_DEFS[bw.weaponId];
           if (!wDef) continue;
           const pulse = 0.7 + 0.3 * Math.sin(Date.now() * 0.007);
-          ctx.fillStyle = wDef.color;
           ctx.shadowColor = wDef.color;
           ctx.shadowBlur = 12 * BATTLE_SCALE;
-          ctx.globalAlpha = pulse;
-          ctx.font = `bold ${18 * BATTLE_SCALE}px "Share Tech Mono"`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText('🔫', bw.x, bw.y - 8 * BATTLE_SCALE);
+          drawWeaponSprite(ctx, bw.weaponId, bw.x, bw.y - 8 * BATTLE_SCALE, 28 * BATTLE_SCALE, 1, pulse);
+          ctx.shadowBlur = 0;
           ctx.font = `bold ${9 * BATTLE_SCALE}px "Share Tech Mono"`;
           ctx.fillStyle = '#ffffff';
-          ctx.shadowBlur = 0;
           ctx.globalAlpha = 0.9;
-          ctx.fillText(wDef.label, bw.x, bw.y + 8 * BATTLE_SCALE);
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(wDef.label, bw.x, bw.y + 12 * BATTLE_SCALE);
           ctx.globalAlpha = 1;
-          ctx.shadowBlur = 0;
         }
       }
 
@@ -1138,21 +1149,17 @@
           const wDef = WEAPON_DEFS[dw.weaponId];
           if (!wDef) continue;
           const pulse = 0.7 + 0.3 * Math.sin(Date.now() * 0.007);
-          ctx.fillStyle = wDef.color;
           ctx.shadowColor = wDef.color;
           ctx.shadowBlur = 12;
-          ctx.globalAlpha = pulse * 0.7; // Полупрозрачное как пауки
-          ctx.font = 'bold 18px "Share Tech Mono"';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText('🔫', dw.x, dw.y - 8);
+          drawWeaponSprite(ctx, dw.weaponId, dw.x, dw.y - 8, 28, 0.7, pulse);
+          ctx.shadowBlur = 0;
           ctx.font = 'bold 9px "Share Tech Mono"';
           ctx.fillStyle = '#ffffff';
-          ctx.shadowBlur = 0;
-          ctx.globalAlpha = 0.6; // Полупрозрачное название
+          ctx.globalAlpha = 0.6;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
           ctx.fillText(wDef.label, dw.x, dw.y + 8);
           ctx.globalAlpha = 1;
-          ctx.shadowBlur = 0;
         }
       }
 
@@ -1250,21 +1257,17 @@
         const wDef = WEAPON_DEFS[dw.weaponId];
         if (!wDef) continue;
         const pulse = 0.7 + 0.3 * Math.sin(Date.now() * 0.007);
-        ctx.fillStyle = wDef.color;
         ctx.shadowColor = wDef.color;
         ctx.shadowBlur = 12;
-        ctx.globalAlpha = pulse;
-        ctx.font = 'bold 18px "Share Tech Mono"';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('🔫', dw.x, dw.y - 8);
+        drawWeaponSprite(ctx, dw.weaponId, dw.x, dw.y - 8, 28, 1, pulse);
+        ctx.shadowBlur = 0;
         ctx.font = 'bold 9px "Share Tech Mono"';
         ctx.fillStyle = '#ffffff';
-        ctx.shadowBlur = 0;
         ctx.globalAlpha = 0.9;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
         ctx.fillText(wDef.label, dw.x, dw.y + 8);
         ctx.globalAlpha = 1;
-        ctx.shadowBlur = 0;
       }
 
       // Пули игрока

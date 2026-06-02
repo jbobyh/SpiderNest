@@ -133,6 +133,22 @@
     const cocoonImg = new Image();
     cocoonImg.src = 'img/cocoon.png';
 
+    // Weapon sprites
+    const weaponImages = {
+      pistol:   new Image(),
+      shotgun:  new Image(),
+      smg:      new Image(),
+      rifle:    new Image(),
+      revolver: new Image(),
+      carbine:  new Image(),
+    };
+    weaponImages.pistol.src   = 'img/pistol.png';
+    weaponImages.shotgun.src  = 'img/shotgun.png';
+    weaponImages.smg.src      = 'img/smg.png';
+    weaponImages.rifle.src    = 'img/rifle.png';
+    weaponImages.revolver.src = 'img/revolver.png';
+    weaponImages.carbine.src  = 'img/carbine.png';
+
     // ============================================================
     // PLAYER ANIMATION
     // ============================================================
