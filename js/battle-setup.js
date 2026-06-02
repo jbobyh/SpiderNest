@@ -362,3 +362,262 @@
       return false;
     }
 
+    // ============================================================
+    // BOSS BATTLE MODE
+    // ============================================================
+    function startBossBattleZoomTransition() {
+      if (!state) return;
+      // Вычисляем границы battle-локации по всем открытым клеткам
+      const battleCells = new Set([...state.openCells]);
+      const { minX: fMinX, minY: fMinY, maxX: fMaxX, maxY: fMaxY } = getCellBounds(battleCells);
+      const fCols = fMaxX - fMinX + 1;
+      const fRows = fMaxY - fMinY + 1;
+      const battleWallPad = BATTLE_CELL_PX * 0.125;
+      const battleW = fCols * BATTLE_CELL_PX + battleWallPad * 2;
+      const battleH = fRows * BATTLE_CELL_PX + battleWallPad * 2;
+      const staticScale = Math.min(VIEW_W / battleW, VIEW_H / battleH, 1);
+      const toScale = staticScale * BATTLE_SCALE;
+      const fCenterX = (fMinX + fCols / 2) * CP;
+      const fCenterY = (fMinY + fRows / 2) * CP;
+      const fromCenterX = camera.x + VIEW_W / 2;
+      const fromCenterY = camera.y + VIEW_H / 2;
+
+      zoomTransition = {
+        fromCenterX, fromCenterY,
+        toCenterX: fCenterX, toCenterY: fCenterY,
+        fromScale: 1,
+        toCamX: fCenterX - VIEW_W / (2 * toScale),
+        toCamY: fCenterY - VIEW_H / (2 * toScale),
+        toScale,
+        t: 0,
+        pendingCellKey: null,
+        frozenAngle: Math.atan2(state.mouse.y - state.player.y, state.mouse.x - state.player.x),
+        isBossBattle: true,
+      };
+      Sounds.zoom();
+      state.phase = 'zoom_transition';
+    }
+
+    function enterBossBattleMode(s) {
+      // Используем все открытые клетки как арену боя
+      const battleCells = new Set([...s.openCells]);
+
+      // Находим клетку игрока
+      const playerCell = cellOf(s.player.x, s.player.y);
+
+      // Вычисляем границы battle-локации
+      const { minX, minY, maxX, maxY } = getCellBounds(battleCells);
+      const cellOffsetX = minX;
+      const cellOffsetY = minY;
+      const battleWidth = (maxX - minX + 1) * BATTLE_CELL_PX;
+      const battleHeight = (maxY - minY + 1) * BATTLE_CELL_PX;
+
+      // Конвертируем позицию игрока в battle-координаты
+      const playerLocalX = s.player.x - playerCell.x * CP;
+      const playerLocalY = s.player.y - playerCell.y * CP;
+      const playerBattleX = (playerCell.x - cellOffsetX) * BATTLE_CELL_PX + playerLocalX * BATTLE_SCALE;
+      const playerBattleY = (playerCell.y - cellOffsetY) * BATTLE_CELL_PX + playerLocalY * BATTLE_SCALE;
+
+      // Находим самую дальнюю открытую клетку от игрока для спавна босса
+      let farthestCell = null;
+      let maxDist = -1;
+      for (const k of battleCells) {
+        const { x, y } = cellFromKey(k);
+        const cx = (x + 0.5) * CP;
+        const cy = (y + 0.5) * CP;
+        const dist = Math.hypot(cx - s.player.x, cy - s.player.y);
+        if (dist > maxDist) {
+          maxDist = dist;
+          farthestCell = { x, y };
+        }
+      }
+
+      // Создаем босса (солдат с 4x HP) в дальней клетке от игрока
+      const margin = CONFIG.SPIDER_RADIUS * BATTLE_SCALE + 20;
+      let bossX, bossY;
+      if (farthestCell) {
+        const bossCellX = (farthestCell.x - cellOffsetX) * BATTLE_CELL_PX;
+        const bossCellY = (farthestCell.y - cellOffsetY) * BATTLE_CELL_PX;
+        // Позиция босса в углу клетки, дальнем от игрока
+        const playerRelX = playerBattleX - bossCellX;
+        const playerRelY = playerBattleY - bossCellY;
+        bossX = bossCellX + (playerRelX < BATTLE_CELL_PX / 2 ? BATTLE_CELL_PX - margin : margin);
+        bossY = bossCellY + (playerRelY < BATTLE_CELL_PX / 2 ? BATTLE_CELL_PX - margin : margin);
+      } else {
+        // Fallback - центр battle-зоны
+        bossX = battleWidth / 2;
+        bossY = battleHeight / 2;
+      }
+
+      // Босс - солдат с 4x HP (400)
+      const bossHp = CONFIG.SPIDER_HP * 4;
+      const battleActiveSpiders = [{
+        x: bossX,
+        y: bossY,
+        vx: 0, vy: 0,
+        radius: CONFIG.SPIDER_RADIUS,
+        hp: bossHp,
+        type: 'soldier',
+        isBoss: true,
+        shootCd: 0,
+        state: 'chase',
+        stateTimer: 0,
+        dashTargetX: 0, dashTargetY: 0,
+        dashDirX: 0, dashDirY: 0,
+        dashDistance: 0,
+        currentSpeed: undefined,
+        speedAccumulator: 0,
+        spawnTimer: undefined,
+      }];
+
+      // Battle-копии коллектиблов (сердечки, ключи, апгрейды, оружие)
+      const battleHearts = [];
+      const battleKeys = [];
+      const battleUpgrades = [];
+      const battleWeapons = [];
+      const battleChests = [];
+
+      for (const heart of s.hearts) {
+        if (heart.collected) continue;
+        const hc = cellOf(heart.x, heart.y);
+        if (battleCells.has(cellKey(hc.x, hc.y))) {
+          battleHearts.push({
+            x: (hc.x - cellOffsetX) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
+            y: (hc.y - cellOffsetY) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
+            originalCellKey: cellKey(hc.x, hc.y),
+            collected: false
+          });
+        }
+      }
+
+      for (const keyObj of s.keyObjs) {
+        if (keyObj.collected) continue;
+        const kc = cellOf(keyObj.x, keyObj.y);
+        if (battleCells.has(cellKey(kc.x, kc.y))) {
+          battleKeys.push({
+            x: (kc.x - cellOffsetX) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
+            y: (kc.y - cellOffsetY) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
+            originalCellKey: cellKey(kc.x, kc.y),
+            collected: false
+          });
+        }
+      }
+
+      for (const upg of s.upgradeObjs) {
+        if (upg.collected) continue;
+        const uc = cellOf(upg.x, upg.y);
+        if (battleCells.has(cellKey(uc.x, uc.y))) {
+          battleUpgrades.push({
+            x: (uc.x - cellOffsetX) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
+            y: (uc.y - cellOffsetY) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
+            originalCellKey: cellKey(uc.x, uc.y),
+            upgradeType: upg.upgradeType,
+            collected: false
+          });
+        }
+      }
+
+      for (const chest of (s.chestObjs || [])) {
+        if (chest.collected) continue;
+        const cc = cellOf(chest.x, chest.y);
+        if (battleCells.has(cellKey(cc.x, cc.y))) {
+          battleChests.push({
+            x: (cc.x - cellOffsetX) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
+            y: (cc.y - cellOffsetY) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
+            originalCellKey: cellKey(cc.x, cc.y),
+            collected: false,
+          });
+        }
+      }
+
+      for (const dw of s.droppedWeapons) {
+        const wc = cellOf(dw.x, dw.y);
+        if (battleCells.has(cellKey(wc.x, wc.y))) {
+          battleWeapons.push({
+            x: (wc.x - cellOffsetX) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
+            y: (wc.y - cellOffsetY) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
+            weaponId: dw.weaponId,
+            originalX: dw.x,
+            originalY: dw.y,
+            picked: false,
+          });
+        }
+      }
+
+      // Переносим уже активных врагов в battle (кроме босса)
+      const battleSpiders = [];
+      for (const g of s.activeSpiders) {
+        const gc = cellOf(g.x, g.y);
+        if (battleCells.has(cellKey(gc.x, gc.y))) {
+          const battleX = (gc.x - cellOffsetX) * BATTLE_CELL_PX + (g.x - gc.x * CP) * BATTLE_SCALE;
+          const battleY = (gc.y - cellOffsetY) * BATTLE_CELL_PX + (g.y - gc.y * CP) * BATTLE_SCALE;
+          battleSpiders.push({
+            x: battleX, y: battleY,
+            vx: 0, vy: 0,
+            hp: g.hp,
+            type: g.type,
+            phase: g.phase,
+            wobble: g.wobble,
+            shootCd: g.shootCd || 0,
+            radius: g.radius,
+            state: g.state,
+            stateTimer: g.stateTimer,
+            dashTargetX: g.dashTargetX,
+            dashTargetY: g.dashTargetY,
+            dashDirX: g.dashDirX,
+            dashDirY: g.dashDirY,
+            dashDistance: g.dashDistance,
+            currentSpeed: g.currentSpeed,
+            speedAccumulator: g.speedAccumulator,
+          });
+        }
+      }
+
+      s.battle = {
+        openCells: battleCells,
+        cellOffsetX,
+        cellOffsetY,
+        width: battleWidth,
+        height: battleHeight,
+        hearts: battleHearts,
+        keys: battleKeys,
+        upgrades: battleUpgrades,
+        chests: battleChests,
+        weapons: battleWeapons,
+        spiders: battleSpiders,
+        activeSpiders: battleActiveSpiders,
+        bullets: [],
+        enemyBullets: [],
+        particles: [],
+        freezeTimer: s.upgrades.freeze ? 1.5 : 0,
+        damageNumbers: [],
+        player: {
+          x: playerBattleX,
+          y: playerBattleY,
+        },
+        openedCellKey: null,
+        cellContents: s.cellContents,
+        isBossBattle: true,
+      };
+
+      // Устанавливаем мышь на игрока для корректного направления стрельбы
+      s.mouse.x = playerBattleX + 50;
+      s.mouse.y = playerBattleY;
+
+      s.phase = 'battle';
+      s.bossSummonReady = false;
+
+      // Вычисляем статичную камеру battle
+      const wallPad = BATTLE_CELL_PX * 0.125;
+      const bCols = maxX - minX + 1;
+      const bRows = maxY - minY + 1;
+      const scaleX2 = VIEW_W / (bCols * BATTLE_CELL_PX + wallPad * 2);
+      const scaleY2 = VIEW_H / (bRows * BATTLE_CELL_PX + wallPad * 2);
+      s.battle.staticScale = Math.min(scaleX2, scaleY2, 1);
+      s.battle.staticCamX = (battleWidth * s.battle.staticScale - VIEW_W) / 2 - wallPad * s.battle.staticScale;
+      s.battle.staticCamY = (battleHeight * s.battle.staticScale - VIEW_H) / 2 - wallPad * s.battle.staticScale;
+      s.battle.playCenterX = (minX + bCols / 2) * CP;
+      s.battle.playCenterY = (minY + bRows / 2) * CP;
+      s.battle.playZoomScale = s.battle.staticScale * BATTLE_SCALE;
+    }
+

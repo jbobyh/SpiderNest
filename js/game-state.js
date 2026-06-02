@@ -681,10 +681,14 @@
 
         keys: {},
         mouse: { x: (cx + 0.5) * CP, y: (cy + 0.5) * CP },
-        phase: 'play', // 'play', 'battle', 'win', 'dead', 'stopped'
+        phase: 'play', // 'play', 'battle', 'win', 'dead', 'stopped', 'level_complete'
 
         // Battle mode state
         battle: null, // { openCells, cellContents, hearts, keyObjs, upgradeObjs, spiders, activeSpiders, ... }
+
+        // Boss battle flags
+        bossSummonReady: false,
+        bossDefeated: false,
 
         droppedWeapons: droppedWeapons,
         weaponSlots: [...playerProgress.weaponSlots],

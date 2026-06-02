@@ -82,6 +82,15 @@
         }
       }
 
+      // Проверка: все ключи собраны, клетка выхода была открыта/увидена и босс еще не побежден -> готовность к призыву босса
+      if (s.keysCollected >= s.keysRequired && s.phase === 'play' && !s.bossDefeated) {
+        const ec = s.exitCell;
+        const exitRevealed = s.everRevealedCells.has(cellKey(ec.x, ec.y));
+        s.bossSummonReady = exitRevealed;
+      } else {
+        s.bossSummonReady = false;
+      }
+
       // Сбор апгрейдов
       for (const upg of s.upgradeObjs) {
         if (!upg.collected) {
@@ -1035,11 +1044,19 @@
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           if (s.keysCollected >= s.keysRequired) {
-            ctx.strokeStyle = `rgba(0,255,100,${0.5 + pulse * 0.5})`;
-            ctx.lineWidth = 2;
-            ctx.strokeRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
-            ctx.fillStyle = `rgba(0,255,100,${0.6 + pulse * 0.4})`;
-            ctx.fillText('ВЫХОД', (x + 0.5) * CP, (y + 0.5) * CP);
+            if (s.bossDefeated) {
+              ctx.strokeStyle = `rgba(0,255,100,${0.5 + pulse * 0.5})`;
+              ctx.lineWidth = 2;
+              ctx.strokeRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
+              ctx.fillStyle = `rgba(0,255,100,${0.6 + pulse * 0.4})`;
+              ctx.fillText('ВЫХОД', (x + 0.5) * CP, (y + 0.5) * CP);
+            } else {
+              ctx.strokeStyle = `rgba(255,68,0,${0.5 + pulse * 0.5})`;
+              ctx.lineWidth = 2;
+              ctx.strokeRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
+              ctx.fillStyle = `rgba(255,68,0,${0.6 + pulse * 0.4})`;
+              ctx.fillText('ВЫХОД (БОСС)', (x + 0.5) * CP, (y + 0.5) * CP);
+            }
           } else {
             ctx.strokeStyle = `rgba(255,170,0,${0.5 + pulse * 0.5})`;
             ctx.lineWidth = 2;
@@ -1105,8 +1122,13 @@
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           if (s.keysCollected >= s.keysRequired) {
-            ctx.fillStyle = `rgba(0,255,100,${0.6 + pulse * 0.4})`;
-            ctx.fillText('ВЫХОД', (x + 0.5) * CP, (y + 0.5) * CP);
+            if (s.bossDefeated) {
+              ctx.fillStyle = `rgba(0,255,100,${0.6 + pulse * 0.4})`;
+              ctx.fillText('ВЫХОД', (x + 0.5) * CP, (y + 0.5) * CP);
+            } else {
+              ctx.fillStyle = `rgba(255,68,0,${0.6 + pulse * 0.4})`;
+              ctx.fillText('ВЫХОД (БОСС)', (x + 0.5) * CP, (y + 0.5) * CP);
+            }
           } else {
             ctx.fillStyle = `rgba(255,170,0,${0.6 + pulse * 0.4})`;
             ctx.fillText('ВЫХОД (ЗАКРЫТ)', (x + 0.5) * CP, (y + 0.5) * CP);
@@ -1445,6 +1467,48 @@
           ctx.fillText(onExit ? 'Выход' : 'Подобрать', kx + keySize + 6, by);
           ctx.restore();
         }
+      }
+
+      // Boss summon hint (space key prompt) - shows when all keys collected and on exit
+      if (s.bossSummonReady) {
+        const bx = VIEW_W / 2;
+        const by = VIEW_H - 70;
+        ctx.save();
+        ctx.font = 'bold 13px "Huninn"';
+        const tw = 130;
+        const pad = 10;
+        const bw = tw + pad * 2 + 28;
+        const bh = 28;
+        ctx.fillStyle = 'rgba(5, 12, 22, 0.88)';
+        ctx.strokeStyle = '#ff4400';
+        ctx.lineWidth = 1.5;
+        ctx.shadowColor = '#ff4400';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.roundRect(bx - bw / 2, by - bh / 2, bw, bh, 4);
+        ctx.fill();
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = 'rgba(255, 68, 0, 0.45)';
+        const keySize = 18;
+        const kx = bx - bw / 2 + pad;
+        const ky = by - keySize / 2;
+        ctx.beginPath();
+        ctx.roundRect(kx, ky, keySize, keySize, 3);
+        ctx.fill();
+        ctx.strokeStyle = '#ff4400';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.fillStyle = '#ff4400';
+        ctx.font = 'bold 10px "Huninn"';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('ПРОБЕЛ', kx + keySize / 2, by);
+        ctx.fillStyle = 'rgba(255, 160, 160, 0.9)';
+        ctx.font = '11px "Huninn"';
+        ctx.textAlign = 'left';
+        ctx.fillText('Призвать босса', kx + keySize + 6, by);
+        ctx.restore();
       }
 
       // Tooltip оружия при наведении (play mode)
@@ -2748,10 +2812,14 @@
         drawZoom(state, curScale, curCamX, curCamY, zt.t / ZOOM_DUR, zt.pendingCellKey, zt.frozenAngle);
 
         if (zt.t >= ZOOM_DUR) {
-          enterBattleMode(state, zt.pendingCellKey);
+          if (zt.isBossBattle) {
+            enterBossBattleMode(state);
+          } else {
+            enterBattleMode(state, zt.pendingCellKey);
+          }
           zoomTransition = null;
         }
-      } else if (state && state.phase === 'zoom_out_transition') {
+      } else if (state && state.phase === 'zoom_out_transition' && zoomOutTransition) {
         // Анимация zoom-out из battle на карту (1 сек)
         const ZOOM_OUT_DUR = 0.5;
         zoomOutTransition.t = Math.min(zoomOutTransition.t + dt, ZOOM_OUT_DUR);

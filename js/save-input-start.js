@@ -26,6 +26,7 @@
         revealedExit: s.revealedExit,
         heartsCollected: s.heartsCollected,
         keysCollected: s.keysCollected,
+        bossDefeated: s.bossDefeated || false,
         player: { x: s.player.x, y: s.player.y, lives: s.player.lives, invulnerable: 0 },
         cellContents: [...s.cellContents].map(([k, v]) => [k, v]),
         hearts: s.hearts,
@@ -57,6 +58,8 @@
         revealedExit: data.revealedExit,
         heartsCollected: data.heartsCollected,
         keysCollected: data.keysCollected,
+        bossDefeated: data.bossDefeated || false,
+        bossSummonReady: false,
         player: { ...data.player },
         cellContents: new Map(data.cellContents),
         hearts: data.hearts,
@@ -310,6 +313,18 @@
             attempts++;
           }
         } else if (e.key === 'f' || e.key === 'F' || e.key === 'а' || e.key === 'А') {
+          // F призывает босса только если игрок стоит на клетке выхода (с зум-переходом)
+          if (state.phase === 'play' && state.bossSummonReady) {
+            const ec = state.exitCell;
+            const onExit = state.player.x > ec.x * CP && state.player.x < (ec.x + 1) * CP &&
+              state.player.y > ec.y * CP && state.player.y < (ec.y + 1) * CP;
+            if (onExit) {
+              startBossBattleZoomTransition();
+              e.preventDefault();
+              return;
+            }
+          }
+
           // Сначала пытаемся подобрать оружие рядом
           let pickedUp = false;
 
@@ -348,8 +363,8 @@
             }
           }
 
-          // Проверка выхода: если на клетке выхода с ключами — выходим
-          if (!pickedUp && state.keysCollected >= state.keysRequired) {
+          // Проверка выхода: если на клетке выхода с ключами и босс уже побежден — выходим
+          if (!pickedUp && state.keysCollected >= state.keysRequired && state.bossDefeated) {
             const ec = state.exitCell;
             const ex0 = ec.x * CP, ex1 = (ec.x + 1) * CP;
             const ey0 = ec.y * CP, ey1 = (ec.y + 1) * CP;
@@ -357,6 +372,12 @@
               state.phase = 'level_complete';
               return;
             }
+          }
+        } else if (e.key === ' ' || e.key === 'Spacebar' || e.code === 'Space') {
+          // Пробел - призвать босса когда готово (с зум-переходом)
+          if (state.phase === 'play' && state.bossSummonReady) {
+            startBossBattleZoomTransition();
+            e.preventDefault();
           }
         }
       }
