@@ -965,8 +965,12 @@
         // Показываем только если хотя бы один сосед когда-либо был реально открыт
         if (!someAdjacentCell(x, y, (nx, ny, nk) => s.everOpenedCells.has(nk))) continue;
         if (!visibleCells.has(k)) continue;
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(x * CP, y * CP, CP, CP);
+        if (rockImg.complete && rockImg.naturalWidth > 0) {
+          ctx.drawImage(rockImg, x * CP, y * CP, CP, CP);
+        } else {
+          ctx.fillStyle = '#000000';
+          ctx.fillRect(x * CP, y * CP, CP, CP);
+        }
       }
 
       // Неоткрытые клетки (не исследованные) — рисуем closedcell.png

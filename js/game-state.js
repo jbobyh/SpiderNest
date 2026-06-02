@@ -111,6 +111,9 @@
     const closedCellImg = new Image();
     closedCellImg.src = 'img/closedcell.png';
 
+    const rockImg = new Image();
+    rockImg.src = 'img/rock.png';
+
     // Blue floor variants with different exit configurations
     const floorRightExitImg = new Image();
     floorRightExitImg.src = 'img/floor-rightexit-blue.png';
