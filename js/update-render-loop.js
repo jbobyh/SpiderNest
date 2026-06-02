@@ -2680,14 +2680,15 @@
         }
         return;
       }
-      cursedChoiceState = { offers, chest, isBoss: !chest };
+      cursedChoiceState = { offers, chest, isBoss: !chest, selectionDelay: 1.5, slideT: 0, isClosing: false, selectedUpgrade: null };
       paused = true;
     }
 
     function drawCursedChoice() {
       if (!cursedChoiceState) return;
-      const { offers } = cursedChoiceState;
+      const { offers, selectionDelay, slideT, isClosing } = cursedChoiceState;
       const mx = mouseScreen.x, my = mouseScreen.y;
+      const canSelect = selectionDelay <= 0 && !isClosing;
 
       ctx.save();
       ctx.fillStyle = 'rgba(0,0,0,0.72)';
@@ -2700,35 +2701,45 @@
       const panelX = (VIEW_W - panelW) / 2;
       const panelY = (VIEW_H - panelH) / 2;
 
+      // Slide animation: opening (ease out) or closing (reverse of opening)
+      let slideProgress;
+      if (isClosing) {
+        slideProgress = 1 - Math.pow(slideT, 3); // Reverse of easeOutCubic
+      } else {
+        slideProgress = 1 - Math.pow(1 - slideT, 3); // easeOutCubic for opening
+      }
+      const slideOffset = (1 - slideProgress) * panelH;
+      const currentPanelY = panelY + slideOffset;
+
       ctx.shadowBlur = 40;
       ctx.shadowColor = 'rgba(180,0,255,0.25)';
       ctx.fillStyle = 'rgba(8,4,20,0.97)';
       ctx.beginPath();
-      ctx.roundRect(panelX, panelY, panelW, panelH, 14);
+      ctx.roundRect(panelX, currentPanelY, panelW, panelH, 14);
       ctx.fill();
       ctx.shadowBlur = 0;
 
       ctx.strokeStyle = 'rgba(180,60,255,0.45)';
       ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.roundRect(panelX, panelY, panelW, panelH, 14);
+      ctx.roundRect(panelX, currentPanelY, panelW, panelH, 14);
       ctx.stroke();
 
       ctx.font = 'bold 15px "Huninn"';
       ctx.fillStyle = '#cc88ff';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      ctx.fillText('☠ ПРОКЛЯТЫЕ УЛУЧШЕНИЯ — ВЫБЕРИ ОДНО', VIEW_W / 2, panelY + 16);
+      ctx.fillText('ПРОКЛЯТЫЕ УЛУЧШЕНИЯ — ВЫБЕРИ ОДНО', VIEW_W / 2, currentPanelY + 16);
 
       ctx.font = '10px "Huninn"';
       ctx.fillStyle = 'rgba(180,100,255,0.55)';
-      ctx.fillText('Эффект активен постоянно. Отмена невозможна.', VIEW_W / 2, panelY + 36);
+      ctx.fillText('Эффект активен постоянно. Отмена невозможна.', VIEW_W / 2, currentPanelY + 36);
 
       for (let i = 0; i < offers.length; i++) {
         const upg = offers[i];
         const cx = panelX + 16 + i * (cardW + 8);
-        const cy = panelY + 58;
-        const hovered = mx >= cx && mx <= cx + cardW && my >= cy && my <= cy + cardH;
+        const cy = currentPanelY + 58;
+        const hovered = canSelect && mx >= cx && mx <= cx + cardW && my >= cy && my <= cy + cardH;
 
         ctx.shadowBlur = hovered ? 24 : 8;
         ctx.shadowColor = upg.color + (hovered ? 'cc' : '44');
@@ -2747,7 +2758,7 @@
         ctx.font = '28px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('📦', cx + cardW / 2, cy + 36);
+        ctx.fillText(upg.icon || '📦', cx + cardW / 2, cy + 36);
 
         ctx.font = `bold 11px "Huninn"`;
         ctx.fillStyle = hovered ? '#ffffff' : upg.color;
@@ -2847,7 +2858,68 @@
           else if (state.phase === 'battle') drawBattle(state);
         }
         if (cursedChoiceState) {
-          drawCursedChoice();
+          const ccs = cursedChoiceState;
+          
+          if (ccs.isClosing) {
+            // Closing animation - ease-in slide down
+            ccs.slideT = Math.min(1, ccs.slideT + dt / 0.5);
+            if (ccs.slideT >= 1) {
+              // Animation complete - apply upgrade and resume
+              const selected = ccs.selectedUpgrade;
+              const { chest, isBoss } = ccs;
+              
+              applyUpgrade(state, selected.id);
+              if (chest) {
+                chest.collected = true;
+                state.cellContents.delete(chest.cellKey);
+                addParticles(chest.x, chest.y, CONFIG.PICKUP_PARTICLES_COUNT, CONFIG.PICKUP_PARTICLES_SPEED, CONFIG.PICKUP_PARTICLES_LIFE, selected.color);
+              }
+              cursedChoiceState = null;
+              
+              if (isBoss) {
+                // Boss victory - start zoom-out transition
+                const b = state.battle;
+                const battleCellX = Math.floor(b.player.x / BATTLE_CELL_PX);
+                const battleCellY = Math.floor(b.player.y / BATTLE_CELL_PX);
+                const mapCellX = battleCellX + b.cellOffsetX;
+                const mapCellY = battleCellY + b.cellOffsetY;
+                const localX = b.player.x - battleCellX * BATTLE_CELL_PX;
+                const localY = b.player.y - battleCellY * BATTLE_CELL_PX;
+                const playPX = mapCellX * CP + localX / BATTLE_SCALE;
+                const playPY = mapCellY * CP + localY / BATTLE_SCALE;
+
+                const fromScale = b.playZoomScale || (b.staticScale || 1) * BATTLE_SCALE;
+                const zoneCX = b.playCenterX || playPX;
+                const zoneCY = b.playCenterY || playPY;
+
+                zoomOutTransition = {
+                  fromScale, toScale: 1,
+                  fromCenterX: zoneCX, fromCenterY: zoneCY,
+                  toCenterX: playPX, toCenterY: playPY,
+                  playerX: playPX, playerY: playPY,
+                  t: 0,
+                  frozenAngle: Math.atan2(state.mouse.y - playPY, state.mouse.x - playPX),
+                };
+                Sounds.zoom();
+                state.phase = 'zoom_out_transition';
+                resumeGame();
+              } else {
+                resumeGame();
+              }
+            } else {
+              drawCursedChoice();
+            }
+          } else {
+            // Opening animation or waiting
+            if (ccs.selectionDelay > 0) {
+              ccs.selectionDelay -= dt;
+              // Animate slide from 0 to 1 over the delay period
+              ccs.slideT = Math.min(1, ccs.slideT + dt / 1.5);
+            } else {
+              ccs.slideT = 1;
+            }
+            drawCursedChoice();
+          }
         } else {
           drawPauseMenu();
         }
