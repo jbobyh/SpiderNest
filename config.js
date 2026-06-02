@@ -85,7 +85,7 @@ const CONFIG = {
   SHOOTER_BULLET_SPEED: 75,  // скорость пули плеваки
   SHOOTER_SHOOT_RANGE_CELLS: 1.0, // дальность стрельбы плеваки (в клетках)
   SHOOTER_SHOOT_CD: 1.5,     // кулдаун выстрела плеваки (сек)
-  SHOOTER_STOP_DIST_CELLS: 0.9,   // дистанция остановки плеваки (в клетках)
+  SHOOTER_STOP_DIST_CELLS: 0.8,   // дистанция остановки плеваки (в клетках)
   // Spawn chances by level
   // Level 1: only soldier/shooter
   SHOOTER_CHANCE: 0.30,           // шанс что враг будет плевакой (остальное - солдат)
