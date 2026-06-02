@@ -874,13 +874,6 @@
         ctx.fillRect(0, 0, VIEW_W, VIEW_H);
       }
 
-      // Индикатор battle mode
-      ctx.fillStyle = '#ff4444';
-      ctx.font = 'bold 14px "Huninn"';
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'top';
-      ctx.fillText('⚔ BATTLE MODE', 10, 10);
-
       // Tooltip оружия при наведении (battle mode) — только когда все враги убиты
       if (b.weapons && b.activeSpiders.length === 0) {
         const hoverR = BATTLE_CELL_PX * 0.2;
@@ -1917,6 +1910,7 @@
           ctx.strokeRect(panelX, panelY, panelW, panelH);
 
           // Иконки справа налево: последняя иконка — правый нижний угол
+          let hoveredUpg = null, hoveredIx = 0, hoveredIy = 0;
           for (let i = 0; i < activeUpgrades.length; i++) {
             const upg = activeUpgrades[activeUpgrades.length - 1 - i];
             const col = i % perRow;
@@ -1924,6 +1918,10 @@
             // col=0 → правый край, col increases → leftward
             const ix = panelX + panelW - panelPadX - col * (iconSize + iconGap) - iconSize;
             const iy = panelY + panelH - panelPadY - row * rowH - iconSize;
+
+            const mx = mouseScreen.x, my = mouseScreen.y;
+            const hovered = mx >= ix && mx <= ix + iconSize && my >= iy && my <= iy + iconSize;
+            if (hovered) { hoveredUpg = upg; hoveredIx = ix; hoveredIy = iy; }
 
             ctx.font = `${iconSize}px sans-serif`;
             ctx.textAlign = 'left';
@@ -1939,6 +1937,99 @@
               ctx.fillText(String(upg.level), ix + iconSize, iy + iconSize);
             }
           }
+
+          if (hoveredUpg) {
+            drawUpgradeTooltip(hoveredIx, hoveredIy, hoveredUpg);
+          }
+        }
+      }
+
+      // ── Cursed upgrade icons panel (top-right, below regular upgrades) ──
+      {
+        const iconSize  = 20;
+        const iconGap   = 4;
+        const rowH      = iconSize + 4;
+        const perRow    = 10;
+        const panelPadX = 8;
+        const panelPadY = 6;
+
+        const activeCursed = [];
+        for (const upg of CURSED_UPGRADE_TYPES) {
+          const val = s.upgrades[upg.id];
+          let level = 0;
+          if (upg.id === 'weaponSlot') level = s.maxSlots > 1 ? s.maxSlots - 1 : 0;
+          else if (val === true) level = 1;
+          else if (typeof val === 'number' && val > 0) level = val;
+          if (level > 0) activeCursed.push({ ...upg, level: Math.min(level, upg.max) });
+        }
+
+        if (activeCursed.length > 0) {
+          const rows   = Math.ceil(activeCursed.length / perRow);
+          const cols   = Math.min(activeCursed.length, perRow);
+          const panelW = cols * iconSize + (cols - 1) * iconGap + panelPadX * 2;
+          const panelH = rows * rowH + panelPadY * 2;
+          const panelX = VIEW_W - panelW;
+
+          // Position below regular upgrade panel (calculate its height)
+          const regCount = (() => {
+            let c = 0;
+            for (const upg of UPGRADE_TYPES) {
+              let lv = 0;
+              if (upg.id === 'pellets') lv = s.upgrades.pellets || 0;
+              else if (upg.id === 'damage') lv = s.upgrades.damage || 0;
+              else if (upg.id === 'penetrate') lv = s.upgrades.penetrate || 0;
+              else if (upg.id === 'bulletSpeed') lv = s.upgrades.bulletSpeedMult > 1 ? 1 : 0;
+              else if (upg.id === 'critChance') lv = s.upgrades.critChance > 0 ? 1 : 0;
+              else if (upg.id === 'killAccel') lv = s.upgrades.killAccel ? 1 : 0;
+              else if (upg.id === 'enhancedPierce') lv = s.upgrades.enhancedPierce ? 1 : 0;
+              else if (upg.id === 'shield') lv = s.upgrades.shield || 0;
+              else if (upg.id === 'retreat') lv = s.upgrades.retreat > 0 ? 1 : 0;
+              else if (upg.id === 'reflection') lv = s.upgrades.reflection ? 1 : 0;
+              else if (upg.id === 'cooldown') lv = s.upgrades.cooldownMult < 1 ? 1 : 0;
+              else if (upg.id === 'speed') lv = s.upgrades.speedMult > 1 ? 1 : 0;
+              if (lv > 0) c++;
+            }
+            return c;
+          })();
+          const regRows = regCount > 0 ? Math.ceil(regCount / perRow) : 0;
+          const regPanelH = regCount > 0 ? regRows * rowH + panelPadY * 2 : 0;
+          const panelY = barH + regPanelH + (regCount > 0 ? 2 : 0);
+
+          ctx.fillStyle = 'rgba(10,5,20,0.78)';
+          ctx.fillRect(panelX, panelY, panelW, panelH);
+          ctx.strokeStyle = 'rgba(120,40,180,0.55)';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(panelX, panelY, panelW, panelH);
+
+          let hoveredUpg = null, hoveredIx = 0, hoveredIy = 0;
+          for (let i = 0; i < activeCursed.length; i++) {
+            const upg = activeCursed[activeCursed.length - 1 - i];
+            const col = i % perRow;
+            const row = Math.floor(i / perRow);
+            const ix = panelX + panelW - panelPadX - col * (iconSize + iconGap) - iconSize;
+            const iy = panelY + panelH - panelPadY - row * rowH - iconSize;
+
+            const mx = mouseScreen.x, my = mouseScreen.y;
+            if (mx >= ix && mx <= ix + iconSize && my >= iy && my <= iy + iconSize) {
+              hoveredUpg = upg; hoveredIx = ix; hoveredIy = iy;
+            }
+
+            ctx.font = `${iconSize}px sans-serif`;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            ctx.fillStyle = upg.color;
+            ctx.fillText(upg.icon, ix, iy);
+
+            if (upg.level > 1) {
+              ctx.font = 'bold 8px "Huninn"';
+              ctx.fillStyle = '#ffffff';
+              ctx.textAlign = 'right';
+              ctx.textBaseline = 'bottom';
+              ctx.fillText(String(upg.level), ix + iconSize, iy + iconSize);
+            }
+          }
+
+          if (hoveredUpg) drawUpgradeTooltip(hoveredIx, hoveredIy, hoveredUpg);
         }
       }
 
