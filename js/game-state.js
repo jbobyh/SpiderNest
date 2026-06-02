@@ -114,6 +114,9 @@
     const rockImg = new Image();
     rockImg.src = 'img/rock.png';
 
+    const backgroundImg = new Image();
+    backgroundImg.src = 'img/background.png';
+
     // Blue floor variants with different exit configurations
     const floorRightExitImg = new Image();
     floorRightExitImg.src = 'img/floor-rightexit-blue.png';

@@ -668,6 +668,23 @@
       ctx.fillStyle = '#030810';
       ctx.fillRect(0, 0, b.width, b.height);
 
+      // Закрытые клетки внутри battle-области (не входящие в openCells)
+      const bCols = Math.round(b.width / BATTLE_CELL_PX);
+      const bRows = Math.round(b.height / BATTLE_CELL_PX);
+      for (let row = 0; row < bRows; row++) {
+        for (let col = 0; col < bCols; col++) {
+          const mk = cellKey(col + b.cellOffsetX, row + b.cellOffsetY);
+          if (b.openCells.has(mk)) continue;
+          const bx = col * BATTLE_CELL_PX;
+          const by = row * BATTLE_CELL_PX;
+          if (closedCellImg.complete && closedCellImg.naturalWidth > 0) {
+            ctx.drawImage(closedCellImg, bx, by, BATTLE_CELL_PX, BATTLE_CELL_PX);
+          } else {
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(bx, by, BATTLE_CELL_PX, BATTLE_CELL_PX);
+          }
+        }
+      }
 
       // Отрисовка клеток battle
       for (const k of b.openCells) {
@@ -950,10 +967,29 @@
       const shakeY = Math.sin(screenShake.angle) * screenShake.amount;
       screenShake.amount *= CONFIG.SHAKE_DECAY;
 
+      // Фон с параллаксом (рисуем в экранных координатах до world-трансформа)
+      if (backgroundImg.complete && backgroundImg.naturalWidth > 0) {
+        const bgW = backgroundImg.naturalWidth;
+        const bgH = backgroundImg.naturalHeight;
+        const PARALLAX = 0.20;
+        const offX = ((-camera.x + shakeX) * PARALLAX) % bgW;
+        const offY = ((-camera.y + shakeY) * PARALLAX) % bgH;
+        const startX = ((offX % bgW) + bgW) % bgW - bgW;
+        const startY = ((offY % bgH) + bgH) % bgH - bgH;
+        for (let ty = startY; ty < VIEW_H; ty += bgH) {
+          for (let tx = startX; tx < VIEW_W; tx += bgW) {
+            ctx.drawImage(backgroundImg, tx, ty, bgW, bgH);
+          }
+        }
+      } else {
+        ctx.fillStyle = '#030810';
+        ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+      }
+
       ctx.save();
       ctx.translate(-camera.x + shakeX, -camera.y + shakeY);
 
-      // Фон
+      // Фон игрового поля (поверх фона, под клетками)
       ctx.fillStyle = '#030810';
       ctx.fillRect(0, 0, worldW, worldH);
 
@@ -2203,8 +2239,29 @@
       for (const k of blackCellsZ) {
         const { x, y } = cellFromKey(k);
         if (!someAdjacentCell(x, y, (nx, ny, nk) => s.everOpenedCells.has(nk))) continue;
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(x * CP, y * CP, CP, CP);
+        if (rockImg.complete && rockImg.naturalWidth > 0) {
+          ctx.drawImage(rockImg, x * CP, y * CP, CP, CP);
+        } else {
+          ctx.fillStyle = '#000000';
+          ctx.fillRect(x * CP, y * CP, CP, CP);
+        }
+      }
+      ctx.globalAlpha = 1;
+
+      // Неоткрытые клетки (не исследованные) — рисуем closedcell.png
+      ctx.globalAlpha = fadeAlpha;
+      for (let cy2 = 0; cy2 < s.gridSize; cy2++) {
+        for (let cx2 = 0; cx2 < s.gridSize; cx2++) {
+          const k = cellKey(cx2, cy2);
+          if (s.openCells.has(k) || s.everRevealedCells.has(k) ||
+              s.disabledCells.has(k) || s.permanentlyClosed.has(k)) continue;
+          if (closedCellImg.complete && closedCellImg.naturalWidth > 0) {
+            ctx.drawImage(closedCellImg, cx2 * CP, cy2 * CP, CP, CP);
+          } else {
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(cx2 * CP, cy2 * CP, CP, CP);
+          }
+        }
       }
       ctx.globalAlpha = 1;
 
