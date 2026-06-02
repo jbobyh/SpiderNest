@@ -113,6 +113,8 @@ const CONFIG = {
   BULDYGA_SPEED: 40,              // начальная скорость
   BULDYGA_SPEED_INCREMENT: 5,    // ускорение каждую секунду
   BULDYGA_RADIUS: 6,     // радиус коллизии булдыги
+  BULDYGA_ACCEL: 180,             // ускорение инерции (пикс/с²)
+  BULDYGA_FRICTION: 3.5,          // коэффициент торможения (затухание скорости)
 
   // Cocoon (spawner)
   COCOON_HP: 6,         // здоровье кокона
@@ -156,6 +158,7 @@ const CONFIG = {
 
   // Debug
   DEBUG_INVULNERABLE: false,      // дебаг: неуязвимость игрока от врагов
+  DEBUG_SPREAD_INDICATOR: false,  // дебаг: отображать индикатор угла разброса
 };
 
 // ============================================================
@@ -270,18 +273,18 @@ const WEAPON_DEFS = {
 // UPGRADE TYPES
 // ============================================================
 const UPGRADE_TYPES = [
-  { id: 'pellets',       label: '+1 пуля к выстрелу',     description: 'Каждый выстрел выпускает на 1 пулю больше',                   color: '#ffaa00', max: 2 },
-  { id: 'damage',        label: '+1 урона от пули',        description: 'Каждая пуля наносит на 1 урон больше',                        color: '#ff4444', max: 2 },
-  { id: 'penetrate',     label: '+1 пробитие врага',       description: 'Пуля пролетает сквозь одного дополнительного врага',          color: '#ff44ff', max: 2 },
-  { id: 'bulletSpeed',   label: '+30% скорость пули',      description: 'Пули летят быстрее и труднее уклониться',                     color: '#ffff44', max: 2 },
-  { id: 'critChance',    label: '+5% шанс крита',          description: 'Критический удар наносит двойной урон',                       color: '#ff0000', max: 3 },
-  { id: 'killAccel',     label: 'Оружейный разгон',        description: 'Каждое убийство ускоряет следующий выстрел',                  color: '#ff8800', max: 1 },
-  { id: 'enhancedPierce',label: 'Усиленное пробитие',      description: 'Пуля, пробившая врага, наносит усиленный урон',               color: '#aa44ff', max: 1 },
-  { id: 'shield',        label: 'Щит',                     description: 'Поглощает один удар без потери жизни',                        color: '#00aaff', max: 2 },
-  { id: 'retreat',       label: 'Отступление',             description: 'Получив урон, мгновенно отпрыгиваешь назад',                  color: '#00ffaa', max: 2 },
-  { id: 'reflection',    label: 'Отражение',               description: 'Вражеские пули отражаются назад при попадании в тебя',        color: '#ff00ff', max: 1 },
-  { id: 'cooldown',      label: 'Перезарядка -15%',        description: 'Уменьшает время между выстрелами на 15%',                    color: '#00ccff', max: 3 },
-  { id: 'speed',         label: 'Скорость бега +10%',      description: 'Увеличивает скорость передвижения на 10%',                    color: '#44ff88', max: 3 },
+  { id: 'pellets',       label: '+1 пуля к выстрелу',     description: 'Каждый выстрел выпускает на 1 пулю больше',                   color: '#ffaa00', max: 2, icon: '🔫' },
+  { id: 'damage',        label: '+1 урона от пули',        description: 'Каждая пуля наносит на 1 урон больше',                        color: '#ff4444', max: 2, icon: '💥' },
+  { id: 'penetrate',     label: '+1 пробитие врага',       description: 'Пуля пролетает сквозь одного дополнительного врага',          color: '#ff44ff', max: 2, icon: '🎯' },
+  { id: 'bulletSpeed',   label: '+30% скорость пули',      description: 'Пули летят быстрее',                     color: '#ffff44', max: 2, icon: '⚡' },
+  { id: 'critChance',    label: '+5% шанс крита',          description: 'Шанс нанести двойной урон',                       color: '#ff0000', max: 3, icon: '⚔️' },
+  { id: 'killAccel',     label: 'Убийственный разгон',     description: 'Каждое убийство ускоряет перезарядку на 0.2%',                  color: '#ff8800', max: 1, icon: '🏃' },
+  { id: 'enhancedPierce',label: 'Усиленное пробитие',      description: 'Пуля, пробившая врага, наносит повышенный урон',               color: '#aa44ff', max: 1, icon: '💜' },
+  { id: 'shield',        label: 'Щит',                     description: 'Поглощает один удар без потери жизни. Тратится.',                        color: '#00aaff', max: 2, icon: '🛡️' },
+  { id: 'retreat',       label: 'Отступление',             description: 'После получения урона получи неуязвимость на 1.5 секунды',                  color: '#00ffaa', max: 2, icon: '🏃‍♂️' },
+  { id: 'reflection',    label: 'Отражение',               description: 'При получении урона выпускает 3 пули в ближайших врагов',        color: '#ff00ff', max: 1, icon: '🔄' },
+  { id: 'cooldown',      label: 'Перезарядка -15%',        description: 'Уменьшает время между выстрелами на 15%',                    color: '#00ccff', max: 3, icon: '⏱️' },
+  { id: 'speed',         label: 'Скорость бега +10%',      description: 'Увеличивает скорость передвижения на 10%',                    color: '#44ff88', max: 3, icon: '💨' },
   // { id: 'spread', label: 'Разброс +10%', color: '#ff66aa', max: 2 },
 ];
 
@@ -310,6 +313,62 @@ const CURSED_UPGRADE_TYPES = [
     color: '#22ffdd',
     max: 1,
   },
+  {
+    id: 'weaponSlot',
+    label: '+1 слот для оружия',
+    description: 'Дополнительный слот оружия.',
+    color: '#ffaa00',
+    max: 3,
+  },
+  {
+    id: 'lastLife',
+    label: 'Последняя жизнь',
+    description: 'При смертельном уроне все враги в бою умрут, урон не получишь. Одноразовый.',
+    color: '#ff0000',
+    max: 1,
+  },
+  {
+    id: 'battleSpeed',
+    label: 'Боевое ускорение',
+    description: '+25% скорости при 2 комнатах в бою, -15% за каждую комнату сверх двух',
+    color: '#00ff88',
+    max: 1,
+  },
+  {
+    id: 'freeze',
+    label: 'Заморозка',
+    description: 'В начале боя враги не могут двигаться 1.5 секунд',
+    color: '#00ccff',
+    max: 1,
+  },
+  {
+    id: 'randomBonus',
+    label: 'Что попало',
+    description: 'Получить 3 случайных обычных бонуса',
+    color: '#ff00ff',
+    max: 1,
+  },
+  {
+    id: 'farSight',
+    label: 'Далеко гляжу',
+    description: 'Видно содержимое смежных комнат по диагонали',
+    color: '#ffff00',
+    max: 1,
+  },
+  {
+    id: 'longRange',
+    label: 'Дальнобойщик',
+    description: 'За каждую открытую комнату в бою +20% к дальности полета пули',
+    color: '#ff8800',
+    max: 1,
+  },
+  {
+    id: 'sniper',
+    label: 'Снайпер',
+    description: 'Максимальная точность при 2 комнатах в бою, +10% разброса за каждую дополнительную комнату',
+    color: '#00ff00',
+    max: 1,
+  },
 ];
 
 // ============================================================
@@ -331,4 +390,15 @@ const HERO_ANIMS = {
   run_forward:  { row: 3, frames: 4, fps: 10 }, // бег лицом вперёд
   run_left:     { row: 4, frames: 4, fps: 10 }, // бег лицом влево
   run_back:     { row: 5, frames: 4, fps: 10 }, // бег спиной
+};
+
+// ============================================================
+// COCOON ENEMY SPRITE SHEET
+// Sprite sheet: 3500x500, each sprite 500x500 (7 frames horizontal)
+// 7 animation frames for idle/pulsing animation
+// ============================================================
+const COCOON_SW = 500, COCOON_SH = 500; // размер одного спрайта (пикс)
+const COCOON_ANIM = {
+  frames: 7,
+  fps: 8,
 };
