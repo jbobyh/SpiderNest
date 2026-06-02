@@ -129,6 +129,8 @@
         if (playerProgress.upgrades.freeze === undefined) playerProgress.upgrades.freeze = false;
         if (playerProgress.upgrades.randomBonus === undefined) playerProgress.upgrades.randomBonus = false;
         if (playerProgress.upgrades.farSight === undefined) playerProgress.upgrades.farSight = false;
+        if (playerProgress.upgrades.longRange === undefined) playerProgress.upgrades.longRange = false;
+        if (playerProgress.upgrades.sniper === undefined) playerProgress.upgrades.sniper = false;
         state = deserializeState(save.state);
         return true;
       } catch (e) {
@@ -200,6 +202,8 @@
           freeze: false,
           randomBonus: false,
           farSight: false,
+          longRange: false,
+          sniper: false,
         },
         spawnedUpgrades: {},
         spawnedWeapons: [],

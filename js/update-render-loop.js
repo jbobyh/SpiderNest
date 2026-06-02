@@ -1405,14 +1405,38 @@
       const panelW = 280;
       const lineH = 22;
       const pad = 16;
+      const weapon = getActiveWeapon(s);
+      
+      // Расчет точности с учетом снайпера
+      let totalSpread = (weapon?.spread || 0) * (s.upgrades.spreadMult || 1);
+      if (s.upgrades.sniper && s.battle && s.battle.openCells) {
+        const roomCount = s.battle.openCells.size;
+        if (roomCount <= 2) {
+          totalSpread = 0; // Максимальная точность при 2 комнатах или меньше
+        } else {
+          const extraRooms = roomCount - 2;
+          totalSpread *= (1 + 0.10 * extraRooms); // +10% разброса за каждую дополнительную комнату
+        }
+      }
+      const spreadDeg = Math.round(totalSpread * (180 / Math.PI));
+      
+      // Расчет дальности с учетом дальнобойщика
+      let baseRange = weapon?.range || CONFIG.BULLET_LIFE;
+      if (s.upgrades.longRange && s.battle && s.battle.openCells) {
+        const roomCount = s.battle.openCells.size;
+        baseRange = Math.round(baseRange * (1 + 0.20 * roomCount));
+      }
+      
       const rows = [
         { label: 'ЖИЗНИ', value: `${s.player.lives}`, color: '#ff4444' },
         { label: 'СКОРОСТЬ БЕГА', value: `${Math.round(CONFIG.PLAYER_SPEED * s.upgrades.speedMult)}`, color: '#44ff88' },
-        { label: 'УРОН ПУЛИ', value: `${getActiveWeapon(s)?.damage || CONFIG.BULLET_DAMAGE}`, color: '#ff8800' },
-        { label: 'ПУЛЬ ЗА ВЫСТРЕЛ', value: `${(getActiveWeapon(s)?.pellets || 1) + s.upgrades.pellets}`, color: '#00d4ff' },
-        { label: 'ПРОБИТИЕ ВРАГОВ', value: `${(getActiveWeapon(s)?.penetrate || 0) + s.upgrades.penetrate}`, color: '#aa44ff' },
-        { label: 'СКОРОСТЬ ПУЛИ', value: `${Math.round((getActiveWeapon(s)?.bulletSpeed || CONFIG.BULLET_SPEED) * s.upgrades.bulletSpeedMult)}`, color: '#ffff44' },
-        { label: 'ПЕРЕЗАРЯДКА', value: `${((getActiveWeapon(s)?.cooldown || 0.35) * s.upgrades.cooldownMult).toFixed(2)}с`, color: '#00ccff' },
+        { label: 'УРОН ПУЛИ', value: `${weapon?.damage || CONFIG.BULLET_DAMAGE}`, color: '#ff8800' },
+        { label: 'ПУЛЬ ЗА ВЫСТРЕЛ', value: `${(weapon?.pellets || 1) + s.upgrades.pellets}`, color: '#00d4ff' },
+        { label: 'ТОЧНОСТЬ', value: spreadDeg === 0 ? 'Идеальная' : `±${spreadDeg}°`, color: '#ff66aa' },
+        { label: 'ДАЛЬНОСТЬ ПУЛИ', value: `${baseRange}`, color: '#88ff44' },
+        { label: 'ПРОБИТИЕ ВРАГОВ', value: `${(weapon?.penetrate || 0) + s.upgrades.penetrate}`, color: '#aa44ff' },
+        { label: 'СКОРОСТЬ ПУЛИ', value: `${Math.round((weapon?.bulletSpeed || CONFIG.BULLET_SPEED) * s.upgrades.bulletSpeedMult)}`, color: '#ffff44' },
+        { label: 'ПЕРЕЗАРЯДКА', value: `${((weapon?.cooldown || 0.35) * s.upgrades.cooldownMult).toFixed(2)}с`, color: '#00ccff' },
         { label: 'ШАНС КРИТА', value: `${Math.round(s.upgrades.critChance * 100)}%`, color: '#ff0000' },
       ];
 

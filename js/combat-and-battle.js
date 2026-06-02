@@ -120,6 +120,14 @@
           s.upgrades.farSight = true;
           playerProgress.upgrades.farSight = true;
           break;
+        case 'longRange':
+          s.upgrades.longRange = true;
+          playerProgress.upgrades.longRange = true;
+          break;
+        case 'sniper':
+          s.upgrades.sniper = true;
+          playerProgress.upgrades.sniper = true;
+          break;
       }
       const upgDef = UPGRADE_TYPES.find(u => u.id === type) || CURSED_UPGRADE_TYPES.find(u => u.id === type);
       if (upgDef && showPopup) showUpgradePopup(upgDef.label, upgDef.color);
@@ -267,7 +275,17 @@
           vy: Math.sin(angle) * bulletSpeed,
           life: s.upgrades.infiniteRange
             ? 999999
-            : (weapon.range != null ? weapon.range * RANGE_SCALE * scale : CONFIG.BULLET_LIFE * weapon.bulletSpeed) / bulletSpeed * (s.upgrades.ricochet ? 1.5 : 1),
+            : (() => {
+                let baseLife = (weapon.range != null ? weapon.range * RANGE_SCALE * scale : CONFIG.BULLET_LIFE * weapon.bulletSpeed) / bulletSpeed * (s.upgrades.ricochet ? 1.5 : 1);
+                
+                // Дальнобойщик: +20% дальности за каждую открытую клетку в бою
+                if (s.upgrades.longRange && s.battle && s.battle.openCells) {
+                  const roomCount = s.battle.openCells.size;
+                  baseLife *= (1 + 0.20 * roomCount);
+                }
+                
+                return baseLife;
+              })(),
           damage: damage,
           penetrate: s.upgrades.infinitePenetrate ? Infinity : weapon.penetrate + s.upgrades.penetrate,
           hitCount: 0,
@@ -291,9 +309,15 @@
       let damage = weapon.damage + s.upgrades.damage;
       if (isCrit) damage *= 2;
       screenShake = { amount: weapon.shakeAmount || CONFIG.SHAKE_AMOUNT, angle: baseAngle };
-      const bulletLife = s.upgrades.infiniteRange
+      let bulletLife = s.upgrades.infiniteRange
         ? 999999
         : (weapon.range != null ? weapon.range * RANGE_SCALE : CONFIG.BULLET_LIFE * weapon.bulletSpeed) / bulletSpeed * (s.upgrades.ricochet ? 1.5 : 1);
+      
+      // Дальнобойщик: +20% дальности за каждую открытую клетку в бою
+      if (s.upgrades.longRange && s.battle && s.battle.openCells) {
+        const roomCount = s.battle.openCells.size;
+        bulletLife *= (1 + 0.20 * roomCount);
+      }
       s.bullets.push({
         x: s.player.x, y: s.player.y,
         vx: Math.cos(baseAngle) * bulletSpeed,
@@ -337,8 +361,19 @@
       const isBurstWeapon = weapon.burstSize && weapon.burstSize > 1;
       const pellets = isBurstWeapon ? weapon.pellets : weapon.pellets + s.upgrades.pellets;
       const burstSizeTotal = isBurstWeapon ? weapon.burstSize + s.upgrades.pellets : weapon.burstSize;
-      const totalSpread = weapon.spread * s.upgrades.spreadMult;
+      let totalSpread = weapon.spread * s.upgrades.spreadMult;
       const bulletSpeed = weapon.bulletSpeed * s.upgrades.bulletSpeedMult;
+      
+      // Снайпер: максимальная точность при 2 комнатах, +10% разброса за каждую дополнительную
+      if (s.upgrades.sniper && s.battle && s.battle.openCells) {
+        const roomCount = s.battle.openCells.size;
+        if (roomCount <= 2) {
+          totalSpread = 0; // Максимальная точность при 2 комнатах или меньше
+        } else {
+          const extraRooms = roomCount - 2;
+          totalSpread *= (1 + 0.10 * extraRooms); // +10% разброса за каждую дополнительную комнату
+        }
+      }
 
       for (let i = 0; i < pellets; i++) {
         const spread = (Math.random() - 0.5) * totalSpread;
@@ -1250,8 +1285,19 @@
       const isBurstWeapon = weapon.burstSize && weapon.burstSize > 1;
       const pellets = isBurstWeapon ? weapon.pellets : weapon.pellets + s.upgrades.pellets;
       const burstSizeTotal = isBurstWeapon ? weapon.burstSize + s.upgrades.pellets : weapon.burstSize;
-      const totalSpread = weapon.spread * s.upgrades.spreadMult;
+      let totalSpread = weapon.spread * s.upgrades.spreadMult;
       const bulletSpeed = weapon.bulletSpeed * s.upgrades.bulletSpeedMult * BATTLE_SCALE;
+      
+      // Снайпер: максимальная точность при 2 комнатах, +10% разброса за каждую дополнительную
+      if (s.upgrades.sniper && s.battle && s.battle.openCells) {
+        const roomCount = s.battle.openCells.size;
+        if (roomCount <= 2) {
+          totalSpread = 0; // Максимальная точность при 2 комнатах или меньше
+        } else {
+          const extraRooms = roomCount - 2;
+          totalSpread *= (1 + 0.10 * extraRooms); // +10% разброса за каждую дополнительную комнату
+        }
+      }
 
       for (let i = 0; i < pellets; i++) {
         const spread = (Math.random() - 0.5) * totalSpread;
