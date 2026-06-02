@@ -180,6 +180,126 @@ const LEVEL_UPGRADE_COUNTS = { 1: 4, 2: 10, 3: 16 };
 const LEVEL_CHEST_COUNTS   = { 1: 1, 2: 2, 3: 3 };
 
 // ============================================================
+// ROOM ENEMY POOLS
+// Пресеты врагов для каждого типа комнаты по уровням.
+// Ключи: soldier, shooter, bull, buldyga, cocoon, bloated
+// Типы комнат: easy, medium, hard, key, simpleupgrade, cursedupgrade, enemy
+// ============================================================
+const ROOM_POOLS = {
+  1: {
+    easy: [
+      { soldier: 1, shooter: 0 },
+      { soldier: 2, shooter: 0 },
+      { soldier: 1, shooter: 1 },
+    ],
+    medium: [
+      { soldier: 2, shooter: 1 },
+      { soldier: 3, shooter: 0 },
+      { soldier: 2, shooter: 2 },
+    ],
+    hard: [
+      { soldier: 3, shooter: 1 },
+      { soldier: 4, shooter: 1 },
+      { soldier: 3, shooter: 2 },
+    ],
+    key: [
+      { soldier: 2, shooter: 1 },
+      { soldier: 3, shooter: 1 },
+      { soldier: 2, shooter: 2 },
+    ],
+    simpleupgrade: [
+      { soldier: 1, shooter: 0 },
+      { soldier: 1, shooter: 1 },
+      { soldier: 2, shooter: 0 },
+    ],
+    cursedupgrade: [
+      { soldier: 2, shooter: 1 },
+      { soldier: 3, shooter: 0 },
+      { soldier: 2, shooter: 2 },
+    ],
+    enemy: [
+      { soldier: 3, shooter: 0 },
+      { soldier: 2, shooter: 2 },
+      { soldier: 4, shooter: 0 },
+    ],
+  },
+  2: {
+    easy: [
+      { soldier: 2, shooter: 1, bull: 0, buldyga: 0 },
+      { soldier: 1, shooter: 1, bull: 1, buldyga: 0 },
+      { soldier: 2, shooter: 0, bull: 1, buldyga: 0 },
+    ],
+    medium: [
+      { soldier: 2, shooter: 1, bull: 1, buldyga: 0 },
+      { soldier: 2, shooter: 2, bull: 0, buldyga: 1 },
+      { soldier: 1, shooter: 1, bull: 1, buldyga: 1 },
+    ],
+    hard: [
+      { soldier: 3, shooter: 1, bull: 1, buldyga: 1 },
+      { soldier: 2, shooter: 2, bull: 2, buldyga: 0 },
+      { soldier: 2, shooter: 1, bull: 1, buldyga: 2 },
+    ],
+    key: [
+      { soldier: 2, shooter: 1, bull: 1, buldyga: 1 },
+      { soldier: 3, shooter: 1, bull: 1, buldyga: 0 },
+      { soldier: 2, shooter: 2, bull: 0, buldyga: 1 },
+    ],
+    simpleupgrade: [
+      { soldier: 1, shooter: 1, bull: 0, buldyga: 0 },
+      { soldier: 2, shooter: 0, bull: 1, buldyga: 0 },
+      { soldier: 1, shooter: 1, bull: 1, buldyga: 0 },
+    ],
+    cursedupgrade: [
+      { soldier: 2, shooter: 1, bull: 1, buldyga: 0 },
+      { soldier: 2, shooter: 2, bull: 0, buldyga: 1 },
+      { soldier: 3, shooter: 0, bull: 1, buldyga: 1 },
+    ],
+    enemy: [
+      { soldier: 3, shooter: 1, bull: 1, buldyga: 1 },
+      { soldier: 2, shooter: 2, bull: 2, buldyga: 0 },
+      { soldier: 3, shooter: 0, bull: 0, buldyga: 2 },
+    ],
+  },
+  3: {
+    easy: [
+      { soldier: 2, shooter: 1, bull: 1, buldyga: 0, cocoon: 0, bloated: 0 },
+      { soldier: 1, shooter: 1, bull: 0, buldyga: 1, cocoon: 1, bloated: 0 },
+      { soldier: 2, shooter: 0, bull: 1, buldyga: 0, cocoon: 0, bloated: 1 },
+    ],
+    medium: [
+      { soldier: 2, shooter: 1, bull: 1, buldyga: 1, cocoon: 0, bloated: 1 },
+      { soldier: 2, shooter: 2, bull: 0, buldyga: 1, cocoon: 1, bloated: 0 },
+      { soldier: 1, shooter: 1, bull: 1, buldyga: 1, cocoon: 0, bloated: 2 },
+    ],
+    hard: [
+      { soldier: 3, shooter: 1, bull: 1, buldyga: 1, cocoon: 1, bloated: 1 },
+      { soldier: 2, shooter: 2, bull: 2, buldyga: 1, cocoon: 0, bloated: 2 },
+      { soldier: 2, shooter: 1, bull: 1, buldyga: 2, cocoon: 1, bloated: 1 },
+    ],
+    key: [
+      { soldier: 2, shooter: 1, bull: 1, buldyga: 1, cocoon: 1, bloated: 0 },
+      { soldier: 3, shooter: 1, bull: 1, buldyga: 0, cocoon: 0, bloated: 2 },
+      { soldier: 2, shooter: 2, bull: 0, buldyga: 1, cocoon: 1, bloated: 1 },
+    ],
+    simpleupgrade: [
+      { soldier: 1, shooter: 1, bull: 1, buldyga: 0, cocoon: 0, bloated: 0 },
+      { soldier: 2, shooter: 0, bull: 0, buldyga: 1, cocoon: 1, bloated: 0 },
+      { soldier: 1, shooter: 1, bull: 0, buldyga: 0, cocoon: 0, bloated: 1 },
+    ],
+    cursedupgrade: [
+      { soldier: 2, shooter: 1, bull: 1, buldyga: 1, cocoon: 0, bloated: 1 },
+      { soldier: 2, shooter: 2, bull: 1, buldyga: 0, cocoon: 1, bloated: 1 },
+      { soldier: 3, shooter: 0, bull: 1, buldyga: 1, cocoon: 1, bloated: 0 },
+    ],
+    enemy: [
+      { soldier: 3, shooter: 1, bull: 1, buldyga: 1, cocoon: 1, bloated: 1 },
+      { soldier: 2, shooter: 2, bull: 2, buldyga: 1, cocoon: 0, bloated: 2 },
+      { soldier: 3, shooter: 0, bull: 1, buldyga: 2, cocoon: 1, bloated: 1 },
+    ],
+  },
+};
+
+// ============================================================
 // WEAPON DEFINITIONS
 // ============================================================
 const WEAPON_DEFS = {
