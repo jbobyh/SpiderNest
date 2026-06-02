@@ -204,36 +204,8 @@
         }
       }
 
-      // Обновление пауков в закрытых комнатах (летание внутри) - с frustum culling
-      for (const g of s.spiders) {
-        if (g.trapped) {
-          // Обновляем только если клетка видна на экране
-          if (!isCellVisible(g.homeX, g.homeY)) {
-            continue;
-          }
-          // Летание внутри своей клетки
-          const margin = CONFIG.SPIDER_RADIUS + CONFIG.SPIDER_SPAWN_MARGIN;
-          const cellLeft = g.homeX * CP + margin;
-          const cellRight = (g.homeX + 1) * CP - margin;
-          const cellTop = g.homeY * CP + margin;
-          const cellBottom = (g.homeY + 1) * CP - margin;
-
-          // Случайное движение
-          g.vx += (Math.random() - 0.5) * 100 * dt;
-          g.vy += (Math.random() - 0.5) * 100 * dt;
-          g.vx *= 0.95;
-          g.vy *= 0.95;
-
-          g.x += g.vx * dt;
-          g.y += g.vy * dt;
-
-          // Отскок от стен клетки
-          if (g.x < cellLeft) { g.x = cellLeft; g.vx *= -1; }
-          if (g.x > cellRight) { g.x = cellRight; g.vx *= -1; }
-          if (g.y < cellTop) { g.y = cellTop; g.vy *= -1; }
-          if (g.y > cellBottom) { g.y = cellBottom; g.vy *= -1; }
-        }
-      }
+      // Пауки в закрытых комнатах статичны (без анимации движения)
+      // Нет обновления позиции для trapped spiders - они стоят на месте
 
       // Обновление активных пауков
       for (let i = s.activeSpiders.length - 1; i >= 0; i--) {
@@ -1031,7 +1003,7 @@
         // Видны если клетка когда-либо была смежной с открытой И сейчас видна
         if (!s.everRevealedCells.has(cellKey_gc) || !visibleCells.has(cellKey_gc)) continue;
 
-        drawSpider(g, 0.5); // Полупрозрачные т.к. за стенкой
+        drawSpider(g, 1); // Непрозрачные, статичны
       }
       
       // Клетки, смежные с игроком — доступны для открытия (ПКМ), подсвечиваем зелёным
@@ -1551,9 +1523,7 @@
       ctx.globalAlpha = 1.0;
 
       if (isCocoon) {
-        // Кокон — белый/серый, овальный, неподвижный
-        ctx.fillStyle = '#cccccc';
-        ctx.shadowColor = '#888888';
+        // Кокон — будет отрисован ниже как спрайт без тени
       } else if (isBloated) {
         // Распухший — жёлто-зелёный, вздутый
         ctx.fillStyle = '#88aa22';
@@ -1576,14 +1546,15 @@
       ctx.shadowBlur = 18 * scale;
 
       if (isCocoon) {
-        // Кокон: sprite sheet animation
+        // Кокон: sprite sheet animation (no shadow glow)
+        ctx.shadowBlur = 0; // disable glow for cocoon
         if (cocoonImg.complete && cocoonImg.naturalWidth > 0) {
           // Calculate animation frame based on global time
           const animDuration = COCOON_ANIM.frames / COCOON_ANIM.fps;
           const animTime = (state.time % animDuration) / animDuration;
           const frame = Math.floor(animTime * COCOON_ANIM.frames);
           const sx = frame * COCOON_SW;
-          const drawSize = COCOON_SW * scale * (r * 2 / COCOON_SW) * 2.5; // scale to match radius
+          const drawSize = r * 2.2; // simple size based on radius (r already includes scale)
           ctx.save();
           ctx.globalAlpha = alpha;
           ctx.drawImage(
@@ -1594,11 +1565,13 @@
           ctx.restore();
         } else {
           // Fallback: овальная форма если картинка не загрузилась
+          ctx.save();
+          ctx.shadowBlur = 0;
+          ctx.fillStyle = '#cccccc';
           ctx.beginPath(); ctx.ellipse(g.x, g.y, r * 0.8, r * 1.0, 0, 0, Math.PI * 2); ctx.fill();
           ctx.fillStyle = '#aaaaaa';
-          ctx.shadowColor = '#666666';
-          ctx.shadowBlur = 4 * scale;
           ctx.beginPath(); ctx.ellipse(g.x - r * 0.2, g.y - r * 0.2, r * 0.4, r * 0.5, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.restore();
         }
         // Skip rest of drawing (no legs for cocoon)
         ctx.globalAlpha = 1;
