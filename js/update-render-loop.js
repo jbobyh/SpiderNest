@@ -904,6 +904,10 @@
       }
 
       drawHUD(s);
+
+      if (showStatsPanel) {
+        drawStatsPanel(s);
+      }
     }
 
     // ============================================================
@@ -1419,6 +1423,78 @@
       }
 
       drawHUD(s);
+
+      if (showStatsPanel) {
+        drawStatsPanel(s);
+      }
+    }
+
+    function drawStatsPanel(s) {
+      const panelW = 280;
+      const lineH = 22;
+      const pad = 16;
+      const rows = [
+        { label: 'ЖИЗНИ', value: `${s.player.lives}`, color: '#ff4444' },
+        { label: 'СКОРОСТЬ БЕГА', value: `${Math.round(CONFIG.PLAYER_SPEED * s.upgrades.speedMult)}`, color: '#44ff88' },
+        { label: 'УРОН ПУЛИ', value: `${getActiveWeapon(s)?.damage || CONFIG.BULLET_DAMAGE}`, color: '#ff8800' },
+        { label: 'ПУЛЬ ЗА ВЫСТРЕЛ', value: `${(getActiveWeapon(s)?.pellets || 1) + s.upgrades.pellets}`, color: '#00d4ff' },
+        { label: 'ПРОБИТИЕ ВРАГОВ', value: `${(getActiveWeapon(s)?.penetrate || 0) + s.upgrades.penetrate}`, color: '#aa44ff' },
+        { label: 'СКОРОСТЬ ПУЛИ', value: `${Math.round((getActiveWeapon(s)?.bulletSpeed || CONFIG.BULLET_SPEED) * s.upgrades.bulletSpeedMult)}`, color: '#ffff44' },
+        { label: 'ПЕРЕЗАРЯДКА', value: `${((getActiveWeapon(s)?.cooldown || 0.35) * s.upgrades.cooldownMult).toFixed(2)}с`, color: '#00ccff' },
+        { label: 'ШАНС КРИТА', value: `${Math.round(s.upgrades.critChance * 100)}%`, color: '#ff0000' },
+      ];
+
+      if (s.upgrades.shield > 0) rows.push({ label: 'ЩИТЫ', value: `${s.upgrades.shield}`, color: '#00aaff' });
+      if (s.upgrades.killAccel) rows.push({ label: 'РАЗГОН ПЕРЕЗАРЯДКИ', value: `${s.upgrades.killAccelPercent.toFixed(1)}%`, color: '#ff8800' });
+
+      const panelH = pad * 2 + rows.length * lineH + 24;
+      const panelX = (VIEW_W - panelW) / 2;
+      const panelY = (VIEW_H - panelH) / 2;
+
+      ctx.save();
+      ctx.setTransform(canvasScale, 0, 0, canvasScale, 0, 0);
+
+      // Background
+      ctx.shadowBlur = 30;
+      ctx.shadowColor = 'rgba(0,0,0,0.5)';
+      ctx.fillStyle = 'rgba(8,12,20,0.95)';
+      ctx.beginPath();
+      ctx.roundRect(panelX, panelY, panelW, panelH, 12);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // Border
+      ctx.strokeStyle = 'rgba(0,212,255,0.6)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(panelX, panelY, panelW, panelH, 12);
+      ctx.stroke();
+
+      // Title
+      ctx.font = 'bold 16px "Orbitron", sans-serif';
+      ctx.fillStyle = '#00d4ff';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText('ХАРАКТЕРИСТИКИ', panelX + panelW / 2, panelY + pad);
+
+      // Rows
+      let y = panelY + pad + 28;
+      for (const row of rows) {
+        ctx.font = '12px "Share Tech Mono"';
+        ctx.fillStyle = 'rgba(140,160,180,0.8)';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(row.label, panelX + pad, y);
+
+        ctx.font = 'bold 14px "Orbitron", sans-serif';
+        ctx.fillStyle = row.color;
+        ctx.textAlign = 'right';
+        ctx.fillText(row.value, panelX + panelW - pad, y);
+
+        y += lineH;
+      }
+
+      ctx.restore();
     }
 
     function drawUpgradeTooltip(screenX, screenY, upgDef) {
@@ -2241,6 +2317,10 @@
       ctx.fillText('ПРОДОЛЖИТЬ', bx + bw / 2, by + bh / 2);
 
       ctx.restore();
+
+      if (showStatsPanel && state) {
+        drawStatsPanel(state);
+      }
     }
 
     function resumeGame() {

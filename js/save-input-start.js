@@ -228,6 +228,7 @@
     document.addEventListener('keydown', e => {
       if (!state) return;
       state.keys[e.key.toLowerCase()] = true;
+      if (e.key === 'CapsLock') showStatsPanel = true;
 
       // Смена слотов / оружия
       if (e.key === 'Escape') {
@@ -357,6 +358,7 @@
     document.addEventListener('keyup', e => {
       if (!state) return;
       state.keys[e.key.toLowerCase()] = false;
+      if (e.key === 'CapsLock') showStatsPanel = false;
     });
 
     C.addEventListener('mousemove', e => {
@@ -610,6 +612,7 @@
 
     // Стрельба по удержанию ЛКМ (обрабатывается в игровом цикле для точной синхронизации с cooldown)
     let mouseHeld = false;
+    let showStatsPanel = false;
     C.addEventListener('mousedown', e => { if (e.button === 0) mouseHeld = true; });
     document.addEventListener('mouseup', e => {
       if (e.button === 0) {
