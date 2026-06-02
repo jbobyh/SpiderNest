@@ -237,7 +237,8 @@
     document.addEventListener('keydown', e => {
       if (!state) return;
       state.keys[e.key.toLowerCase()] = true;
-      if (e.key === 'CapsLock') showStatsPanel = true;
+      if (e.key === 'Tab') { e.preventDefault(); showStatsPanel = true; }
+      if (e.key === ' ' || e.key === 'Spacebar' || e.code === 'Space') { e.preventDefault(); }
 
       // Смена слотов / оружия
       if (e.key === 'Escape') {
@@ -377,7 +378,6 @@
           // Пробел - призвать босса когда готово (с зум-переходом)
           if (state.phase === 'play' && state.bossSummonReady) {
             startBossBattleZoomTransition();
-            e.preventDefault();
           }
         }
       }
@@ -385,7 +385,7 @@
     document.addEventListener('keyup', e => {
       if (!state) return;
       state.keys[e.key.toLowerCase()] = false;
-      if (e.key === 'CapsLock') showStatsPanel = false;
+      if (e.key === 'Tab') showStatsPanel = false;
     });
 
     C.addEventListener('mousemove', e => {
