@@ -2669,16 +2669,18 @@
     // ============================================================
     // CURSED CHOICE PANEL
     // ============================================================
-    function openCursedChoice(s, chest) {
+    function openCursedChoice(s, chest = null) {
       const available = CURSED_UPGRADE_TYPES.filter(u => !s.upgrades[u.id]);
       shuffleInPlace(available);
       const offers = available.slice(0, Math.min(3, available.length));
       if (offers.length === 0) {
-        chest.collected = true;
-        s.cellContents.delete(chest.cellKey);
+        if (chest) {
+          chest.collected = true;
+          s.cellContents.delete(chest.cellKey);
+        }
         return;
       }
-      cursedChoiceState = { offers, chest };
+      cursedChoiceState = { offers, chest, isBoss: !chest };
       paused = true;
     }
 

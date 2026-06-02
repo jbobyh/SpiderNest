@@ -440,7 +440,7 @@
 
         // Клик по проклятому выбору
         if (cursedChoiceState) {
-          const { offers, chest } = cursedChoiceState;
+          const { offers, chest, isBoss } = cursedChoiceState;
           const panelW = Math.min(VIEW_W - 40, 680);
           const cardW = Math.floor((panelW - 48) / 3);
           const cardH = 190;
@@ -450,12 +450,44 @@
             const cx = panelX + 16 + i * (cardW + 8);
             const cy = panelY + 58;
             if (mx >= cx && mx <= cx + cardW && my >= cy && my <= cy + cardH) {
-              chest.collected = true;
-              state.cellContents.delete(chest.cellKey);
               applyUpgrade(state, offers[i].id);
-              addParticles(chest.x, chest.y, CONFIG.PICKUP_PARTICLES_COUNT, CONFIG.PICKUP_PARTICLES_SPEED, CONFIG.PICKUP_PARTICLES_LIFE, offers[i].color);
+              if (chest) {
+                chest.collected = true;
+                state.cellContents.delete(chest.cellKey);
+                addParticles(chest.x, chest.y, CONFIG.PICKUP_PARTICLES_COUNT, CONFIG.PICKUP_PARTICLES_SPEED, CONFIG.PICKUP_PARTICLES_LIFE, offers[i].color);
+              }
               cursedChoiceState = null;
-              resumeGame();
+              
+              if (isBoss) {
+                // Boss victory - start zoom-out transition
+                const b = state.battle;
+                const battleCellX = Math.floor(b.player.x / BATTLE_CELL_PX);
+                const battleCellY = Math.floor(b.player.y / BATTLE_CELL_PX);
+                const mapCellX = battleCellX + b.cellOffsetX;
+                const mapCellY = battleCellY + b.cellOffsetY;
+                const localX = b.player.x - battleCellX * BATTLE_CELL_PX;
+                const localY = b.player.y - battleCellY * BATTLE_CELL_PX;
+                const playPX = mapCellX * CP + localX / BATTLE_SCALE;
+                const playPY = mapCellY * CP + localY / BATTLE_SCALE;
+
+                const fromScale = b.playZoomScale || (b.staticScale || 1) * BATTLE_SCALE;
+                const zoneCX = b.playCenterX || playPX;
+                const zoneCY = b.playCenterY || playPY;
+
+                zoomOutTransition = {
+                  fromScale, toScale: 1,
+                  fromCenterX: zoneCX, fromCenterY: zoneCY,
+                  toCenterX: playPX, toCenterY: playPY,
+                  playerX: playPX, playerY: playPY,
+                  t: 0,
+                  frozenAngle: Math.atan2(state.mouse.y - playPY, state.mouse.x - playPX),
+                };
+                Sounds.zoom();
+                state.phase = 'zoom_out_transition';
+                resumeGame();
+              } else {
+                resumeGame();
+              }
               return;
             }
           }
