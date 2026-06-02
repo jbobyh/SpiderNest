@@ -82,6 +82,15 @@
         }
       }
 
+      // Проверка: все ключи собраны, клетка выхода была открыта/увидена и босс еще не побежден -> готовность к призыву босса
+      if (s.keysCollected >= s.keysRequired && s.phase === 'play' && !s.bossDefeated) {
+        const ec = s.exitCell;
+        const exitRevealed = s.everRevealedCells.has(cellKey(ec.x, ec.y));
+        s.bossSummonReady = exitRevealed;
+      } else {
+        s.bossSummonReady = false;
+      }
+
       // Сбор апгрейдов
       for (const upg of s.upgradeObjs) {
         if (!upg.collected) {
@@ -668,7 +677,6 @@
       ctx.fillStyle = '#030810';
       ctx.fillRect(0, 0, b.width, b.height);
 
-
       // Отрисовка клеток battle
       for (const k of b.openCells) {
         const { x, y } = cellFromKey(k);
@@ -692,7 +700,7 @@
         ctx.fillStyle = `rgba(255, 107, 157, ${pulse})`;
         ctx.shadowColor = '#ff6b9d';
         ctx.shadowBlur = 15 * BATTLE_SCALE;
-        ctx.font = `bold ${24 * BATTLE_SCALE}px "Share Tech Mono"`;
+        ctx.font = `bold ${24 * BATTLE_SCALE}px "Huninn"`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('♥', heart.x, heart.y);
@@ -706,7 +714,7 @@
         ctx.fillStyle = `rgba(255, 215, 0, ${pulse})`;
         ctx.shadowColor = '#ffd700';
         ctx.shadowBlur = 15 * BATTLE_SCALE;
-        ctx.font = `bold ${24 * BATTLE_SCALE}px "Share Tech Mono"`;
+        ctx.font = `bold ${24 * BATTLE_SCALE}px "Huninn"`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('🔑', keyObj.x, keyObj.y);
@@ -721,7 +729,7 @@
           ctx.fillStyle = upgDef.color;
           ctx.shadowColor = upgDef.color;
           ctx.shadowBlur = 15 * BATTLE_SCALE;
-          ctx.font = `bold ${24 * BATTLE_SCALE}px "Share Tech Mono"`;
+          ctx.font = `bold ${24 * BATTLE_SCALE}px "Huninn"`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText('⬆', upg.x, upg.y);
@@ -754,7 +762,7 @@
           ctx.shadowBlur = 12 * BATTLE_SCALE;
           drawWeaponSprite(ctx, bw.weaponId, bw.x, bw.y - 8 * BATTLE_SCALE, 28 * BATTLE_SCALE, 1, pulse);
           ctx.shadowBlur = 0;
-          ctx.font = `bold ${9 * BATTLE_SCALE}px "Share Tech Mono"`;
+          ctx.font = `bold ${9 * BATTLE_SCALE}px "Huninn"`;
           ctx.fillStyle = '#ffffff';
           ctx.globalAlpha = 0.9;
           ctx.textAlign = 'center';
@@ -808,7 +816,7 @@
         const alpha = dn.life / dn.maxLife;
         ctx.globalAlpha = alpha;
         ctx.fillStyle = dn.color;
-        ctx.font = `bold ${13 * BATTLE_SCALE * dn.scale}px "Share Tech Mono"`;
+        ctx.font = `bold ${13 * BATTLE_SCALE * dn.scale}px "Huninn"`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.shadowColor = dn.color;
@@ -873,13 +881,6 @@
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, VIEW_W, VIEW_H);
       }
-
-      // Индикатор battle mode
-      ctx.fillStyle = '#ff4444';
-      ctx.font = 'bold 14px "Share Tech Mono"';
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'top';
-      ctx.fillText('⚔ BATTLE MODE', 10, 10);
 
       // Tooltip оружия при наведении (battle mode) — только когда все враги убиты
       if (b.weapons && b.activeSpiders.length === 0) {
@@ -957,10 +958,29 @@
       const shakeY = Math.sin(screenShake.angle) * screenShake.amount;
       screenShake.amount *= CONFIG.SHAKE_DECAY;
 
+      // Фон с параллаксом (рисуем в экранных координатах до world-трансформа)
+      if (backgroundImg.complete && backgroundImg.naturalWidth > 0) {
+        const bgW = backgroundImg.naturalWidth;
+        const bgH = backgroundImg.naturalHeight;
+        const PARALLAX = 0.20;
+        const offX = ((-camera.x + shakeX) * PARALLAX) % bgW;
+        const offY = ((-camera.y + shakeY) * PARALLAX) % bgH;
+        const startX = ((offX % bgW) + bgW) % bgW - bgW;
+        const startY = ((offY % bgH) + bgH) % bgH - bgH;
+        for (let ty = startY; ty < VIEW_H; ty += bgH) {
+          for (let tx = startX; tx < VIEW_W; tx += bgW) {
+            ctx.drawImage(backgroundImg, tx, ty, bgW, bgH);
+          }
+        }
+      } else {
+        ctx.fillStyle = '#030810';
+        ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+      }
+
       ctx.save();
       ctx.translate(-camera.x + shakeX, -camera.y + shakeY);
 
-      // Фон
+      // Фон игрового поля (поверх фона, под клетками)
       ctx.fillStyle = '#030810';
       ctx.fillRect(0, 0, worldW, worldH);
 
@@ -969,11 +989,23 @@
       const blackCells = new Set([...s.permanentlyClosed, ...s.disabledCells]);
       for (const k of blackCells) {
         const { x, y } = cellFromKey(k);
-        // Показываем только если хотя бы один сосед когда-либо был реально открыт
-        if (!someAdjacentCell(x, y, (nx, ny, nk) => s.everOpenedCells.has(nk))) continue;
         if (!visibleCells.has(k)) continue;
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(x * CP, y * CP, CP, CP);
+        const revealed = someAdjacentCell(x, y, (nx, ny, nk) => s.everOpenedCells.has(nk));
+        if (revealed) {
+          if (rockImg.complete && rockImg.naturalWidth > 0) {
+            ctx.drawImage(rockImg, x * CP, y * CP, CP, CP);
+          } else {
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(x * CP, y * CP, CP, CP);
+          }
+        } else {
+          if (closedCellImg.complete && closedCellImg.naturalWidth > 0) {
+            ctx.drawImage(closedCellImg, x * CP, y * CP, CP, CP);
+          } else {
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(x * CP, y * CP, CP, CP);
+          }
+        }
       }
 
       // Неоткрытые клетки (не исследованные) — рисуем closedcell.png
@@ -1008,15 +1040,23 @@
 
         if (isExit) {
           const pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.005);
-          ctx.font = 'bold 10px "Share Tech Mono"';
+          ctx.font = 'bold 10px "Huninn"';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           if (s.keysCollected >= s.keysRequired) {
-            ctx.strokeStyle = `rgba(0,255,100,${0.5 + pulse * 0.5})`;
-            ctx.lineWidth = 2;
-            ctx.strokeRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
-            ctx.fillStyle = `rgba(0,255,100,${0.6 + pulse * 0.4})`;
-            ctx.fillText('ВЫХОД', (x + 0.5) * CP, (y + 0.5) * CP);
+            if (s.bossDefeated) {
+              ctx.strokeStyle = `rgba(0,255,100,${0.5 + pulse * 0.5})`;
+              ctx.lineWidth = 2;
+              ctx.strokeRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
+              ctx.fillStyle = `rgba(0,255,100,${0.6 + pulse * 0.4})`;
+              ctx.fillText('ВЫХОД', (x + 0.5) * CP, (y + 0.5) * CP);
+            } else {
+              ctx.strokeStyle = `rgba(255,68,0,${0.5 + pulse * 0.5})`;
+              ctx.lineWidth = 2;
+              ctx.strokeRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
+              ctx.fillStyle = `rgba(255,68,0,${0.6 + pulse * 0.4})`;
+              ctx.fillText('ВЫХОД (БОСС)', (x + 0.5) * CP, (y + 0.5) * CP);
+            }
           } else {
             ctx.strokeStyle = `rgba(255,170,0,${0.5 + pulse * 0.5})`;
             ctx.lineWidth = 2;
@@ -1060,6 +1100,9 @@
         }
       }
 
+      const hoveredCell = cellOf(s.mouse.x, s.mouse.y);
+      const hoveredKey = cellKey(hoveredCell.x, hoveredCell.y);
+
       for (const k of adj) {
         if (!visibleCells.has(k)) continue;
         const { x, y } = cellFromKey(k);
@@ -1067,7 +1110,11 @@
 
         // Фон смежной клетки
         if (playerAdjOpen.has(k)) {
-          ctx.fillStyle = 'rgba(45,138,69,0.15)';
+          if (k === hoveredKey) {
+            ctx.fillStyle = 'rgba(80,220,120,0.25)';
+          } else {
+            ctx.fillStyle = 'rgba(45,138,69,0.15)';
+          }
           ctx.fillRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
         } else {
           ctx.fillStyle = 'rgba(40,30,50,0.3)';
@@ -1078,12 +1125,17 @@
         const isExitCell = x === s.exitCell.x && y === s.exitCell.y;
         if (isExitCell) {
           const pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.005);
-          ctx.font = 'bold 11px "Share Tech Mono"';
+          ctx.font = 'bold 11px "Huninn"';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           if (s.keysCollected >= s.keysRequired) {
-            ctx.fillStyle = `rgba(0,255,100,${0.6 + pulse * 0.4})`;
-            ctx.fillText('ВЫХОД', (x + 0.5) * CP, (y + 0.5) * CP);
+            if (s.bossDefeated) {
+              ctx.fillStyle = `rgba(0,255,100,${0.6 + pulse * 0.4})`;
+              ctx.fillText('ВЫХОД', (x + 0.5) * CP, (y + 0.5) * CP);
+            } else {
+              ctx.fillStyle = `rgba(255,68,0,${0.6 + pulse * 0.4})`;
+              ctx.fillText('ВЫХОД (БОСС)', (x + 0.5) * CP, (y + 0.5) * CP);
+            }
           } else {
             ctx.fillStyle = `rgba(255,170,0,${0.6 + pulse * 0.4})`;
             ctx.fillText('ВЫХОД (ЗАКРЫТ)', (x + 0.5) * CP, (y + 0.5) * CP);
@@ -1100,7 +1152,7 @@
             ctx.fillStyle = `rgba(255, 107, 157, ${pulse})`;
             ctx.shadowColor = '#ff6b9d';
             ctx.shadowBlur = 15;
-            ctx.font = 'bold 20px "Share Tech Mono"';
+            ctx.font = 'bold 20px "Huninn"';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText('♥', hx, hy);
@@ -1108,7 +1160,7 @@
             // } else if (content.type === 'enemies') {
             //   // Рисуем индикатор врагов
             //   ctx.fillStyle = 'rgba(176, 96, 255, 0.6)';
-            //   ctx.font = 'bold 14px "Share Tech Mono"';
+            //   ctx.font = 'bold 14px "Huninn"';
             //   ctx.textAlign = 'center';
             //   ctx.textBaseline = 'middle';
             //   ctx.fillText(`${content.enemyCount}👻`, (x+0.5)*CP, (y+0.5)*CP);
@@ -1120,7 +1172,7 @@
             ctx.fillStyle = `rgba(255, 215, 0, ${pulse})`;
             ctx.shadowColor = '#ffd700';
             ctx.shadowBlur = 15;
-            ctx.font = 'bold 20px "Share Tech Mono"';
+            ctx.font = 'bold 20px "Huninn"';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText('🔑', hx, hy);
@@ -1133,7 +1185,7 @@
               ctx.fillStyle = upgDef.color;
               ctx.shadowColor = upgDef.color;
               ctx.shadowBlur = 10;
-              ctx.font = 'bold 20px "Share Tech Mono"';
+              ctx.font = 'bold 20px "Huninn"';
               ctx.textAlign = 'center';
               ctx.textBaseline = 'middle';
               ctx.fillText('⬆', hx, hy);
@@ -1153,7 +1205,7 @@
           ctx.shadowBlur = 12;
           drawWeaponSprite(ctx, dw.weaponId, dw.x, dw.y - 8, 28, 0.7, pulse);
           ctx.shadowBlur = 0;
-          ctx.font = 'bold 9px "Share Tech Mono"';
+          ctx.font = 'bold 9px "Huninn"';
           ctx.fillStyle = '#ffffff';
           ctx.globalAlpha = 0.6;
           ctx.textAlign = 'center';
@@ -1184,7 +1236,7 @@
         ctx.fillStyle = `rgba(255, 107, 157, ${pulse})`;
         ctx.shadowColor = '#ff6b9d';
         ctx.shadowBlur = 15;
-        ctx.font = 'bold 24px "Share Tech Mono"';
+        ctx.font = 'bold 24px "Huninn"';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('♥', heart.x, heart.y);
@@ -1202,7 +1254,7 @@
         ctx.fillStyle = `rgba(255, 215, 0, ${pulse})`;
         ctx.shadowColor = '#ffd700';
         ctx.shadowBlur = 15;
-        ctx.font = 'bold 24px "Share Tech Mono"';
+        ctx.font = 'bold 24px "Huninn"';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('🔑', keyObj.x, keyObj.y);
@@ -1221,7 +1273,7 @@
           ctx.fillStyle = upgDef.color;
           ctx.shadowColor = upgDef.color;
           ctx.shadowBlur = 15;
-          ctx.font = 'bold 24px "Share Tech Mono"';
+          ctx.font = 'bold 24px "Huninn"';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText('⬆', upg.x, upg.y);
@@ -1261,7 +1313,7 @@
         ctx.shadowBlur = 12;
         drawWeaponSprite(ctx, dw.weaponId, dw.x, dw.y - 8, 28, 1, pulse);
         ctx.shadowBlur = 0;
-        ctx.font = 'bold 9px "Share Tech Mono"';
+        ctx.font = 'bold 9px "Huninn"';
         ctx.fillStyle = '#ffffff';
         ctx.globalAlpha = 0.9;
         ctx.textAlign = 'center';
@@ -1386,7 +1438,7 @@
           const bx = VIEW_W / 2;
           const by = VIEW_H - 36;
           ctx.save();
-          ctx.font = 'bold 13px "Share Tech Mono"';
+          ctx.font = 'bold 13px "Huninn"';
           const tw = 50;
           const pad = 10;
           const bw = tw + pad * 2 + 28;
@@ -1412,16 +1464,58 @@
           ctx.lineWidth = 1;
           ctx.stroke();
           ctx.fillStyle = '#00d4ff';
-          ctx.font = 'bold 12px "Share Tech Mono"';
+          ctx.font = 'bold 12px "Huninn"';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText('F', kx + keySize / 2, by);
           ctx.fillStyle = 'rgba(160, 200, 224, 0.9)';
-          ctx.font = '11px "Share Tech Mono"';
+          ctx.font = '11px "Huninn"';
           ctx.textAlign = 'left';
           ctx.fillText(onExit ? 'Выход' : 'Подобрать', kx + keySize + 6, by);
           ctx.restore();
         }
+      }
+
+      // Boss summon hint (space key prompt) - shows when all keys collected and on exit
+      if (s.bossSummonReady) {
+        const bx = VIEW_W / 2;
+        const by = VIEW_H - 70;
+        ctx.save();
+        ctx.font = 'bold 13px "Huninn"';
+        const tw = 130;
+        const pad = 10;
+        const bw = tw + pad * 2 + 28;
+        const bh = 28;
+        ctx.fillStyle = 'rgba(5, 12, 22, 0.88)';
+        ctx.strokeStyle = '#ff4400';
+        ctx.lineWidth = 1.5;
+        ctx.shadowColor = '#ff4400';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.roundRect(bx - bw / 2, by - bh / 2, bw, bh, 4);
+        ctx.fill();
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = 'rgba(255, 68, 0, 0.45)';
+        const keySize = 18;
+        const kx = bx - bw / 2 + pad;
+        const ky = by - keySize / 2;
+        ctx.beginPath();
+        ctx.roundRect(kx, ky, keySize, keySize, 3);
+        ctx.fill();
+        ctx.strokeStyle = '#ff4400';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.fillStyle = '#ff4400';
+        ctx.font = 'bold 10px "Huninn"';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('ПРОБЕЛ', kx + keySize / 2, by);
+        ctx.fillStyle = 'rgba(255, 160, 160, 0.9)';
+        ctx.font = '11px "Huninn"';
+        ctx.textAlign = 'left';
+        ctx.fillText('Призвать босса', kx + keySize + 6, by);
+        ctx.restore();
       }
 
       // Tooltip оружия при наведении (play mode)
@@ -1541,7 +1635,7 @@
       // Rows
       let y = panelY + pad + 28;
       for (const row of rows) {
-        ctx.font = '12px "Share Tech Mono"';
+        ctx.font = '12px "Huninn"';
         ctx.fillStyle = 'rgba(140,160,180,0.8)';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
@@ -1564,9 +1658,9 @@
       const color = upgDef.color;
       const pad = 10;
       const lineGap = 6;
-      ctx.font = 'bold 13px "Share Tech Mono"';
+      ctx.font = 'bold 13px "Huninn"';
       const labelW = ctx.measureText(label).width;
-      ctx.font = '11px "Share Tech Mono"';
+      ctx.font = '11px "Huninn"';
       const descW = ctx.measureText(desc).width;
       const boxW = Math.max(labelW, descW) + pad * 2;
       const boxH = 13 + lineGap + 11 + pad * 2;
@@ -1587,10 +1681,10 @@
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
       ctx.fillStyle = color;
-      ctx.font = 'bold 13px "Share Tech Mono"';
+      ctx.font = 'bold 13px "Huninn"';
       ctx.fillText(label, tx + pad, ty + pad);
       ctx.fillStyle = 'rgba(200,220,240,0.85)';
-      ctx.font = '11px "Share Tech Mono"';
+      ctx.font = '11px "Huninn"';
       ctx.fillText(desc, tx + pad, ty + pad + 13 + lineGap);
       ctx.restore();
     }
@@ -1861,177 +1955,273 @@
 
     function drawHUD(s) {
       if (!s) return;
-      const barH = 36;
-      const pad = 12;
+      const barH = 0;
 
       ctx.save();
       ctx.setTransform(canvasScale, 0, 0, canvasScale, 0, 0);
 
-      // Background bar
-      ctx.fillStyle = 'rgba(5,10,15,0.82)';
-      ctx.fillRect(0, 0, VIEW_W, barH);
-      ctx.strokeStyle = 'rgba(26,58,92,0.9)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(0, barH - 0.5);
-      ctx.lineTo(VIEW_W, barH - 0.5);
-      ctx.stroke();
-
-      const cy = barH / 2;
-      let cursor = pad;
-
-      // Helper: label + value side by side
-      function hudItem(label, value, valueColor, extraWidth) {
-        const gap = 4;
-        ctx.font = '9px "Share Tech Mono"';
-        ctx.fillStyle = 'rgba(42,74,106,1)';
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(label, cursor, cy - 7);
-        ctx.font = 'bold 13px "Orbitron", sans-serif';
-        ctx.fillStyle = valueColor;
-        ctx.fillText(value, cursor, cy + 6);
-        const w = Math.max(ctx.measureText(label).width, ctx.measureText(value).width);
-        cursor += (extraWidth || w) + 20;
-      }
-
-      // УРОВЕНЬ
-      hudItem('УРОВЕНЬ', String(currentLevel), '#00d4ff');
-
-      // Separator
-      ctx.strokeStyle = 'rgba(26,58,92,0.6)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(cursor - 10, 6);
-      ctx.lineTo(cursor - 10, barH - 6);
-      ctx.stroke();
-
-      // ЖИЗНИ — hearts
-      ctx.font = '9px "Share Tech Mono"';
-      ctx.fillStyle = 'rgba(42,74,106,1)';
+      // Уровень — текст слева сверху
+      const margin = 8;
+      ctx.font = 'bold 13px "Huninn"';
+      ctx.fillStyle = 'rgba(0,212,255,0.9)';
       ctx.textAlign = 'left';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('ЖИЗНИ', cursor, cy - 7);
-      const maxHearts = Math.max(3, s.player.lives);
-      for (let i = 0; i < maxHearts; i++) {
-        ctx.font = '13px sans-serif';
-        ctx.fillStyle = i < s.player.lives ? '#ff3a3a' : 'rgba(42,74,106,0.5)';
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('♥', cursor + i * 16, cy + 6);
-      }
-      cursor += maxHearts * 16 + 20;
+      ctx.textBaseline = 'top';
+      ctx.fillText(`Уровень ${currentLevel}`, margin, margin);
 
-      // Separator
-      ctx.strokeStyle = 'rgba(26,58,92,0.6)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(cursor - 10, 6);
-      ctx.lineTo(cursor - 10, barH - 6);
-      ctx.stroke();
+      // ── Upgrade icons panel (top-right, below the bar) ───────────
+      {
+        const iconSize  = 20;
+        const iconGap   = 4;
+        const rowH      = iconSize + 4;
+        const perRow    = 10;
+        const panelPadX = 8;
+        const panelPadY = 6;
 
-      // КЛЮЧИ
-      hudItem('КЛЮЧИ', `${s.keysCollected}/${s.keysRequired}`, '#ffd700');
+        // Собираем активные улучшения
+        const activeUpgrades = [];
+        for (const upg of UPGRADE_TYPES) {
+          let level = 0;
+          if (upg.id === 'pellets') level = s.upgrades.pellets || 0;
+          else if (upg.id === 'damage') level = s.upgrades.damage || 0;
+          else if (upg.id === 'penetrate') level = s.upgrades.penetrate || 0;
+          else if (upg.id === 'bulletSpeed') level = s.upgrades.bulletSpeedMult > 1 ? 1 : 0;
+          else if (upg.id === 'critChance') level = s.upgrades.critChance > 0 ? Math.ceil(s.upgrades.critChance * 20) : 0;
+          else if (upg.id === 'killAccel') level = s.upgrades.killAccel ? 1 : 0;
+          else if (upg.id === 'enhancedPierce') level = s.upgrades.enhancedPierce ? 1 : 0;
+          else if (upg.id === 'shield') level = s.upgrades.shield || 0;
+          else if (upg.id === 'retreat') level = s.upgrades.retreat > 0 ? 1 : 0;
+          else if (upg.id === 'reflection') level = s.upgrades.reflection ? 1 : 0;
+          else if (upg.id === 'cooldown') level = s.upgrades.cooldownMult < 1 ? Math.ceil((1 - s.upgrades.cooldownMult) * 6.67) : 0;
+          else if (upg.id === 'speed') level = s.upgrades.speedMult > 1 ? Math.ceil((s.upgrades.speedMult - 1) * 10) : 0;
+          if (level > 0) activeUpgrades.push({ ...upg, level: Math.min(level, upg.max) });
+        }
 
-      // Separator
-      ctx.strokeStyle = 'rgba(26,58,92,0.6)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(cursor - 10, 6);
-      ctx.lineTo(cursor - 10, barH - 6);
-      ctx.stroke();
+        if (activeUpgrades.length > 0) {
+          const rows      = Math.ceil(activeUpgrades.length / perRow);
+          const cols      = Math.min(activeUpgrades.length, perRow);
+          const panelW    = cols * iconSize + (cols - 1) * iconGap + panelPadX * 2;
+          const panelH    = rows * rowH + panelPadY * 2;
+          const panelX    = VIEW_W - panelW;
+          const panelY    = barH;
 
-      // ОРУЖИЕ — slots
-      ctx.font = '9px "Share Tech Mono"';
-      ctx.fillStyle = 'rgba(42,74,106,1)';
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('ОРУЖИЕ', cursor, cy - 7);
-      let wCursor = cursor;
-      for (let i = 0; i < s.maxSlots; i++) {
-        const wId = s.weaponSlots[i];
-        const wDef = wId ? WEAPON_DEFS[wId] : null;
-        const label = wDef ? wDef.label : '—';
-        const active = i === s.activeSlot;
-        ctx.font = `${active ? 'bold' : ''} 11px "Share Tech Mono"`;
-        ctx.fillStyle = active ? (wDef ? wDef.color : '#ffffff') : 'rgba(42,74,106,1)';
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(`[${i+1}]${label}`, wCursor, cy + 6);
-        wCursor += ctx.measureText(`[${i+1}]${label}`).width + 10;
-      }
-      cursor = wCursor + 10;
+          ctx.fillStyle = 'rgba(5,10,15,0.72)';
+          ctx.fillRect(panelX, panelY, panelW, panelH);
+          ctx.strokeStyle = 'rgba(26,58,92,0.6)';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(panelX, panelY, panelW, panelH);
 
-      // Separator
-      ctx.strokeStyle = 'rgba(26,58,92,0.6)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(cursor - 10, 6);
-      ctx.lineTo(cursor - 10, barH - 6);
-      ctx.stroke();
+          // Иконки справа налево: последняя иконка — правый нижний угол
+          let hoveredUpg = null, hoveredIx = 0, hoveredIy = 0;
+          for (let i = 0; i < activeUpgrades.length; i++) {
+            const upg = activeUpgrades[activeUpgrades.length - 1 - i];
+            const col = i % perRow;
+            const row = Math.floor(i / perRow);
+            // col=0 → правый край, col increases → leftward
+            const ix = panelX + panelW - panelPadX - col * (iconSize + iconGap) - iconSize;
+            const iy = panelY + panelH - panelPadY - row * rowH - iconSize;
 
-      // UPGRADES - иконки
-      ctx.font = '9px "Share Tech Mono"';
-      ctx.fillStyle = 'rgba(42,74,106,1)';
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('УСИЛЕНИЯ', cursor, cy - 7);
-      
-      // Отображаем иконки активных улучшений
-      let iconCursor = cursor;
-      const iconSize = 16;
-      const iconGap = 4;
-      
-      // Собираем активные улучшения с их уровнями
-      const activeUpgrades = [];
-      for (const upg of UPGRADE_TYPES) {
-        let level = 0;
-        if (upg.id === 'pellets') level = s.upgrades.pellets || 0;
-        else if (upg.id === 'damage') level = s.upgrades.damage || 0;
-        else if (upg.id === 'penetrate') level = s.upgrades.penetrate || 0;
-        else if (upg.id === 'bulletSpeed') level = s.upgrades.bulletSpeedMult > 1 ? 1 : 0;
-        else if (upg.id === 'critChance') level = s.upgrades.critChance > 0 ? Math.ceil(s.upgrades.critChance * 20) : 0;
-        else if (upg.id === 'killAccel') level = s.upgrades.killAccel ? 1 : 0;
-        else if (upg.id === 'enhancedPierce') level = s.upgrades.enhancedPierce ? 1 : 0;
-        else if (upg.id === 'shield') level = s.upgrades.shield || 0;
-        else if (upg.id === 'retreat') level = s.upgrades.retreat > 0 ? 1 : 0;
-        else if (upg.id === 'reflection') level = s.upgrades.reflection ? 1 : 0;
-        else if (upg.id === 'cooldown') level = s.upgrades.cooldownMult < 1 ? Math.ceil((1 - s.upgrades.cooldownMult) * 6.67) : 0;
-        else if (upg.id === 'speed') level = s.upgrades.speedMult > 1 ? Math.ceil((s.upgrades.speedMult - 1) * 10) : 0;
-        
-        if (level > 0) {
-          activeUpgrades.push({ ...upg, level: Math.min(level, upg.max) });
+            const mx = mouseScreen.x, my = mouseScreen.y;
+            const hovered = mx >= ix && mx <= ix + iconSize && my >= iy && my <= iy + iconSize;
+            if (hovered) { hoveredUpg = upg; hoveredIx = ix; hoveredIy = iy; }
+
+            ctx.font = `${iconSize}px sans-serif`;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            ctx.fillStyle = upg.color;
+            ctx.fillText(upg.icon, ix, iy);
+
+            if (upg.level > 1) {
+              ctx.font = 'bold 8px "Huninn"';
+              ctx.fillStyle = '#ffffff';
+              ctx.textAlign = 'right';
+              ctx.textBaseline = 'bottom';
+              ctx.fillText(String(upg.level), ix + iconSize, iy + iconSize);
+            }
+          }
+
+          if (hoveredUpg) {
+            drawUpgradeTooltip(hoveredIx, hoveredIy, hoveredUpg);
+          }
         }
       }
-      
-      // Рисуем иконки
-      for (const upg of activeUpgrades) {
-        ctx.font = '14px sans-serif';
-        ctx.fillStyle = upg.color;
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(upg.icon, iconCursor, cy + 6);
-        
-        // Если уровень > 1, показываем цифру
-        if (upg.level > 1) {
-          ctx.font = 'bold 9px "Share Tech Mono"';
-          ctx.fillStyle = '#ffffff';
+
+      // ── Cursed upgrade icons panel (top-right, below regular upgrades) ──
+      {
+        const iconSize  = 20;
+        const iconGap   = 4;
+        const rowH      = iconSize + 4;
+        const perRow    = 10;
+        const panelPadX = 8;
+        const panelPadY = 6;
+
+        const activeCursed = [];
+        for (const upg of CURSED_UPGRADE_TYPES) {
+          const val = s.upgrades[upg.id];
+          let level = 0;
+          if (upg.id === 'weaponSlot') level = s.maxSlots > 1 ? s.maxSlots - 1 : 0;
+          else if (val === true) level = 1;
+          else if (typeof val === 'number' && val > 0) level = val;
+          if (level > 0) activeCursed.push({ ...upg, level: Math.min(level, upg.max) });
+        }
+
+        if (activeCursed.length > 0) {
+          const rows   = Math.ceil(activeCursed.length / perRow);
+          const cols   = Math.min(activeCursed.length, perRow);
+          const panelW = cols * iconSize + (cols - 1) * iconGap + panelPadX * 2;
+          const panelH = rows * rowH + panelPadY * 2;
+          const panelX = VIEW_W - panelW;
+
+          // Position below regular upgrade panel (calculate its height)
+          const regCount = (() => {
+            let c = 0;
+            for (const upg of UPGRADE_TYPES) {
+              let lv = 0;
+              if (upg.id === 'pellets') lv = s.upgrades.pellets || 0;
+              else if (upg.id === 'damage') lv = s.upgrades.damage || 0;
+              else if (upg.id === 'penetrate') lv = s.upgrades.penetrate || 0;
+              else if (upg.id === 'bulletSpeed') lv = s.upgrades.bulletSpeedMult > 1 ? 1 : 0;
+              else if (upg.id === 'critChance') lv = s.upgrades.critChance > 0 ? 1 : 0;
+              else if (upg.id === 'killAccel') lv = s.upgrades.killAccel ? 1 : 0;
+              else if (upg.id === 'enhancedPierce') lv = s.upgrades.enhancedPierce ? 1 : 0;
+              else if (upg.id === 'shield') lv = s.upgrades.shield || 0;
+              else if (upg.id === 'retreat') lv = s.upgrades.retreat > 0 ? 1 : 0;
+              else if (upg.id === 'reflection') lv = s.upgrades.reflection ? 1 : 0;
+              else if (upg.id === 'cooldown') lv = s.upgrades.cooldownMult < 1 ? 1 : 0;
+              else if (upg.id === 'speed') lv = s.upgrades.speedMult > 1 ? 1 : 0;
+              if (lv > 0) c++;
+            }
+            return c;
+          })();
+          const regRows = regCount > 0 ? Math.ceil(regCount / perRow) : 0;
+          const regPanelH = regCount > 0 ? regRows * rowH + panelPadY * 2 : 0;
+          const panelY = barH + regPanelH + (regCount > 0 ? 2 : 0);
+
+          ctx.fillStyle = 'rgba(10,5,20,0.78)';
+          ctx.fillRect(panelX, panelY, panelW, panelH);
+          ctx.strokeStyle = 'rgba(120,40,180,0.55)';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(panelX, panelY, panelW, panelH);
+
+          let hoveredUpg = null, hoveredIx = 0, hoveredIy = 0;
+          for (let i = 0; i < activeCursed.length; i++) {
+            const upg = activeCursed[activeCursed.length - 1 - i];
+            const col = i % perRow;
+            const row = Math.floor(i / perRow);
+            const ix = panelX + panelW - panelPadX - col * (iconSize + iconGap) - iconSize;
+            const iy = panelY + panelH - panelPadY - row * rowH - iconSize;
+
+            const mx = mouseScreen.x, my = mouseScreen.y;
+            if (mx >= ix && mx <= ix + iconSize && my >= iy && my <= iy + iconSize) {
+              hoveredUpg = upg; hoveredIx = ix; hoveredIy = iy;
+            }
+
+            ctx.font = `${iconSize}px sans-serif`;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            ctx.fillStyle = upg.color;
+            ctx.fillText(upg.icon, ix, iy);
+
+            if (upg.level > 1) {
+              ctx.font = 'bold 8px "Huninn"';
+              ctx.fillStyle = '#ffffff';
+              ctx.textAlign = 'right';
+              ctx.textBaseline = 'bottom';
+              ctx.fillText(String(upg.level), ix + iconSize, iy + iconSize);
+            }
+          }
+
+          if (hoveredUpg) drawUpgradeTooltip(hoveredIx, hoveredIy, hoveredUpg);
+        }
+      }
+
+      // ── Secondary icon HUD (top-left, below the bar) ──────────────
+      {
+        const iconSize = 20;
+        const iconGap  = 4;
+        const rowGap   = 4;
+        const panelPad = 8;
+        const startX   = panelPad;
+        let   rowY     = 30 + panelPad;
+
+        function drawHudRow(img, total, filled) {
+          for (let i = 0; i < total; i++) {
+            ctx.save();
+            ctx.globalAlpha = i < filled ? 1 : 0.25;
+            if (img.complete && img.naturalWidth > 0) {
+              ctx.drawImage(img, startX + i * (iconSize + iconGap), rowY, iconSize, iconSize);
+            }
+            ctx.restore();
+          }
+          rowY += iconSize + rowGap;
+        }
+
+        // Hearts — only show collected (no dim slots)
+        if (s.player.lives > 0) {
+          drawHudRow(hudHeartImg, s.player.lives, s.player.lives);
+        }
+
+        // Shields — only show collected (no dim slots)
+        const shieldCount = s.upgrades.shield || 0;
+        if (shieldCount > 0) {
+          drawHudRow(hudShieldImg, shieldCount, shieldCount);
+        }
+
+        // Keys — show all slots, dim uncollected
+        drawHudRow(hudKeyImg, s.keysRequired, s.keysCollected);
+      }
+
+      // ── Weapon slots (bottom-left) ─────────────────────────────────
+      {
+        const slotSize  = 44;
+        const slotGap   = 6;
+        const slotPad   = 8;
+        const labelH    = 14;
+        const totalH    = slotSize + labelH + slotPad * 2;
+        const totalW    = s.maxSlots * slotSize + (s.maxSlots - 1) * slotGap + slotPad * 2;
+        const screenMargin = 8;
+        const panelX    = screenMargin;
+        const panelY    = VIEW_H - totalH - screenMargin;
+
+        ctx.fillStyle = 'rgba(5,10,15,0.75)';
+        ctx.fillRect(panelX, panelY, totalW, totalH);
+        ctx.strokeStyle = 'rgba(26,58,92,0.7)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(panelX, panelY, totalW, totalH);
+
+        for (let i = 0; i < s.maxSlots; i++) {
+          const sx = panelX + slotPad + i * (slotSize + slotGap);
+          const sy = panelY + slotPad;
+          const wId    = s.weaponSlots[i];
+          const active = i === s.activeSlot;
+
+          // Slot background
+          ctx.fillStyle = active ? 'rgba(0,180,255,0.12)' : 'rgba(0,0,0,0.3)';
+          ctx.fillRect(sx, sy, slotSize, slotSize);
+
+          // Slot border
+          ctx.strokeStyle = active ? '#00d4ff' : 'rgba(26,58,92,0.9)';
+          ctx.lineWidth   = active ? 1.5 : 1;
+          ctx.strokeRect(sx, sy, slotSize, slotSize);
+
+          // Weapon image
+          if (wId) {
+            const img = weaponImages[wId];
+            if (img && img.complete && img.naturalWidth > 0) {
+              ctx.save();
+              ctx.globalAlpha = active ? 1 : 0.6;
+              const margin = 6;
+              ctx.drawImage(img, sx + margin, sy + margin, slotSize - margin * 2, slotSize - margin * 2);
+              ctx.restore();
+            }
+          }
+
+          // Slot number label
+          ctx.font = 'bold 9px "Huninn"';
+          ctx.fillStyle = active ? '#00d4ff' : 'rgba(42,74,106,1)';
           ctx.textAlign = 'center';
-          ctx.textBaseline = 'bottom';
-          ctx.fillText(String(upg.level), iconCursor + 7, cy + 2);
+          ctx.textBaseline = 'top';
+          ctx.fillText(String(i + 1), sx + slotSize / 2, sy + slotSize + 2);
         }
-        
-        iconCursor += iconSize + iconGap;
-      }
-      
-      // Если нет улучшений, показываем прочерк
-      if (activeUpgrades.length === 0) {
-        ctx.font = 'bold 11px "Share Tech Mono"';
-        ctx.fillStyle = 'rgba(42,74,106,1)';
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('—', cursor, cy + 6);
-        iconCursor += 20;
       }
 
       ctx.restore();
@@ -2109,9 +2299,39 @@
       ctx.globalAlpha = fadeAlpha;
       for (const k of blackCellsZ) {
         const { x, y } = cellFromKey(k);
-        if (!someAdjacentCell(x, y, (nx, ny, nk) => s.everOpenedCells.has(nk))) continue;
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(x * CP, y * CP, CP, CP);
+        const revealedZ = someAdjacentCell(x, y, (nx, ny, nk) => s.everOpenedCells.has(nk));
+        if (revealedZ) {
+          if (rockImg.complete && rockImg.naturalWidth > 0) {
+            ctx.drawImage(rockImg, x * CP, y * CP, CP, CP);
+          } else {
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(x * CP, y * CP, CP, CP);
+          }
+        } else {
+          if (closedCellImg.complete && closedCellImg.naturalWidth > 0) {
+            ctx.drawImage(closedCellImg, x * CP, y * CP, CP, CP);
+          } else {
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(x * CP, y * CP, CP, CP);
+          }
+        }
+      }
+      ctx.globalAlpha = 1;
+
+      // Неоткрытые клетки (не исследованные) — рисуем closedcell.png
+      ctx.globalAlpha = fadeAlpha;
+      for (let cy2 = 0; cy2 < s.gridSize; cy2++) {
+        for (let cx2 = 0; cx2 < s.gridSize; cx2++) {
+          const k = cellKey(cx2, cy2);
+          if (s.openCells.has(k) || s.everRevealedCells.has(k) ||
+              s.disabledCells.has(k) || s.permanentlyClosed.has(k)) continue;
+          if (closedCellImg.complete && closedCellImg.naturalWidth > 0) {
+            ctx.drawImage(closedCellImg, cx2 * CP, cy2 * CP, CP, CP);
+          } else {
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(cx2 * CP, cy2 * CP, CP, CP);
+          }
+        }
       }
       ctx.globalAlpha = 1;
 
@@ -2136,7 +2356,7 @@
         ctx.fillStyle = `rgba(255, 107, 157, ${pulse})`;
         ctx.shadowColor = '#ff6b9d';
         ctx.shadowBlur = 15;
-        ctx.font = 'bold 24px "Share Tech Mono"';
+        ctx.font = 'bold 24px "Huninn"';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('♥', heart.x, heart.y);
@@ -2154,7 +2374,7 @@
         ctx.fillStyle = `rgba(255, 215, 0, ${pulse})`;
         ctx.shadowColor = '#ffd700';
         ctx.shadowBlur = 15;
-        ctx.font = 'bold 24px "Share Tech Mono"';
+        ctx.font = 'bold 24px "Huninn"';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('🔑', keyObj.x, keyObj.y);
@@ -2173,7 +2393,7 @@
           ctx.fillStyle = upgDef.color;
           ctx.shadowColor = upgDef.color;
           ctx.shadowBlur = 15;
-          ctx.font = 'bold 24px "Share Tech Mono"';
+          ctx.font = 'bold 24px "Huninn"';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText('⬆', upg.x, upg.y);
@@ -2212,11 +2432,11 @@
         ctx.fillStyle = wDef.color;
         ctx.shadowColor = wDef.color;
         ctx.shadowBlur = 12;
-        ctx.font = 'bold 18px "Share Tech Mono"';
+        ctx.font = 'bold 18px "Huninn"';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('🔫', dw.x, dw.y - 8);
-        ctx.font = 'bold 9px "Share Tech Mono"';
+        ctx.font = 'bold 9px "Huninn"';
         ctx.fillStyle = '#ffffff';
         ctx.shadowBlur = 0;
         ctx.globalAlpha = fadeAlpha * 0.9;
@@ -2264,10 +2484,12 @@
 
       // Оверлей с текстом
       ctx.fillStyle = 'rgba(255,68,68,0.85)';
-      ctx.font = 'bold 14px "Share Tech Mono"';
+      ctx.font = 'bold 14px "Huninn"';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
       ctx.fillText('⚔ ENTERING BATTLE...', VIEW_W / 2, 10);
+
+      drawHUD(s);
     }
 
     // drawZoomOut: используем drawZoom с play-координатами
@@ -2279,7 +2501,7 @@
       s.player.x = origX; s.player.y = origY;
       // Поверх - текст ≄ поверх виньетки
       ctx.fillStyle = 'rgba(0,255,136,0.85)';
-      ctx.font = 'bold 14px "Share Tech Mono"';
+      ctx.font = 'bold 14px "Huninn"';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
       ctx.fillText('✓ BATTLE COMPLETE', VIEW_W / 2, 10);
@@ -2323,13 +2545,13 @@
       ctx.roundRect(p.x, p.y, p.w, p.h, r);
       ctx.stroke();
 
-      ctx.font = 'bold 20px "Share Tech Mono"';
+      ctx.font = 'bold 20px "Huninn"';
       ctx.fillStyle = '#e0f0ff';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
       ctx.fillText('ПАУЗА', VIEW_W / 2, p.y + 20);
 
-      ctx.font = '12px "Share Tech Mono"';
+      ctx.font = '12px "Huninn"';
       ctx.fillStyle = 'rgba(160,200,240,0.8)';
       ctx.textAlign = 'left';
       ctx.fillText('ГРОМКОСТЬ', p.sliderX(), p.sliderY() - 18);
@@ -2356,7 +2578,7 @@
       ctx.lineWidth = 2;
       ctx.stroke();
 
-      ctx.font = '11px "Share Tech Mono"';
+      ctx.font = '11px "Huninn"';
       ctx.fillStyle = 'rgba(160,200,240,0.7)';
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
@@ -2372,7 +2594,7 @@
       ctx.strokeStyle = hovered ? '#00e87a' : '#00aa55';
       ctx.lineWidth = 1.5;
       ctx.stroke();
-      ctx.font = 'bold 13px "Share Tech Mono"';
+      ctx.font = 'bold 13px "Huninn"';
       ctx.fillStyle = hovered ? '#00ff99' : '#00cc66';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -2437,13 +2659,13 @@
       ctx.roundRect(panelX, panelY, panelW, panelH, 14);
       ctx.stroke();
 
-      ctx.font = 'bold 15px "Share Tech Mono"';
+      ctx.font = 'bold 15px "Huninn"';
       ctx.fillStyle = '#cc88ff';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
       ctx.fillText('☠ ПРОКЛЯТЫЕ УЛУЧШЕНИЯ — ВЫБЕРИ ОДНО', VIEW_W / 2, panelY + 16);
 
-      ctx.font = '10px "Share Tech Mono"';
+      ctx.font = '10px "Huninn"';
       ctx.fillStyle = 'rgba(180,100,255,0.55)';
       ctx.fillText('Эффект активен постоянно. Отмена невозможна.', VIEW_W / 2, panelY + 36);
 
@@ -2472,7 +2694,7 @@
         ctx.textBaseline = 'middle';
         ctx.fillText('📦', cx + cardW / 2, cy + 36);
 
-        ctx.font = `bold 11px "Share Tech Mono"`;
+        ctx.font = `bold 11px "Huninn"`;
         ctx.fillStyle = hovered ? '#ffffff' : upg.color;
         ctx.textBaseline = 'top';
         ctx.textAlign = 'center';
@@ -2484,7 +2706,7 @@
           ty += 14;
         }
 
-        ctx.font = '9px "Share Tech Mono"';
+        ctx.font = '9px "Huninn"';
         ctx.fillStyle = hovered ? 'rgba(255,255,255,0.85)' : 'rgba(200,160,255,0.7)';
         const descLines = wrapText(upg.description, cardW - 16);
         ty += 4;
@@ -2501,7 +2723,7 @@
       const words = text.split(' ');
       const lines = [];
       let line = '';
-      ctx.font = '9px "Share Tech Mono"';
+      ctx.font = '9px "Huninn"';
       for (const word of words) {
         const test = line ? line + ' ' + word : word;
         if (ctx.measureText(test).width > maxWidth && line) {
@@ -2597,10 +2819,14 @@
         drawZoom(state, curScale, curCamX, curCamY, zt.t / ZOOM_DUR, zt.pendingCellKey, zt.frozenAngle);
 
         if (zt.t >= ZOOM_DUR) {
-          enterBattleMode(state, zt.pendingCellKey);
+          if (zt.isBossBattle) {
+            enterBossBattleMode(state);
+          } else {
+            enterBattleMode(state, zt.pendingCellKey);
+          }
           zoomTransition = null;
         }
-      } else if (state && state.phase === 'zoom_out_transition') {
+      } else if (state && state.phase === 'zoom_out_transition' && zoomOutTransition) {
         // Анимация zoom-out из battle на карту (1 сек)
         const ZOOM_OUT_DUR = 0.5;
         zoomOutTransition.t = Math.min(zoomOutTransition.t + dt, ZOOM_OUT_DUR);

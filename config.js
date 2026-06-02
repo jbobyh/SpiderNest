@@ -418,6 +418,7 @@ const CURSED_UPGRADE_TYPES = [
     description: 'Пули пробивают всех врагов насквозь, но -20% скорости перезарядки',
     color: '#cc44ff',
     max: 1,
+    icon: '🔮',
   },
   {
     id: 'infiniteRange',
@@ -425,6 +426,7 @@ const CURSED_UPGRADE_TYPES = [
     description: 'Пули летят бесконечно, но -30% скорости передвижения',
     color: '#ff6622',
     max: 1,
+    icon: '🌀',
   },
   {
     id: 'ricochet',
@@ -432,6 +434,7 @@ const CURSED_UPGRADE_TYPES = [
     description: 'Пули отскакивают от стен, +50% к дальности',
     color: '#22ffdd',
     max: 1,
+    icon: '↩️',
   },
   {
     id: 'weaponSlot',
@@ -439,6 +442,7 @@ const CURSED_UPGRADE_TYPES = [
     description: 'Дополнительный слот оружия.',
     color: '#ffaa00',
     max: 3,
+    icon: '🗃️',
   },
   {
     id: 'lastLife',
@@ -446,6 +450,7 @@ const CURSED_UPGRADE_TYPES = [
     description: 'При смертельном уроне все враги в бою умрут, урон не получишь. Одноразовый.',
     color: '#ff0000',
     max: 1,
+    icon: '💀',
   },
   {
     id: 'battleSpeed',
@@ -453,6 +458,7 @@ const CURSED_UPGRADE_TYPES = [
     description: '+25% скорости при 2 комнатах в бою, -15% за каждую комнату сверх двух',
     color: '#00ff88',
     max: 1,
+    icon: '⚡',
   },
   {
     id: 'freeze',
@@ -460,6 +466,7 @@ const CURSED_UPGRADE_TYPES = [
     description: 'В начале боя враги не могут двигаться 1.5 секунд',
     color: '#00ccff',
     max: 1,
+    icon: '❄️',
   },
   {
     id: 'randomBonus',
@@ -467,6 +474,7 @@ const CURSED_UPGRADE_TYPES = [
     description: 'Получить 3 случайных обычных бонуса',
     color: '#ff00ff',
     max: 1,
+    icon: '🎲',
   },
   {
     id: 'farSight',
@@ -474,6 +482,7 @@ const CURSED_UPGRADE_TYPES = [
     description: 'Видно содержимое смежных комнат по диагонали',
     color: '#ffff00',
     max: 1,
+    icon: '👁️',
   },
   {
     id: 'longRange',
@@ -481,6 +490,7 @@ const CURSED_UPGRADE_TYPES = [
     description: 'За каждую открытую комнату в бою +20% к дальности полета пули',
     color: '#ff8800',
     max: 1,
+    icon: '🏹',
   },
   {
     id: 'sniper',
@@ -488,6 +498,7 @@ const CURSED_UPGRADE_TYPES = [
     description: 'Максимальная точность при 2 комнатах в бою, +10% разброса за каждую дополнительную комнату',
     color: '#00ff00',
     max: 1,
+    icon: '🎯',
   },
 ];
 

@@ -104,7 +104,7 @@
       const p = Math.min(fh.t / fh.duration, 1);
       const scale = 0.8 + 0.5 * Math.sin(p * Math.PI);
       ctx.save();
-      ctx.font = `bold ${Math.round(20 * scale)}px "Share Tech Mono"`;
+      ctx.font = `bold ${Math.round(20 * scale)}px "Huninn"`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = '#ff6b9d';

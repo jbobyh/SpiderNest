@@ -766,6 +766,37 @@
                   });
                 }
               }
+              // Босс убит - запускаем zoom-out переход
+              if (g.isBoss && b.isBossBattle) {
+                s.bossDefeated = true;
+                // Вычисляем play-координаты игрока
+                const battleCellX = Math.floor(b.player.x / BATTLE_CELL_PX);
+                const battleCellY = Math.floor(b.player.y / BATTLE_CELL_PX);
+                const mapCellX = battleCellX + b.cellOffsetX;
+                const mapCellY = battleCellY + b.cellOffsetY;
+                const localX = b.player.x - battleCellX * BATTLE_CELL_PX;
+                const localY = b.player.y - battleCellY * BATTLE_CELL_PX;
+                const playPX = mapCellX * CP + localX / BATTLE_SCALE;
+                const playPY = mapCellY * CP + localY / BATTLE_SCALE;
+
+                // Начало zoom-out
+                const fromScale = b.playZoomScale || (b.staticScale || 1) * BATTLE_SCALE;
+                const zoneCX = b.playCenterX || playPX;
+                const zoneCY = b.playCenterY || playPY;
+
+                zoomOutTransition = {
+                  fromScale, toScale: 1,
+                  fromCenterX: zoneCX, fromCenterY: zoneCY,
+                  toCenterX: playPX, toCenterY: playPY,
+                  playerX: playPX, playerY: playPY,
+                  t: 0,
+                  frozenAngle: Math.atan2(s.mouse.y - playPY, s.mouse.x - playPX),
+                };
+                Sounds.zoom();
+                s.phase = 'zoom_out_transition';
+                showUpgradePopup('БОСС ПОБЕЖДЕН!', '#ff4400');
+                return;
+              }
             }
             // Логика пробития: отслеживаем сколько врагов прошла пуля
             bullet.hitCount++;

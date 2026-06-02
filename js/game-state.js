@@ -111,6 +111,12 @@
     const closedCellImg = new Image();
     closedCellImg.src = 'img/closedcell.png';
 
+    const rockImg = new Image();
+    rockImg.src = 'img/rock.png';
+
+    const backgroundImg = new Image();
+    backgroundImg.src = 'img/background.png';
+
     // Blue floor variants with different exit configurations
     const floorRightExitImg = new Image();
     floorRightExitImg.src = 'img/floor-rightexit-blue.png';
@@ -132,6 +138,15 @@
 
     const cocoonImg = new Image();
     cocoonImg.src = 'img/cocoon.png';
+
+    const hudHeartImg = new Image();
+    hudHeartImg.src = 'img/heart.png';
+
+    const hudKeyImg = new Image();
+    hudKeyImg.src = 'img/key.png';
+
+    const hudShieldImg = new Image();
+    hudShieldImg.src = 'img/shield.png';
 
     // Weapon sprites
     const weaponImages = {
@@ -666,10 +681,14 @@
 
         keys: {},
         mouse: { x: (cx + 0.5) * CP, y: (cy + 0.5) * CP },
-        phase: 'play', // 'play', 'battle', 'win', 'dead', 'stopped'
+        phase: 'play', // 'play', 'battle', 'win', 'dead', 'stopped', 'level_complete'
 
         // Battle mode state
         battle: null, // { openCells, cellContents, hearts, keyObjs, upgradeObjs, spiders, activeSpiders, ... }
+
+        // Boss battle flags
+        bossSummonReady: false,
+        bossDefeated: false,
 
         droppedWeapons: droppedWeapons,
         weaponSlots: [...playerProgress.weaponSlots],
