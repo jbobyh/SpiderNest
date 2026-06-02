@@ -1430,7 +1430,7 @@
         const wck = cellKey(wc.x, wc.y);
         if (!s.everRevealedCells.has(wck) || !visibleCells.has(wck)) continue;
         const dist = Math.hypot(s.mouse.x - dw.x, s.mouse.y - dw.y);
-        if (dist < CP * 0.4) {
+        if (dist < CP * 0.2) {
           const wDef = WEAPON_DEFS[dw.weaponId];
           if (wDef) {
             const sx = dw.x - camera.x;
@@ -1448,7 +1448,7 @@
         const upgCk = cellKey(uc.x, uc.y);
         if (!s.everRevealedCells.has(upgCk)) continue;
         const dist = Math.hypot(s.mouse.x - upg.x, s.mouse.y - upg.y);
-        if (dist < CP * 0.4) {
+        if (dist < CP * 0.2) {
           const upgDef = UPGRADE_TYPES.find(u => u.id === upg.upgradeType);
           if (upgDef) {
             const sx = upg.x - camera.x;
