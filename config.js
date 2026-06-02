@@ -13,7 +13,7 @@ const CONFIG = {
   // Player
   INITIAL_LIVES: 3,       // начальное кол-во жизней
   LIVES_PER_HEART: 1,     // жизней на одно сердце
-  PLAYER_SPEED: 70,      // скорость игрока (пикс/сек)
+  PLAYER_SPEED: 80,      // скорость игрока (пикс/сек)
   PLAYER_RADIUS: 3,       // радиус коллизии игрока
   PLAYER_SPRITE_RADIUS: 10,        // визуальный радиус спрайта (половина ширины отрисовки)
   PLAYER_INVULNERABLE_TIME: 1,    // секунд неуязвимости после урона
@@ -336,8 +336,8 @@ const WEAPON_DEFS = {
     color: '#ff44ff',
     pellets: 1,
     spread: 0.20,
-    damage: 1,
-    cooldown: 0.3,
+    damage: 0.5,
+    cooldown: 0.15,
     bulletSpeed: 200,
     range: 8,
     penetrate: 0,
