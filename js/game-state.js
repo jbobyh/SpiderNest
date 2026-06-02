@@ -241,6 +241,8 @@
         infinitePenetrate: false,
         infiniteRange: false,
         ricochet: false,
+        lastLife: false,
+        battleSpeed: false,
       },
       spawnedUpgrades: {}, // сколько раз каждый апгрейд заспавнился за всю игру
       spawnedWeapons: [], // какие оружия уже заспавнились за всю игру

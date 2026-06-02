@@ -74,6 +74,20 @@
           s.upgrades.ricochet = true;
           playerProgress.upgrades.ricochet = true;
           break;
+        case 'weaponSlot':
+          s.maxSlots++;
+          s.weaponSlots.push(null);
+          playerProgress.maxSlots = s.maxSlots;
+          playerProgress.weaponSlots = [...s.weaponSlots];
+          break;
+        case 'lastLife':
+          s.upgrades.lastLife = true;
+          playerProgress.upgrades.lastLife = true;
+          break;
+        case 'battleSpeed':
+          s.upgrades.battleSpeed = true;
+          playerProgress.upgrades.battleSpeed = true;
+          break;
       }
       const upgDef = UPGRADE_TYPES.find(u => u.id === type) || CURSED_UPGRADE_TYPES.find(u => u.id === type);
       if (upgDef && showPopup) showUpgradePopup(upgDef.label, upgDef.color);
@@ -95,6 +109,75 @@
     // ============================================================
     function dealPlayerDamage(s, isBattleMode) {
       if (s.player.invulnerable > 0 || CONFIG.DEBUG_INVULNERABLE) return false;
+
+      // Последняя жизнь - если это смертельный урон (останется 0 жизней)
+      if (s.upgrades.lastLife && s.player.lives <= 1) {
+        s.upgrades.lastLife = false;
+        playerProgress.upgrades.lastLife = false;
+        
+        // Убиваем всех врагов в бою
+        const enemiesArray = isBattleMode ? s.battle.activeSpiders : s.activeSpiders;
+        const particlesArray = isBattleMode ? s.battle.particles : s.particles;
+        const scale = isBattleMode ? BATTLE_SCALE : 1;
+        
+        // Удаляем все вражеские пули
+        if (isBattleMode && s.battle.enemyBullets) {
+          for (let i = s.battle.enemyBullets.length - 1; i >= 0; i--) {
+            const bullet = s.battle.enemyBullets[i];
+            // Создаем маленькие партиклы для каждой пули
+            for (let k = 0; k < 3; k++) {
+              const a = Math.random() * Math.PI * 2;
+              particlesArray.push({
+                x: bullet.x, y: bullet.y,
+                vx: Math.cos(a) * 30 * scale,
+                vy: Math.sin(a) * 30 * scale,
+                life: 0.3, maxLife: 0.3, color: '#ff8800',
+              });
+            }
+          }
+          s.battle.enemyBullets.length = 0; // Очищаем массив вражеских пуль
+        } else if (!isBattleMode && s.enemyBullets) {
+          for (let i = s.enemyBullets.length - 1; i >= 0; i--) {
+            const bullet = s.enemyBullets[i];
+            for (let k = 0; k < 3; k++) {
+              const a = Math.random() * Math.PI * 2;
+              particlesArray.push({
+                x: bullet.x, y: bullet.y,
+                vx: Math.cos(a) * 30,
+                vy: Math.sin(a) * 30,
+                life: 0.3, maxLife: 0.3, color: '#ff8800',
+              });
+            }
+          }
+          s.enemyBullets.length = 0; // Очищаем массив вражеских пуль
+        }
+        
+        for (let i = enemiesArray.length - 1; i >= 0; i--) {
+          const enemy = enemiesArray[i];
+          if (!enemy || enemy.x === undefined || enemy.y === undefined) {
+            enemiesArray.splice(i, 1);
+            continue;
+          }
+          // Создаем партиклы смерти врага
+          for (let k = 0; k < CONFIG.DEATH_PARTICLES_COUNT; k++) {
+            const a = Math.random() * Math.PI * 2;
+            const speed = CONFIG.DEATH_PARTICLES_SPEED_MIN + Math.random() * (CONFIG.DEATH_PARTICLES_SPEED_MAX - CONFIG.DEATH_PARTICLES_SPEED_MIN);
+            particlesArray.push({
+              x: enemy.x, y: enemy.y,
+              vx: Math.cos(a) * speed * scale,
+              vy: Math.sin(a) * speed * scale,
+              life: CONFIG.DEATH_PARTICLES_LIFE,
+              maxLife: CONFIG.DEATH_PARTICLES_LIFE,
+              color: CONFIG.DEATH_PARTICLES_COLOR || '#ff4444',
+            });
+          }
+          enemiesArray.splice(i, 1);
+        }
+        
+        // Показываем попап
+        showUpgradePopup('ПОСЛЕДНЯЯ ЖИЗНЬ АКТИВИРОВАНА!', '#ff0000');
+        return true; // Урон предотвращен
+      }
 
       // Щит поглощает урон
       if (s.upgrades.shield > 0) {
@@ -336,7 +419,20 @@
       if (s.player.invulnerable > 0) s.player.invulnerable -= dt;
 
       // Движение игрока в battle mode (масштабированная скорость)
-      const spd = CONFIG.PLAYER_SPEED * s.upgrades.speedMult * BATTLE_SCALE;
+      let speedMult = s.upgrades.speedMult;
+      
+      // Боевое ускорение: модификатор скорости от количества открытых комнат
+      if (s.upgrades.battleSpeed && b.openCells) {
+        const roomCount = b.openCells.size;
+        if (roomCount === 2) {
+          speedMult *= 1.25; // +25% скорости при 2 комнатах
+        } else if (roomCount > 2) {
+          const penalty = 0.15 * (roomCount - 2); // -15% за каждую комнату сверх двух
+          speedMult *= Math.max(0.1, 1 - penalty); // Не даем скорости упасть ниже 10%
+        }
+      }
+      
+      const spd = CONFIG.PLAYER_SPEED * speedMult * BATTLE_SCALE;
       let mvx = 0, mvy = 0;
       const k = s.keys;
       if (k['w'] || k['W'] || k['ц'] || k['Ц'] || k['ArrowUp'] || k['arrowup']) mvy -= 1;
@@ -614,6 +710,7 @@
       // Обновление врагов в battle
       for (let i = b.activeSpiders.length - 1; i >= 0; i--) {
         const g = b.activeSpiders[i];
+        if (!g || g.x === undefined || g.y === undefined) continue;
 
         const dx = b.player.x - g.x;
         const dy = b.player.y - g.y;
@@ -880,6 +977,10 @@
       // Вражеские пули в battle
       for (let i = b.enemyBullets.length - 1; i >= 0; i--) {
         const eb = b.enemyBullets[i];
+        if (!eb || eb.x === undefined || eb.y === undefined) {
+          b.enemyBullets.splice(i, 1);
+          continue;
+        }
         eb.x += eb.vx * dt;
         eb.y += eb.vy * dt;
         eb.life -= dt;
@@ -924,8 +1025,10 @@
       // Коллизии между врагами в battle (масштабированные) - с учетом реальных радиусов
       for (let i = 0; i < b.activeSpiders.length; i++) {
         const g1 = b.activeSpiders[i];
+        if (!g1 || g1.x === undefined || g1.y === undefined) continue;
         for (let j = i + 1; j < b.activeSpiders.length; j++) {
           const g2 = b.activeSpiders[j];
+          if (!g2 || g2.x === undefined || g2.y === undefined) continue;
           const dx = g2.x - g1.x;
           const dy = g2.y - g1.y;
           const distSq = dx * dx + dy * dy;

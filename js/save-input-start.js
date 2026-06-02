@@ -124,6 +124,8 @@
         if (playerProgress.upgrades.infinitePenetrate === undefined) playerProgress.upgrades.infinitePenetrate = false;
         if (playerProgress.upgrades.infiniteRange === undefined) playerProgress.upgrades.infiniteRange = false;
         if (playerProgress.upgrades.ricochet === undefined) playerProgress.upgrades.ricochet = false;
+        if (playerProgress.upgrades.lastLife === undefined) playerProgress.upgrades.lastLife = false;
+        if (playerProgress.upgrades.battleSpeed === undefined) playerProgress.upgrades.battleSpeed = false;
         state = deserializeState(save.state);
         return true;
       } catch (e) {
@@ -190,6 +192,8 @@
           infinitePenetrate: false,
           infiniteRange: false,
           ricochet: false,
+          lastLife: false,
+          battleSpeed: false,
         },
         spawnedUpgrades: {},
         spawnedWeapons: [],
@@ -252,22 +256,47 @@
             weaponChanged = true;
             Sounds.weaponcollect();
           }
+        } else if (e.key === '3') {
+          if (state.maxSlots >= 3 && state.weaponSlots[2]) {
+            state.activeSlot = 2;
+            playerProgress.activeSlot = 2;
+            state.shootCooldown = 0;
+            weaponChanged = true;
+            Sounds.weaponcollect();
+          }
+        } else if (e.key === '4') {
+          if (state.maxSlots >= 4 && state.weaponSlots[3]) {
+            state.activeSlot = 3;
+            playerProgress.activeSlot = 3;
+            state.shootCooldown = 0;
+            weaponChanged = true;
+            Sounds.weaponcollect();
+          }
+        } else if (e.key === '5') {
+          if (state.maxSlots >= 5 && state.weaponSlots[4]) {
+            state.activeSlot = 4;
+            playerProgress.activeSlot = 4;
+            state.shootCooldown = 0;
+            weaponChanged = true;
+            Sounds.weaponcollect();
+          }
         } else if (e.key === 'q' || e.key === 'Q' || e.key === 'й' || e.key === 'Й') {
-          // Q — чередование между слотами
-          const nextSlot = state.activeSlot === 0 ? 1 : 0;
-          if (state.maxSlots >= nextSlot + 1 && state.weaponSlots[nextSlot]) {
-            state.activeSlot = nextSlot;
-            playerProgress.activeSlot = nextSlot;
-            state.shootCooldown = 0;
-            weaponChanged = true;
-            Sounds.weaponcollect();
-          } else if (state.weaponSlots[state.activeSlot === 0 ? 0 : 1]) {
-            // Если следующий слот пуст, возвращаемся к первому если он есть
-            state.activeSlot = 0;
-            playerProgress.activeSlot = 0;
-            state.shootCooldown = 0;
-            weaponChanged = true;
-            Sounds.weaponcollect();
+          // Q — циклическое переключение между всеми слотами
+          let nextSlot = (state.activeSlot + 1) % state.maxSlots;
+          let attempts = 0;
+          
+          // Ищем следующий слот с оружием
+          while (attempts < state.maxSlots) {
+            if (state.weaponSlots[nextSlot]) {
+              state.activeSlot = nextSlot;
+              playerProgress.activeSlot = nextSlot;
+              state.shootCooldown = 0;
+              weaponChanged = true;
+              Sounds.weaponcollect();
+              break;
+            }
+            nextSlot = (nextSlot + 1) % state.maxSlots;
+            attempts++;
           }
         } else if (e.key === 'f' || e.key === 'F' || e.key === 'а' || e.key === 'А') {
           // Сначала пытаемся подобрать оружие рядом
