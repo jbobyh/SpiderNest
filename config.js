@@ -66,7 +66,7 @@ const CONFIG = {
   PICKUP_PARTICLES_LIFE: 0.6,         // время жизни этих частиц (сек)
 
   // Camera shake on shoot
-  SHAKE_AMOUNT: 2.0,      // сила тряски камеры при выстреле
+  SHAKE_AMOUNT: 0,      // сила тряски камеры при выстреле
   SHAKE_DECAY: 0.9,       // затухание тряски (множитель за кадр)
 
   // Spiders
@@ -195,7 +195,7 @@ const WEAPON_DEFS = {
     bulletSpeed: 400,       // скорость пули (пикс/сек)
     range: 15,              // дальность в клетках
     penetrate: 0,           // кол-во врагов, которых пробивает пуля
-    shakeAmount: 1.5,       // сила тряски камеры
+    shakeAmount: 0,       // сила тряски камеры
   },
   shotgun: {
     id: 'shotgun',
@@ -209,7 +209,7 @@ const WEAPON_DEFS = {
     bulletSpeed: 320,
     range: 10,
     penetrate: 0,
-    shakeAmount: 3.5,
+    shakeAmount: 0.5,
   },
   smg: {
     id: 'smg',
@@ -223,7 +223,7 @@ const WEAPON_DEFS = {
     bulletSpeed: 400,
     range: 15,
     penetrate: 0,
-    shakeAmount: 1,
+    shakeAmount: 0,
   },
   rifle: {
     id: 'rifle',
@@ -237,7 +237,7 @@ const WEAPON_DEFS = {
     bulletSpeed: 700,
     range: 40,
     penetrate: 2,
-    shakeAmount: 4.0,
+    shakeAmount: 0.8,
   },
   revolver: {
     id: 'revolver',
@@ -251,7 +251,7 @@ const WEAPON_DEFS = {
     bulletSpeed: 450,
     range: 30,
     penetrate: 1,
-    shakeAmount: 2.5,
+    shakeAmount: 0.2,
   },
   carbine: {
     id: 'carbine',
@@ -267,7 +267,7 @@ const WEAPON_DEFS = {
     bulletSpeed: 380,
     range: 35,
     penetrate: 0,
-    shakeAmount: 1.8,
+    shakeAmount: 0.3,
   },
 };
 
