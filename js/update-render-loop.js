@@ -1100,6 +1100,9 @@
         }
       }
 
+      const hoveredCell = cellOf(s.mouse.x, s.mouse.y);
+      const hoveredKey = cellKey(hoveredCell.x, hoveredCell.y);
+
       for (const k of adj) {
         if (!visibleCells.has(k)) continue;
         const { x, y } = cellFromKey(k);
@@ -1107,7 +1110,11 @@
 
         // Фон смежной клетки
         if (playerAdjOpen.has(k)) {
-          ctx.fillStyle = 'rgba(45,138,69,0.15)';
+          if (k === hoveredKey) {
+            ctx.fillStyle = 'rgba(80,220,120,0.25)';
+          } else {
+            ctx.fillStyle = 'rgba(45,138,69,0.15)';
+          }
           ctx.fillRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
         } else {
           ctx.fillStyle = 'rgba(40,30,50,0.3)';
