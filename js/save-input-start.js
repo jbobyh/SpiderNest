@@ -166,10 +166,6 @@
       
       savePlayerProgress(state);
       currentLevel++;
-      // После первого уровня разблокируем второй слот
-      if (currentLevel === 2) {
-        playerProgress.maxSlots = 2;
-      }
       flyingHeart = null;
       cursedChoiceState = null;
       state = initState(currentLevel);
@@ -357,7 +353,24 @@
                 const bpCell = { x: Math.floor(b.player.x / BATTLE_CELL_PX), y: Math.floor(b.player.y / BATTLE_CELL_PX) };
                 const dropPX = (bpCell.x + b.cellOffsetX + 0.5) * CP;
                 const dropPY = (bpCell.y + b.cellOffsetY + 0.5) * CP;
+                // Проверяем, есть ли свободный слот (если нет - оружие будет сброшено)
+                let freeSlot = -1;
+                for (let si = 0; si < state.maxSlots; si++) {
+                  if (!state.weaponSlots[si]) { freeSlot = si; break; }
+                }
+                const droppedWeaponId = freeSlot < 0 ? state.weaponSlots[state.activeSlot] : null;
                 pickupWeapon(state, bw.weaponId, b.particles, bw.x, bw.y, BATTLE_SCALE, dropPX, dropPY);
+                // Если оружие было сброшено, добавляем его в b.weapons для отображения в бою
+                if (droppedWeaponId) {
+                  b.weapons.push({
+                    x: b.player.x,
+                    y: b.player.y,
+                    weaponId: droppedWeaponId,
+                    originalX: dropPX,
+                    originalY: dropPY,
+                    picked: false,
+                  });
+                }
                 pickedUp = true;
                 weaponChanged = true;
                 break;

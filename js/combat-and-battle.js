@@ -495,8 +495,6 @@
         b.freezeTimer -= dt;
         if (b.freezeTimer <= 0) {
           b.freezeTimer = 0;
-          // Показываем попап о конце заморозки
-          showUpgradePopup('ВРАГИ РАЗМОРОЖЕНЫ!', '#00ccff');
         }
       }
 

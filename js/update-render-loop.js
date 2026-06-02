@@ -871,7 +871,7 @@
         const alpha = dn.life / dn.maxLife;
         ctx.globalAlpha = alpha;
         ctx.fillStyle = dn.color;
-        ctx.font = `bold ${13 * BATTLE_SCALE * dn.scale}px "Huninn"`;
+        ctx.font = `bold ${8 * BATTLE_SCALE * dn.scale}px "Huninn"`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.shadowColor = dn.color;
