@@ -1735,7 +1735,7 @@
       const isSoldier = g.type === 'soldier' || g.type === 'chaser';
       const isCocoon = g.type === 'cocoon';
       const isBloated = g.type === 'bloated';
-      ctx.globalAlpha = 1.0;
+      ctx.globalAlpha = alpha;
 
       if (isCocoon) {
         // Кокон — будет отрисован ниже как спрайт без тени
@@ -1789,7 +1789,7 @@
           ctx.restore();
         }
         // Skip rest of drawing (no legs for cocoon)
-        ctx.globalAlpha = 1;
+        ctx.globalAlpha = alpha;
 
         // HP бар для кокона
         const maxHp = CONFIG.COCOON_HP;
@@ -1801,7 +1801,7 @@
           ctx.fillStyle = hpFrac > 0.5 ? '#aaaaaa' : '#666666';
           ctx.fillRect(g.x - r, g.y - r - 8 * scale, r * 2 * hpFrac, 3 * scale);
         }
-        ctx.globalAlpha = 1;
+        ctx.globalAlpha = alpha;
         return;
       } else if (isBloated) {
         // Распухший: вздутое тело, почти круглое
@@ -1875,7 +1875,7 @@
         ctx.strokeStyle = '#228822';
         ctx.lineWidth = Math.max(1, r * 0.18);
       }
-      ctx.globalAlpha = 1.0;
+      ctx.globalAlpha = alpha;
       // angOffsets: angle from horizontal (0=right/left), negative=up, positive=down
       const angOffsets = [-0.55, -0.18, 0.18, 0.55];
       for (let side = -1; side <= 1; side += 2) {
@@ -1896,7 +1896,7 @@
       }
 
       // Eyes
-      ctx.globalAlpha = 1.0;
+      ctx.globalAlpha = alpha;
       if (isBull) {
         ctx.fillStyle = '#ff0000'; // Красные глаза у быка
       } else if (isBuldyga) {
@@ -2377,7 +2377,31 @@
       drawOpenCellWalls(s.openCells, CP, CP * 0.125);
       drawOpenCellCorners(s.openCells, CP, CP * 0.125);
 
-      
+      // Смежные закрытые клетки (ever revealed) с плавным fade
+      ctx.globalAlpha = fadeAlpha * 0.6;
+      for (const k of s.everRevealedCells) {
+        if (s.openCells.has(k) || s.disabledCells.has(k) || s.permanentlyClosed.has(k)) continue;
+        const { x, y } = cellFromKey(k);
+        if (x < 0 || x >= s.gridSize || y < 0 || y >= s.gridSize) continue;
+        ctx.fillStyle = 'rgba(40,30,50,0.3)';
+        ctx.fillRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
+      }
+
+      // Зелёная подсветка клеток смежных с игроком (доступных для открытия)
+      const playerCellZ = cellOf(s.player.x, s.player.y);
+      for (const [ddx, ddy] of CARDINAL_DIRECTIONS) {
+        const nx = playerCellZ.x + ddx, ny = playerCellZ.y + ddy;
+        const nk = cellKey(nx, ny);
+        if (nx >= 0 && nx < s.gridSize && ny >= 0 && ny < s.gridSize &&
+            !s.openCells.has(nk) && !s.disabledCells.has(nk) && !s.permanentlyClosed.has(nk)) {
+          const hovered = nk === cellKey(Math.floor(s.mouse.x / CP), Math.floor(s.mouse.y / CP));
+          ctx.globalAlpha = fadeAlpha * (hovered ? 0.6 : 0.4);
+          ctx.fillStyle = hovered ? 'rgba(80,220,120,0.25)' : 'rgba(45,138,69,0.15)';
+          ctx.fillRect(nx * CP + 1, ny * CP + 1, CP - 2, CP - 2);
+        }
+      }
+      ctx.globalAlpha = 1;
+
       // Сердечки в открытых клетках
       for (const heart of s.hearts) {
         if (heart.collected) continue;
@@ -2460,20 +2484,14 @@
         const wDef = WEAPON_DEFS[dw.weaponId];
         if (!wDef) continue;
         const pulse = 0.7 + 0.3 * Math.sin(Date.now() * 0.007);
-        ctx.globalAlpha = fadeAlpha * pulse;
-        ctx.fillStyle = wDef.color;
         ctx.shadowColor = wDef.color;
         ctx.shadowBlur = 12;
-        ctx.font = 'bold 18px "Huninn"';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('🔫', dw.x, dw.y - 8);
+        drawWeaponSprite(ctx, dw.weaponId, dw.x, dw.y - 8, 28, fadeAlpha, pulse);
+        ctx.shadowBlur = 0;
         ctx.font = 'bold 9px "Huninn"';
         ctx.fillStyle = '#ffffff';
-        ctx.shadowBlur = 0;
         ctx.globalAlpha = fadeAlpha * 0.9;
         ctx.fillText(wDef.label, dw.x, dw.y + 8);
-        ctx.shadowBlur = 0;
       }
       ctx.globalAlpha = 1;
 
@@ -2485,8 +2503,9 @@
         const visible = s.everRevealedCells.has(cellK);
         if (!visible) continue;
         const isPending = cellK === pendingCellKey;
-        const gAlpha = isPending ? 1 : fadeAlpha;
-        drawSpider(g, gAlpha * 0.5, 1, true);
+        // Клетка боя - полная непрозрачность, другие клетки - плавное исчезание
+        const gAlpha = isPending ? 1 : fadeAlpha * 0.7;
+        drawSpider(g, gAlpha, 1, true);
       }
 
       // Игрок
