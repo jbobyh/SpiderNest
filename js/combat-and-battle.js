@@ -883,9 +883,11 @@
             continue;
           }
         } else if (g.type === 'buldyga') {
-          // Булдыга: как солдат, но ускоряется на 10 каждую секунду (масштабировано)
+          // Булдыга: инерционное движение с нарастающей скоростью (масштабировано)
           if (g.currentSpeed === undefined) g.currentSpeed = CONFIG.BULDYGA_SPEED * BATTLE_SCALE;
           if (g.speedAccumulator === undefined) g.speedAccumulator = 0;
+          if (g.vx === undefined) g.vx = 0;
+          if (g.vy === undefined) g.vy = 0;
 
           // Ускорение каждую секунду
           g.speedAccumulator += dt;
@@ -895,18 +897,29 @@
             g.speedAccumulator -= secondsPassed;
           }
 
-          let newX = g.x;
-          let newY = g.y;
+          // Инерция: разгоняем vx/vy к целевому направлению
           if (b.freezeTimer <= 0 && dist > 0) {
-            newX += (dx / dist) * g.currentSpeed * dt;
-            newY += (dy / dist) * g.currentSpeed * dt;
+            const targetVx = (dx / dist) * g.currentSpeed;
+            const targetVy = (dy / dist) * g.currentSpeed;
+            const accel = CONFIG.BULDYGA_ACCEL * BATTLE_SCALE * dt;
+            g.vx += (targetVx - g.vx) * Math.min(1, accel / g.currentSpeed);
+            g.vy += (targetVy - g.vy) * Math.min(1, accel / g.currentSpeed);
+          } else if (b.freezeTimer > 0) {
+            g.vx *= Math.max(0, 1 - CONFIG.BULDYGA_FRICTION * dt);
+            g.vy *= Math.max(0, 1 - CONFIG.BULDYGA_FRICTION * dt);
           }
+
+          let newX = g.x + g.vx * dt;
+          let newY = g.y + g.vy * dt;
           // Проверка стен battle-зоны
           const newCellX = Math.floor(newX / BATTLE_CELL_PX) + b.cellOffsetX;
           const newCellY = Math.floor(newY / BATTLE_CELL_PX) + b.cellOffsetY;
           if (b.openCells.has(cellKey(newCellX, newCellY))) {
             g.x = newX;
             g.y = newY;
+          } else {
+            g.vx *= -0.3;
+            g.vy *= -0.3;
           }
           // Касание игрока (масштабированное)
           if (dist < ((g.radius || CONFIG.BULDYGA_RADIUS) + CONFIG.PLAYER_RADIUS) * BATTLE_SCALE) {

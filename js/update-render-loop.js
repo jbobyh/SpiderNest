@@ -374,11 +374,13 @@
             continue;
           }
         } else if (g.type === 'buldyga') {
-          // Булдыга: как солдат, но ускоряется на 10 каждую секунду
+          // Булдыга: инерционное движение с нарастающей скоростью
           if (g.currentSpeed === undefined) g.currentSpeed = CONFIG.BULDYGA_SPEED;
           if (g.speedAccumulator === undefined) g.speedAccumulator = 0;
+          if (g.vx === undefined) g.vx = 0;
+          if (g.vy === undefined) g.vy = 0;
 
-          // Ускорение каждую секунду
+          // Ускорение максимальной скорости каждую секунду
           g.speedAccumulator += dt;
           if (g.speedAccumulator >= 1.0) {
             const secondsPassed = Math.floor(g.speedAccumulator);
@@ -386,18 +388,29 @@
             g.speedAccumulator -= secondsPassed;
           }
 
-          let newX = g.x;
-          let newY = g.y;
+          // Инерция: разгоняем vx/vy к целевому направлению, ограничиваем currentSpeed
           if (dist > 0) {
-            newX += (dx / dist) * g.currentSpeed * dt;
-            newY += (dy / dist) * g.currentSpeed * dt;
+            const targetVx = (dx / dist) * g.currentSpeed;
+            const targetVy = (dy / dist) * g.currentSpeed;
+            const accel = CONFIG.BULDYGA_ACCEL * dt;
+            g.vx += (targetVx - g.vx) * Math.min(1, accel / g.currentSpeed);
+            g.vy += (targetVy - g.vy) * Math.min(1, accel / g.currentSpeed);
+          } else {
+            g.vx *= Math.max(0, 1 - CONFIG.BULDYGA_FRICTION * dt);
+            g.vy *= Math.max(0, 1 - CONFIG.BULDYGA_FRICTION * dt);
           }
+
+          let newX = g.x + g.vx * dt;
+          let newY = g.y + g.vy * dt;
           // Проверка стен - не выходим за открытые клетки
           const newCellX = Math.floor(newX / CP);
           const newCellY = Math.floor(newY / CP);
           if (s.openCells.has(cellKey(newCellX, newCellY))) {
             g.x = newX;
             g.y = newY;
+          } else {
+            g.vx *= -0.3;
+            g.vy *= -0.3;
           }
           // Касание игрока
           if (dist < (g.radius || CONFIG.BULDYGA_RADIUS) + CONFIG.PLAYER_RADIUS) {

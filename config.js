@@ -113,6 +113,8 @@ const CONFIG = {
   BULDYGA_SPEED: 70,              // начальная скорость
   BULDYGA_SPEED_INCREMENT: 10,    // ускорение каждую секунду
   BULDYGA_RADIUS: 7,     // радиус коллизии булдыги
+  BULDYGA_ACCEL: 180,             // ускорение инерции (пикс/с²)
+  BULDYGA_FRICTION: 3.5,          // коэффициент торможения (затухание скорости)
 
   // Cocoon (spawner)
   COCOON_HP: 100,         // здоровье кокона
@@ -280,7 +282,7 @@ const UPGRADE_TYPES = [
   { id: 'killAccel',     label: 'Убийственный разгон',     description: 'Каждое убийство ускоряет перезарядку на 0.2%',                  color: '#ff8800', max: 1, icon: '🏃' },
   { id: 'enhancedPierce',label: 'Усиленное пробитие',      description: 'Пуля, пробившая врага, наносит повышенный урон',               color: '#aa44ff', max: 1, icon: '💜' },
   { id: 'shield',        label: 'Щит',                     description: 'Поглощает один удар без потери жизни. Тратится.',                        color: '#00aaff', max: 2, icon: '🛡️' },
-  { id: 'retreat',       label: 'Отступление',             description: 'После получения урона получаешь неуязвимость на дополнительные 1.5 секунды',                  color: '#00ffaa', max: 2, icon: '🏃‍♂️' },
+  { id: 'retreat',       label: 'Отступление',             description: 'После получения урона получи неуязвимость на 1.5 секунды',                  color: '#00ffaa', max: 2, icon: '🏃‍♂️' },
   { id: 'reflection',    label: 'Отражение',               description: 'При получении урона выпускает 3 пули в ближайших врагов',        color: '#ff00ff', max: 1, icon: '🔄' },
   { id: 'cooldown',      label: 'Перезарядка -15%',        description: 'Уменьшает время между выстрелами на 15%',                    color: '#00ccff', max: 3, icon: '⏱️' },
   { id: 'speed',         label: 'Скорость бега +10%',      description: 'Увеличивает скорость передвижения на 10%',                    color: '#44ff88', max: 3, icon: '💨' },
