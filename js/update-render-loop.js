@@ -2070,6 +2070,60 @@
         drawHudRow(hudKeyImg, s.keysRequired, s.keysCollected);
       }
 
+      // ── Weapon slots (bottom-left) ─────────────────────────────────
+      {
+        const slotSize  = 44;
+        const slotGap   = 6;
+        const slotPad   = 8;
+        const labelH    = 14;
+        const totalH    = slotSize + labelH + slotPad * 2;
+        const totalW    = s.maxSlots * slotSize + (s.maxSlots - 1) * slotGap + slotPad * 2;
+        const screenMargin = 8;
+        const panelX    = screenMargin;
+        const panelY    = VIEW_H - totalH - screenMargin;
+
+        ctx.fillStyle = 'rgba(5,10,15,0.75)';
+        ctx.fillRect(panelX, panelY, totalW, totalH);
+        ctx.strokeStyle = 'rgba(26,58,92,0.7)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(panelX, panelY, totalW, totalH);
+
+        for (let i = 0; i < s.maxSlots; i++) {
+          const sx = panelX + slotPad + i * (slotSize + slotGap);
+          const sy = panelY + slotPad;
+          const wId    = s.weaponSlots[i];
+          const active = i === s.activeSlot;
+
+          // Slot background
+          ctx.fillStyle = active ? 'rgba(0,180,255,0.12)' : 'rgba(0,0,0,0.3)';
+          ctx.fillRect(sx, sy, slotSize, slotSize);
+
+          // Slot border
+          ctx.strokeStyle = active ? '#00d4ff' : 'rgba(26,58,92,0.9)';
+          ctx.lineWidth   = active ? 1.5 : 1;
+          ctx.strokeRect(sx, sy, slotSize, slotSize);
+
+          // Weapon image
+          if (wId) {
+            const img = weaponImages[wId];
+            if (img && img.complete && img.naturalWidth > 0) {
+              ctx.save();
+              ctx.globalAlpha = active ? 1 : 0.6;
+              const margin = 6;
+              ctx.drawImage(img, sx + margin, sy + margin, slotSize - margin * 2, slotSize - margin * 2);
+              ctx.restore();
+            }
+          }
+
+          // Slot number label
+          ctx.font = 'bold 9px "Share Tech Mono"';
+          ctx.fillStyle = active ? '#00d4ff' : 'rgba(42,74,106,1)';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'top';
+          ctx.fillText(String(i + 1), sx + slotSize / 2, sy + slotSize + 2);
+        }
+      }
+
       ctx.restore();
     }
 
@@ -2304,6 +2358,8 @@
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
       ctx.fillText('⚔ ENTERING BATTLE...', VIEW_W / 2, 10);
+
+      drawHUD(s);
     }
 
     // drawZoomOut: используем drawZoom с play-координатами
