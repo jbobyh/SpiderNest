@@ -133,6 +133,15 @@
     const cocoonImg = new Image();
     cocoonImg.src = 'img/cocoon.png';
 
+    const hudHeartImg = new Image();
+    hudHeartImg.src = 'img/heart.png';
+
+    const hudKeyImg = new Image();
+    hudKeyImg.src = 'img/key.png';
+
+    const hudShieldImg = new Image();
+    hudShieldImg.src = 'img/shield.png';
+
     // Weapon sprites
     const weaponImages = {
       pistol:   new Image(),

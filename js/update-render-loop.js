@@ -2034,6 +2034,42 @@
         iconCursor += 20;
       }
 
+      // ── Secondary icon HUD (top-left, below the bar) ──────────────
+      {
+        const iconSize = 20;
+        const iconGap  = 4;
+        const rowGap   = 4;
+        const panelPad = 8;
+        const startX   = panelPad;
+        let   rowY     = barH + panelPad;
+
+        function drawHudRow(img, total, filled) {
+          for (let i = 0; i < total; i++) {
+            ctx.save();
+            ctx.globalAlpha = i < filled ? 1 : 0.25;
+            if (img.complete && img.naturalWidth > 0) {
+              ctx.drawImage(img, startX + i * (iconSize + iconGap), rowY, iconSize, iconSize);
+            }
+            ctx.restore();
+          }
+          rowY += iconSize + rowGap;
+        }
+
+        // Hearts — only show collected (no dim slots)
+        if (s.player.lives > 0) {
+          drawHudRow(hudHeartImg, s.player.lives, s.player.lives);
+        }
+
+        // Shields — only show collected (no dim slots)
+        const shieldCount = s.upgrades.shield || 0;
+        if (shieldCount > 0) {
+          drawHudRow(hudShieldImg, shieldCount, shieldCount);
+        }
+
+        // Keys — show all slots, dim uncollected
+        drawHudRow(hudKeyImg, s.keysRequired, s.keysCollected);
+      }
+
       ctx.restore();
     }
 
