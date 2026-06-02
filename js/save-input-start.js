@@ -252,7 +252,7 @@
       if (state.phase === 'play' || state.phase === 'battle') {
         let weaponChanged = false;
         if (e.key === '1') {
-          if (state.maxSlots >= 1 && state.weaponSlots[0]) {
+          if (state.maxSlots >= 1 && state.weaponSlots[0] && state.activeSlot !== 0) {
             state.activeSlot = 0;
             playerProgress.activeSlot = 0;
             state.shootCooldown = 0;
@@ -260,7 +260,7 @@
             Sounds.weaponcollect();
           }
         } else if (e.key === '2') {
-          if (state.maxSlots >= 2 && state.weaponSlots[1]) {
+          if (state.maxSlots >= 2 && state.weaponSlots[1] && state.activeSlot !== 1) {
             state.activeSlot = 1;
             playerProgress.activeSlot = 1;
             state.shootCooldown = 0;
@@ -268,7 +268,7 @@
             Sounds.weaponcollect();
           }
         } else if (e.key === '3') {
-          if (state.maxSlots >= 3 && state.weaponSlots[2]) {
+          if (state.maxSlots >= 3 && state.weaponSlots[2] && state.activeSlot !== 2) {
             state.activeSlot = 2;
             playerProgress.activeSlot = 2;
             state.shootCooldown = 0;
@@ -276,7 +276,7 @@
             Sounds.weaponcollect();
           }
         } else if (e.key === '4') {
-          if (state.maxSlots >= 4 && state.weaponSlots[3]) {
+          if (state.maxSlots >= 4 && state.weaponSlots[3] && state.activeSlot !== 3) {
             state.activeSlot = 3;
             playerProgress.activeSlot = 3;
             state.shootCooldown = 0;
@@ -284,7 +284,7 @@
             Sounds.weaponcollect();
           }
         } else if (e.key === '5') {
-          if (state.maxSlots >= 5 && state.weaponSlots[4]) {
+          if (state.maxSlots >= 5 && state.weaponSlots[4] && state.activeSlot !== 4) {
             state.activeSlot = 4;
             playerProgress.activeSlot = 4;
             state.shootCooldown = 0;
