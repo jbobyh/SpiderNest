@@ -334,3 +334,14 @@ const HERO_ANIMS = {
   run_left:     { row: 4, frames: 4, fps: 10 }, // бег лицом влево
   run_back:     { row: 5, frames: 4, fps: 10 }, // бег спиной
 };
+
+// ============================================================
+// COCOON ENEMY SPRITE SHEET
+// Sprite sheet: 3500x500, each sprite 500x500 (7 frames horizontal)
+// 7 animation frames for idle/pulsing animation
+// ============================================================
+const COCOON_SW = 500, COCOON_SH = 500; // размер одного спрайта (пикс)
+const COCOON_ANIM = {
+  frames: 7,
+  fps: 8,
+};

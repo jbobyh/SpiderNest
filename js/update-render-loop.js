@@ -1487,13 +1487,45 @@
       ctx.shadowBlur = 18 * scale;
 
       if (isCocoon) {
-        // Кокон: овальная форма, без ног, с текстурой
-        ctx.beginPath(); ctx.ellipse(g.x, g.y, r * 0.8, r * 1.0, 0, 0, Math.PI * 2); ctx.fill();
-        // Внутренняя тень
-        ctx.fillStyle = '#aaaaaa';
-        ctx.shadowColor = '#666666';
-        ctx.shadowBlur = 4 * scale;
-        ctx.beginPath(); ctx.ellipse(g.x - r * 0.2, g.y - r * 0.2, r * 0.4, r * 0.5, 0, 0, Math.PI * 2); ctx.fill();
+        // Кокон: sprite sheet animation
+        if (cocoonImg.complete && cocoonImg.naturalWidth > 0) {
+          // Calculate animation frame based on global time
+          const animDuration = COCOON_ANIM.frames / COCOON_ANIM.fps;
+          const animTime = (state.time % animDuration) / animDuration;
+          const frame = Math.floor(animTime * COCOON_ANIM.frames);
+          const sx = frame * COCOON_SW;
+          const drawSize = COCOON_SW * scale * (r * 2 / COCOON_SW) * 2.5; // scale to match radius
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          ctx.drawImage(
+            cocoonImg,
+            sx, 0, COCOON_SW, COCOON_SH,
+            g.x - drawSize / 2, g.y - drawSize / 2, drawSize, drawSize
+          );
+          ctx.restore();
+        } else {
+          // Fallback: овальная форма если картинка не загрузилась
+          ctx.beginPath(); ctx.ellipse(g.x, g.y, r * 0.8, r * 1.0, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#aaaaaa';
+          ctx.shadowColor = '#666666';
+          ctx.shadowBlur = 4 * scale;
+          ctx.beginPath(); ctx.ellipse(g.x - r * 0.2, g.y - r * 0.2, r * 0.4, r * 0.5, 0, 0, Math.PI * 2); ctx.fill();
+        }
+        // Skip rest of drawing (no legs for cocoon)
+        ctx.globalAlpha = 1;
+
+        // HP бар для кокона
+        const maxHp = CONFIG.COCOON_HP;
+        if (g.hp !== undefined && g.hp < maxHp) {
+          const hpFrac = Math.max(0, g.hp / maxHp);
+          ctx.globalAlpha = 0.8;
+          ctx.fillStyle = '#1a0030';
+          ctx.fillRect(g.x - r, g.y - r - 8 * scale, r * 2, 3 * scale);
+          ctx.fillStyle = hpFrac > 0.5 ? '#aaaaaa' : '#666666';
+          ctx.fillRect(g.x - r, g.y - r - 8 * scale, r * 2 * hpFrac, 3 * scale);
+        }
+        ctx.globalAlpha = 1;
+        return;
       } else if (isBloated) {
         // Распухший: вздутое тело, почти круглое
         ctx.beginPath(); ctx.ellipse(g.x, g.y + r * 0.1, r * 0.9, r * 0.9, 0, 0, Math.PI * 2); ctx.fill();
@@ -1550,10 +1582,7 @@
 
       // Legs (8 legs, 4 per side) — angles relative to horizontal, spread outward
       ctx.shadowBlur = 0;
-      if (isCocoon) {
-        // Кокон не имеет ног
-        return;
-      } else if (isBloated) {
+      if (isBloated) {
         ctx.strokeStyle = '#88aa22';
         ctx.lineWidth = Math.max(1, r * 0.15);
       } else if (isBull) {

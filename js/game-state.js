@@ -130,6 +130,9 @@
     const heroImg = new Image();
     heroImg.src = 'img/hero.png';
 
+    const cocoonImg = new Image();
+    cocoonImg.src = 'img/cocoon.png';
+
     // ============================================================
     // PLAYER ANIMATION
     // ============================================================
