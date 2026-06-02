@@ -23,32 +23,64 @@
       // Инвулнерабельность
       if (s.player.invulnerable > 0) s.player.invulnerable -= dt;
 
-      // Движение игрока
-      const spd = CONFIG.PLAYER_SPEED * s.upgrades.speedMult;
-      let mvx = 0, mvy = 0;
-      const k = s.keys;
-      if (k['w'] || k['W'] || k['ц'] || k['Ц'] || k['ArrowUp'] || k['arrowup']) mvy -= 1;
-      if (k['s'] || k['S'] || k['ы'] || k['Ы'] || k['ArrowDown'] || k['arrowdown']) mvy += 1;
-      if (k['a'] || k['A'] || k['ф'] || k['Ф'] || k['ArrowLeft'] || k['arrowleft']) mvx -= 1;
-      if (k['d'] || k['D'] || k['в'] || k['В'] || k['ArrowRight'] || k['arrowright']) mvx += 1;
-      if (mvx && mvy) { mvx *= Math.SQRT1_2; mvy *= Math.SQRT1_2; }
-      if (mvx !== 0 || mvy !== 0) Sounds.footstep(dt); else Sounds._footstepTimer = 0;
+      // Кулдаун деша
+      if (s.player.dashCooldown > 0) s.player.dashCooldown -= dt;
 
-      // Обновление анимации персонажа
-      updatePlayerAnim(mvx, mvy, s.mouse.x - s.player.x, s.mouse.y - s.player.y, dt);
+      // Обработка деша
+      if (s.player.isDashing) {
+        const dashSpeed = CONFIG.PLAYER_DASH_SPEED;
+        const dashDist = CONFIG.PLAYER_DASH_DISTANCE;
+        const dashMove = dashSpeed * dt;
+        s.player.dashProgress += dashMove;
 
-      const pr = CONFIG.PLAYER_RADIUS;
-      let npx = s.player.x + mvx * spd * dt;
-      let npy = s.player.y + mvy * spd * dt;
+        let newX = s.player.x + s.player.dashDirX * dashMove;
+        let newY = s.player.y + s.player.dashDirY * dashMove;
 
-      // Движение только в открытых клетках
-      const tcX = cellOf(npx, s.player.y);
-      if (s.openCells.has(cellKey(tcX.x, tcX.y))) {
-        s.player.x = npx;
-      }
-      const tcY = cellOf(s.player.x, npy);
-      if (s.openCells.has(cellKey(tcY.x, tcY.y))) {
-        s.player.y = npy;
+        // Проверяем столкновение со стенами
+        const newCellX = cellOf(newX, newY);
+        if (!s.openCells.has(cellKey(newCellX.x, newCellX.y))) {
+          // Ударились о стену - прекращаем деш
+          s.player.isDashing = false;
+        } else {
+          s.player.x = newX;
+          s.player.y = newY;
+        }
+
+        // Проверяем завершение деша по дистанции
+        if (s.player.dashProgress >= dashDist) {
+          s.player.isDashing = false;
+        }
+
+        // Анимация деша - бег в направлении деша
+        updatePlayerAnim(s.player.dashDirX, s.player.dashDirY, s.mouse.x - s.player.x, s.mouse.y - s.player.y, dt);
+      } else {
+        // Обычное движение игрока
+        const spd = CONFIG.PLAYER_SPEED * s.upgrades.speedMult;
+        let mvx = 0, mvy = 0;
+        const k = s.keys;
+        if (k['w'] || k['W'] || k['ц'] || k['Ц'] || k['ArrowUp'] || k['arrowup']) mvy -= 1;
+        if (k['s'] || k['S'] || k['ы'] || k['Ы'] || k['ArrowDown'] || k['arrowdown']) mvy += 1;
+        if (k['a'] || k['A'] || k['ф'] || k['Ф'] || k['ArrowLeft'] || k['arrowleft']) mvx -= 1;
+        if (k['d'] || k['D'] || k['в'] || k['В'] || k['ArrowRight'] || k['arrowright']) mvx += 1;
+        if (mvx && mvy) { mvx *= Math.SQRT1_2; mvy *= Math.SQRT1_2; }
+        if (mvx !== 0 || mvy !== 0) Sounds.footstep(dt); else Sounds._footstepTimer = 0;
+
+        // Обновление анимации персонажа
+        updatePlayerAnim(mvx, mvy, s.mouse.x - s.player.x, s.mouse.y - s.player.y, dt);
+
+        const pr = CONFIG.PLAYER_RADIUS;
+        let npx = s.player.x + mvx * spd * dt;
+        let npy = s.player.y + mvy * spd * dt;
+
+        // Движение только в открытых клетках
+        const tcX = cellOf(npx, s.player.y);
+        if (s.openCells.has(cellKey(tcX.x, tcX.y))) {
+          s.player.x = npx;
+        }
+        const tcY = cellOf(s.player.x, npy);
+        if (s.openCells.has(cellKey(tcY.x, tcY.y))) {
+          s.player.y = npy;
+        }
       }
 
       // Сбор сердечек
@@ -1501,20 +1533,20 @@
         const kx = bx - bw / 2 + pad;
         const ky = by - keySize / 2;
         ctx.beginPath();
-        ctx.roundRect(kx, ky, keySize, keySize, 3);
+        ctx.roundRect(kx, ky, keySize * 3, keySize, 3);
         ctx.fill();
         ctx.strokeStyle = '#ff4400';
         ctx.lineWidth = 1;
         ctx.stroke();
-        ctx.fillStyle = '#ff4400';
+        ctx.fillStyle = '#ffffff';
         ctx.font = 'bold 10px "Huninn"';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('ПРОБЕЛ', kx + keySize / 2, by);
+        ctx.fillText('ПРОБЕЛ', kx + keySize * 1.5, by);
         ctx.fillStyle = 'rgba(255, 160, 160, 0.9)';
         ctx.font = '11px "Huninn"';
         ctx.textAlign = 'left';
-        ctx.fillText('Призвать босса', kx + keySize + 6, by);
+        ctx.fillText('Призвать босса', kx + keySize + 50, by);
         ctx.restore();
       }
 

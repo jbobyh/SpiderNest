@@ -27,7 +27,7 @@
         heartsCollected: s.heartsCollected,
         keysCollected: s.keysCollected,
         bossDefeated: s.bossDefeated || false,
-        player: { x: s.player.x, y: s.player.y, lives: s.player.lives, invulnerable: 0 },
+        player: { x: s.player.x, y: s.player.y, lives: s.player.lives, invulnerable: 0, dashCooldown: s.player.dashCooldown || 0, isDashing: false, dashDirX: 0, dashDirY: 0, dashProgress: 0 },
         cellContents: [...s.cellContents].map(([k, v]) => [k, v]),
         hearts: s.hearts,
         keyObjs: s.keyObjs,
@@ -60,7 +60,7 @@
         keysCollected: data.keysCollected,
         bossDefeated: data.bossDefeated || false,
         bossSummonReady: false,
-        player: { ...data.player },
+        player: { ...data.player, isDashing: false, dashDirX: 0, dashDirY: 0, dashProgress: 0 },
         cellContents: new Map(data.cellContents),
         hearts: data.hearts,
         keyObjs: data.keyObjs,
@@ -378,6 +378,37 @@
           // Пробел - призвать босса когда готово (с зум-переходом)
           if (state.phase === 'play' && state.bossSummonReady) {
             startBossBattleZoomTransition();
+          }
+        } else if (e.key === 'Shift' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+          // Левый/правый Shift - деш
+          if ((state.phase === 'play' || state.phase === 'battle') && !state.player.isDashing && state.player.dashCooldown <= 0) {
+            // Определяем направление деша
+            let ddx = 0, ddy = 0;
+            const k = state.keys;
+            // Если есть движение - деш в сторону бега
+            if (k['w'] || k['W'] || k['ц'] || k['Ц'] || k['ArrowUp'] || k['arrowup']) ddy -= 1;
+            if (k['s'] || k['S'] || k['ы'] || k['Ы'] || k['ArrowDown'] || k['arrowdown']) ddy += 1;
+            if (k['a'] || k['A'] || k['ф'] || k['Ф'] || k['ArrowLeft'] || k['arrowleft']) ddx -= 1;
+            if (k['d'] || k['D'] || k['в'] || k['В'] || k['ArrowRight'] || k['arrowright']) ddx += 1;
+
+            // Если нет движения - деш от прицела (в сторону мыши)
+            if (ddx === 0 && ddy === 0) {
+              // В battle mode используем b.player, иначе s.player
+              const playerX = state.phase === 'battle' && state.battle ? state.battle.player.x : state.player.x;
+              const playerY = state.phase === 'battle' && state.battle ? state.battle.player.y : state.player.y;
+              ddx = state.mouse.x - playerX;
+              ddy = state.mouse.y - playerY;
+            }
+
+            // Нормализуем направление
+            const dist = Math.hypot(ddx, ddy);
+            if (dist > 0) {
+              state.player.isDashing = true;
+              state.player.dashDirX = ddx / dist;
+              state.player.dashDirY = ddy / dist;
+              state.player.dashProgress = 0;
+              state.player.dashCooldown = CONFIG.PLAYER_DASH_COOLDOWN;
+            }
           }
         }
       }

@@ -485,6 +485,9 @@
       // Инвулнерабельность
       if (s.player.invulnerable > 0) s.player.invulnerable -= dt;
 
+      // Кулдаун деша
+      if (s.player.dashCooldown > 0) s.player.dashCooldown -= dt;
+
       // Таймер заморозки врагов
       if (b.freezeTimer > 0) {
         b.freezeTimer -= dt;
@@ -495,56 +498,93 @@
         }
       }
 
-      // Движение игрока в battle mode (масштабированная скорость)
-      let speedMult = s.upgrades.speedMult;
-      
-      // Боевое ускорение: модификатор скорости от количества открытых комнат
-      if (s.upgrades.battleSpeed && b.openCells) {
-        const roomCount = b.openCells.size;
-        if (roomCount === 2) {
-          speedMult *= 1.25; // +25% скорости при 2 комнатах
-        } else if (roomCount > 2) {
-          const penalty = 0.15 * (roomCount - 2); // -15% за каждую комнату сверх двух
-          speedMult *= Math.max(0.1, 1 - penalty); // Не даем скорости упасть ниже 10%
+      // Обработка деша в battle mode
+      if (s.player.isDashing) {
+        const dashSpeed = CONFIG.PLAYER_DASH_SPEED * BATTLE_SCALE;
+        const dashDist = CONFIG.PLAYER_DASH_DISTANCE * BATTLE_SCALE;
+        const dashMove = dashSpeed * dt;
+        s.player.dashProgress += dashMove;
+
+        let newX = b.player.x + s.player.dashDirX * dashMove;
+        let newY = b.player.y + s.player.dashDirY * dashMove;
+
+        // Проверяем столкновение со стенами (battle cell check)
+        const newCellX = Math.floor(newX / BATTLE_CELL_PX);
+        const newCellY = Math.floor(newY / BATTLE_CELL_PX);
+        const mapNewX = newCellX + b.cellOffsetX;
+        const mapNewY = newCellY + b.cellOffsetY;
+        if (!b.openCells.has(cellKey(mapNewX, mapNewY))) {
+          // Ударились о стену - прекращаем деш
+          s.player.isDashing = false;
+        } else {
+          b.player.x = newX;
+          b.player.y = newY;
         }
-      }
-      
-      const spd = CONFIG.PLAYER_SPEED * speedMult * BATTLE_SCALE;
-      let mvx = 0, mvy = 0;
-      const k = s.keys;
-      if (k['w'] || k['W'] || k['ц'] || k['Ц'] || k['ArrowUp'] || k['arrowup']) mvy -= 1;
-      if (k['s'] || k['S'] || k['ы'] || k['Ы'] || k['ArrowDown'] || k['arrowdown']) mvy += 1;
-      if (k['a'] || k['A'] || k['ф'] || k['Ф'] || k['ArrowLeft'] || k['arrowleft']) mvx -= 1;
-      if (k['d'] || k['D'] || k['в'] || k['В'] || k['ArrowRight'] || k['arrowright']) mvx += 1;
-      if (mvx && mvy) { mvx *= Math.SQRT1_2; mvy *= Math.SQRT1_2; }
-      if (mvx !== 0 || mvy !== 0) Sounds.footstep(dt); else Sounds._footstepTimer = 0;
 
-      // Обновление анимации персонажа
-      updatePlayerAnim(mvx, mvy, s.mouse.x - b.player.x, s.mouse.y - b.player.y, dt);
+        // Проверяем завершение деша по дистанции
+        if (s.player.dashProgress >= dashDist) {
+          s.player.isDashing = false;
+        }
 
-      const pr = CONFIG.PLAYER_RADIUS * BATTLE_SCALE;
-      let npx = b.player.x + mvx * spd * dt;
-      let npy = b.player.y + mvy * spd * dt;
+        // Проверка границ battle-локации
+        const pr = CONFIG.PLAYER_RADIUS * BATTLE_SCALE;
+        b.player.x = Math.max(pr, Math.min(b.player.x, b.width - pr));
+        b.player.y = Math.max(pr, Math.min(b.player.y, b.height - pr));
 
-      // Проверка границ battle-локации
-      npx = Math.max(pr, Math.min(npx, b.width - pr));
-      npy = Math.max(pr, Math.min(npy, b.height - pr));
+        // Анимация деша - бег в направлении деша
+        updatePlayerAnim(s.player.dashDirX, s.player.dashDirY, s.mouse.x - b.player.x, s.mouse.y - b.player.y, dt);
+      } else {
+        // Обычное движение игрока в battle mode (масштабированная скорость)
+        let speedMult = s.upgrades.speedMult;
 
-      // Проверка - движение только по открытым клеткам battle
-      const tcX = Math.floor(npx / BATTLE_CELL_PX);
-      const tcY = Math.floor(b.player.y / BATTLE_CELL_PX);
-      const mapX = tcX + b.cellOffsetX;
-      const mapY = tcY + b.cellOffsetY;
-      if (b.openCells.has(cellKey(mapX, mapY))) {
-        b.player.x = npx;
-      }
+        // Боевое ускорение: модификатор скорости от количества открытых комнат
+        if (s.upgrades.battleSpeed && b.openCells) {
+          const roomCount = b.openCells.size;
+          if (roomCount === 2) {
+            speedMult *= 1.25; // +25% скорости при 2 комнатах
+          } else if (roomCount > 2) {
+            const penalty = 0.15 * (roomCount - 2); // -15% за каждую комнату сверх двух
+            speedMult *= Math.max(0.1, 1 - penalty); // Не даем скорости упасть ниже 10%
+          }
+        }
 
-      const tcY2 = Math.floor(npy / BATTLE_CELL_PX);
-      const tcY2X = Math.floor(b.player.x / BATTLE_CELL_PX);
-      const mapY2X = tcY2X + b.cellOffsetX;
-      const mapY2Y = tcY2 + b.cellOffsetY;
-      if (b.openCells.has(cellKey(mapY2X, mapY2Y))) {
-        b.player.y = npy;
+        const spd = CONFIG.PLAYER_SPEED * speedMult * BATTLE_SCALE;
+        let mvx = 0, mvy = 0;
+        const k = s.keys;
+        if (k['w'] || k['W'] || k['ц'] || k['Ц'] || k['ArrowUp'] || k['arrowup']) mvy -= 1;
+        if (k['s'] || k['S'] || k['ы'] || k['Ы'] || k['ArrowDown'] || k['arrowdown']) mvy += 1;
+        if (k['a'] || k['A'] || k['ф'] || k['Ф'] || k['ArrowLeft'] || k['arrowleft']) mvx -= 1;
+        if (k['d'] || k['D'] || k['в'] || k['В'] || k['ArrowRight'] || k['arrowright']) mvx += 1;
+        if (mvx && mvy) { mvx *= Math.SQRT1_2; mvy *= Math.SQRT1_2; }
+        if (mvx !== 0 || mvy !== 0) Sounds.footstep(dt); else Sounds._footstepTimer = 0;
+
+        // Обновление анимации персонажа
+        updatePlayerAnim(mvx, mvy, s.mouse.x - b.player.x, s.mouse.y - b.player.y, dt);
+
+        const pr = CONFIG.PLAYER_RADIUS * BATTLE_SCALE;
+        let npx = b.player.x + mvx * spd * dt;
+        let npy = b.player.y + mvy * spd * dt;
+
+        // Проверка границ battle-локации
+        npx = Math.max(pr, Math.min(npx, b.width - pr));
+        npy = Math.max(pr, Math.min(npy, b.height - pr));
+
+        // Проверка - движение только по открытым клеткам battle
+        const tcX = Math.floor(npx / BATTLE_CELL_PX);
+        const tcY = Math.floor(b.player.y / BATTLE_CELL_PX);
+        const mapX = tcX + b.cellOffsetX;
+        const mapY = tcY + b.cellOffsetY;
+        if (b.openCells.has(cellKey(mapX, mapY))) {
+          b.player.x = npx;
+        }
+
+        const tcY2 = Math.floor(npy / BATTLE_CELL_PX);
+        const tcY2X = Math.floor(b.player.x / BATTLE_CELL_PX);
+        const mapY2X = tcY2X + b.cellOffsetX;
+        const mapY2Y = tcY2 + b.cellOffsetY;
+        if (b.openCells.has(cellKey(mapY2X, mapY2Y))) {
+          b.player.y = npy;
+        }
       }
 
       // Сбор сердечек в battle

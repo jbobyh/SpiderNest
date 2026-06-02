@@ -665,6 +665,11 @@
           y: (cy + 0.5) * CP,
           lives: playerProgress.totalLives,
           invulnerable: 0,
+          dashCooldown: 0,
+          isDashing: false,
+          dashDirX: 0,
+          dashDirY: 0,
+          dashProgress: 0,
         },
 
         spiders: trappedSpiders,

@@ -18,6 +18,11 @@ const CONFIG = {
   PLAYER_SPRITE_RADIUS: 20,        // визуальный радиус спрайта (половина ширины отрисовки)
   PLAYER_INVULNERABLE_TIME: 1,    // секунд неуязвимости после урона
 
+  // Player Dash
+  PLAYER_DASH_SPEED: 350,       // скорость деша (пикс/сек)
+  PLAYER_DASH_DISTANCE: 50,    // дальность деша (пикселей)
+  PLAYER_DASH_COOLDOWN: 2.0,    // кулдаун деша (сек)
+
   // Shooting (default values, weapon-specific in WEAPON_DEFS)
   SHOOTING_ENABLED: true, // включить стрельбу
   BULLET_SPEED: 320,      // скорость пули по умолчанию (пикс/сек)
