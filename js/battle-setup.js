@@ -147,6 +147,7 @@
               dashDistance: g.dashDistance,
               currentSpeed: g.currentSpeed,
               speedAccumulator: g.speedAccumulator,
+              stunTimer: 0,
             });
             s.spiders.splice(i, 1);
           }
@@ -177,6 +178,7 @@
             dashDistance: g.dashDistance,
             currentSpeed: g.currentSpeed,
             speedAccumulator: g.speedAccumulator,
+            stunTimer: g.stunTimer || 0,
           });
         }
       }
@@ -470,6 +472,7 @@
         currentSpeed: undefined,
         speedAccumulator: 0,
         spawnTimer: undefined,
+        stunTimer: 0,
       }];
 
       // Battle-копии коллектиблов (сердечки, ключи, апгрейды, оружие)

@@ -793,6 +793,7 @@
             const damage = bullet.damage || CONFIG.BULLET_DAMAGE;
             g.hp -= damage;
             g.hitFlash = CONFIG.ENEMY_HIT_FLASH_DURATION;
+            g.stunTimer = CONFIG.ENEMY_STUN_DURATION;
             Sounds.hit();
             spawnDamageNumber(g.x, g.y - CONFIG.SPIDER_RADIUS * BATTLE_SCALE, damage, bullet.isCrit);
             // Green blood particles - fly in bullet direction
@@ -875,6 +876,9 @@
         // Hit flash таймер
         if (g.hitFlash > 0) g.hitFlash -= dt;
 
+        // Stun таймер - уменьшаем
+        if (g.stunTimer > 0) g.stunTimer -= dt;
+
         // Проверка на застревание (не для коконов)
         if (g.type !== 'cocoon') {
           if (g.lastX === undefined) { g.lastX = g.x; g.lastY = g.y; g.stuckTimer = 0; }
@@ -905,7 +909,8 @@
 
         if (g.type === 'plevaka' || g.type === 'shooter') {
           // Плевака
-          if (b.freezeTimer <= 0 && dist > SHOOTER_STOP_DIST * BATTLE_SCALE && dist > 0) {
+          const isStunned = g.stunTimer > 0;
+          if (!isStunned && b.freezeTimer <= 0 && dist > SHOOTER_STOP_DIST * BATTLE_SCALE && dist > 0) {
             const spd = CONFIG.SHOOTER_SPEED * BATTLE_SCALE;
             let newX = g.x + (dx / dist) * spd * dt;
             let newY = g.y + (dy / dist) * spd * dt;
@@ -942,7 +947,7 @@
           switch (g.state) {
             case 'chase':
               // Идёт к игроку пока не достигнет дистанции CHARGE_DIST
-              if (b.freezeTimer <= 0 && dist > chargeDist && dist > 0) {
+              if (g.stunTimer <= 0 && b.freezeTimer <= 0 && dist > chargeDist && dist > 0) {
                 const spd = CONFIG.BULL_SPEED * BATTLE_SCALE;
                 let newX = g.x + (dx / dist) * spd * dt;
                 let newY = g.y + (dy / dist) * spd * dt;
@@ -982,7 +987,7 @@
               break;
               
             case 'dash':
-              // Быстрый рывок
+              // Быстрый рывок - стан не прерывает рывок
               {
                 const dashSpeed = CONFIG.BULL_SPEED * 3 * BATTLE_SCALE; // в 3 раза быстрее обычного
                 const moveDist = dashSpeed * dt;
@@ -1062,7 +1067,8 @@
           }
 
           // Инерция: разгоняем vx/vy к целевому направлению
-          if (b.freezeTimer <= 0 && dist > 0) {
+          const bulStunned = g.stunTimer > 0;
+          if (!bulStunned && b.freezeTimer <= 0 && dist > 0) {
             const targetVx = (dx / dist) * g.currentSpeed;
             const targetVy = (dy / dist) * g.currentSpeed;
             const accel = CONFIG.BULDYGA_ACCEL * BATTLE_SCALE * dt;
@@ -1104,7 +1110,7 @@
           // Распухший: как солдат (масштабированный)
           let newX = g.x;
           let newY = g.y;
-          if (b.freezeTimer <= 0 && dist > 0) {
+          if (g.stunTimer <= 0 && b.freezeTimer <= 0 && dist > 0) {
             const spd = CONFIG.BLOATED_SPEED * BATTLE_SCALE;
             newX += (dx / dist) * spd * dt;
             newY += (dy / dist) * spd * dt;
@@ -1168,13 +1174,14 @@
               currentSpeed: undefined,
               speedAccumulator: 0,
               spawnTimer: undefined,
+              stunTimer: 0,
             });
           }
         } else {
           // Солдат - летит к игроку (масштабированная скорость)
           let newX = g.x;
           let newY = g.y;
-          if (b.freezeTimer <= 0 && dist > 0) {
+          if (g.stunTimer <= 0 && b.freezeTimer <= 0 && dist > 0) {
             const spd = CONFIG.SPIDER_SPEED * BATTLE_SCALE;
             newX += (dx / dist) * spd * dt;
             newY += (dy / dist) * spd * dt;

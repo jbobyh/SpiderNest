@@ -959,7 +959,7 @@
         ctx.shadowColor = '#ff2200';
         ctx.shadowBlur = 10 * BATTLE_SCALE;
         ctx.beginPath();
-        ctx.arc(eb.x, eb.y, 4 * BATTLE_SCALE, 0, Math.PI * 2);
+        ctx.arc(eb.x, eb.y, 3 * BATTLE_SCALE, 0, Math.PI * 2);
         ctx.fill();
       }
       ctx.shadowBlur = 0;
@@ -2580,7 +2580,7 @@
       ov.style.display = 'flex';
       const saveExists = hasSave();
       ov.innerHTML = `
-    <h2 style="color:var(--accent)">SPIDER NEST</h2>
+    <h2 style="color:var(--accent)">ПАУЧЬЕ ГНЕЗДО</h2>
     <p>Найди выход. Не дай паукам добраться до тебя.</p>
     ${saveExists ? `<button class="btn" id="continue-btn" style="border-color:#00ff88;color:#00ff88">ПРОДОЛЖИТЬ</button>` : ''}
     <button class="btn" id="start-btn">${saveExists ? 'НОВАЯ ИГРА' : 'НАЧАТЬ ИГРУ'}</button>
