@@ -447,6 +447,46 @@
         Sounds._volume = Math.max(0, Math.min(1, (p.x - ps.sliderX()) / ps.sliderW()));
         Sounds.ambienceSyncVolume();
       }
+
+      // Обновление курсора при наведении на клетки
+      if (state && state.phase === 'play' && !paused) {
+        const mx = p.x + camera.x;
+        const my = p.y + camera.y;
+        const cx = Math.floor(mx / CP);
+        const cy = Math.floor(my / CP);
+
+        if (cx >= 0 && cx < state.gridSize && cy >= 0 && cy < state.gridSize) {
+          const k = cellKey(cx, cy);
+          const playerC = cellOf(state.player.x, state.player.y);
+          const playerKey = cellKey(playerC.x, playerC.y);
+
+          // Проверка: можно открыть (unlocked)
+          const canOpen = !state.openCells.has(k) &&
+                          !state.disabledCells.has(k) &&
+                          !state.permanentlyClosed.has(k) &&
+                          Math.abs(cx - playerC.x) + Math.abs(cy - playerC.y) === 1;
+
+          // Проверка: можно закрыть (locked)
+          let canClose = false;
+          if (state.openCells.has(k) && k !== playerKey) {
+            const hasUncollectedKey = state.keyObjs.some(key => !key.collected && key.cellKey === k);
+            const hasUncollectedHeart = state.hearts.some(heart => !heart.collected && heart.cellKey === k);
+            canClose = !hasUncollectedKey && !hasUncollectedHeart;
+          }
+
+          if (canOpen) {
+            C.style.cursor = "url('img/unlocked.png') 16 16, pointer";
+          } else if (canClose) {
+            C.style.cursor = "url('img/locked.png') 16 16, pointer";
+          } else {
+            C.style.cursor = 'crosshair';
+          }
+        } else {
+          C.style.cursor = 'crosshair';
+        }
+      } else {
+        C.style.cursor = 'crosshair';
+      }
     });
 
     C.addEventListener('mousedown', e => {
