@@ -688,7 +688,7 @@
 
         // Проверка границ battle
         if (bullet.life <= 0) {
-          Sounds.wallhit();
+          Sounds.wallhit(dt);
           for (let k = 0; k < CONFIG.WALL_HIT_PARTICLES_COUNT; k++) {
             const a = Math.random() * Math.PI * 2;
             b.particles.push({
@@ -716,7 +716,7 @@
               bullet.y = bullet.y < 0 ? 0.1 : b.height - 0.1;
             }
             bullet.hitSpiders = undefined;
-            Sounds.wallhit();
+            Sounds.wallhit(dt);
             for (let k = 0; k < 5; k++) {
               const a = Math.random() * Math.PI * 2;
               b.particles.push({
@@ -726,7 +726,7 @@
               });
             }
           } else {
-            Sounds.wallhit();
+            Sounds.wallhit(dt);
             for (let k = 0; k < 5; k++) {
               const a = Math.random() * Math.PI * 2;
               b.particles.push({
@@ -758,7 +758,7 @@
             else if (yOk) { bullet.vx = -bullet.vx; bullet.x = prevX; }
             else { bullet.vx = -bullet.vx; bullet.vy = -bullet.vy; bullet.x = prevX; bullet.y = prevY; }
             bullet.hitSpiders = undefined;
-            Sounds.wallhit();
+            Sounds.wallhit(dt);
             for (let k = 0; k < 5; k++) {
               const a = Math.random() * Math.PI * 2;
               b.particles.push({
@@ -769,7 +769,7 @@
             }
           } else {
             // Пуля в стене - уничтожаем
-            Sounds.wallhit();
+            Sounds.wallhit(dt);
             for (let k = 0; k < 5; k++) {
               const a = Math.random() * Math.PI * 2;
               b.particles.push({
