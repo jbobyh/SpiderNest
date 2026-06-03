@@ -358,6 +358,11 @@
       });
     }
 
+    function getBurstStepDelay(weapon, burstSizeTotal) {
+      if (!weapon.burstDuration || burstSizeTotal <= 1) return 0;
+      return weapon.burstDuration / (burstSizeTotal - 1);
+    }
+
     function shoot(s) {
       // Проверяем кд основного выстрела и кд между пулями в очереди
       if (s.shootCooldown > 0) return;
@@ -387,6 +392,7 @@
       const isBurstWeapon = weapon.burstSize && weapon.burstSize > 1;
       const pellets = isBurstWeapon ? weapon.pellets : weapon.pellets + s.upgrades.pellets;
       const burstSizeTotal = isBurstWeapon ? weapon.burstSize + s.upgrades.pellets : weapon.burstSize;
+      const burstStepDelay = getBurstStepDelay(weapon, burstSizeTotal);
       let totalSpread = weapon.spread * s.upgrades.spreadMult;
       const bulletSpeed = weapon.bulletSpeed * s.upgrades.bulletSpeedMult;
       
@@ -413,13 +419,13 @@
           // Начинаем новую очередь
           s.burstRemaining = burstSizeTotal - 1;
           s.burstWeaponId = weapon.id;
-          s.burstCooldown = weapon.burstCooldown;
+          s.burstCooldown = burstStepDelay;
           s.shootCooldown = 0; // Не блокируем, ждём burstCooldown
         } else {
           // Продолжаем очередь
           s.burstRemaining--;
           if (s.burstRemaining > 0) {
-            s.burstCooldown = weapon.burstCooldown;
+            s.burstCooldown = burstStepDelay;
             s.shootCooldown = 0; // Не блокируем, ждём burstCooldown
           } else {
             // Очередь закончилась
@@ -1661,6 +1667,7 @@
       const isBurstWeapon = weapon.burstSize && weapon.burstSize > 1;
       const pellets = isBurstWeapon ? weapon.pellets : weapon.pellets + s.upgrades.pellets;
       const burstSizeTotal = isBurstWeapon ? weapon.burstSize + s.upgrades.pellets : weapon.burstSize;
+      const burstStepDelay = getBurstStepDelay(weapon, burstSizeTotal);
       let totalSpread = weapon.spread * s.upgrades.spreadMult;
       const bulletSpeed = weapon.bulletSpeed * s.upgrades.bulletSpeedMult * BATTLE_SCALE;
       
@@ -1686,12 +1693,12 @@
         if (s.burstRemaining === 0) {
           s.burstRemaining = burstSizeTotal - 1;
           s.burstWeaponId = weapon.id;
-          s.burstCooldown = weapon.burstCooldown;
+          s.burstCooldown = burstStepDelay;
           s.shootCooldown = 0; // Не блокируем, ждём burstCooldown
         } else {
           s.burstRemaining--;
           if (s.burstRemaining > 0) {
-            s.burstCooldown = weapon.burstCooldown;
+            s.burstCooldown = burstStepDelay;
             s.shootCooldown = 0;
           } else {
             s.burstWeaponId = null;

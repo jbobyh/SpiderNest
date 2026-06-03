@@ -1917,6 +1917,71 @@
       ctx.restore();
     }
 
+    function getPlayerWorldPos() {
+      if (state.phase === 'battle' && state.battle) {
+        return { x: state.battle.player.x, y: state.battle.player.y };
+      }
+      if (state.player) return { x: state.player.x, y: state.player.y };
+      return null;
+    }
+
+    function bullArrowPath(len, w, headLen) {
+      const shaftEnd = len - headLen;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(shaftEnd, -w * 0.35);
+      ctx.lineTo(shaftEnd, -w * 0.65);
+      ctx.lineTo(len, 0);
+      ctx.lineTo(shaftEnd, w * 0.65);
+      ctx.lineTo(shaftEnd, w * 0.35);
+      ctx.closePath();
+    }
+
+    function drawBullChargeTelegraph(g, r, scale, alpha) {
+      const player = getPlayerWorldPos();
+      if (!player) return;
+
+      const dx = player.x - g.x;
+      const dy = player.y - g.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist < 0.001) return;
+
+      const dirX = dx / dist;
+      const dirY = dy / dist;
+      const angle = Math.atan2(dirY, dirX);
+      const fill = Math.max(0, Math.min(1, 1 - (g.stateTimer || 0) / CONFIG.BULL_PREPARE_TIME));
+
+      const arrowScale = 1 / 5;
+      const arrowLen = r * 2.4 * scale * arrowScale;
+      const arrowW = r * 0.75 * scale * arrowScale;
+      const headLen = arrowLen * 0.38;
+      const origin = r * 0.55 * arrowScale;
+
+      ctx.save();
+      ctx.translate(g.x + dirX * origin, g.y + dirY * origin);
+      ctx.rotate(angle);
+      ctx.globalAlpha = alpha;
+
+      bullArrowPath(arrowLen, arrowW, headLen);
+      ctx.strokeStyle = 'rgba(255, 210, 60, 0.45)';
+      ctx.lineWidth = Math.max(0.5, 1.5 * scale * arrowScale);
+      ctx.stroke();
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, -arrowW, arrowLen * fill, arrowW * 2);
+      ctx.clip();
+      ctx.fillStyle = fill >= 0.95 ? '#ff5533' : '#ffdd44';
+      ctx.shadowColor = fill >= 0.95 ? '#ff2200' : '#ffaa00';
+      ctx.shadowBlur = 10 * scale * arrowScale;
+      bullArrowPath(arrowLen, arrowW, headLen);
+      ctx.fill();
+      ctx.restore();
+
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    }
+
     // Helper: draw enemy sprite (500x500px images)
     function drawEnemySprite(img, x, y, radius, alpha, scale, hitFlash, flip = false) {
       if (!img || !img.complete || img.naturalWidth === 0) return false;
@@ -2026,19 +2091,9 @@
             ctx.fillRect(g.x - r, g.y - r - 8 * scale, r * 2 * hpFrac, 3 * scale);
           }
 
-          // Индикатор состояния быка (подготовка/рывок)
-          if ((isBull && g.state) || (isBossPhase && g.state)) {
-            const state = g.state;
-            if (state === 'prepare') {
-              const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 100);
-              ctx.globalAlpha = pulse;
-              ctx.fillStyle = '#ffff00';
-              ctx.beginPath(); ctx.arc(g.x, g.y - r - 12 * scale, 3 * scale, 0, Math.PI * 2); ctx.fill();
-            } else if (state === 'dash') {
-              ctx.globalAlpha = 0.9;
-              ctx.fillStyle = '#ff0000';
-              ctx.beginPath(); ctx.arc(g.x, g.y - r - 12 * scale, 4 * scale, 0, Math.PI * 2); ctx.fill();
-            }
+          // Телеграф рывка быка
+          if (((isBull || isBossPhase) && g.state === 'prepare')) {
+            drawBullChargeTelegraph(g, r, scale, alpha);
           }
 
           ctx.globalAlpha = 1;
@@ -2280,20 +2335,8 @@
         ctx.fillRect(g.x - r, g.y - r - 8 * scale, r * 2 * hpFrac, 3 * scale);
       }
 
-      // Индикатор состояния быка (подготовка/рывок)
-      if (isBull && g.state) {
-        if (g.state === 'prepare') {
-          // Пульсирующий индикатор подготовки
-          const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 100);
-          ctx.globalAlpha = pulse;
-          ctx.fillStyle = '#ffff00';
-          ctx.beginPath(); ctx.arc(g.x, g.y - r - 12 * scale, 3 * scale, 0, Math.PI * 2); ctx.fill();
-        } else if (g.state === 'dash') {
-          // Индикатор рывка
-          ctx.globalAlpha = 0.9;
-          ctx.fillStyle = '#ff0000';
-          ctx.beginPath(); ctx.arc(g.x, g.y - r - 12 * scale, 4 * scale, 0, Math.PI * 2); ctx.fill();
-        }
+      if (isBull && g.state === 'prepare') {
+        drawBullChargeTelegraph(g, r, scale, alpha);
       }
 
       ctx.globalAlpha = 1;

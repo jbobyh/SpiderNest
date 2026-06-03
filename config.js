@@ -462,8 +462,8 @@ const WEAPON_DEFS = {
     spread: 0.15,
     damage: 1*2,
     cooldown: 0.8,
-    burstSize: 3,           // кол-во пуль в очереди
-    burstCooldown: 0.1,    // задержка между пулями в очереди (сек)
+    burstSize: 3,           // кол-во пуль в очереди (мультивыстрел: +1 за апгрейд pellets)
+    burstDuration: 0.2,     // полное время очереди (сек); задержка между пулями = burstDuration / (размер очереди - 1)
     bulletSpeed: 400,
     range: 25,
     penetrate: 0,
