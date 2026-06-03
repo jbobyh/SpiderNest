@@ -25,9 +25,9 @@
     function drawCursorCooldownBar(s, mouseX, mouseY) {
       if (s.shootCooldown <= 0 || s.maxShootCooldown <= 0) return;
       const progress = 1 - (s.shootCooldown / s.maxShootCooldown);
-      const barW = 32;
-      const barH = 3;
-      const offsetY = 18;
+      const barW = 15;
+      const barH = 2;
+      const offsetY = 10;
       const x = mouseX - barW / 2;
       const y = mouseY + offsetY;
       ctx.save();

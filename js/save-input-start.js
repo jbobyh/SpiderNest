@@ -173,6 +173,7 @@
     }
 
     function startGame() {
+      enterFullscreenIfNeeded();
       hideOverlay();
       deleteSave();
       currentLevel = 1;
@@ -219,6 +220,7 @@
     }
 
     function continueGame() {
+      enterFullscreenIfNeeded();
       hideOverlay();
       if (!loadGame()) {
         startGame();
@@ -716,6 +718,13 @@
 
     function isFullscreen() {
       return !!(document.fullscreenElement || document.webkitFullscreenElement);
+    }
+
+    function enterFullscreenIfNeeded() {
+      const fsContainer = document.getElementById('canvas-container');
+      if (!isFullscreen() && fsContainer) {
+        (fsContainer.requestFullscreen || fsContainer.webkitRequestFullscreen).call(fsContainer);
+      }
     }
 
     function updateFsIcon() {
