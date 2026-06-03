@@ -85,13 +85,13 @@ const CONFIG = {
   SPIDER_SPAWN_MARGIN: 10,        // отступ от стен при спавне
 
   // Shooters
-  SHOOTER_HP: 70,             // здоровье плеваки
-  SHOOTER_SPEED: 55,          // скорость плеваки (пикс/сек)
+  SHOOTER_HP: 3,             // здоровье плеваки
+  SHOOTER_SPEED: 50,          // скорость плеваки (пикс/сек)
   SHOOTER_RADIUS: 7,          // радиус коллизии плеваки
   SHOOTER_BULLET_SPEED: 100,  // скорость пули плеваки
   SHOOTER_SHOOT_RANGE_CELLS: 1.0, // дальность стрельбы плеваки (в клетках)
-  SHOOTER_SHOOT_CD: 2.0,     // кулдаун выстрела плеваки (сек)
-  SHOOTER_STOP_DIST_CELLS: 0.9,   // дистанция остановки плеваки (в клетках)
+  SHOOTER_SHOOT_CD: 1.5,     // кулдаун выстрела плеваки (сек)
+  SHOOTER_STOP_DIST_CELLS: 0.8,   // дистанция остановки плеваки (в клетках)
   // Spawn chances by level
   // Level 1: only soldier/shooter
   SHOOTER_CHANCE: 0.30,           // шанс что враг будет плевакой (остальное - солдат)
@@ -105,17 +105,17 @@ const CONFIG = {
   BULDYGA_CHANCE_LVL3: 0.20,      // шанс что враг будет булдыгой на 3 уровне (после быка)
 
   // Bull
-  BULL_HP: 150,           // здоровье быка
+  BULL_HP: 6,           // здоровье быка
   BULL_SPEED: 70,         // скорость быка (пикс/сек)
   BULL_RADIUS: 7,         // радиус коллизии быка
-  BULL_PREPARE_TIME: 0.5,         // время подготовки рывка (сек)
-  BULL_DASH_DISTANCE_CELLS: 2.0,  // дистанция рывка быка (в клетках)
-  BULL_REST_TIME: 3.0,            // время отдыха после рывка (сек)
-  BULL_CHARGE_DIST_CELLS: 1.5,    // дистанция начала атаки быка (в клетках)
-  BULL_ATTACK_DIST_CELLS: 1.6,    // дистанция удара быка (в клетках)
+  BULL_PREPARE_TIME: 1,         // время подготовки рывка (сек)
+  BULL_DASH_DISTANCE_CELLS: 1.0,  // дистанция рывка быка (в клетках)
+  BULL_REST_TIME: 1.5,            // время отдыха после рывка (сек)
+  BULL_CHARGE_DIST_CELLS: 0.75,    // дистанция начала атаки быка (в клетках)
+  BULL_ATTACK_DIST_CELLS: 1.0,    // дистанция удара быка (в клетках)
 
   // Buldyga
-  BULDYGA_HP: 150,        // здоровье булдыги
+  BULDYGA_HP: 10,        // здоровье булдыги
   BULDYGA_SPEED: 70,              // начальная скорость
   BULDYGA_SPEED_INCREMENT: 10,    // ускорение каждую секунду
   BULDYGA_RADIUS: 7,     // радиус коллизии булдыги
@@ -123,16 +123,16 @@ const CONFIG = {
   BULDYGA_FRICTION: 3.5,          // коэффициент торможения (затухание скорости)
 
   // Cocoon (spawner)
-  COCOON_HP: 100,         // здоровье кокона
+  COCOON_HP: 10,         // здоровье кокона
   COCOON_RADIUS: 10,      // радиус коллизии кокона
-  COCOON_SPAWN_INTERVAL: 5.0,     // секунд между спавнами солдат
+  COCOON_SPAWN_INTERVAL: 3.0,     // секунд между спавнами солдат
   COCOON_CHANCE: 0.30,            // шанс спавна кокона на уровне 3
 
   // Bloated (explodes on death)
-  BLOATED_HP: 100,        // здоровье распухшего
-  BLOATED_SPEED: 70,      // скорость распухшего (пикс/сек)
+  BLOATED_HP: 5,        // здоровье распухшего
+  BLOATED_SPEED: 60,      // скорость распухшего (пикс/сек)
   BLOATED_RADIUS: 8,      // радиус коллизии распухшего
-  BLOATED_DEATH_SHOT_SPEED: 100,  // скорость пули при смерти (как у плеваки)
+  BLOATED_DEATH_SHOT_SPEED: 150,  // скорость пули при смерти (как у плеваки)
   BLOATED_CHANCE: 0.30,           // шанс спавна распухшего на уровне 3 (после кокона)
 
   // Level generation
