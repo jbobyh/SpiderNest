@@ -101,13 +101,65 @@
     const H = G * CP;
 
     const floorImg = new Image();
-    floorImg.src = 'img/floor.png';
+    floorImg.src = 'img/floor-blue.png';
 
     const wallImg = new Image();
     wallImg.src = 'img/wall.png';
 
     const cornerImg = new Image();
     cornerImg.src = 'img/corner.png';
+
+    // Green textures for level 2
+    const floorGreenImg = new Image();
+    floorGreenImg.src = 'img/floor-green.png';
+
+    const wallGreenImg = new Image();
+    wallGreenImg.src = 'img/wall-green.png';
+
+    const cornerGreenImg = new Image();
+    cornerGreenImg.src = 'img/corner-green.png';
+
+    // Green floor variants with different exit configurations
+    const floorRightExitGreenImg = new Image();
+    floorRightExitGreenImg.src = 'img/floor-rightexit-green.png';
+
+    const floorRightBottomExitGreenImg = new Image();
+    floorRightBottomExitGreenImg.src = 'img/floor-rightbottomexit-green.png';
+
+    const floorLeftRightBottomExitGreenImg = new Image();
+    floorLeftRightBottomExitGreenImg.src = 'img/floor-leftrightbottomexit-green.png';
+
+    const floorTopDownExitGreenImg = new Image();
+    floorTopDownExitGreenImg.src = 'img/floor-topdownexit-green.png';
+
+    const floor4ExitGreenImg = new Image();
+    floor4ExitGreenImg.src = 'img/floor-4exit-green.png';
+
+    // Y textures for level 3
+    const floorYImg = new Image();
+    floorYImg.src = 'img/floor-y.png';
+
+    const wallYImg = new Image();
+    wallYImg.src = 'img/wall-y.png';
+
+    const cornerYImg = new Image();
+    cornerYImg.src = 'img/corner-y.png';
+
+    // Y floor variants with different exit configurations
+    const floorRightExitYImg = new Image();
+    floorRightExitYImg.src = 'img/floor-rightexit-y.png';
+
+    const floorRightBottomExitYImg = new Image();
+    floorRightBottomExitYImg.src = 'img/floor-rightbottomexit-y.png';
+
+    const floorLeftRightBottomExitYImg = new Image();
+    floorLeftRightBottomExitYImg.src = 'img/floor-leftrightbottomexit-y.png';
+
+    const floorTopDownExitYImg = new Image();
+    floorTopDownExitYImg.src = 'img/floor-topdownexit-y.png';
+
+    const floor4ExitYImg = new Image();
+    floor4ExitYImg.src = 'img/floor-4exit-y.png';
 
     const closedCellImg = new Image();
     closedCellImg.src = 'img/closedcell.png';

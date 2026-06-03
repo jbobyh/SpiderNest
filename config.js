@@ -461,7 +461,7 @@ const WEAPON_DEFS = {
 // ============================================================
 const UPGRADE_TYPES = [
   { id: 'pellets',       label: '+1 пуля к выстрелу',     description: 'Каждый выстрел выпускает на 1 пулю больше',                   color: '#ffaa00', max: 2, icon: '🔫' },
-  { id: 'damage',        label: '+1 урона от пули',        description: 'Каждая пуля наносит на 1 урон больше',                        color: '#ff4444', max: 2, icon: '💥' },
+  { id: 'damage',        label: '+2 урона от пули',        description: 'Каждая пуля наносит на 2 урон больше',                        color: '#ff4444', max: 2, icon: '💥' },
   { id: 'penetrate',     label: '+1 пробитие врага',       description: 'Пуля пролетает сквозь одного дополнительного врага',          color: '#ff44ff', max: 2, icon: '🎯' },
   { id: 'bulletSpeed',   label: '+30% скорость пули',      description: 'Пули летят быстрее',                     color: '#ffff44', max: 2, icon: '⚡' },
   { id: 'critChance',    label: '+5% шанс крита',          description: 'Шанс нанести двойной урон',                       color: '#ff0000', max: 3, icon: '⚔️' },

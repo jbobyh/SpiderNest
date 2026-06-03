@@ -855,13 +855,13 @@
         const by = (y - b.cellOffsetY) * BATTLE_CELL_PX;
 
         // Фон клетки
-        drawFloorCell(ctx, x, y, BATTLE_CELL_PX, b.openCells, b.cellOffsetX, b.cellOffsetY);
+        drawFloorCell(ctx, x, y, BATTLE_CELL_PX, b.openCells, b.cellOffsetX, b.cellOffsetY, currentLevel);
 
       }
 
       // Стены по краям открытых клеток (battle)
-      drawOpenCellWalls(b.openCells, BATTLE_CELL_PX, BATTLE_CELL_PX * 0.125, b.cellOffsetX, b.cellOffsetY);
-      drawOpenCellCorners(b.openCells, BATTLE_CELL_PX, BATTLE_CELL_PX * 0.125, b.cellOffsetX, b.cellOffsetY);
+      drawOpenCellWalls(b.openCells, BATTLE_CELL_PX, BATTLE_CELL_PX * 0.125, b.cellOffsetX, b.cellOffsetY, currentLevel);
+      drawOpenCellCorners(b.openCells, BATTLE_CELL_PX, BATTLE_CELL_PX * 0.125, b.cellOffsetX, b.cellOffsetY, currentLevel);
 
       // Сердечки
       for (const heart of b.hearts) {
@@ -1233,7 +1233,7 @@
           ctx.fillStyle = `rgba(0,60,20,0.9)`;
           ctx.fillRect(x * CP, y * CP, CP, CP);
         } else {
-          drawFloorCell(ctx, x, y, CP, s.openCells);
+          drawFloorCell(ctx, x, y, CP, s.openCells, 0, 0, currentLevel);
         }
 
         if (isExit) {
@@ -1266,8 +1266,8 @@
       }
 
       // Стены по краям открытых клеток
-      drawOpenCellWalls(s.openCells, CP, CP * 0.125);
-      drawOpenCellCorners(s.openCells, CP, CP * 0.125);
+      drawOpenCellWalls(s.openCells, CP, CP * 0.125, 0, 0, currentLevel);
+      drawOpenCellCorners(s.openCells, CP, CP * 0.125, 0, 0, currentLevel);
 
       // Смежные закрытые клетки (видно содержимое) — все когда-либо виденные, не открытые и не чёрные
       const adj = new Set();
@@ -2659,12 +2659,12 @@
       // Открытые клетки
       for (const k of s.openCells) {
         const { x, y } = cellFromKey(k);
-        drawFloorCell(ctx, x, y, CP, s.openCells);
+        drawFloorCell(ctx, x, y, CP, s.openCells, 0, 0, currentLevel);
       }
 
       // Стены по краям открытых клеток (zoom)
-      drawOpenCellWalls(s.openCells, CP, CP * 0.125);
-      drawOpenCellCorners(s.openCells, CP, CP * 0.125);
+      drawOpenCellWalls(s.openCells, CP, CP * 0.125, 0, 0, currentLevel);
+      drawOpenCellCorners(s.openCells, CP, CP * 0.125, 0, 0, currentLevel);
 
       // Смежные закрытые клетки (ever revealed) с плавным fade
       ctx.globalAlpha = fadeAlpha * 0.6;

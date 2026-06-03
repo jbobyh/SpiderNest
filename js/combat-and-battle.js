@@ -33,8 +33,8 @@
           playerProgress.upgrades.pellets++; 
           break;
         case 'damage': 
-          s.upgrades.damage++; 
-          playerProgress.upgrades.damage++; 
+          s.upgrades.damage = s.upgrades.damage + 2; 
+          playerProgress.upgrades.damage = playerProgress.upgrades.damage + 2; 
           break;
         case 'penetrate': 
           s.upgrades.penetrate++; 

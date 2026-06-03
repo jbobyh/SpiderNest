@@ -132,9 +132,9 @@
       return directions;
     }
 
-    // Draw floor cell with appropriate blue texture based on adjacent open cells
+    // Draw floor cell with appropriate texture based on adjacent open cells and level
     // offsetX and offsetY are optional, for battle mode coordinate shifting
-    function drawFloorCell(ctx, x, y, cellSize, openCells, offsetX = 0, offsetY = 0) {
+    function drawFloorCell(ctx, x, y, cellSize, openCells, offsetX = 0, offsetY = 0, level = 1) {
       const directions = getAdjacentOpenDirections(x, y, openCells);
       const count = directions.length;
 
@@ -142,8 +142,10 @@
       let rotation = 0; // in 90-degree increments (0, 1, 2, 3)
 
       if (count === 1) {
-        // Dead end - use floor-rightexit-blue, rotate so exit points to the open neighbor
-        img = floorRightExitImg;
+        // Dead end - use floor-rightexit-blue/green/y, rotate so exit points to the open neighbor
+        if (level === 2) img = floorRightExitGreenImg;
+        else if (level === 3) img = floorRightExitYImg;
+        else img = floorRightExitImg;
         // rightexit texture has exit to the right (direction 0)
         // we need to rotate so exit points to directions[0]
         rotation = directions[0];
@@ -152,8 +154,10 @@
         // Check if opposite (straight line) or adjacent (corner)
         const isOpposite = (d1 + 2) % 4 === d2;
         if (isOpposite) {
-          // Straight line - use floor-topdownexit-blue
-          img = floorTopDownExitImg;
+          // Straight line - use floor-topdownexit-blue/green/y
+          if (level === 2) img = floorTopDownExitGreenImg;
+          else if (level === 3) img = floorTopDownExitYImg;
+          else img = floorTopDownExitImg;
           // topdown texture has exits top and bottom (directions 3 and 1)
           if ((d1 === 3 && d2 === 1) || (d1 === 1 && d2 === 3)) {
             rotation = 0; // already correct orientation
@@ -161,8 +165,10 @@
             rotation = 1; // rotate 90° to make left-right
           }
         } else {
-          // Corner - use floor-rightbottomexit-blue
-          img = floorRightBottomExitImg;
+          // Corner - use floor-rightbottomexit-blue/green/y
+          if (level === 2) img = floorRightBottomExitGreenImg;
+          else if (level === 3) img = floorRightBottomExitYImg;
+          else img = floorRightBottomExitImg;
           // rightbottom texture has exits right and bottom (directions 0 and 1)
           // Find rotation to match our directions to [0, 1]
           const needed = [0, 1];
@@ -175,8 +181,10 @@
           }
         }
       } else if (count === 3) {
-        // T-junction - use floor-leftrightbottomexit-blue
-        img = floorLeftRightBottomExitImg;
+        // T-junction - use floor-leftrightbottomexit-blue/green/y
+        if (level === 2) img = floorLeftRightBottomExitGreenImg;
+        else if (level === 3) img = floorLeftRightBottomExitYImg;
+        else img = floorLeftRightBottomExitImg;
         // leftrightbottom texture has exits left, right, bottom (directions 2, 0, 1)
         // Missing direction tells us rotation
         const allDirs = [0, 1, 2, 3];
@@ -184,8 +192,10 @@
         // Texture has top (3) missing, so rotate so missing direction becomes 3
         rotation = (missing + 1) % 4;
       } else if (count === 4) {
-        // Cross - use floor-4exit-blue
-        img = floor4ExitImg;
+        // Cross - use floor-4exit-blue/green/y
+        if (level === 2) img = floor4ExitGreenImg;
+        else if (level === 3) img = floor4ExitYImg;
+        else img = floor4ExitImg;
         rotation = 0;
       }
 
@@ -194,8 +204,12 @@
 
       if (!img || !img.complete || img.naturalWidth === 0) {
         // Fallback to default floor or solid color
-        if (floorImg.complete && floorImg.naturalWidth > 0) {
-          ctx.drawImage(floorImg, drawX, drawY, cellSize, cellSize);
+        let fallbackImg;
+        if (level === 2) fallbackImg = floorGreenImg;
+        else if (level === 3) fallbackImg = floorYImg;
+        else fallbackImg = floorImg;
+        if (fallbackImg.complete && fallbackImg.naturalWidth > 0) {
+          ctx.drawImage(fallbackImg, drawX, drawY, cellSize, cellSize);
         } else {
           ctx.fillStyle = 'rgb(10,25,40)';
           ctx.fillRect(drawX, drawY, cellSize, cellSize);
@@ -297,8 +311,12 @@
     // Draws wall.png on each border edge of openCells set.
     // wallW/wallH: size of one wall strip in world-units for this context (cellPx wide, depth fraction tall).
     // The wall is drawn OUTSIDE the open cell (into closed space), clipped to not overdraw open cells.
-    function drawOpenCellWalls(openCells, cellPx, wallDepth, offsetX = 0, offsetY = 0) {
-      if (!wallImg.complete || wallImg.naturalWidth === 0) return;
+    function drawOpenCellWalls(openCells, cellPx, wallDepth, offsetX = 0, offsetY = 0, level = 1) {
+      let wallImgToUse;
+      if (level === 2) wallImgToUse = wallGreenImg;
+      else if (level === 3) wallImgToUse = wallYImg;
+      else wallImgToUse = wallImg;
+      if (!wallImgToUse.complete || wallImgToUse.naturalWidth === 0) return;
 
       for (const k of openCells) {
         const { x, y } = cellFromKey(k);
@@ -333,7 +351,7 @@
           ctx.translate(edgeMidX, edgeMidY);
           ctx.rotate(angle);
           // Local coords: X along edge, -Y = outward direction
-          ctx.drawImage(wallImg, -cellPx / 2, -wallDepth, cellPx, wallDepth);
+          ctx.drawImage(wallImgToUse, -cellPx / 2, -wallDepth, cellPx, wallDepth);
 
           ctx.restore();
         }
@@ -346,8 +364,12 @@
     // Two cases per diagonal direction (ddx, ddy):
     //   External corner: both cardinal neighbours are closed → draw into diagonal cell
     //   Internal (concave) corner: both cardinal neighbours are open, diagonal is closed → draw into diagonal cell
-    function drawOpenCellCorners(openCells, cellPx, cornerSize, offsetX = 0, offsetY = 0) {
-      if (!cornerImg.complete || cornerImg.naturalWidth === 0) return;
+    function drawOpenCellCorners(openCells, cellPx, cornerSize, offsetX = 0, offsetY = 0, level = 1) {
+      let cornerImgToUse;
+      if (level === 2) cornerImgToUse = cornerGreenImg;
+      else if (level === 3) cornerImgToUse = cornerYImg;
+      else cornerImgToUse = cornerImg;
+      if (!cornerImgToUse.complete || cornerImgToUse.naturalWidth === 0) return;
 
       // Diagonal directions with their rotation angle (image = top-left = 0)
       const diagonals = [
@@ -380,10 +402,10 @@
             // Flip around image centre: rotate by angle+PI, draw at (0,0) so image
             // occupies the same diagonal cell but mirrored — top-left corner faces inward
             ctx.rotate(angle + Math.PI);
-            ctx.drawImage(cornerImg, 0, 0, cornerSize, cornerSize);
+            ctx.drawImage(cornerImgToUse, 0, 0, cornerSize, cornerSize);
           } else {
             ctx.rotate(angle);
-            ctx.drawImage(cornerImg, -cornerSize, -cornerSize, cornerSize, cornerSize);
+            ctx.drawImage(cornerImgToUse, -cornerSize, -cornerSize, cornerSize, cornerSize);
           }
           ctx.restore();
         }
