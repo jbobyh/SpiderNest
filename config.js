@@ -140,7 +140,7 @@ const CONFIG = {
   DISABLED_CELLS_COUNT: 15,       // кол-во заблокированных клеток по умолчанию
   BLOCK_CELLS_FOREVER: false,     // блокировать клетки навсегда (дебаг)
   MAX_GENERATION_ATTEMPTS: 1000,  // макс. попыток генерации уровня
-  ENEMY_SPAWN_CHANCE: 0.7,        // шанс спавна врагов в клетке
+  ENEMY_SPAWN_CHANCE: 0.5,        // шанс спавна врагов в клетке
 
   // Pickup distances
   PICKUP_DISTANCE: 10,            // расстояние до предметов (добавляется к радиусу)
@@ -506,13 +506,17 @@ const BOSS_DEFS = {
   },
   3: {
     type: 'boss_phase',
-    hpMult: 600,
-    radiusMult: 2.25,
+    hp: 300,               // фиксированный HP
+    radiusMult: 2.5,
     speedMult: 1.0,
     name: 'БОСС',
     phases: [
-      { id: 'soldier', duration: 5 },
-      { id: 'shooter', duration: 5 },
+      { id: 'buldyga',      duration: 10, accelMult: 2, frictionMult: 0.6 },  // большая инерция
+      { id: 'pause',        duration: 1 },
+      { id: 'shooter',      duration: 6,  shootCdMult: 0.4, bulletSpeedMult: 1.8 }, // быстрые снаряды
+      { id: 'pause',        duration: 1 },
+      { id: 'bull_limited', maxDashes: 3, dashCells: 5, dashSpeedMult: 1.5 }, // 3 рывка, 5 клеток,
+      { id: 'pause',        duration: 1 },
     ],
   },
 };
@@ -526,7 +530,7 @@ const UPGRADE_TYPES = [
   { id: 'penetrate',     label: '+1 пробитие врага',       description: 'Пуля пролетает сквозь одного дополнительного врага',          color: '#ff44ff', max: 2, icon: '🎯' },
   { id: 'bulletSpeed',   label: '+30% скорость пули',      description: 'Пули летят быстрее',                     color: '#ffff44', max: 2, icon: '⚡' },
   { id: 'critChance',    label: '+5% шанс крита',          description: 'Шанс нанести двойной урон',                       color: '#ff0000', max: 3, icon: '⚔️' },
-  { id: 'killAccel',     label: 'Убийственный разгон',     description: 'Каждое убийство ускоряет перезарядку на 0.2%',                  color: '#ff8800', max: 1, icon: '🏃' },
+  { id: 'killAccel',     label: 'Убийственный разгон',     description: 'Каждое убийство ускоряет перезарядку на 0.1%',                  color: '#ff8800', max: 1, icon: '🏃' },
   { id: 'enhancedPierce',label: 'Усиленное пробитие',      description: 'Пуля, пробившая врага, наносит повышенный урон',               color: '#aa44ff', max: 1, icon: '💜' },
   { id: 'shield',        label: 'Щит',                     description: 'Поглощает один удар без потери жизни. Тратится.',                        color: '#00aaff', max: 2, icon: '🛡️' },
   { id: 'retreat',       label: 'Отступление',             description: 'После получения урона получи неуязвимость на 1.5 секунды',                  color: '#00ffaa', max: 2, icon: '🏃‍♂️' },

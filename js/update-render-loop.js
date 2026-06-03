@@ -256,7 +256,7 @@
               }
               // Оружейный разгон: +0.2% за убийство, макс 90%
               if (s.upgrades.killAccel) {
-                s.upgrades.killAccelPercent = Math.min(90, s.upgrades.killAccelPercent + 0.2);
+                s.upgrades.killAccelPercent = Math.min(90, s.upgrades.killAccelPercent + 0.1);
                 playerProgress.upgrades.killAccelPercent = s.upgrades.killAccelPercent;
               }
               // Распухший: выстрел при смерти в игрока
@@ -1977,13 +1977,28 @@
         if (isBossPhase) {
           const bd = BOSS_DEFS[currentLevel] || BOSS_DEFS[1];
           const firstPhase = bd.phases[0];
-          if (firstPhase.id === 'buldyga') img = enemyImages.buldyga;
+          if (firstPhase.id === 'bull_limited') img = enemyImages.bull;
+          else if (firstPhase.id === 'buldyga') img = enemyImages.buldyga;
           else if (firstPhase.id === 'shooter') img = enemyImages.plevaka;
           else img = enemyImages.soldier;
         } else if (isBull) img = enemyImages.bull;
         else if (isBuldyga) img = enemyImages.buldyga;
         else if (isPlevaka) img = enemyImages.plevaka;
         else if (isSoldier) img = enemyImages.soldier;
+
+        // Light glow under sprite
+        const glowRadius = r * 1.5;
+        const glowGradient = ctx.createRadialGradient(g.x, g.y, 0, g.x, g.y, glowRadius);
+        glowGradient.addColorStop(0, 'rgba(255, 255, 200, 0.25)');
+        glowGradient.addColorStop(0.5, 'rgba(255, 255, 150, 0.1)');
+        glowGradient.addColorStop(1, 'rgba(255, 255, 100, 0)');
+        ctx.save();
+        ctx.globalAlpha = alpha * 0.6;
+        ctx.fillStyle = glowGradient;
+        ctx.beginPath();
+        ctx.arc(g.x, g.y, glowRadius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
 
         if (drawEnemySprite(img, g.x, g.y, r / scale, alpha, scale, g.hitFlash || 0, flipSprite)) {
           // Sprite drawn successfully - skip body rendering, draw only HP bar and indicators
@@ -2012,13 +2027,14 @@
           }
 
           // Индикатор состояния быка (подготовка/рывок)
-          if (isBull && g.state) {
-            if (g.state === 'prepare') {
+          if ((isBull && g.state) || (isBossPhase && g.state)) {
+            const state = g.state;
+            if (state === 'prepare') {
               const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 100);
               ctx.globalAlpha = pulse;
               ctx.fillStyle = '#ffff00';
               ctx.beginPath(); ctx.arc(g.x, g.y - r - 12 * scale, 3 * scale, 0, Math.PI * 2); ctx.fill();
-            } else if (g.state === 'dash') {
+            } else if (state === 'dash') {
               ctx.globalAlpha = 0.9;
               ctx.fillStyle = '#ff0000';
               ctx.beginPath(); ctx.arc(g.x, g.y - r - 12 * scale, 4 * scale, 0, Math.PI * 2); ctx.fill();
