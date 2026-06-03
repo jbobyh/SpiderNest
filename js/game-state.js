@@ -600,6 +600,108 @@
       return new Set();
     }
 
+    const ENEMY_POOL_TYPE_MAP = {
+      soldier: 'soldier',
+      shooter: 'plevaka',
+      bull: 'bull',
+      buldyga: 'buldyga',
+      cocoon: 'cocoon',
+      bloated: 'bloated',
+    };
+
+    function cellDistanceFromStart(x, y, startX, startY) {
+      return Math.max(Math.abs(x - startX), Math.abs(y - startY));
+    }
+
+    function getDifficultyTier(dist, maxDist) {
+      if (maxDist <= 0) return 'easy';
+      const third = maxDist / 3;
+      if (dist <= third) return 'easy';
+      if (dist <= third * 2) return 'medium';
+      return 'hard';
+    }
+
+    function pickRoomPreset(level, poolName) {
+      const pools = ROOM_POOLS[level] || ROOM_POOLS[1];
+      const pool = pools[poolName] || pools.easy;
+      return { ...pool[Math.floor(Math.random() * pool.length)] };
+    }
+
+    function countEnemiesInPreset(preset) {
+      let total = 0;
+      for (const count of Object.values(preset)) {
+        total += count || 0;
+      }
+      return total;
+    }
+
+    function getEnemyStats(enemyType) {
+      switch (enemyType) {
+        case 'cocoon':
+          return { hp: CONFIG.COCOON_HP, radius: CONFIG.COCOON_RADIUS };
+        case 'bloated':
+          return { hp: CONFIG.BLOATED_HP, radius: CONFIG.BLOATED_RADIUS };
+        case 'bull':
+          return { hp: CONFIG.BULL_HP, radius: CONFIG.BULL_RADIUS };
+        case 'buldyga':
+          return { hp: CONFIG.BULDYGA_HP, radius: CONFIG.BULDYGA_RADIUS };
+        case 'plevaka':
+          return { hp: CONFIG.SHOOTER_HP, radius: CONFIG.SPIDER_RADIUS };
+        default:
+          return { hp: CONFIG.SPIDER_HP, radius: CONFIG.SPIDER_RADIUS };
+      }
+    }
+
+    function createTrappedEnemy(enemyType, gx, gy, homeX, homeY) {
+      const { hp, radius } = getEnemyStats(enemyType);
+      return {
+        x: gx, y: gy,
+        homeX, homeY,
+        trapped: true,
+        phase: Math.random() * Math.PI * 2,
+        wobble: CONFIG.SPIDER_WOBBLE_MIN + Math.random() * (CONFIG.SPIDER_WOBBLE_MAX - CONFIG.SPIDER_WOBBLE_MIN),
+        vx: 0, vy: 0,
+        radius,
+        hp,
+        type: enemyType,
+        shootCd: 0,
+        state: 'chase',
+        stateTimer: 0,
+        dashTargetX: 0,
+        dashTargetY: 0,
+        dashDirX: 0,
+        dashDirY: 0,
+        dashDistance: 0,
+        currentSpeed: enemyType === 'buldyga' ? CONFIG.BULDYGA_SPEED : undefined,
+        speedAccumulator: 0,
+        spawnTimer: enemyType === 'cocoon' ? CONFIG.COCOON_SPAWN_INTERVAL : undefined,
+      };
+    }
+
+    function spawnEnemiesFromPreset(preset, cellX, cellY, trappedSpiders) {
+      const margin = CONFIG.SPIDER_RADIUS + CONFIG.SPIDER_SPAWN_MARGIN;
+      for (const [configKey, count] of Object.entries(preset)) {
+        if (!count) continue;
+        const enemyType = ENEMY_POOL_TYPE_MAP[configKey];
+        if (!enemyType) continue;
+        for (let i = 0; i < count; i++) {
+          const gx = cellX * CP + margin + Math.random() * (CP - margin * 2);
+          const gy = cellY * CP + margin + Math.random() * (CP - margin * 2);
+          trappedSpiders.push(createTrappedEnemy(enemyType, gx, gy, cellX, cellY));
+        }
+      }
+    }
+
+    function setCellEnemies(cellContents, key, contentFields, preset) {
+      cellContents.set(key, {
+        ...contentFields,
+        enemyPreset: preset,
+        enemyCount: countEnemiesInPreset(preset),
+        enemiesReleased: false,
+        enemies: [],
+      });
+    }
+
     function initState(level = 1) {
       // Start level music
       Sounds.playLevelMusic(level);
@@ -610,11 +712,8 @@
       const disabledCount = levelConfig.disabledCells;
       const heartsConfig = levelConfig.heartsCount;
       
-      const levelMultiplier = 1 + (level - 1) * 0.5;
       const cx = Math.floor(gridSize / 2);
       const cy = Math.floor(gridSize / 2);
-
-      const maxDist = Math.max(cx, cy, gridSize - 1 - cx, gridSize - 1 - cy);
       
       let ex, ey, ed;
       do {
@@ -641,6 +740,17 @@
       // Перемешиваем
       shuffleInPlace(availableCells);
 
+      let maxCellDist = 0;
+      for (const cell of availableCells) {
+        const d = cellDistanceFromStart(cell.x, cell.y, cx, cy);
+        if (d > maxCellDist) maxCellDist = d;
+      }
+
+      function tierForCell(cell) {
+        const dist = cellDistanceFromStart(cell.x, cell.y, cx, cy);
+        return getDifficultyTier(dist, maxCellDist);
+      }
+
       // Расставляем ключи — только в клетках с дистанцией 2-4 от центра
       const keyObjs = [];
       const keyCandidates = availableCells.filter(c => {
@@ -651,9 +761,7 @@
       for (let i = 0; i < keysCount; i++) {
         const cell = keyCandidates[i];
         availableCells.splice(availableCells.indexOf(cell), 1);
-        const dist = Math.max(Math.abs(cell.x - cx), Math.abs(cell.y - cy));
-        const enemyCount = (4 + Math.floor(Math.random() * 5)) * dist * levelMultiplier;
-        cellContents.set(cell.k, { type: 'key', enemyCount, enemiesReleased: false });
+        setCellEnemies(cellContents, cell.k, { type: 'key' }, pickRoomPreset(level, 'key'));
         keyObjs.push({ x: (cell.x + 0.5) * CP, y: (cell.y + 0.5) * CP, cellKey: cell.k, collected: false });
       }
 
@@ -661,9 +769,7 @@
       const heartsCount = Math.min(heartsConfig, availableCells.length);
       for (let i = 0; i < heartsCount; i++) {
         const cell = availableCells.shift();
-        const dist = Math.max(Math.abs(cell.x - cx), Math.abs(cell.y - cy));
-        const enemyCount = (3 + Math.floor(Math.random() * 5)) * dist * levelMultiplier;
-        cellContents.set(cell.k, { type: 'heart', enemyCount, enemiesReleased: false });
+        setCellEnemies(cellContents, cell.k, { type: 'heart' }, pickRoomPreset(level, tierForCell(cell)));
       }
 
       // Генерируем оружие на полу: 1 на ур.1, 2 на ур.2, 2 на ур.3
@@ -751,9 +857,7 @@
       for (let i = 0; i < upgsCount; i++) {
         const cell = availableCells.shift();
         const upgId = uniqueUpgrades[i];
-        const dist = Math.max(Math.abs(cell.x - cx), Math.abs(cell.y - cy));
-        const enemyCount = (2 + Math.floor(Math.random() * 5)) * dist * levelMultiplier;
-        cellContents.set(cell.k, { type: 'upgrade', upgradeType: upgId, enemyCount: enemyCount, enemiesReleased: false });
+        setCellEnemies(cellContents, cell.k, { type: 'upgrade', upgradeType: upgId }, pickRoomPreset(level, 'simpleupgrade'));
         upgradeObjs.push({ x: (cell.x + 0.5) * CP, y: (cell.y + 0.5) * CP, cellKey: cell.k, upgradeType: upgId, collected: false });
       }
 
@@ -763,107 +867,26 @@
       for (let i = 0; i < chestCount; i++) {
         const cell = availableCells.shift();
         if (!cell) break;
-        const dist = Math.max(Math.abs(cell.x - cx), Math.abs(cell.y - cy));
-        const enemyCount = (2 + Math.floor(Math.random() * 4)) * Math.max(1, dist) * levelMultiplier;
-        cellContents.set(cell.k, { type: 'chest', enemyCount, enemiesReleased: false });
+        setCellEnemies(cellContents, cell.k, { type: 'chest' }, pickRoomPreset(level, 'cursedupgrade'));
         chestObjs.push({ x: (cell.x + 0.5) * CP, y: (cell.y + 0.5) * CP, cellKey: cell.k, collected: false });
       }
 
-      // Расставляем врагов в оставшиеся клетки
+      // Расставляем врагов в оставшиеся клетки (не на всех — по шансу ENEMY_SPAWN_CHANCE)
       while (availableCells.length > 0) {
         const cell = availableCells.shift();
         if (Math.random() < CONFIG.ENEMY_SPAWN_CHANCE) {
-          const dist = Math.max(Math.abs(cell.x - cx), Math.abs(cell.y - cy));
-          const enemyCount = (1 + Math.floor(Math.random() * 3)) * dist * levelMultiplier;
-          cellContents.set(cell.k, { type: 'enemies', enemyCount, enemiesReleased: false, enemies: [] });
+          setCellEnemies(cellContents, cell.k, { type: 'enemies' }, pickRoomPreset(level, tierForCell(cell)));
         } else {
           cellContents.set(cell.k, { type: 'empty' });
         }
       }
 
-      // Создаём врагов в закрытых комнатах
+      // Создаём врагов в закрытых комнатах по пресетам
       const trappedSpiders = [];
       for (const [k, content] of cellContents) {
-        if (content.enemyCount > 0) {
+        if (content.enemyPreset && content.enemyCount > 0) {
           const { x, y } = cellFromKey(k);
-          for (let i = 0; i < content.enemyCount; i++) {
-            const margin = CONFIG.SPIDER_RADIUS + CONFIG.SPIDER_SPAWN_MARGIN;
-            const gx = x * CP + margin + Math.random() * (CP - margin * 2);
-            const gy = y * CP + margin + Math.random() * (CP - margin * 2);
-            // Определяем тип врага
-            let enemyType;
-            let enemyHp;
-            let enemyRadius = CONFIG.SPIDER_RADIUS;
-            const roll = Math.random();
-            if (level >= 3) {
-              // На уровне 3: кокон/распухший/бык/булдыга/солдат/плевака
-              if (roll < CONFIG.COCOON_CHANCE) {
-                enemyType = 'cocoon';
-                enemyHp = CONFIG.COCOON_HP;
-                enemyRadius = CONFIG.COCOON_RADIUS;
-              } else if (roll < CONFIG.COCOON_CHANCE + CONFIG.BLOATED_CHANCE) {
-                enemyType = 'bloated';
-                enemyHp = CONFIG.BLOATED_HP;
-                enemyRadius = CONFIG.BLOATED_RADIUS;
-              } else if (roll < CONFIG.COCOON_CHANCE + CONFIG.BLOATED_CHANCE + CONFIG.BULL_CHANCE_LVL3) {
-                enemyType = 'bull';
-                enemyHp = CONFIG.BULL_HP;
-                enemyRadius = CONFIG.BULL_RADIUS;
-              } else if (roll < CONFIG.COCOON_CHANCE + CONFIG.BLOATED_CHANCE + CONFIG.BULL_CHANCE_LVL3 + CONFIG.BULDYGA_CHANCE_LVL3) {
-                enemyType = 'buldyga';
-                enemyHp = CONFIG.BULDYGA_HP;
-                enemyRadius = CONFIG.BULDYGA_RADIUS;
-              } else {
-                const isPlevaka = Math.random() < CONFIG.SHOOTER_CHANCE;
-                enemyType = isPlevaka ? 'plevaka' : 'soldier';
-                enemyHp = isPlevaka ? CONFIG.SHOOTER_HP : CONFIG.SPIDER_HP;
-              }
-            } else if (level >= 2) {
-              // На уровнях 2 распределяем между быком, булдыгой и обычными
-              if (roll < CONFIG.BULL_CHANCE) {
-                enemyType = 'bull';
-                enemyHp = CONFIG.BULL_HP;
-                enemyRadius = CONFIG.BULL_RADIUS;
-              } else if (roll < CONFIG.BULL_CHANCE + CONFIG.BULDYGA_CHANCE) {
-                enemyType = 'buldyga';
-                enemyHp = CONFIG.BULDYGA_HP;
-                enemyRadius = CONFIG.BULDYGA_RADIUS;
-              } else {
-                const isPlevaka = Math.random() < CONFIG.SHOOTER_CHANCE;
-                enemyType = isPlevaka ? 'plevaka' : 'soldier';
-                enemyHp = isPlevaka ? CONFIG.SHOOTER_HP : CONFIG.SPIDER_HP;
-              }
-            } else {
-              const isPlevaka = Math.random() < CONFIG.SHOOTER_CHANCE;
-              enemyType = isPlevaka ? 'plevaka' : 'soldier';
-              enemyHp = isPlevaka ? CONFIG.SHOOTER_HP : CONFIG.SPIDER_HP;
-            }
-            trappedSpiders.push({
-              x: gx, y: gy,
-              homeX: x, homeY: y,
-              trapped: true,
-              phase: Math.random() * Math.PI * 2,
-              wobble: CONFIG.SPIDER_WOBBLE_MIN + Math.random() * (CONFIG.SPIDER_WOBBLE_MAX - CONFIG.SPIDER_WOBBLE_MIN),
-              vx: 0, vy: 0,
-              radius: enemyRadius,
-              hp: enemyHp,
-              type: enemyType,
-              shootCd: 0,
-              // Поля для быка
-              state: 'chase', // chase, prepare, dash, rest
-              stateTimer: 0,
-              dashTargetX: 0,
-              dashTargetY: 0,
-              dashDirX: 0,
-              dashDirY: 0,
-              dashDistance: 0,
-              // Поля для булдыги
-              currentSpeed: enemyType === 'buldyga' ? CONFIG.BULDYGA_SPEED : undefined,
-              speedAccumulator: 0,
-              // Поля для кокона
-              spawnTimer: enemyType === 'cocoon' ? CONFIG.COCOON_SPAWN_INTERVAL : undefined,
-            });
-          }
+          spawnEnemiesFromPreset(content.enemyPreset, x, y, trappedSpiders);
         }
       }
 
