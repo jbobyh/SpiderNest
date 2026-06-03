@@ -9,7 +9,7 @@
     }
 
     :root {
-      --bg: #160f09;
+      --bg: #0a0c10;
       --panel: #2b1c10;
       --panel-deep: #1d120a;
       --border: #8a6230;
@@ -25,9 +25,22 @@
     }
 
     body {
-      background:
-        repeating-linear-gradient(90deg, rgba(255, 224, 160, 0.025) 0 1px, transparent 1px 18px),
-        linear-gradient(180deg, #21150c 0%, var(--bg) 42%, #0d0906 100%);
+      background-color: var(--bg);
+      background-image:
+        repeating-linear-gradient(
+          60deg,
+          transparent 0 38px,
+          rgba(200, 215, 195, 0.018) 38px 39px
+        ),
+        repeating-linear-gradient(
+          -60deg,
+          transparent 0 38px,
+          rgba(200, 215, 195, 0.018) 38px 39px
+        ),
+        radial-gradient(ellipse 90% 55% at 50% -8%, rgba(126, 155, 78, 0.14) 0%, transparent 62%),
+        radial-gradient(circle at 12% 88%, rgba(126, 155, 78, 0.09) 0%, transparent 32%),
+        radial-gradient(circle at 90% 82%, rgba(126, 155, 78, 0.07) 0%, transparent 28%),
+        linear-gradient(180deg, #12161e 0%, var(--bg) 40%, #050608 100%);
       color: var(--text);
       font-family: 'Huninn', sans-serif;
       display: flex;
@@ -43,8 +56,40 @@
       position: fixed;
       inset: 0;
       background:
-        linear-gradient(90deg, rgba(255, 202, 103, 0.08), transparent 26%, transparent 74%, rgba(91, 48, 20, 0.2)),
-        linear-gradient(180deg, rgba(255, 224, 160, 0.07), transparent 28%, rgba(0, 0, 0, 0.28));
+        repeating-conic-gradient(
+          from 0deg at 50% -2%,
+          transparent 0deg 11.25deg,
+          rgba(220, 230, 210, 0.05) 11.25deg 12deg
+        ),
+        repeating-conic-gradient(
+          from 18deg at 8% 78%,
+          transparent 0deg 14deg,
+          rgba(126, 155, 78, 0.04) 14deg 14.8deg
+        ),
+        repeating-conic-gradient(
+          from -12deg at 93% 74%,
+          transparent 0deg 13deg,
+          rgba(126, 155, 78, 0.035) 13deg 13.7deg
+        ),
+        repeating-radial-gradient(
+          circle at 50% -2%,
+          transparent 0 52px,
+          rgba(210, 220, 200, 0.045) 52px 53px,
+          transparent 53px 104px
+        ),
+        repeating-radial-gradient(
+          circle at 8% 78%,
+          transparent 0 40px,
+          rgba(126, 155, 78, 0.04) 40px 41px,
+          transparent 41px 80px
+        ),
+        repeating-radial-gradient(
+          circle at 93% 74%,
+          transparent 0 34px,
+          rgba(126, 155, 78, 0.035) 34px 35px,
+          transparent 35px 68px
+        ),
+        linear-gradient(180deg, rgba(126, 155, 78, 0.07), transparent 30%, rgba(0, 0, 0, 0.5));
       pointer-events: none;
       z-index: 0;
     }
