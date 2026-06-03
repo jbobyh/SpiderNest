@@ -140,7 +140,7 @@ const CONFIG = {
   DISABLED_CELLS_COUNT: 15,       // кол-во заблокированных клеток по умолчанию
   BLOCK_CELLS_FOREVER: false,     // блокировать клетки навсегда (дебаг)
   MAX_GENERATION_ATTEMPTS: 1000,  // макс. попыток генерации уровня
-  ENEMY_SPAWN_CHANCE: 0.7,        // шанс спавна врагов в клетке
+  ENEMY_SPAWN_CHANCE: 0.5,        // шанс спавна врагов в клетке
 
   // Pickup distances
   PICKUP_DISTANCE: 10,            // расстояние до предметов (добавляется к радиусу)

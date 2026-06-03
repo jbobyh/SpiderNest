@@ -1986,6 +1986,20 @@
         else if (isPlevaka) img = enemyImages.plevaka;
         else if (isSoldier) img = enemyImages.soldier;
 
+        // Light glow under sprite
+        const glowRadius = r * 1.5;
+        const glowGradient = ctx.createRadialGradient(g.x, g.y, 0, g.x, g.y, glowRadius);
+        glowGradient.addColorStop(0, 'rgba(255, 255, 200, 0.25)');
+        glowGradient.addColorStop(0.5, 'rgba(255, 255, 150, 0.1)');
+        glowGradient.addColorStop(1, 'rgba(255, 255, 100, 0)');
+        ctx.save();
+        ctx.globalAlpha = alpha * 0.6;
+        ctx.fillStyle = glowGradient;
+        ctx.beginPath();
+        ctx.arc(g.x, g.y, glowRadius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
         if (drawEnemySprite(img, g.x, g.y, r / scale, alpha, scale, g.hitFlash || 0, flipSprite)) {
           // Sprite drawn successfully - skip body rendering, draw only HP bar and indicators
           // HP бар
