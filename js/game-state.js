@@ -148,6 +148,18 @@
     const hudShieldImg = new Image();
     hudShieldImg.src = 'img/shield.png';
 
+    // Enemy sprites (500x500px each)
+    const enemyImages = {
+      buldyga:  new Image(),
+      bull:     new Image(),
+      plevaka:  new Image(),
+      soldier:  new Image(),
+    };
+    enemyImages.buldyga.src  = 'img/buldyga.png';
+    enemyImages.bull.src     = 'img/bull.png';
+    enemyImages.plevaka.src  = 'img/plevaka.png';
+    enemyImages.soldier.src  = 'img/soldier.png';
+
     // Weapon sprites
     const weaponImages = {
       pistol:   new Image(),

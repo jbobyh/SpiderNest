@@ -1752,6 +1752,17 @@
       ctx.restore();
     }
 
+    // Helper: draw enemy sprite (500x500px images)
+    function drawEnemySprite(img, x, y, radius, alpha, scale) {
+      if (!img || !img.complete || img.naturalWidth === 0) return false;
+      const drawSize = radius * 3.2 * scale;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.drawImage(img, x - drawSize / 2, y - drawSize / 2, drawSize, drawSize);
+      ctx.restore();
+      return true;
+    }
+
     function drawSpider(g, baseAlpha, scale = 1, skipVisibilityCheck = false) {
       const spiderRadius = (g.radius || CONFIG.SPIDER_RADIUS) * scale;
       if (!skipVisibilityCheck && (g.x + spiderRadius < camera.x || g.x - spiderRadius > camera.x + VIEW_W ||
@@ -1766,7 +1777,62 @@
       const isSoldier = g.type === 'soldier' || g.type === 'chaser';
       const isCocoon = g.type === 'cocoon';
       const isBloated = g.type === 'bloated';
+      const hasSprite = isBull || isBuldyga || isPlevaka || isSoldier;
       ctx.globalAlpha = alpha;
+
+      // Draw sprite for enemies with images (bull, buldyga, plevaka, soldier)
+      if (hasSprite) {
+        let img = null;
+        if (isBull) img = enemyImages.bull;
+        else if (isBuldyga) img = enemyImages.buldyga;
+        else if (isPlevaka) img = enemyImages.plevaka;
+        else if (isSoldier) img = enemyImages.soldier;
+
+        if (drawEnemySprite(img, g.x, g.y, r / scale, alpha, scale)) {
+          // Sprite drawn successfully - skip body rendering, draw only HP bar and indicators
+          // HP бар
+          let maxHp;
+          if (isBull) maxHp = CONFIG.BULL_HP;
+          else if (isBuldyga) maxHp = CONFIG.BULDYGA_HP;
+          else if (isPlevaka) maxHp = CONFIG.SHOOTER_HP;
+          else maxHp = CONFIG.SPIDER_HP;
+
+          if (g.hp !== undefined && g.hp < maxHp) {
+            const hpFrac = Math.max(0, g.hp / maxHp);
+            ctx.globalAlpha = 0.8;
+            ctx.fillStyle = '#1a0030';
+            ctx.fillRect(g.x - r, g.y - r - 8 * scale, r * 2, 3 * scale);
+            if (isBull) {
+              ctx.fillStyle = hpFrac > 0.5 ? '#cc4444' : '#ff0000';
+            } else if (isBuldyga) {
+              ctx.fillStyle = hpFrac > 0.5 ? '#9932cc' : '#dda0dd';
+            } else if (isPlevaka) {
+              ctx.fillStyle = hpFrac > 0.5 ? '#ff8800' : '#ff4400';
+            } else {
+              ctx.fillStyle = hpFrac > 0.5 ? '#44cc22' : '#88ff44';
+            }
+            ctx.fillRect(g.x - r, g.y - r - 8 * scale, r * 2 * hpFrac, 3 * scale);
+          }
+
+          // Индикатор состояния быка (подготовка/рывок)
+          if (isBull && g.state) {
+            if (g.state === 'prepare') {
+              const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 100);
+              ctx.globalAlpha = pulse;
+              ctx.fillStyle = '#ffff00';
+              ctx.beginPath(); ctx.arc(g.x, g.y - r - 12 * scale, 3 * scale, 0, Math.PI * 2); ctx.fill();
+            } else if (g.state === 'dash') {
+              ctx.globalAlpha = 0.9;
+              ctx.fillStyle = '#ff0000';
+              ctx.beginPath(); ctx.arc(g.x, g.y - r - 12 * scale, 4 * scale, 0, Math.PI * 2); ctx.fill();
+            }
+          }
+
+          ctx.globalAlpha = 1;
+          return;
+        }
+        // If sprite failed to draw, fall through to canvas rendering
+      }
 
       if (isCocoon) {
         // Кокон — будет отрисован ниже как спрайт без тени
@@ -1785,6 +1851,9 @@
       } else if (isPlevaka) {
         ctx.fillStyle = '#ff6020';
         ctx.shadowColor = '#ff2200';
+      } else if (isSoldier) {
+        ctx.fillStyle = '#4444aa';
+        ctx.shadowColor = '#222266';
       } else {
         ctx.fillStyle = '#228822';
         ctx.shadowColor = '#114411';
@@ -1882,6 +1951,10 @@
           ctx.lineTo(spikeX + r * 0.1, spikeY);
           ctx.fill();
         }
+      } else if (isSoldier) {
+        // Солдат: компактное тело
+        ctx.beginPath(); ctx.ellipse(g.x, g.y + r * 0.2, r * 0.65, r * 0.7, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(g.x, g.y - r * 0.45, r * 0.45, r * 0.45, 0, 0, Math.PI * 2); ctx.fill();
       } else {
         // Обычное тело (паук) — abdomen + cephalothorax
         ctx.beginPath(); ctx.ellipse(g.x, g.y + r * 0.25, r * 0.7, r * 0.75, 0, 0, Math.PI * 2); ctx.fill();
@@ -1902,6 +1975,9 @@
       } else if (isPlevaka) {
         ctx.strokeStyle = '#ff6020';
         ctx.lineWidth = Math.max(1, r * 0.18);
+      } else if (isSoldier) {
+        ctx.strokeStyle = '#4444aa';
+        ctx.lineWidth = Math.max(1, r * 0.16);
       } else {
         ctx.strokeStyle = '#228822';
         ctx.lineWidth = Math.max(1, r * 0.18);
@@ -1934,6 +2010,8 @@
         ctx.fillStyle = '#dda0dd'; // Светло-фиолетовые глаза у булдыги
       } else if (isPlevaka) {
         ctx.fillStyle = '#ffaa00';
+      } else if (isSoldier) {
+        ctx.fillStyle = '#aaaaff';
       } else {
         ctx.fillStyle = '#88ff44';
       }
@@ -2565,11 +2643,11 @@
       }
 
       // Оверлей с текстом
-      ctx.fillStyle = 'rgba(255,68,68,0.85)';
-      ctx.font = 'bold 14px "Huninn"';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'top';
-      ctx.fillText('⚔ ENTERING BATTLE...', VIEW_W / 2, 10);
+      // ctx.fillStyle = 'rgba(255,68,68,0.85)';
+      // ctx.font = 'bold 14px "Huninn"';
+      // ctx.textAlign = 'center';
+      // ctx.textBaseline = 'top';
+      // ctx.fillText('⚔ ENTERING BATTLE...', VIEW_W / 2, 10);
 
       drawHUD(s);
     }
@@ -2586,7 +2664,7 @@
       ctx.font = 'bold 14px "Huninn"';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      ctx.fillText('✓ BATTLE COMPLETE', VIEW_W / 2, 10);
+      ctx.fillText('✓ ПОБЕДА', VIEW_W / 2, 10);
     }
 
     // ============================================================
