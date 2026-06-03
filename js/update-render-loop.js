@@ -1908,9 +1908,18 @@
     }
 
     // Helper: draw enemy sprite (500x500px images)
-    function drawEnemySprite(img, x, y, radius, alpha, scale, hitFlash) {
+    function drawEnemySprite(img, x, y, radius, alpha, scale, hitFlash, flip = false) {
       if (!img || !img.complete || img.naturalWidth === 0) return false;
       const drawSize = radius * 3.2 * scale;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      if (flip) {
+        ctx.translate(x, y);
+        ctx.scale(-1, 1);
+        ctx.translate(-drawSize / 2, -drawSize / 2);
+      } else {
+        ctx.translate(x - drawSize / 2, y - drawSize / 2);
+      }
       if (hitFlash > 0) {
         const sz = Math.ceil(drawSize);
         if (_hitFlashCanvas.width < sz) _hitFlashCanvas.width = sz;
@@ -1923,16 +1932,11 @@
         _hitFlashCtx.fillRect(0, 0, sz, sz);
         _hitFlashCtx.globalCompositeOperation = 'source-over';
         _hitFlashCtx.globalAlpha = 1;
-        ctx.save();
-        ctx.globalAlpha = alpha;
-        ctx.drawImage(_hitFlashCanvas, 0, 0, sz, sz, x - drawSize / 2, y - drawSize / 2, drawSize, drawSize);
-        ctx.restore();
+        ctx.drawImage(_hitFlashCanvas, 0, 0, sz, sz, 0, 0, drawSize, drawSize);
       } else {
-        ctx.save();
-        ctx.globalAlpha = alpha;
-        ctx.drawImage(img, x - drawSize / 2, y - drawSize / 2, drawSize, drawSize);
-        ctx.restore();
+        ctx.drawImage(img, 0, 0, drawSize, drawSize);
       }
+      ctx.restore();
       return true;
     }
 
@@ -1953,6 +1957,9 @@
       const hasSprite = isBull || isBuldyga || isPlevaka || isSoldier;
       ctx.globalAlpha = alpha;
 
+      // Calculate flip: player left of enemy -> flip sprite (not for cocoon, only in battle)
+      const flipSprite = !isCocoon && state.phase === 'battle' && state.battle && state.battle.player.x < g.x;
+
       // Draw sprite for enemies with images (bull, buldyga, plevaka, soldier)
       if (hasSprite) {
         let img = null;
@@ -1961,7 +1968,7 @@
         else if (isPlevaka) img = enemyImages.plevaka;
         else if (isSoldier) img = enemyImages.soldier;
 
-        if (drawEnemySprite(img, g.x, g.y, r / scale, alpha, scale, g.hitFlash || 0)) {
+        if (drawEnemySprite(img, g.x, g.y, r / scale, alpha, scale, g.hitFlash || 0, flipSprite)) {
           // Sprite drawn successfully - skip body rendering, draw only HP bar and indicators
           // HP бар
           let maxHp;
