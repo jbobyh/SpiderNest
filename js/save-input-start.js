@@ -391,6 +391,7 @@
             if (state.player.x > ex0 && state.player.x < ex1 && state.player.y > ey0 && state.player.y < ey1) {
               state.phase = 'level_complete';
               Sounds.levelcomplete();
+              Sounds.stopLevelMusic(CONFIG.FADE_DURATION_LEVEL_END);
               return;
             }
           }

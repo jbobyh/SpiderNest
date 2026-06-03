@@ -398,6 +398,7 @@
         isBossBattle: true,
       };
       Sounds.zoom();
+      Sounds.playBossMusic();
       state.phase = 'zoom_transition';
     }
 

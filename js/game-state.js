@@ -53,6 +53,127 @@
       ambienceSyncVolume() {
         if (Sounds._ambience) Sounds._ambience.volume = Sounds._volume * CONFIG.AMBIENCE_VOLUME_MULT;
       },
+
+      // Level music system
+      _levelMusic: null,
+      _bossMusic: null,
+      _currentMusicLevel: null,
+      _musicFade: null, // { from: Audio, to: Audio, fromVol: number, toVol: number, duration: number, elapsed: number }
+
+      playLevelMusic(level) {
+        const cfg = CONFIG.MUSIC[level];
+        if (!cfg) return;
+        // Stop any existing level music
+        if (Sounds._levelMusic) {
+          Sounds._levelMusic.pause();
+          Sounds._levelMusic.currentTime = 0;
+        }
+        Sounds._currentMusicLevel = level;
+        Sounds._levelMusic = new Audio('sounds/' + cfg.file);
+        Sounds._levelMusic.loop = true;
+        Sounds._levelMusic.volume = cfg.volume * Sounds._volume;
+        Sounds._levelMusic.play().catch(() => {});
+      },
+
+      stopLevelMusic(fadeDuration = 0) {
+        if (!Sounds._levelMusic) return;
+        if (fadeDuration > 0 && Sounds._levelMusic.volume > 0) {
+          Sounds._musicFade = {
+            from: Sounds._levelMusic,
+            to: null,
+            fromVol: Sounds._levelMusic.volume,
+            toVol: 0,
+            duration: fadeDuration,
+            elapsed: 0,
+            stopOnComplete: true,
+          };
+        } else {
+          Sounds._levelMusic.pause();
+          Sounds._levelMusic.currentTime = 0;
+          Sounds._levelMusic = null;
+        }
+        Sounds._currentMusicLevel = null;
+      },
+
+      playBossMusic() {
+        console.log('playBossMusic: _levelMusic exists:', !!Sounds._levelMusic, 'volume:', Sounds._levelMusic?.volume);
+        const cfg = CONFIG.MUSIC.BOSS;
+        if (!cfg) return;
+        // Setup boss music
+        Sounds._bossMusic = new Audio('sounds/' + cfg.file);
+        Sounds._bossMusic.loop = true;
+        Sounds._bossMusic.volume = 0;
+        const targetVol = cfg.volume * Sounds._volume;
+        Sounds._bossMusic.volume = targetVol;
+        Sounds._bossMusic.play().catch(() => {});
+        // Start fade from level to boss
+        const fadeDuration = CONFIG.FADE_DURATION_LEVEL_TO_BOSS;
+        Sounds._musicFade = {
+          from: Sounds._levelMusic,
+          to: Sounds._bossMusic,
+          fromVol: Sounds._levelMusic ? Sounds._levelMusic.volume : 0,
+          toVol: targetVol,
+          duration: fadeDuration,
+          elapsed: 0,
+          stopOnComplete: false,
+        };
+      },
+
+      stopBossMusic() {
+        if (!Sounds._bossMusic) return;
+        const cfg = CONFIG.MUSIC[Sounds._currentMusicLevel] || CONFIG.MUSIC[1];
+        // Resume level music if available
+        if (Sounds._levelMusic) {
+          Sounds._levelMusic.volume = 0;
+          Sounds._levelMusic.play().catch(() => {});
+        } else if (cfg) {
+          Sounds._levelMusic = new Audio('sounds/' + cfg.file);
+          Sounds._levelMusic.loop = true;
+          Sounds._levelMusic.volume = 0;
+          Sounds._levelMusic.play().catch(() => {});
+        }
+        // Start fade from boss to level
+        const fadeDuration = CONFIG.FADE_DURATION_BOSS_TO_LEVEL;
+        Sounds._musicFade = {
+          from: Sounds._bossMusic,
+          to: Sounds._levelMusic,
+          fromVol: Sounds._bossMusic.volume,
+          toVol: cfg ? cfg.volume * Sounds._volume : 0.3,
+          duration: fadeDuration,
+          elapsed: 0,
+          stopOnComplete: true, // stop boss music after fade
+        };
+      },
+
+      updateMusicFade(dt) {
+        if (!Sounds._musicFade) return;
+        const fade = Sounds._musicFade;
+        fade.elapsed += dt;
+        // Log at start and end of fade
+        if (fade.elapsed < 0.1 || fade.elapsed > fade.duration - 0.1) {
+          console.log('MusicFade:', { elapsed: fade.elapsed.toFixed(2), duration: fade.duration, progress: (fade.elapsed/fade.duration).toFixed(2), fromVol: fade.from?.volume?.toFixed(3), toVol: fade.to?.volume?.toFixed(3) });
+        }
+        const progress = Math.min(fade.elapsed / fade.duration, 1);
+        // Fade out source
+        if (fade.from) {
+          fade.from.volume = fade.fromVol * (1 - progress);
+        }
+        // Fade in target
+        if (fade.to) {
+          fade.to.volume = fade.toVol * progress;
+        }
+        // Complete fade
+        if (progress >= 1) {
+          if (fade.stopOnComplete && fade.from) {
+            fade.from.pause();
+            fade.from.currentTime = 0;
+          }
+          if (fade.to === null) {
+            Sounds._levelMusic = null;
+          }
+          Sounds._musicFade = null;
+        }
+      },
       footstep: function(dt) {
         Sounds._footstepTimer -= dt;
         if (Sounds._footstepTimer <= 0) {
@@ -465,6 +586,9 @@
     }
 
     function initState(level = 1) {
+      // Start level music
+      Sounds.playLevelMusic(level);
+
       const levelConfig = getLevelConfig(level);
       const gridSize = levelConfig.gridSize;
       const keysRequired = levelConfig.keysRequired;

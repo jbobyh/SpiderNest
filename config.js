@@ -165,6 +165,17 @@ const CONFIG = {
   SHOT_VOLUME_MULT: 0.4,          // громкость выстрелов относительно основной
   FOOTSTEP_INTERVAL: 0.25,        // секунд между шагами
 
+  // Music
+  MUSIC: {
+    1: { file: 'Three Red Hearts Candy.ogg', volume: 0.2 },
+    2: { file: 'Clement Panchout - Sweet 70s.wav', volume: 0.2 },
+    3: { file: 'Three Red Hearts - Box Jump.ogg', volume: 0.2 },
+    BOSS: { file: 'GEN Death metal.wav', volume: 0.3 },
+  },
+  FADE_DURATION_LEVEL_TO_BOSS: 0.5,  // seconds
+  FADE_DURATION_BOSS_TO_LEVEL: 0.5,  // seconds
+  FADE_DURATION_LEVEL_END: 2.0,      // seconds
+
   // Debug
   DEBUG_INVULNERABLE: false,      // дебаг: неуязвимость игрока от врагов
   DEBUG_SPREAD_INDICATOR: false,  // дебаг: отображать индикатор угла разброса
@@ -431,7 +442,7 @@ const WEAPON_DEFS = {
     pellets: 1,
     spread: 0.08,
     damage: 1*2,
-    cooldown: 0.6,
+    cooldown: 0.7,
     bulletSpeed: 450,
     range: 27,
     penetrate: 1,

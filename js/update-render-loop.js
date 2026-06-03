@@ -3304,6 +3304,9 @@
         return;
       }
 
+      // Music fade works in all phases
+      Sounds.updateMusicFade(dt);
+
       if (state && state.phase === 'play') {
         update(state, dt);
         draw(state);

@@ -851,6 +851,7 @@
               // Босс убит - открываем выбор проклятого улучшения
               if (g.isBoss && b.isBossBattle) {
                 s.bossDefeated = true;
+                Sounds.stopBossMusic();
                 showUpgradePopup('БОСС ПОБЕЖДЕН!', '#ff4400');
                 openCursedChoice(s, null);
                 return;
