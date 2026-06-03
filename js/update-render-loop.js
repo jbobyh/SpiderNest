@@ -892,18 +892,22 @@
       }
 
       // Апгрейды
+      const allEnemiesDead = b.activeSpiders.length === 0;
       for (const upg of b.upgrades) {
         if (upg.collected) continue;
         const upgDef = UPGRADE_TYPES.find(u => u.id === upg.upgradeType);
         if (upgDef) {
+          const pulse = allEnemiesDead ? 0.7 + 0.3 * Math.sin(Date.now() * 0.007) : 1;
+          ctx.globalAlpha = pulse;
           ctx.fillStyle = upgDef.color;
           ctx.shadowColor = upgDef.color;
-          ctx.shadowBlur = 15 * BATTLE_SCALE;
+          ctx.shadowBlur = (allEnemiesDead ? 10 + 10 * pulse : 15) * BATTLE_SCALE;
           ctx.font = `bold ${24 * BATTLE_SCALE}px "Huninn"`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText('⬆', upg.x, upg.y);
+          ctx.fillText(upgDef.icon, upg.x, upg.y);
           ctx.shadowBlur = 0;
+          ctx.globalAlpha = 1;
         }
       }
 
@@ -1386,7 +1390,7 @@
               ctx.font = 'bold 20px "Huninn"';
               ctx.textAlign = 'center';
               ctx.textBaseline = 'middle';
-              ctx.fillText('⬆', hx, hy);
+              ctx.fillText(upgDef.icon, hx, hy);
               ctx.shadowBlur = 0;
             }
           }
@@ -1474,7 +1478,7 @@
           ctx.font = 'bold 24px "Huninn"';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText('⬆', upg.x, upg.y);
+          ctx.fillText(upgDef.icon, upg.x, upg.y);
           ctx.shadowBlur = 0;
         }
       }
@@ -2741,7 +2745,7 @@
           ctx.font = 'bold 24px "Huninn"';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText('⬆', upg.x, upg.y);
+          ctx.fillText(upgDef.icon, upg.x, upg.y);
           ctx.shadowBlur = 0;
         }
       }

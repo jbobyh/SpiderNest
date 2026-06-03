@@ -152,12 +152,12 @@
           break;
       }
       const upgDef = UPGRADE_TYPES.find(u => u.id === type) || CURSED_UPGRADE_TYPES.find(u => u.id === type);
-      if (upgDef && showPopup) showUpgradePopup(upgDef.label, upgDef.color);
+      if (upgDef && showPopup) showUpgradePopup(upgDef.label, upgDef.color, upgDef.icon);
     }
 
-    function showUpgradePopup(text, color) {
+    function showUpgradePopup(text, color, icon = '⬆') {
       const el = document.getElementById('upgrade-popup');
-      el.textContent = '⬆ ' + text;
+      el.textContent = icon + ' ' + text;
       el.style.borderColor = color;
       el.style.color = color;
       el.style.textShadow = `0 0 12px ${color}`;
