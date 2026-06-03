@@ -3215,6 +3215,9 @@
       const dt = Math.min((ts - lastTime) / 1000, 0.05);
       lastTime = ts;
 
+      // Music crossfades must run during pause (e.g. cursed choice after boss)
+      Sounds.updateMusicFade(dt);
+
       if (paused) {
         if (state) {
           if (state.phase === 'play') draw(state);
@@ -3289,9 +3292,6 @@
         animId = requestAnimationFrame(loop);
         return;
       }
-
-      // Music fade works in all phases
-      Sounds.updateMusicFade(dt);
 
       if (state && state.phase === 'play') {
         update(state, dt);
