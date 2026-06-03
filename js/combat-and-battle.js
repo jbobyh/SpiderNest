@@ -221,6 +221,7 @@
             enemiesArray.splice(i, 1);
             continue;
           }
+          if (enemy.isBoss) continue;
           spawnCorpse(corpseArray, enemy, (enemy.radius || CONFIG.SPIDER_RADIUS) * scale);
           // Создаем партиклы смерти врага
           for (let k = 0; k < CONFIG.DEATH_PARTICLES_COUNT; k++) {
