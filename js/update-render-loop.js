@@ -2589,6 +2589,49 @@
         }
       }
 
+      // ── Controls hint panel (bottom-right) ────────────────────────
+      {
+        const entries = [
+          { img: hudCtrlF,     label: 'подобрать' },
+          { img: hudCtrlShift, label: 'рывок' },
+          { img: hudCtrlTab,   label: 'характ.' },
+          { img: hudCtrlML,    label: 'выстрел' },
+          { img: hudCtrlMR,    label: 'откр/закр' },
+        ];
+        const iconSize  = 24;
+        const iconGap   = 8;
+        const labelH    = 12;
+        const padX      = 20;
+        const padY      = 6;
+        const marginR   = 40;
+        const marginB   = 8;
+        const weaponSlotH = marginB; // slotSize + labelH + slotPad*2 + screenMargin
+        const totalW    = entries.length * 1.5 * iconSize + (entries.length - 1) * iconGap + padX * 2;
+        const totalH    = padY + iconSize + 3 + labelH + padY;
+        const panelX    = VIEW_W - totalW - marginR;
+        const panelY    = VIEW_H - totalH - weaponSlotH - 4;
+
+        ctx.fillStyle = 'rgba(5,10,15,0.65)';
+        ctx.fillRect(panelX, panelY, totalW, totalH);
+        ctx.strokeStyle = 'rgba(26,58,92,0.55)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(panelX, panelY, totalW, totalH);
+
+        for (let i = 0; i < entries.length; i++) {
+          const { img, label } = entries[i];
+          const ix = panelX + padX + i * 1.5 * (iconSize + iconGap);
+          const iy = panelY + padY;
+          if (img.complete && img.naturalWidth > 0) {
+            ctx.drawImage(img, ix, iy, iconSize, iconSize);
+          }
+          ctx.font = '9px "Huninn"';
+          ctx.fillStyle = 'rgba(180,160,130,0.8)';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'top';
+          ctx.fillText(label, ix + iconSize / 2, iy + iconSize + 3);
+        }
+      }
+
       ctx.restore();
     }
 

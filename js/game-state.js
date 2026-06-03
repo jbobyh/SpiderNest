@@ -201,6 +201,12 @@
     const hudShieldImg = new Image();
     hudShieldImg.src = 'img/shield.png';
 
+    const hudCtrlF     = new Image(); hudCtrlF.src     = 'img/keyboard_f.png';
+    const hudCtrlShift = new Image(); hudCtrlShift.src = 'img/keyboard_shift.png';
+    const hudCtrlTab   = new Image(); hudCtrlTab.src   = 'img/keyboard_tab.png';
+    const hudCtrlML    = new Image(); hudCtrlML.src    = 'img/mouse_left.png';
+    const hudCtrlMR    = new Image(); hudCtrlMR.src    = 'img/mouse_right.png';
+
     // Enemy sprites (500x500px each)
     const enemyImages = {
       buldyga:  new Image(),
