@@ -13,7 +13,7 @@ const CONFIG = {
   // Player
   INITIAL_LIVES: 3,       // начальное кол-во жизней
   LIVES_PER_HEART: 1,     // жизней на одно сердце
-  PLAYER_SPEED: 80,      // скорость игрока (пикс/сек)
+  PLAYER_SPEED: 100,      // скорость игрока (пикс/сек)
   PLAYER_RADIUS: 3,       // радиус коллизии игрока
   PLAYER_SPRITE_RADIUS: 15,        // визуальный радиус спрайта (половина ширины отрисовки)
   PLAYER_INVULNERABLE_TIME: 1,    // секунд неуязвимости после урона
@@ -70,8 +70,8 @@ const CONFIG = {
   SHAKE_DECAY: 0.9,       // затухание тряски (множитель за кадр)
 
   // Spiders
-  SPIDER_HP: 3,         // здоровье паука
-  SPIDER_SPEED: 40,       // скорость паука (пикс/сек)
+  SPIDER_HP: 4,         // здоровье паука
+  SPIDER_SPEED: 60,       // скорость паука (пикс/сек)
   SPIDER_RADIUS: 4,       // радиус коллизии паука
   SPIDER_PHASE_SPEED: 2,          // скорость анимации парения
   SPIDER_WOBBLE_MIN: 0.2, // мин. амплитуда покачивания
@@ -79,8 +79,8 @@ const CONFIG = {
   SPIDER_SPAWN_MARGIN: 10,        // отступ от стен при спавне
 
   // Shooters
-  SHOOTER_HP: 2,             // здоровье плеваки
-  SHOOTER_SPEED: 30,          // скорость плеваки (пикс/сек)
+  SHOOTER_HP: 3,             // здоровье плеваки
+  SHOOTER_SPEED: 50,          // скорость плеваки (пикс/сек)
   SHOOTER_RADIUS: 5,          // радиус коллизии плеваки
   SHOOTER_BULLET_SPEED: 75,  // скорость пули плеваки
   SHOOTER_SHOOT_RANGE_CELLS: 1.0, // дальность стрельбы плеваки (в клетках)
@@ -99,33 +99,33 @@ const CONFIG = {
   BULDYGA_CHANCE_LVL3: 0.20,      // шанс что враг будет булдыгой на 3 уровне (после быка)
 
   // Bull
-  BULL_HP: 5,           // здоровье быка
-  BULL_SPEED: 45,         // скорость быка (пикс/сек)
+  BULL_HP: 6,           // здоровье быка
+  BULL_SPEED: 70,         // скорость быка (пикс/сек)
   BULL_RADIUS: 4,         // радиус коллизии быка
   BULL_PREPARE_TIME: 1,         // время подготовки рывка (сек)
   BULL_DASH_DISTANCE_CELLS: 1.0,  // дистанция рывка быка (в клетках)
-  BULL_REST_TIME: 2.0,            // время отдыха после рывка (сек)
+  BULL_REST_TIME: 1.5,            // время отдыха после рывка (сек)
   BULL_CHARGE_DIST_CELLS: 0.75,    // дистанция начала атаки быка (в клетках)
   BULL_ATTACK_DIST_CELLS: 1.0,    // дистанция удара быка (в клетках)
 
   // Buldyga
-  BULDYGA_HP: 8,        // здоровье булдыги
-  BULDYGA_SPEED: 40,              // начальная скорость
+  BULDYGA_HP: 10,        // здоровье булдыги
+  BULDYGA_SPEED: 60,              // начальная скорость
   BULDYGA_SPEED_INCREMENT: 5,    // ускорение каждую секунду
   BULDYGA_RADIUS: 6,     // радиус коллизии булдыги
   BULDYGA_ACCEL: 180,             // ускорение инерции (пикс/с²)
   BULDYGA_FRICTION: 3.5,          // коэффициент торможения (затухание скорости)
 
   // Cocoon (spawner)
-  COCOON_HP: 6,         // здоровье кокона
+  COCOON_HP: 10,         // здоровье кокона
   COCOON_RADIUS: 5,      // радиус коллизии кокона
   COCOON_SPAWN_INTERVAL: 3.0,     // секунд между спавнами солдат
 
   // Bloated (explodes on death)
-  BLOATED_HP: 4,        // здоровье распухшего
-  BLOATED_SPEED: 30,      // скорость распухшего (пикс/сек)
+  BLOATED_HP: 5,        // здоровье распухшего
+  BLOATED_SPEED: 60,      // скорость распухшего (пикс/сек)
   BLOATED_RADIUS: 6,      // радиус коллизии распухшего
-  BLOATED_DEATH_SHOT_SPEED: 90,  // скорость пули при смерти (как у плеваки)
+  BLOATED_DEATH_SHOT_SPEED: 150,  // скорость пули при смерти (как у плеваки)
 
   // Level generation
   DISABLED_CELLS_COUNT: 15,       // кол-во заблокированных клеток по умолчанию
@@ -186,34 +186,46 @@ const LEVEL_CHEST_COUNTS   = { 1: 1, 2: 2, 3: 3 };
 const ROOM_POOLS = {
   1: {
     easy: [
-      { soldier: 1, shooter: 0 },
-      { soldier: 2, shooter: 0 },
-      { soldier: 1, shooter: 1 },
+      { soldier: 3, shooter: 2 },
+      { soldier: 2, shooter: 3 },
+      { shooter: 4 },
+      { soldier: 5 },
+      { buldyga: 1 },
     ],
     medium: [
-      { soldier: 2, shooter: 1 },
-      { soldier: 3, shooter: 0 },
-      { soldier: 2, shooter: 2 },
+      { bloated: 3 },
+      { buldyga: 2 },
+      { soldier: 4, shooter: 3 },
+      { soldier: 3, shooter: 4 },
+      { bloated: 2, soldier: 2, shooter: 1 },
     ],
     hard: [
-      { soldier: 3, shooter: 1 },
-      { soldier: 4, shooter: 1 },
-      { soldier: 3, shooter: 2 },
+      { buldyga: 3 },
+      { bloated: 3 },
+      { bloated: 3, shooter: 4 },
+      { soldier: 6, shooter: 2 },
+      { buldyga: 2, shooter: 3 },
     ],
     key: [
-      { soldier: 2, shooter: 1 },
-      { soldier: 3, shooter: 1 },
-      { soldier: 2, shooter: 2 },
+      { buldyga: 4 },
+      { bloated: 4 },
+      { bloated: 4, shooter: 5 },
+      { soldier: 7, shooter: 3 },
+      { buldyga: 3, shooter: 4 },
     ],
     simpleupgrade: [
-      { soldier: 1, shooter: 0 },
-      { soldier: 1, shooter: 1 },
-      { soldier: 2, shooter: 0 },
+      { buldyga: 4 },
+      { bloated: 4 },
+      { bloated: 4, shooter: 5 },
+      { soldier: 7, shooter: 3 },
+      { buldyga: 3, shooter: 4 },
     ],
     cursedupgrade: [
-      { soldier: 2, shooter: 1 },
-      { soldier: 3, shooter: 0 },
-      { soldier: 2, shooter: 2 },
+      { buldyga: 4 },
+      { bloated: 4 },
+      { bloated: 4, shooter: 5 },
+      { soldier: 7, shooter: 3 },
+      { buldyga: 3, shooter: 4 },
     ],
     enemy: [
       { soldier: 3, shooter: 0 },
@@ -223,34 +235,59 @@ const ROOM_POOLS = {
   },
   2: {
     easy: [
-      { soldier: 2, shooter: 1, bull: 0, buldyga: 0 },
-      { soldier: 1, shooter: 1, bull: 1, buldyga: 0 },
-      { soldier: 2, shooter: 0, bull: 1, buldyga: 0 },
+      { bloated: 3, bull: 1 },
+      { buldyga: 2, bull: 1 },
+      { soldier: 4, shooter: 3, bull: 1 },
+      { soldier: 3, shooter: 4, bull: 1 },
+      { bloated: 2, soldier: 2, shooter: 1, bull: 1 },
+      { bull: 3, buldyga: 1 },
+      { soldier: 3, buldyga: 1 },
+      { bull: 4 },
     ],
     medium: [
-      { soldier: 2, shooter: 1, bull: 1, buldyga: 0 },
-      { soldier: 2, shooter: 2, bull: 0, buldyga: 1 },
-      { soldier: 1, shooter: 1, bull: 1, buldyga: 1 },
+      { buldyga: 4, bull: 2 },
+      { bloated: 3, bull: 2 },
+      { bloated: 3, shooter: 4, bull: 2 },
+      { soldier: 6, shooter: 2, bull: 2 },
+      { buldyga: 2, shooter: 3, bull: 2 },
+      { bull: 6 },
+      { bloated: 5 },
     ],
     hard: [
-      { soldier: 3, shooter: 1, bull: 1, buldyga: 1 },
-      { soldier: 2, shooter: 2, bull: 2, buldyga: 0 },
-      { soldier: 2, shooter: 1, bull: 1, buldyga: 2 },
+      { buldyga: 6, bull: 3, shooter: 4 },
+      { bloated: 4, bull: 4, shooter: 2 },
+      { bloated: 6, shooter: 4, bull: 3 },
+      { soldier: 8, shooter: 4, bull: 3 },
+      { buldyga: 4, shooter: 4, bull: 3 },
+      { bull: 8 },
+      { bloated: 6, bull: 3 },
     ],
     key: [
-      { soldier: 2, shooter: 1, bull: 1, buldyga: 1 },
-      { soldier: 3, shooter: 1, bull: 1, buldyga: 0 },
-      { soldier: 2, shooter: 2, bull: 0, buldyga: 1 },
+      { buldyga: 8, bull: 5, shooter: 4 },
+      { bloated: 6, bull: 3, shooter: 6 },
+      { bloated: 6, shooter: 6, bull: 4 },
+      { soldier: 10, shooter: 4, bull: 2 },
+      { buldyga: 6, shooter: 4, bull: 4 },
+      { bull: 10 },
+      { bloated: 8, bull: 5 },
     ],
     simpleupgrade: [
-      { soldier: 1, shooter: 1, bull: 0, buldyga: 0 },
-      { soldier: 2, shooter: 0, bull: 1, buldyga: 0 },
-      { soldier: 1, shooter: 1, bull: 1, buldyga: 0 },
+      { buldyga: 8, bull: 5, shooter: 4 },
+      { bloated: 6, bull: 3, shooter: 6 },
+      { bloated: 6, shooter: 6, bull: 4 },
+      { soldier: 10, shooter: 4, bull: 2 },
+      { buldyga: 6, shooter: 4, bull: 4 },
+      { bull: 10 },
+      { bloated: 8, bull: 6 },
     ],
     cursedupgrade: [
-      { soldier: 2, shooter: 1, bull: 1, buldyga: 0 },
-      { soldier: 2, shooter: 2, bull: 0, buldyga: 1 },
-      { soldier: 3, shooter: 0, bull: 1, buldyga: 1 },
+      { buldyga: 8, bull: 5, shooter: 4 },
+      { bloated: 6, bull: 3, shooter: 6 },
+      { bloated: 6, shooter: 6, bull: 4 },
+      { soldier: 10, shooter: 4, bull: 2 },
+      { buldyga: 6, shooter: 4, bull: 4 },
+      { bull: 10 },
+      { bloated: 8, bull: 6 },
     ],
     enemy: [
       { soldier: 3, shooter: 1, bull: 1, buldyga: 1 },
@@ -260,24 +297,40 @@ const ROOM_POOLS = {
   },
   3: {
     easy: [
-      { soldier: 2, shooter: 1, bull: 1, buldyga: 0, cocoon: 0, bloated: 0 },
-      { soldier: 1, shooter: 1, bull: 0, buldyga: 1, cocoon: 1, bloated: 0 },
-      { soldier: 2, shooter: 0, bull: 1, buldyga: 0, cocoon: 0, bloated: 1 },
+      { buldyga: 4, bull: 2, cocoon: 1 },
+      { bloated: 3, bull: 2, cocoon: 1 },
+      { bloated: 3, shooter: 4, bull: 2, cocoon: 1 },
+      { soldier: 6, shooter: 2, bull: 2, cocoon: 1 },
+      { buldyga: 2, shooter: 3, bull: 2, cocoon: 1 },
+      { bull: 6, cocoon: 1 },
+      { bloated: 5, cocoon: 1 },
     ],
     medium: [
-      { soldier: 2, shooter: 1, bull: 1, buldyga: 1, cocoon: 0, bloated: 1 },
-      { soldier: 2, shooter: 2, bull: 0, buldyga: 1, cocoon: 1, bloated: 0 },
-      { soldier: 1, shooter: 1, bull: 1, buldyga: 1, cocoon: 0, bloated: 2 },
+      { buldyga: 6, bull: 3, shooter: 4, cocoon: 1 },
+      { bloated: 4, bull: 4, shooter: 2, cocoon: 1 },
+      { bloated: 6, shooter: 4, bull: 3, cocoon: 1 },
+      { soldier: 8, shooter: 4, bull: 3, cocoon: 1 },
+      { buldyga: 4, shooter: 4, bull: 3, cocoon: 1 },
+      { bull: 8, cocoon: 1 },
+      { bloated: 6, bull: 3, cocoon: 1 },
     ],
     hard: [
-      { soldier: 3, shooter: 1, bull: 1, buldyga: 1, cocoon: 1, bloated: 1 },
-      { soldier: 2, shooter: 2, bull: 2, buldyga: 1, cocoon: 0, bloated: 2 },
-      { soldier: 2, shooter: 1, bull: 1, buldyga: 2, cocoon: 1, bloated: 1 },
+      { buldyga: 8, bull: 4, shooter: 6, cocoon: 2 },
+      { bloated: 5, bull: 6, shooter: 3, cocoon: 2 },
+      { bloated: 8, shooter: 6, bull: 6, cocoon: 2 },
+      { soldier: 8, shooter: 5, bull: 5, cocoon: 2 },
+      { buldyga: 6, shooter: 5, bull: 5, cocoon: 2 },
+      { bull: 10, cocoon: 2 },
+      { bloated: 8, bull: 4, cocoon: 2 },
     ],
     key: [
-      { soldier: 2, shooter: 1, bull: 1, buldyga: 1, cocoon: 1, bloated: 0 },
-      { soldier: 3, shooter: 1, bull: 1, buldyga: 0, cocoon: 0, bloated: 2 },
-      { soldier: 2, shooter: 2, bull: 0, buldyga: 1, cocoon: 1, bloated: 1 },
+      { buldyga: 8, bull: 4, shooter: 6, cocoon: 5 },
+      { bloated: 5, bull: 6, shooter: 3, cocoon: 4 },
+      { bloated: 8, shooter: 6, bull: 6, cocoon: 5 },
+      { soldier: 8, shooter: 5, bull: 5, cocoon: 4 },
+      { buldyga: 6, shooter: 5, bull: 5, cocoon: 5 },
+      { bull: 10, cocoon: 4 },
+      { bloated: 8, bull: 4, cocoon: 4 },
     ],
     simpleupgrade: [
       { soldier: 1, shooter: 1, bull: 1, buldyga: 0, cocoon: 0, bloated: 0 },
