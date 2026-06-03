@@ -76,7 +76,7 @@ const CONFIG = {
   SHAKE_DECAY: 0.9,       // затухание тряски (множитель за кадр)
 
   // Spiders
-  SPIDER_HP: 100,         // здоровье паука
+  SPIDER_HP: 4,         // здоровье паука
   SPIDER_SPEED: 70,       // скорость паука (пикс/сек)
   SPIDER_RADIUS: 7,       // радиус коллизии паука
   SPIDER_PHASE_SPEED: 2,          // скорость анимации парения
@@ -159,10 +159,10 @@ const CONFIG = {
   PARTICLE_POOL_MAX_SIZE: 200,    // максимум частиц в пуле
 
   // Sound
-  DEFAULT_VOLUME: 0.4,    // громкость по умолчанию (0..1)
-  AMBIENCE_VOLUME_MULT: 0.5,      // громкость амбиента относительно основной
-  SHOT_VOLUME_MULT: 0.5,          // громкость выстрелов относительно основной
-  FOOTSTEP_INTERVAL: 0.32,        // секунд между шагами
+  DEFAULT_VOLUME: 0.3,    // громкость по умолчанию (0..1)
+  AMBIENCE_VOLUME_MULT: 0.6,      // громкость амбиента относительно основной
+  SHOT_VOLUME_MULT: 0.4,          // громкость выстрелов относительно основной
+  FOOTSTEP_INTERVAL: 0.25,        // секунд между шагами
 
   // Debug
   DEBUG_INVULNERABLE: false,      // дебаг: неуязвимость игрока от врагов

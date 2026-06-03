@@ -9,6 +9,7 @@
                       type === 'plevaka' || type === 'shooter' ||
                       type === 'bull' || type === 'buldyga';
       if (!hasDead) return;
+      Sounds.death();
       corpseArray.push({
         x: g.x,
         y: g.y,

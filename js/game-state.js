@@ -29,6 +29,7 @@
         snd.volume = Sounds._volume * CONFIG.SHOT_VOLUME_MULT;
         snd.play().catch(() => {});
       },
+      death:          function() { Sounds.play('death.wav'); },
       wallhit:        function() { Sounds.play('wallhit' + (Math.floor(Math.random() * 3) + 1) + '.wav'); },
       zoom:           function() { Sounds.play('zoom.wav'); },
       _footstepTimer: 0,
