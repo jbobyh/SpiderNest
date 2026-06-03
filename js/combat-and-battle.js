@@ -701,6 +701,15 @@
               });
             }
           } else {
+            Sounds.wallhit();
+            for (let k = 0; k < 5; k++) {
+              const a = Math.random() * Math.PI * 2;
+              b.particles.push({
+                x: bullet.x, y: bullet.y,
+                vx: Math.cos(a) * 40 * BATTLE_SCALE, vy: Math.sin(a) * 40 * BATTLE_SCALE,
+                life: 0.3, maxLife: 0.3, color: '#888888',
+              });
+            }
             b.bullets.splice(i, 1);
             continue;
           }
