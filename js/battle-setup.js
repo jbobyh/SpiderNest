@@ -450,14 +450,15 @@
         bossY = battleHeight / 2;
       }
 
-      // Босс - солдат с 4x HP (400)
-      const bossHp = CONFIG.SPIDER_HP * 4;
+      // Босс - солдат с 10x HP
+      const bossHp = CONFIG.SPIDER_HP * 10;
       const battleActiveSpiders = [{
         x: bossX,
         y: bossY,
         vx: 0, vy: 0,
         radius: CONFIG.SPIDER_RADIUS,
         hp: bossHp,
+        maxHp: bossHp,
         type: 'soldier',
         isBoss: true,
         shootCd: 0,

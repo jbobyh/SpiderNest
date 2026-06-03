@@ -758,6 +758,63 @@
     }
 
     // ============================================================
+    // BOSS HP BAR (screen space, top center)
+    // ============================================================
+    function drawBossHPBar(s) {
+      const b = s.battle;
+      if (!b || !b.isBossBattle) return;
+
+      // Find boss
+      const boss = b.activeSpiders.find(e => e.isBoss);
+      if (!boss) return;
+
+      const barW = 400;
+      const barH = 16;
+      const x = (VIEW_W - barW) / 2;
+      const y = 20;
+      const hpPercent = Math.max(0, boss.hp / boss.maxHp);
+
+      ctx.save();
+
+      // Glow effect
+      ctx.shadowColor = '#ff4444';
+      ctx.shadowBlur = 15;
+
+      // Background
+      ctx.fillStyle = 'rgba(30, 10, 10, 0.9)';
+      ctx.fillRect(x, y, barW, barH);
+
+      // HP fill - gradient from red to dark red
+      const grad = ctx.createLinearGradient(x, y, x + barW * hpPercent, y);
+      grad.addColorStop(0, '#ff4444');
+      grad.addColorStop(1, '#cc2222');
+      ctx.fillStyle = grad;
+      ctx.fillRect(x, y, barW * hpPercent, barH);
+
+      // Border
+      ctx.strokeStyle = '#ff6666';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x, y, barW, barH);
+
+      ctx.shadowBlur = 0;
+
+      // HP text
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 11px "Orbitron", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const hpText = `${Math.ceil(boss.hp)}/${boss.maxHp}`;
+      ctx.fillText(hpText, x + barW / 2, y + barH / 2 + 1);
+
+      // "BOSS" label above bar
+      ctx.fillStyle = '#ff6666';
+      ctx.font = 'bold 12px "Orbitron", sans-serif';
+      ctx.fillText('★ БОСС ★', VIEW_W / 2, y - 10);
+
+      ctx.restore();
+    }
+
+    // ============================================================
     // BATTLE DRAW
     // ============================================================
     function drawBattle(s) {
@@ -996,6 +1053,11 @@
       }
 
       ctx.restore();
+
+      // Boss HP bar (screen space, top center)
+      if (b.isBossBattle) {
+        drawBossHPBar(s);
+      }
 
       // Cooldown bar under cursor (screen space)
       drawCursorCooldownBar(s, mouseScreen.x, mouseScreen.y);
