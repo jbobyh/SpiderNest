@@ -118,7 +118,7 @@ const CONFIG = {
   // Buldyga
   BULDYGA_HP: 8*2,        // здоровье булдыги
   BULDYGA_SPEED: 60,              // начальная скорость
-  BULDYGA_SPEED_INCREMENT: 5,    // ускорение каждую секунду
+  BULDYGA_SPEED_INCREMENT: 8,    // ускорение каждую секунду
   BULDYGA_RADIUS: 6,     // радиус коллизии булдыги
   BULDYGA_ACCEL: 180,             // ускорение инерции (пикс/с²)
   BULDYGA_FRICTION: 3.5,          // коэффициент торможения (затухание скорости)

@@ -459,7 +459,7 @@
         x: bossX,
         y: bossY,
         vx: 0, vy: 0,
-        radius: CONFIG.SPIDER_RADIUS,
+        radius: CONFIG.SPIDER_RADIUS * 2.25,
         hp: bossHp,
         maxHp: bossHp,
         type: 'soldier',

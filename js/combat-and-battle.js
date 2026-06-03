@@ -798,7 +798,7 @@
             const damage = bullet.damage || CONFIG.BULLET_DAMAGE;
             g.hp -= damage;
             g.hitFlash = CONFIG.ENEMY_HIT_FLASH_DURATION;
-            g.stunTimer = CONFIG.ENEMY_STUN_DURATION;
+            if (!g.isBoss) g.stunTimer = CONFIG.ENEMY_STUN_DURATION;
             Sounds.hit();
             spawnDamageNumber(g.x, g.y - CONFIG.SPIDER_RADIUS * BATTLE_SCALE, damage, bullet.isCrit);
             // Green blood particles - fly in bullet direction

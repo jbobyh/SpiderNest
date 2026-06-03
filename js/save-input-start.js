@@ -231,6 +231,7 @@
       }
       draw(state);
       Sounds.ambienceStart();
+      Sounds.playLevelMusic(currentLevel);
     }
 
     // ============================================================
