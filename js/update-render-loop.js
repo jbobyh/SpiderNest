@@ -1270,27 +1270,12 @@
         }
       }
 
-      // Стены по краям открытых клеток
-      drawOpenCellWalls(s.openCells, CP, CP * 0.125, 0, 0, currentLevel);
-      drawOpenCellCorners(s.openCells, CP, CP * 0.125, 0, 0, currentLevel);
-
       // Смежные закрытые клетки (видно содержимое) — все когда-либо виденные, не открытые и не чёрные
       const adj = new Set();
       for (const k of s.everRevealedCells) {
         if (!s.openCells.has(k) && !s.disabledCells.has(k) && !s.permanentlyClosed.has(k)) adj.add(k);
       }
 
-      // Пауки в закрытых комнатах (видны)
-      for (const g of s.spiders) {
-        if (!g.trapped) continue;
-        const gc = cellOf(g.x, g.y);
-        const cellKey_gc = cellKey(gc.x, gc.y);
-        // Видны если клетка когда-либо была смежной с открытой И сейчас видна
-        if (!s.everRevealedCells.has(cellKey_gc) || !visibleCells.has(cellKey_gc)) continue;
-
-        drawSpider(g, 1); // Непрозрачные, статичны
-      }
-      
       // Клетки, смежные с игроком — доступны для открытия (ПКМ), подсвечиваем зелёным
       const playerCellForDraw = cellOf(s.player.x, s.player.y);
       const playerAdjOpen = new Set();
@@ -1306,12 +1291,11 @@
       const hoveredCell = cellOf(s.mouse.x, s.mouse.y);
       const hoveredKey = cellKey(hoveredCell.x, hoveredCell.y);
 
+      // Подсветка смежных клеток — рисуем ДО стен, чтобы текстуры стен перекрывали тинт
       for (const k of adj) {
         if (!visibleCells.has(k)) continue;
         const { x, y } = cellFromKey(k);
         if (x < 0 || x >= s.gridSize || y < 0 || y >= s.gridSize) continue;
-
-        // Фон смежной клетки
         if (playerAdjOpen.has(k)) {
           if (k === hoveredKey) {
             ctx.fillStyle = 'rgba(80,220,120,0.25)';
@@ -1323,6 +1307,37 @@
           ctx.fillStyle = 'rgba(40,30,50,0.3)';
           ctx.fillRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
         }
+      }
+
+      // Зелёная подсветка клеток у игрока, не попавших в adj (ещё не в everRevealedCells)
+      for (const k of playerAdjOpen) {
+        if (adj.has(k)) continue;
+        if (!visibleCells.has(k)) continue;
+        const { x, y } = cellFromKey(k);
+        if (x < 0 || x >= s.gridSize || y < 0 || y >= s.gridSize) continue;
+        ctx.fillStyle = 'rgba(20,60,30,0.15)';
+        ctx.fillRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
+      }
+
+      // Стены по краям открытых клеток
+      drawOpenCellWalls(s.openCells, CP, CP * 0.125, 0, 0, currentLevel);
+      drawOpenCellCorners(s.openCells, CP, CP * 0.125, 0, 0, currentLevel);
+
+      // Пауки в закрытых комнатах (видны)
+      for (const g of s.spiders) {
+        if (!g.trapped) continue;
+        const gc = cellOf(g.x, g.y);
+        const cellKey_gc = cellKey(gc.x, gc.y);
+        // Видны если клетка когда-либо была смежной с открытой И сейчас видна
+        if (!s.everRevealedCells.has(cellKey_gc) || !visibleCells.has(cellKey_gc)) continue;
+
+        drawSpider(g, 1); // Непрозрачные, статичны
+      }
+
+      for (const k of adj) {
+        if (!visibleCells.has(k)) continue;
+        const { x, y } = cellFromKey(k);
+        if (x < 0 || x >= s.gridSize || y < 0 || y >= s.gridSize) continue;
 
         // Показываем содержимое
         const isExitCell = x === s.exitCell.x && y === s.exitCell.y;
@@ -1416,16 +1431,6 @@
           ctx.fillText(wDef.label, dw.x, dw.y + 8);
           ctx.globalAlpha = 1;
         }
-      }
-
-      // Зелёная подсветка клеток у игрока, не попавших в adj (ещё не в everRevealedCells)
-      for (const k of playerAdjOpen) {
-        if (adj.has(k)) continue; // уже нарисована выше
-        if (!visibleCells.has(k)) continue;
-        const { x, y } = cellFromKey(k);
-        if (x < 0 || x >= s.gridSize || y < 0 || y >= s.gridSize) continue;
-        ctx.fillStyle = 'rgba(20,60,30,0.15)';
-        ctx.fillRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
       }
 
       // Сердечки в открытых клетках
