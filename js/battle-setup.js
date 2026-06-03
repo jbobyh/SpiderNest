@@ -436,7 +436,8 @@
         }
       }
 
-      // Создаем босса (солдат с 4x HP) в дальней клетке от игрока
+      // Создаем босса в дальней клетке от игрока
+      const bossDef = BOSS_DEFS[currentLevel] || BOSS_DEFS[1];
       const margin = CONFIG.SPIDER_RADIUS * BATTLE_SCALE + 20;
       let bossX, bossY;
       if (farthestCell) {
@@ -453,16 +454,16 @@
         bossY = battleHeight / 2;
       }
 
-      // Босс - солдат с 10x HP
-      const bossHp = CONFIG.SPIDER_HP * 10;
+      const bossBaseHp = bossDef.hpBase === 'buldyga' ? CONFIG.BULDYGA_HP : CONFIG.SPIDER_HP;
+      const bossHp = bossBaseHp * bossDef.hpMult;
       const battleActiveSpiders = [{
         x: bossX,
         y: bossY,
         vx: 0, vy: 0,
-        radius: CONFIG.SPIDER_RADIUS * 2.25,
+        radius: CONFIG.SPIDER_RADIUS * bossDef.radiusMult,
         hp: bossHp,
         maxHp: bossHp,
-        type: 'soldier',
+        type: bossDef.type,
         isBoss: true,
         shootCd: 0,
         state: 'chase',
@@ -474,6 +475,10 @@
         speedAccumulator: 0,
         spawnTimer: undefined,
         stunTimer: 0,
+        phaseIndex: 0,
+        phaseTimer: bossDef.phases[0].duration,
+        strafeDir: 1,
+        strafeSwitchTimer: CONFIG.BOSS_STRAFE_SWITCH_TIME,
       }];
 
       // Battle-копии коллектиблов (сердечки, ключи, апгрейды, оружие)

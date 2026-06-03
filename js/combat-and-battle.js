@@ -790,7 +790,7 @@
           const g = b.activeSpiders[j];
           if (bullet.hitSpiders && bullet.hitSpiders.has(j)) continue; // уже попадали в этого
           const dist = Math.hypot(bullet.x - g.x, bullet.y - g.y);
-          if (dist < (CONFIG.SPIDER_RADIUS + CONFIG.BULLET_RADIUS) * BATTLE_SCALE) {
+          if (dist < ((g.radius || CONFIG.SPIDER_RADIUS) + CONFIG.BULLET_RADIUS) * BATTLE_SCALE) {
             const damage = bullet.damage || CONFIG.BULLET_DAMAGE;
             g.hp -= damage;
             g.hitFlash = CONFIG.ENEMY_HIT_FLASH_DURATION;
@@ -1179,6 +1179,126 @@
               stunTimer: 0,
             });
           }
+        } else if (g.type === 'boss_phase') {
+          // Фазовый босс: чередует поведение по таймеру
+          const bossDef = BOSS_DEFS[currentLevel] || BOSS_DEFS[1];
+
+          // Обновляем таймер фазы
+          if (b.freezeTimer <= 0) {
+            g.phaseTimer -= dt;
+            if (g.phaseTimer <= 0) {
+              g.phaseIndex = (g.phaseIndex + 1) % bossDef.phases.length;
+              g.phaseTimer = bossDef.phases[g.phaseIndex].duration;
+            }
+          }
+
+          const currentPhase = bossDef.phases[g.phaseIndex] || bossDef.phases[0];
+          const bossSpd = CONFIG.SPIDER_SPEED * (bossDef.speedMult || 1.0) * BATTLE_SCALE;
+          let newX = g.x;
+          let newY = g.y;
+
+          if (currentPhase.id === 'soldier') {
+            // Фаза солдата: преследует игрока
+            if (g.stunTimer <= 0 && b.freezeTimer <= 0 && dist > 0) {
+              newX += (dx / dist) * bossSpd * dt;
+              newY += (dy / dist) * bossSpd * dt;
+            }
+          } else if (currentPhase.id === 'buldyga') {
+            // Фаза булдыги: инерционное движение с усиленным ускорением
+            const accelMult = currentPhase.accelMult || 1.0;
+            const frictionMult = currentPhase.frictionMult || 1.0;
+            if (g.currentSpeed === undefined) g.currentSpeed = CONFIG.BULDYGA_SPEED * BATTLE_SCALE;
+            if (g.speedAccumulator === undefined) g.speedAccumulator = 0;
+            if (g.vx === undefined) g.vx = 0;
+            if (g.vy === undefined) g.vy = 0;
+
+            // Ускорение каждую секунду
+            g.speedAccumulator += dt;
+            if (g.speedAccumulator >= 1.0) {
+              const secondsPassed = Math.floor(g.speedAccumulator);
+              g.currentSpeed += CONFIG.BULDYGA_SPEED_INCREMENT * BATTLE_SCALE * secondsPassed;
+              g.speedAccumulator -= secondsPassed;
+            }
+
+            const bulStunned = g.stunTimer > 0;
+            if (!bulStunned && b.freezeTimer <= 0 && dist > 0) {
+              const targetVx = (dx / dist) * g.currentSpeed;
+              const targetVy = (dy / dist) * g.currentSpeed;
+              const accel = CONFIG.BULDYGA_ACCEL * accelMult * BATTLE_SCALE * dt;
+              g.vx += (targetVx - g.vx) * Math.min(1, accel / g.currentSpeed);
+              g.vy += (targetVy - g.vy) * Math.min(1, accel / g.currentSpeed);
+            } else if (b.freezeTimer > 0) {
+              g.vx *= Math.max(0, 1 - CONFIG.BULDYGA_FRICTION * frictionMult * dt);
+              g.vy *= Math.max(0, 1 - CONFIG.BULDYGA_FRICTION * frictionMult * dt);
+            }
+
+            newX = g.x + g.vx * dt;
+            newY = g.y + g.vy * dt;
+          } else if (currentPhase.id === 'shooter') {
+            // Фаза плеваки: стрейф перпендикулярно + стрельба
+            // Вектор перпендикулярный к направлению на игрока
+            if (g.stunTimer <= 0 && b.freezeTimer <= 0) {
+              // Обновляем таймер смены направления стрейфа
+              if (g.strafeSwitchTimer === undefined) g.strafeSwitchTimer = CONFIG.BOSS_STRAFE_SWITCH_TIME;
+              g.strafeSwitchTimer -= dt;
+              if (g.strafeSwitchTimer <= 0) {
+                g.strafeDir = -g.strafeDir;
+                g.strafeSwitchTimer = CONFIG.BOSS_STRAFE_SWITCH_TIME;
+              }
+              if (dist > 0) {
+                // Перпендикуляр к (dx,dy): (-dy,dx) * strafeDir
+                const strafeSpd = CONFIG.BOSS_STRAFE_SPEED * BATTLE_SCALE;
+                newX += (-dy / dist) * strafeSpd * g.strafeDir * dt;
+                newY += ( dx / dist) * strafeSpd * g.strafeDir * dt;
+              }
+            }
+            // Стрельба как плевака (с опциональными множителями из фазы)
+            const shootCdMult = currentPhase.shootCdMult || 0.5;
+            const bulletSpeedMult = currentPhase.bulletSpeedMult || 1.0;
+            if (g.shootCd > 0) g.shootCd -= dt;
+            const bossShootRange = CONFIG.SHOOTER_SHOOT_RANGE_CELLS * CONFIG.CELL_PX * BATTLE_SCALE * 10;
+            if (dist <= bossShootRange && g.shootCd <= 0 && b.freezeTimer <= 0) {
+              g.shootCd = CONFIG.SHOOTER_SHOOT_CD * shootCdMult;
+              if (dist > 0) {
+                b.enemyBullets.push({
+                  x: g.x, y: g.y,
+                  vx: (dx / dist) * CONFIG.SHOOTER_BULLET_SPEED * bulletSpeedMult * BATTLE_SCALE,
+                  vy: (dy / dist) * CONFIG.SHOOTER_BULLET_SPEED * bulletSpeedMult * BATTLE_SCALE,
+                  life: 6,
+                });
+              }
+            }
+          }
+
+          // Движение с проверкой стен
+          const newCellX = Math.floor(newX / BATTLE_CELL_PX) + b.cellOffsetX;
+          const newCellY = Math.floor(newY / BATTLE_CELL_PX) + b.cellOffsetY;
+          if (b.openCells.has(cellKey(newCellX, newCellY))) {
+            g.x = newX;
+            g.y = newY;
+          } else if (currentPhase.id === 'shooter' || currentPhase.id === 'buldyga') {
+            // При стрейфе/инерции в стену — отражаем скорость (для булдыги) или разворачиваем стрейф
+            if (currentPhase.id === 'buldyga') {
+              g.vx *= -0.3;
+              g.vy *= -0.3;
+            } else {
+              g.strafeDir = -g.strafeDir;
+              g.strafeSwitchTimer = CONFIG.BOSS_STRAFE_SWITCH_TIME;
+            }
+          }
+
+          // Касание игрока (масштабированное)
+          if (dist < ((g.radius || CONFIG.SPIDER_RADIUS) + CONFIG.PLAYER_RADIUS) * BATTLE_SCALE) {
+            dealPlayerDamage(s, true);
+            for (let k = 0; k < CONFIG.PLAYER_HIT_PARTICLES_COUNT; k++) {
+              const a = Math.random() * Math.PI * 2;
+              b.particles.push({
+                x: b.player.x, y: b.player.y,
+                vx: Math.cos(a) * CONFIG.PLAYER_HIT_PARTICLES_SPEED, vy: Math.sin(a) * CONFIG.PLAYER_HIT_PARTICLES_SPEED,
+                life: CONFIG.PLAYER_HIT_PARTICLES_LIFE, maxLife: CONFIG.PLAYER_HIT_PARTICLES_LIFE, color: '#ff4444',
+              });
+            }
+          }
         } else {
           // Солдат - летит к игроку (масштабированная скорость)
           let newX = g.x;
@@ -1348,6 +1468,12 @@
       if (s.player.lives <= 0) {
         s.player.lives = 0;
         s.phase = 'dead';
+        // Stop boss music immediately on player death
+        if (Sounds._bossMusic) {
+          Sounds._bossMusic.pause();
+          Sounds._bossMusic.currentTime = 0;
+          Sounds._bossMusic = null;
+        }
         return;
       }
 

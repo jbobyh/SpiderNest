@@ -1961,10 +1961,11 @@
       const isPlevaka = g.type === 'plevaka' || g.type === 'shooter';
       const isBull = g.type === 'bull';
       const isBuldyga = g.type === 'buldyga';
+      const isBossPhase = g.type === 'boss_phase';
       const isSoldier = g.type === 'soldier' || g.type === 'chaser';
       const isCocoon = g.type === 'cocoon';
       const isBloated = g.type === 'bloated';
-      const hasSprite = isBull || isBuldyga || isPlevaka || isSoldier;
+      const hasSprite = isBull || isBuldyga || isPlevaka || isSoldier || isBossPhase;
       ctx.globalAlpha = alpha;
 
       // Calculate flip: player left of enemy -> flip sprite (not for cocoon, only in battle)
@@ -1973,7 +1974,13 @@
       // Draw sprite for enemies with images (bull, buldyga, plevaka, soldier)
       if (hasSprite) {
         let img = null;
-        if (isBull) img = enemyImages.bull;
+        if (isBossPhase) {
+          const bd = BOSS_DEFS[currentLevel] || BOSS_DEFS[1];
+          const firstPhase = bd.phases[0];
+          if (firstPhase.id === 'buldyga') img = enemyImages.buldyga;
+          else if (firstPhase.id === 'shooter') img = enemyImages.plevaka;
+          else img = enemyImages.soldier;
+        } else if (isBull) img = enemyImages.bull;
         else if (isBuldyga) img = enemyImages.buldyga;
         else if (isPlevaka) img = enemyImages.plevaka;
         else if (isSoldier) img = enemyImages.soldier;

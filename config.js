@@ -179,6 +179,10 @@ const CONFIG = {
   // Debug
   DEBUG_INVULNERABLE: false,      // дебаг: неуязвимость игрока от врагов
   DEBUG_SPREAD_INDICATOR: false,  // дебаг: отображать индикатор угла разброса
+
+  // Boss phase AI
+  BOSS_STRAFE_SPEED: 80,          // скорость стрейфа босса в фазе плеваки (пикс/сек)
+  BOSS_STRAFE_SWITCH_TIME: 1.2,   // секунд до смены направления стрейфа
 };
 
 // ============================================================
@@ -465,6 +469,51 @@ const WEAPON_DEFS = {
     penetrate: 0,
     shakeAmount: 0.3,
     spriteAngle: 0.7,
+  },
+};
+
+// ============================================================
+// BOSS DEFINITIONS (по уровням)
+// type: 'boss_phase' — фазовый босс с чередованием поведения
+// phases: массив { id: 'soldier'|'shooter', duration: сек }
+//   soldier — преследует игрока
+//   shooter — стрейфает перпендикулярно и стреляет
+// Уровни 2/3 — заглушки, идентичные уровню 1 (заменить позже)
+// ============================================================
+const BOSS_DEFS = {
+  1: {
+    type: 'boss_phase',
+    hpMult: 10,             // множитель к SPIDER_HP
+    radiusMult: 2.25,       // множитель к SPIDER_RADIUS
+    speedMult: 1.0,         // множитель к SPIDER_SPEED
+    name: 'БОСС',
+    phases: [
+      { id: 'soldier', duration: 5 },
+      { id: 'shooter', duration: 5 },
+    ],
+  },
+  2: {
+    type: 'boss_phase',
+    hpBase: 'buldyga',     // база HP — BULDYGA_HP
+    hpMult: 10,            // BULDYGA_HP * 10 = 160
+    radiusMult: 2.5,
+    speedMult: 1.0,
+    name: 'БОСС',
+    phases: [
+      { id: 'buldyga', duration: 6, accelMult: 2, frictionMult: 0.67 },  // инерция x2
+      { id: 'shooter', duration: 5, shootCdMult: 0.4, bulletSpeedMult: 0.8 }, // скорострельность,  скорость пули
+    ],
+  },
+  3: {
+    type: 'boss_phase',
+    hpMult: 10,
+    radiusMult: 2.25,
+    speedMult: 1.0,
+    name: 'БОСС',
+    phases: [
+      { id: 'soldier', duration: 5 },
+      { id: 'shooter', duration: 5 },
+    ],
   },
 };
 
