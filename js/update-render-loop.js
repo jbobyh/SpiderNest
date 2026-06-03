@@ -358,8 +358,8 @@
         // Hit flash таймер
         if (g.hitFlash > 0) g.hitFlash -= dt;
 
-        // Проверка на застревание (не для коконов)
-        if (g.type !== 'cocoon') {
+        // Проверка на застревание (кокон, плевака, бык — могут долго стоять на месте по задумке)
+        if (g.type !== 'cocoon' && g.type !== 'plevaka' && g.type !== 'shooter' && g.type !== 'bull') {
           if (g.lastX === undefined) { g.lastX = g.x; g.lastY = g.y; g.stuckTimer = 0; }
           const moved = Math.hypot(g.x - g.lastX, g.y - g.lastY);
           if (moved < 1) {
