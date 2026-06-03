@@ -446,7 +446,7 @@ const WEAPON_DEFS = {
     pellets: 1,
     spread: 0.15,
     damage: 1*2,
-    cooldown: 1.0,
+    cooldown: 0.8,
     burstSize: 3,           // кол-во пуль в очереди
     burstCooldown: 0.08,    // задержка между пулями в очереди (сек)
     bulletSpeed: 400,

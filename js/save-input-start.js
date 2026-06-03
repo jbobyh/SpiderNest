@@ -471,7 +471,13 @@
           if (state.openCells.has(k) && k !== playerKey) {
             const hasUncollectedKey = state.keyObjs.some(key => !key.collected && key.cellKey === k);
             const hasUncollectedHeart = state.hearts.some(heart => !heart.collected && heart.cellKey === k);
-            canClose = !hasUncollectedKey && !hasUncollectedHeart;
+            if (!hasUncollectedKey && !hasUncollectedHeart) {
+              // Проверка связности: закрытие не должно создавать изолированных зон
+              const openWithoutCandidate = new Set(state.openCells);
+              openWithoutCandidate.delete(k);
+              const connected = getConnectedCells(openWithoutCandidate, playerKey);
+              canClose = connected.size === openWithoutCandidate.size;
+            }
           }
 
           if (canOpen) {
