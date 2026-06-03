@@ -1,4 +1,25 @@
     // ============================================================
+    // DEATH CORPSE HELPER
+    // ============================================================
+    const CORPSE_DURATION = 2.0;
+
+    function spawnCorpse(corpseArray, g, radius) {
+      const type = g.type || 'soldier';
+      const hasDead = type === 'soldier' || type === 'chaser' ||
+                      type === 'plevaka' || type === 'shooter' ||
+                      type === 'bull' || type === 'buldyga';
+      if (!hasDead) return;
+      corpseArray.push({
+        x: g.x,
+        y: g.y,
+        type: type,
+        radius: radius,
+        life: CORPSE_DURATION,
+        maxLife: CORPSE_DURATION,
+      });
+    }
+
+    // ============================================================
     // UPGRADES
     // ============================================================
     let upgradePopupTimer = 0;
@@ -192,12 +213,14 @@
           s.enemyBullets.length = 0; // Очищаем массив вражеских пуль
         }
         
+        const corpseArray = isBattleMode ? s.battle.deathCorpses : s.deathCorpses;
         for (let i = enemiesArray.length - 1; i >= 0; i--) {
           const enemy = enemiesArray[i];
           if (!enemy || enemy.x === undefined || enemy.y === undefined) {
             enemiesArray.splice(i, 1);
             continue;
           }
+          spawnCorpse(corpseArray, enemy, (enemy.radius || CONFIG.SPIDER_RADIUS) * scale);
           // Создаем партиклы смерти врага
           for (let k = 0; k < CONFIG.DEATH_PARTICLES_COUNT; k++) {
             const a = Math.random() * Math.PI * 2;
@@ -788,6 +811,7 @@
               bullet.damage *= 2;
             }
             if (g.hp <= 0) {
+              spawnCorpse(b.deathCorpses, g, (g.radius || CONFIG.SPIDER_RADIUS) * BATTLE_SCALE);
               b.activeSpiders.splice(j, 1);
               for (let k = 0; k < CONFIG.DEATH_PARTICLES_COUNT; k++) {
                 const a = Math.random() * Math.PI * 2;
@@ -858,6 +882,7 @@
             g.stuckTimer += dt;
             if (g.stuckTimer >= 7) {
               // Враг застрял на 7 секунд - умирает
+              spawnCorpse(b.deathCorpses, g, (g.radius || CONFIG.SPIDER_RADIUS) * BATTLE_SCALE);
               b.activeSpiders.splice(i, 1);
               for (let k = 0; k < CONFIG.DEATH_PARTICLES_COUNT; k++) {
                 const speed = CONFIG.DEATH_PARTICLES_SPEED_MIN + Math.random() * (CONFIG.DEATH_PARTICLES_SPEED_MAX - CONFIG.DEATH_PARTICLES_SPEED_MIN);
@@ -1007,6 +1032,7 @@
           
           // Проверка касания игрока (для состояний chase/rest)
           if (g.state !== 'dash' && dist < hitDist) {
+            spawnCorpse(b.deathCorpses, g, (g.radius || CONFIG.BULL_RADIUS) * BATTLE_SCALE);
             dealPlayerDamage(s, true);
             b.activeSpiders.splice(i, 1);
             for (let k = 0; k < CONFIG.PLAYER_HIT_PARTICLES_COUNT; k++) {
@@ -1060,6 +1086,7 @@
           }
           // Касание игрока (масштабированное)
           if (dist < ((g.radius || CONFIG.BULDYGA_RADIUS) + CONFIG.PLAYER_RADIUS) * BATTLE_SCALE) {
+            spawnCorpse(b.deathCorpses, g, (g.radius || CONFIG.BULDYGA_RADIUS) * BATTLE_SCALE);
             dealPlayerDamage(s, true);
             b.activeSpiders.splice(i, 1);
             for (let k = 0; k < CONFIG.PLAYER_HIT_PARTICLES_COUNT; k++) {
@@ -1160,6 +1187,7 @@
           }
           // Касание игрока (масштабированное)
           if (dist < ((g.radius || CONFIG.SPIDER_RADIUS) + CONFIG.PLAYER_RADIUS) * BATTLE_SCALE) {
+            spawnCorpse(b.deathCorpses, g, (g.radius || CONFIG.SPIDER_RADIUS) * BATTLE_SCALE);
             dealPlayerDamage(s, true);
             b.activeSpiders.splice(i, 1);
             for (let k = 0; k < CONFIG.PLAYER_HIT_PARTICLES_COUNT; k++) {
@@ -1297,6 +1325,12 @@
           returnDamageNumber(dn);
           b.damageNumbers.splice(i, 1);
         }
+      }
+
+      // Обновление трупов в battle
+      for (let i = b.deathCorpses.length - 1; i >= 0; i--) {
+        b.deathCorpses[i].life -= dt;
+        if (b.deathCorpses[i].life <= 0) b.deathCorpses.splice(i, 1);
       }
 
       // Проверяем завершение боя: все враги убиты и содержимое ячейки собрано

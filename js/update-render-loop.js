@@ -247,6 +247,7 @@
             Sounds.hit();
             addParticles(g.x, g.y, CONFIG.HIT_PARTICLES_COUNT, CONFIG.HIT_PARTICLES_SPEED, CONFIG.HIT_PARTICLES_LIFE, '#44cc22');
             if (g.hp <= 0) {
+              spawnCorpse(s.deathCorpses, g, g.radius || CONFIG.SPIDER_RADIUS);
               s.activeSpiders.splice(j, 1);
               for (let k = 0; k < CONFIG.DEATH_PARTICLES_COUNT; k++) {
                 const speed = CONFIG.DEATH_PARTICLES_SPEED_MIN + Math.random() * (CONFIG.DEATH_PARTICLES_SPEED_MAX - CONFIG.DEATH_PARTICLES_SPEED_MIN);
@@ -308,6 +309,7 @@
             g.stuckTimer += dt;
             if (g.stuckTimer >= 5) {
               // Враг застрял на 5 секунд - умирает
+              spawnCorpse(s.deathCorpses, g, g.radius || CONFIG.SPIDER_RADIUS);
               s.activeSpiders.splice(i, 1);
               for (let k = 0; k < CONFIG.DEATH_PARTICLES_COUNT; k++) {
                 const speed = CONFIG.DEATH_PARTICLES_SPEED_MIN + Math.random() * (CONFIG.DEATH_PARTICLES_SPEED_MAX - CONFIG.DEATH_PARTICLES_SPEED_MIN);
@@ -445,6 +447,7 @@
           
           // Проверка касания игрока (для состояний chase/rest)
           if (g.state !== 'dash' && dist < hitDist) {
+            spawnCorpse(s.deathCorpses, g, g.radius || CONFIG.BULL_RADIUS);
             dealPlayerDamage(s, false);
             s.activeSpiders.splice(i, 1);
             for (let k = 0; k < CONFIG.PLAYER_HIT_PARTICLES_COUNT; k++) {
@@ -498,6 +501,7 @@
           }
           // Касание игрока
           if (dist < (g.radius || CONFIG.BULDYGA_RADIUS) + CONFIG.PLAYER_RADIUS) {
+            spawnCorpse(s.deathCorpses, g, g.radius || CONFIG.BULDYGA_RADIUS);
             dealPlayerDamage(s, false);
             s.activeSpiders.splice(i, 1);
             for (let k = 0; k < CONFIG.PLAYER_HIT_PARTICLES_COUNT; k++) {
@@ -596,6 +600,7 @@
           }
           // Касание игрока
           if (dist < (g.radius || CONFIG.SPIDER_RADIUS) + CONFIG.PLAYER_RADIUS) {
+            spawnCorpse(s.deathCorpses, g, g.radius || CONFIG.SPIDER_RADIUS);
             dealPlayerDamage(s, false);
             s.activeSpiders.splice(i, 1);
             for (let k = 0; k < CONFIG.PLAYER_HIT_PARTICLES_COUNT; k++) {
@@ -707,6 +712,12 @@
           returnParticle(p);
           s.particles.splice(i, 1);
         }
+      }
+
+      // Обновление трупов в play режиме
+      for (let i = s.deathCorpses.length - 1; i >= 0; i--) {
+        s.deathCorpses[i].life -= dt;
+        if (s.deathCorpses[i].life <= 0) s.deathCorpses.splice(i, 1);
       }
 
       // Летящее сердечко
@@ -895,6 +906,21 @@
         ctx.fill();
       }
       ctx.shadowBlur = 0;
+
+      // Трупы врагов в battle (фейдаут)
+      for (const c of b.deathCorpses) {
+        const alpha = Math.max(0, c.life / c.maxLife);
+        const isSoldier = c.type === 'soldier' || c.type === 'chaser';
+        const isPlevaka = c.type === 'plevaka' || c.type === 'shooter';
+        const isBull = c.type === 'bull';
+        const isBuldyga = c.type === 'buldyga';
+        let img = null;
+        if (isSoldier) img = enemyImages.soldier_dead;
+        else if (isPlevaka) img = enemyImages.plevaka_dead;
+        else if (isBull) img = enemyImages.bull_dead;
+        else if (isBuldyga) img = enemyImages.buldyga_dead;
+        if (img) drawEnemySprite(img, c.x, c.y, c.radius / BATTLE_SCALE, alpha, BATTLE_SCALE, 0);
+      }
 
       // Враги в battle (масштабированы)
       for (const g of b.activeSpiders) {
@@ -1453,6 +1479,21 @@
         ctx.fill();
       }
       ctx.shadowBlur = 0;
+
+      // Трупы врагов в play режиме (фейдаут)
+      for (const c of s.deathCorpses) {
+        const alpha = Math.max(0, c.life / c.maxLife);
+        const isSoldier = c.type === 'soldier' || c.type === 'chaser';
+        const isPlevaka = c.type === 'plevaka' || c.type === 'shooter';
+        const isBull = c.type === 'bull';
+        const isBuldyga = c.type === 'buldyga';
+        let img = null;
+        if (isSoldier) img = enemyImages.soldier_dead;
+        else if (isPlevaka) img = enemyImages.plevaka_dead;
+        else if (isBull) img = enemyImages.bull_dead;
+        else if (isBuldyga) img = enemyImages.buldyga_dead;
+        if (img) drawEnemySprite(img, c.x, c.y, c.radius, alpha, 1, 0);
+      }
 
       // Активные пауки (выпущенные)
       for (const g of s.activeSpiders) {

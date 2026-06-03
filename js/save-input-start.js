@@ -73,6 +73,7 @@
         weaponSlots: data.weaponSlots ? [...data.weaponSlots] : ['pistol', null],
         activeSlot: data.activeSlot || 0,
         maxSlots: data.maxSlots || 1,
+        deathCorpses: [],
         bullets: [],
         enemyBullets: [],
         particles: [],

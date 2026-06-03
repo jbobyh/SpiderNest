@@ -159,6 +159,14 @@
     enemyImages.bull.src     = 'img/bull.png';
     enemyImages.plevaka.src  = 'img/plevaka.png';
     enemyImages.soldier.src  = 'img/soldier.png';
+    enemyImages.buldyga_dead = new Image();
+    enemyImages.bull_dead    = new Image();
+    enemyImages.plevaka_dead = new Image();
+    enemyImages.soldier_dead = new Image();
+    enemyImages.buldyga_dead.src = 'img/buldyga_dead.png';
+    enemyImages.bull_dead.src    = 'img/bull_dead.png';
+    enemyImages.plevaka_dead.src = 'img/plevaka_dead.png';
+    enemyImages.soldier_dead.src = 'img/soldier_dead.png';
 
     // Weapon sprites
     const weaponImages = {
@@ -709,6 +717,7 @@
 
         spiders: trappedSpiders,
         activeSpiders: [], // враги которые были выпущены
+        deathCorpses: [],
         bullets: [],
         enemyBullets: [],
         shootCooldown: 0,
