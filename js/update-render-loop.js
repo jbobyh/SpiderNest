@@ -764,6 +764,7 @@
       const shakeX = Math.cos(screenShake.angle) * screenShake.amount;
       const shakeY = Math.sin(screenShake.angle) * screenShake.amount;
       screenShake.amount *= CONFIG.SHAKE_DECAY;
+      weaponRecoil *= 0.72;
 
       // Пересчитываем мировые координаты мыши каждый кадр (battle)
       s.mouse.x = (mouseScreen.x - VIEW_W / 2) / sc + b.width / 2;
@@ -933,6 +934,8 @@
       if (blinkOk) {
         const HERO_DRAW_SCALE = (CONFIG.PLAYER_SPRITE_RADIUS * 2 * BATTLE_SCALE) / HERO_SW;
         drawPlayerSprite(p.x, p.y, HERO_DRAW_SCALE);
+        const aimAngleBattle = Math.atan2(s.mouse.y - p.y, s.mouse.x - p.x);
+        drawPlayerWeapon(p.x, p.y, aimAngleBattle, HERO_DRAW_SCALE);
       }
 
       // Индикатор разброса в battle
@@ -1061,6 +1064,7 @@
       const shakeX = Math.cos(screenShake.angle) * screenShake.amount;
       const shakeY = Math.sin(screenShake.angle) * screenShake.amount;
       screenShake.amount *= CONFIG.SHAKE_DECAY;
+      weaponRecoil *= 0.72;
 
       // Фон с параллаксом (рисуем в экранных координатах до world-трансформа)
       if (backgroundImg.complete && backgroundImg.naturalWidth > 0) {
@@ -1475,6 +1479,8 @@
       if (blinkOk) {
         const HERO_DRAW_SCALE = (CONFIG.PLAYER_SPRITE_RADIUS * 2) / HERO_SW;
         drawPlayerSprite(p.x, p.y, HERO_DRAW_SCALE);
+        const aimAngleWorld = Math.atan2(s.mouse.y - p.y, s.mouse.x - p.x);
+        drawPlayerWeapon(p.x, p.y, aimAngleWorld, HERO_DRAW_SCALE);
       }
 
       // Индикатор разброса: две полупрозрачных линии от игрока

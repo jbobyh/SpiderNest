@@ -31,10 +31,10 @@ const CONFIG = {
   BULLET_LIFE: 1.5,                 // время жизни пули (сек)
 
   // Muzzle flash particles
-  MUZZLE_PARTICLES_COUNT: 8,          // кол-во частиц вспышки дула
-  MUZZLE_PARTICLES_SPREAD: 0.8,       // угол разлёта (рад)
-  MUZZLE_PARTICLES_SPEED_MIN: 60,     // мин. скорость частиц вспышки
-  MUZZLE_PARTICLES_SPEED_MAX: 80,     // макс. скорость частиц вспышки
+  MUZZLE_PARTICLES_COUNT: 4,          // кол-во частиц вспышки дула
+  MUZZLE_PARTICLES_SPREAD: 0.3,       // угол разлёта (рад)
+  MUZZLE_PARTICLES_SPEED_MIN: 200,     // мин. скорость частиц вспышки
+  MUZZLE_PARTICLES_SPEED_MAX: 400,     // макс. скорость частиц вспышки
   MUZZLE_PARTICLES_LIFE: 0.2,         // время жизни частиц вспышки (сек)
 
   // Hit particles (when bullet hits enemy) - green blood
@@ -42,18 +42,18 @@ const CONFIG = {
   HIT_PARTICLES_SPEED_MIN: 40,        // мин. скорость частиц крови
   HIT_PARTICLES_SPEED_MAX: 200,       // макс. скорость частиц крови
   HIT_PARTICLES_SPREAD: 0.6,          // угол разлёта крови (рад)
-  HIT_PARTICLES_LIFE: 1.0,            // время жизни частиц крови (сек)
+  HIT_PARTICLES_LIFE: 0.5,            // время жизни частиц крови (сек)
   HIT_PARTICLES_COLOR: '#00ff44',     // цвет крови врага
   ENEMY_HIT_FLASH_DURATION: 0.18,     // длительность белой вспышки при уроне (сек)
 
   // Death particles (when enemy dies)
-  DEATH_PARTICLES_COUNT: 16,          // кол-во частиц при смерти врага
+  DEATH_PARTICLES_COUNT: 5,          // кол-во частиц при смерти врага
   DEATH_PARTICLES_SPEED_MIN: 40,      // мин. скорость частиц смерти
-  DEATH_PARTICLES_SPEED_MAX: 80,      // макс. скорость частиц смерти
+  DEATH_PARTICLES_SPEED_MAX: 200,      // макс. скорость частиц смерти
   DEATH_PARTICLES_LIFE: 0.6,          // время жизни частиц смерти (сек)
 
   // Wall hit particles
-  WALL_HIT_PARTICLES_COUNT: 5,        // кол-во частиц при попадании в стену
+  WALL_HIT_PARTICLES_COUNT: 2,        // кол-во частиц при попадании в стену
   WALL_HIT_PARTICLES_SPEED: 40,       // скорость частиц от стены
   WALL_HIT_PARTICLES_LIFE: 0.3,       // время жизни частиц от стены (сек)
 
@@ -322,6 +322,7 @@ const WEAPON_DEFS = {
     range: 15,              // дальность в клетках
     penetrate: 0,           // кол-во врагов, которых пробивает пуля
     shakeAmount: 0,       // сила тряски камеры
+    spriteAngle: 0.1,       // поправка угла спрайта (рад)
   },
   shotgun: {
     id: 'shotgun',
@@ -336,6 +337,7 @@ const WEAPON_DEFS = {
     range: 10,
     penetrate: 0,
     shakeAmount: 0.5,
+    spriteAngle: 0.55,
   },
   smg: {
     id: 'smg',
@@ -350,6 +352,7 @@ const WEAPON_DEFS = {
     range: 15,
     penetrate: 0,
     shakeAmount: 0,
+    spriteAngle: 0.8,
   },
   rifle: {
     id: 'rifle',
@@ -364,6 +367,7 @@ const WEAPON_DEFS = {
     range: 40,
     penetrate: 2,
     shakeAmount: 0.8,
+    spriteAngle: 0.7,
   },
   revolver: {
     id: 'revolver',
@@ -378,6 +382,7 @@ const WEAPON_DEFS = {
     range: 30,
     penetrate: 1,
     shakeAmount: 0.2,
+    spriteAngle: 0,
   },
   carbine: {
     id: 'carbine',
@@ -394,6 +399,7 @@ const WEAPON_DEFS = {
     range: 35,
     penetrate: 0,
     shakeAmount: 0.3,
+    spriteAngle: 0.7,
   },
 };
 

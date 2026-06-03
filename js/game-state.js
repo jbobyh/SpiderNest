@@ -260,9 +260,32 @@
       ctx.restore();
     }
 
+    function drawPlayerWeapon(cx2, cy2, aimAngle, scale, alpha) {
+      if (!state) return;
+      const weaponId = state.weaponSlots[state.activeSlot];
+      if (!weaponId) return;
+      const img = weaponImages[weaponId];
+      if (!img || !img.complete || img.naturalWidth === 0) return;
+      const wDef = WEAPON_DEFS[weaponId];
+      const spriteAngle = wDef ? (wDef.spriteAngle || 0) : 0;
+      const drawSize = HERO_SW * scale * 0.5;
+      const recoilOffset = weaponRecoil * drawSize * 0.4;
+      const offsetDist = drawSize * 0.5 - recoilOffset;
+      ctx.save();
+      ctx.globalAlpha = alpha !== undefined ? alpha : 1;
+      ctx.translate(cx2, cy2);
+      ctx.rotate(aimAngle);
+      if (aimAngle > Math.PI / 2 || aimAngle < -Math.PI / 2) ctx.scale(1, -1);
+      ctx.translate(offsetDist, 0);
+      ctx.rotate(spriteAngle);
+      ctx.drawImage(img, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
+      ctx.restore();
+    }
+
     let state = null;
     let currentLevel = 1;
     let screenShake = { amount: 0, angle: 0 };
+    let weaponRecoil = 0;
     let playerProgress = {
       totalLives: 3,
       totalHeartsCollected: 0,

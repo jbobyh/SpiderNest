@@ -408,13 +408,14 @@
       }
 
       // Particle muzzle flash
+      weaponRecoil = 1.0;
       for (let i = 0; i < CONFIG.MUZZLE_PARTICLES_COUNT; i++) {
         const a = baseAngle + (Math.random() - 0.5) * CONFIG.MUZZLE_PARTICLES_SPREAD;
         s.particles.push({
           x: s.player.x, y: s.player.y,
           vx: Math.cos(a) * (CONFIG.MUZZLE_PARTICLES_SPEED_MIN + Math.random() * (CONFIG.MUZZLE_PARTICLES_SPEED_MAX - CONFIG.MUZZLE_PARTICLES_SPEED_MIN)),
           vy: Math.sin(a) * (CONFIG.MUZZLE_PARTICLES_SPEED_MIN + Math.random() * (CONFIG.MUZZLE_PARTICLES_SPEED_MAX - CONFIG.MUZZLE_PARTICLES_SPEED_MIN)),
-          life: CONFIG.MUZZLE_PARTICLES_LIFE, maxLife: CONFIG.MUZZLE_PARTICLES_LIFE, color: weapon.color,
+          life: CONFIG.MUZZLE_PARTICLES_LIFE, maxLife: CONFIG.MUZZLE_PARTICLES_LIFE, color: '#ffff00',
         });
       }
     }
@@ -1430,13 +1431,14 @@
       }
 
       // Particle muzzle flash (масштабированная скорость)
+      weaponRecoil = 1.0;
       for (let i = 0; i < CONFIG.MUZZLE_PARTICLES_COUNT; i++) {
         const a = baseAngle + (Math.random() - 0.5) * CONFIG.MUZZLE_PARTICLES_SPREAD;
         b.particles.push({
           x: b.player.x, y: b.player.y,
           vx: Math.cos(a) * (CONFIG.MUZZLE_PARTICLES_SPEED_MIN + Math.random() * (CONFIG.MUZZLE_PARTICLES_SPEED_MAX - CONFIG.MUZZLE_PARTICLES_SPEED_MIN)) * BATTLE_SCALE,
           vy: Math.sin(a) * (CONFIG.MUZZLE_PARTICLES_SPEED_MIN + Math.random() * (CONFIG.MUZZLE_PARTICLES_SPEED_MAX - CONFIG.MUZZLE_PARTICLES_SPEED_MIN)) * BATTLE_SCALE,
-          life: CONFIG.MUZZLE_PARTICLES_LIFE, maxLife: CONFIG.MUZZLE_PARTICLES_LIFE, color: weapon.color,
+          life: CONFIG.MUZZLE_PARTICLES_LIFE, maxLife: CONFIG.MUZZLE_PARTICLES_LIFE, color: '#ffff00',
         });
       }
     }
