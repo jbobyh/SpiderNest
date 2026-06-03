@@ -632,11 +632,7 @@
           const dist = Math.hypot(b.player.x - keyObj.x, b.player.y - keyObj.y);
           if (dist < CONFIG.PLAYER_RADIUS * BATTLE_SCALE + CONFIG.PICKUP_DISTANCE * BATTLE_SCALE) {
             keyObj.collected = true;
-            // Запускаем анимацию полета ключа в HUD
-            const keyIndex = s.keysCollected; // индекс ключа в HUD (0-based)
-            launchFlyingKey(keyObj.x, keyObj.y, keyIndex, () => {
-              // Анимация завершена
-            });
+            Sounds.keycollect();
             addParticles(keyObj.x, keyObj.y, CONFIG.PICKUP_PARTICLES_COUNT, CONFIG.PICKUP_PARTICLES_SPEED, CONFIG.PICKUP_PARTICLES_LIFE, '#ffd700');
           }
         }
@@ -1347,36 +1343,7 @@
         if (b.deathCorpses[i].life <= 0) b.deathCorpses.splice(i, 1);
       }
 
-      // Летающий ключ в battle
-      if (flyingKey) {
-        const fk = flyingKey;
-        // Обновляем цель если есть getTarget
-        if (fk.getTarget) {
-          const t = fk.getTarget();
-          fk.targetX = t.x;
-          fk.targetY = t.y;
-        }
-        // Движение к текущей цели с постоянной скоростью
-        const dx = fk.targetX - fk.x;
-        const dy = fk.targetY - fk.y;
-        const dist = Math.hypot(dx, dy);
-        const speed = dist / Math.max(fk.duration - fk.t, 0.001);
-        if (dist < speed * dt || dist < 2) {
-          fk.x = fk.targetX;
-          fk.y = fk.targetY;
-          fk.t = fk.duration;
-        } else {
-          fk.x += (dx / dist) * speed * dt;
-          fk.y += (dy / dist) * speed * dt;
-        }
-        fk.t += dt;
-        if (fk.t >= fk.duration) {
-          const cb = fk.onArrive;
-          flyingKey = null;
-          if (cb) cb();
-        }
-      }
-
+      
       // Смерть в battle - проверяем ДО завершения боя, чтобы показать Game Over сразу
       if (s.player.lives <= 0) {
         s.player.lives = 0;

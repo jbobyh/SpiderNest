@@ -135,12 +135,8 @@
           if (dist < CONFIG.PLAYER_RADIUS + CONFIG.PICKUP_DISTANCE) {
             keyObj.collected = true;
             s.cellContents.delete(keyObj.cellKey);
-            const keyIndex = s.keysCollected; // индекс ключа в HUD (0-based)
             s.keysCollected++;
-            // Запускаем анимацию полета ключа в HUD
-            launchFlyingKey(keyObj.x, keyObj.y, keyIndex, () => {
-              // Анимация завершена - дополнительно ничего не делаем, т.к. ключ уже учтен
-            });
+            Sounds.keycollect();
             // Частицы
             addParticles(keyObj.x, keyObj.y, CONFIG.PICKUP_PARTICLES_COUNT, CONFIG.PICKUP_PARTICLES_SPEED, CONFIG.PICKUP_PARTICLES_LIFE, '#ffd700');
           }
@@ -754,36 +750,7 @@
         }
       }
 
-      // Летающий ключ
-      if (flyingKey) {
-        const fk = flyingKey;
-        // Обновляем цель если есть getTarget
-        if (fk.getTarget) {
-          const t = fk.getTarget();
-          fk.targetX = t.x;
-          fk.targetY = t.y;
-        }
-        // Движение к текущей цели с постоянной скоростью
-        const dx = fk.targetX - fk.x;
-        const dy = fk.targetY - fk.y;
-        const dist = Math.hypot(dx, dy);
-        const speed = dist / Math.max(fk.duration - fk.t, 0.001);
-        if (dist < speed * dt || dist < 2) {
-          fk.x = fk.targetX;
-          fk.y = fk.targetY;
-          fk.t = fk.duration;
-        } else {
-          fk.x += (dx / dist) * speed * dt;
-          fk.y += (dy / dist) * speed * dt;
-        }
-        fk.t += dt;
-        if (fk.t >= fk.duration) {
-          const cb = fk.onArrive;
-          flyingKey = null;
-          if (cb) cb();
-        }
-      }
-
+      
       // Смерть
       if (s.player.lives <= 0) {
         s.player.lives = 0;
@@ -1150,9 +1117,6 @@
           }
         }
       }
-
-      // Летающий ключ (в battle mode)
-      drawFlyingKeyInWorld();
 
       drawHUD(s);
 
@@ -1616,9 +1580,6 @@
 
       // Летящее сердечко (поверх всего в мировых координатах)
       drawFlyingHeartInWorld();
-
-      // Летающий ключ (поверх всего в мировых координатах)
-      drawFlyingKeyInWorld();
 
       // Игрок
       const p = s.player;
@@ -2891,9 +2852,6 @@
 
       // Летящее сердечко (в мировых координатах зума)
       drawFlyingHeartInWorld();
-
-      // Летающий ключ (в мировых координатах зума)
-      drawFlyingKeyInWorld();
 
       ctx.restore();
 

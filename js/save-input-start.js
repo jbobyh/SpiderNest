@@ -168,7 +168,6 @@
       savePlayerProgress(state);
       currentLevel++;
       flyingHeart = null;
-      flyingKey = null;
       cursedChoiceState = null;
       state = initState(currentLevel);
       saveGame();
@@ -215,7 +214,6 @@
         maxSlots: 1,
       };
       flyingHeart = null;
-      flyingKey = null;
       cursedChoiceState = null;
       state = initState(currentLevel);
       draw(state);
