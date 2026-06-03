@@ -89,10 +89,10 @@ const CONFIG = {
   SHOOTER_HP: 2*2,             // здоровье плеваки
   SHOOTER_SPEED: 50,          // скорость плеваки (пикс/сек)
   SHOOTER_RADIUS: 6,          // радиус коллизии плеваки
-  SHOOTER_BULLET_SPEED: 75,  // скорость пули плеваки
-  SHOOTER_SHOOT_RANGE_CELLS: 1, // дальность стрельбы плеваки (в клетках)
-  SHOOTER_SHOOT_CD: 2,     // кулдаун выстрела плеваки (сек)
-  SHOOTER_STOP_DIST_CELLS: 1,   // дистанция остановки плеваки (в клетках)
+  SHOOTER_BULLET_SPEED: 100,  // скорость пули плеваки
+  SHOOTER_SHOOT_RANGE_CELLS: 2, // дальность стрельбы плеваки (в клетках)
+  SHOOTER_SHOOT_CD: 1.5,     // кулдаун выстрела плеваки (сек)
+  SHOOTER_STOP_DIST_CELLS: 2,   // дистанция остановки плеваки (в клетках)
   // Spawn chances by level
   // Level 1: only soldier/shooter
   SHOOTER_CHANCE: 0.20,           // шанс что враг будет плевакой (остальное - солдат)
@@ -118,7 +118,7 @@ const CONFIG = {
   // Buldyga
   BULDYGA_HP: 8*2,        // здоровье булдыги
   BULDYGA_SPEED: 60,              // начальная скорость
-  BULDYGA_SPEED_INCREMENT: 8,    // ускорение каждую секунду
+  BULDYGA_SPEED_INCREMENT: 20,    // ускорение каждую секунду
   BULDYGA_RADIUS: 6,     // радиус коллизии булдыги
   BULDYGA_ACCEL: 180,             // ускорение инерции (пикс/с²)
   BULDYGA_FRICTION: 3.5,          // коэффициент торможения (затухание скорости)
@@ -483,9 +483,9 @@ const WEAPON_DEFS = {
 const BOSS_DEFS = {
   1: {
     type: 'boss_phase',
-    hpMult: 10,             // множитель к SPIDER_HP
+    hpMult: 30,             // множитель к SPIDER_HP
     radiusMult: 2.25,       // множитель к SPIDER_RADIUS
-    speedMult: 1.0,         // множитель к SPIDER_SPEED
+    speedMult: 1.1,         // множитель к SPIDER_SPEED
     name: 'БОСС',
     phases: [
       { id: 'soldier', duration: 5 },
@@ -495,7 +495,7 @@ const BOSS_DEFS = {
   2: {
     type: 'boss_phase',
     hpBase: 'buldyga',     // база HP — BULDYGA_HP
-    hpMult: 10,            // BULDYGA_HP * 10 = 160
+    hpMult: 40,            // BULDYGA_HP * 10 = 160
     radiusMult: 2.5,
     speedMult: 1.0,
     name: 'БОСС',
@@ -506,7 +506,7 @@ const BOSS_DEFS = {
   },
   3: {
     type: 'boss_phase',
-    hpMult: 10,
+    hpMult: 600,
     radiusMult: 2.25,
     speedMult: 1.0,
     name: 'БОСС',
