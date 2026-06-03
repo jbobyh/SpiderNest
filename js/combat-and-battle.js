@@ -984,7 +984,7 @@
             case 'dash':
               // Быстрый рывок
               {
-                const dashSpeed = CONFIG.BULL_SPEED * 4 * BATTLE_SCALE; // в 4 раза быстрее обычного
+                const dashSpeed = CONFIG.BULL_SPEED * 3 * BATTLE_SCALE; // в 3 раза быстрее обычного
                 const moveDist = dashSpeed * dt;
                 let newX = g.x + g.dashDirX * moveDist;
                 let newY = g.y + g.dashDirY * moveDist;
