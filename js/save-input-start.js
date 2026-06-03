@@ -168,6 +168,7 @@
       savePlayerProgress(state);
       currentLevel++;
       flyingHeart = null;
+      flyingKey = null;
       cursedChoiceState = null;
       state = initState(currentLevel);
       saveGame();
@@ -214,6 +215,7 @@
         maxSlots: 1,
       };
       flyingHeart = null;
+      flyingKey = null;
       cursedChoiceState = null;
       state = initState(currentLevel);
       draw(state);
@@ -624,16 +626,17 @@
             return;
           }
 
-          // Обычный случай (жизней > 1): сердце летит от игрока к клетке
-          const fromX = state.player.x;
-          const fromY = state.player.y;
+          // Обычный случай (жизней > 1): сердце летит из HUD к клетке
+          // Берем индекс последнего сердца в HUD (после траты жизни)
+          const heartIndex = state.player.lives - 1; // после траты жизни
           const openKey = k;
           const openCX = cx, openCY = cy;
 
           // Тратим жизнь сразу (чтобы HUD обновился)
           state.player.lives--;
 
-          launchFlyingHeart(fromX, fromY, targetCellCX, targetCellCY, () => {
+          const hudCoords = getHudHeartCoords(heartIndex);
+          launchFlyingHeart(hudCoords.x, hudCoords.y, targetCellCX, targetCellCY, () => {
             // Открываем когда долетело
             state.openCells.add(openKey);
             state.everRevealedCells.add(openKey);
@@ -644,6 +647,7 @@
               revealDiagonalCells(state.everRevealedCells, openCX, openCY, state.disabledCells, state.permanentlyClosed);
             }
 
+            // Запускаем zoom transition или сохраняем
             doOpenCellAfterHeart(openKey, openCX, openCY);
           });
 
@@ -681,12 +685,14 @@
             state.permanentlyClosed.add(k);
           }
 
-          // Сердце летит из центра закрытой клетки к игроку (с преследованием)
+          // Сердце летит из центра закрытой клетки в HUD
           const closedCX = (cx + 0.5) * CP;
           const closedCY = (cy + 0.5) * CP;
-          launchFlyingHeart(closedCX, closedCY, state.player.x, state.player.y, () => {
+          // Цель - координаты нового сердца в HUD (индекс = lives-1 после возврата жизни)
+          const heartIndex = state.player.lives - 1;
+          launchFlyingHeart(closedCX, closedCY, 0, 0, () => {
             saveGame();
-          }, () => ({ x: state.player.x, y: state.player.y }));
+          }, () => getHudHeartCoords(heartIndex)); // Динамическое получение координат HUD
         }
       }
     });

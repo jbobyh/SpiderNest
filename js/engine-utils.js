@@ -89,11 +89,69 @@
     function inBounds(x, y) { return x >= 0 && x < 11 && y >= 0 && y < 11; }
     function easeInOutQuad(t) { return t < 0.5 ? 2*t*t : -1+(4-2*t)*t; }
 
+    // Helper функции для координат HUD (преобразование экранных координат в мировые)
+    function getHudHeartCoords(index) {
+      const iconSize = 20;
+      const iconGap = 4;
+      const panelPad = 8;
+      const startX = panelPad;
+      const rowY = 30 + panelPad; // Положение первого ряда (сердца)
+      
+      // Экранные координаты центра иконки
+      const screenX = startX + index * (iconSize + iconGap) + iconSize / 2;
+      const screenY = rowY + iconSize / 2;
+      
+      // Преобразуем в мировые координаты с учетом камеры
+      const worldX = screenX + camera.x;
+      const worldY = screenY + camera.y;
+      
+      return { x: worldX, y: worldY };
+    }
+
+    function getHudKeyCoords(index) {
+      const iconSize = 20;
+      const iconGap = 4;
+      const panelPad = 8;
+      const startX = panelPad;
+      // Ключи в третьем ряду: сердца (ряд 1) + щиты (ряд 2) + ключи (ряд 3)
+      const rowY = 30 + panelPad + (iconSize + 4) * 2; 
+      
+      // Экранные координаты центра иконки
+      const screenX = startX + index * (iconSize + iconGap) + iconSize / 2;
+      const screenY = rowY + iconSize / 2;
+      
+      // Преобразуем в мировые координаты с учетом камеры
+      const worldX = screenX + camera.x;
+      const worldY = screenY + camera.y;
+      
+      return { x: worldX, y: worldY };
+    }
+
     function launchFlyingHeart(fromX, fromY, toX, toY, onArrive, getTarget) {
       const dist = Math.hypot(toX - fromX, toY - fromY);
       const duration = Math.max(0.18, Math.min(0.45, dist / (CP * 2.5)));
       flyingHeart = { x: fromX, y: fromY, startX: fromX, startY: fromY, targetX: toX, targetY: toY, t: 0, duration, onArrive, getTarget: getTarget || null };
       Sounds.hearttravel();
+    }
+
+    // Летающий ключ для анимации подбора
+    let flyingKey = null;
+
+    function launchFlyingKey(fromX, fromY, toIndex, onArrive) {
+      const dist = 200; // Приблизительная дистанция для расчета длительности
+      const duration = Math.max(0.18, Math.min(0.45, dist / (CP * 2.5)));
+      flyingKey = { 
+        x: fromX, 
+        y: fromY, 
+        startX: fromX, 
+        startY: fromY, 
+        targetIndex: toIndex, // Сохраняем индекс для динамического обновления
+        t: 0, 
+        duration, 
+        onArrive,
+        getTarget: () => getHudKeyCoords(toIndex) // Функция для получения текущих координат
+      };
+      Sounds.keycollect();
     }
 
     function drawFlyingHeartInWorld() {
@@ -111,6 +169,25 @@
       ctx.shadowColor = '#ff6b9d';
       ctx.shadowBlur = 18;
       ctx.fillText('♥', bx, by);
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    }
+
+    function drawFlyingKeyInWorld() {
+      if (!flyingKey) return;
+      const fk = flyingKey;
+      const bx = fk.x;
+      const by = fk.y;
+      const p = Math.min(fk.t / fk.duration, 1);
+      const scale = 0.8 + 0.5 * Math.sin(p * Math.PI);
+      ctx.save();
+      ctx.font = `bold ${Math.round(18 * scale)}px "Huninn"`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#ffd700';
+      ctx.shadowColor = '#ffd700';
+      ctx.shadowBlur = 15;
+      ctx.fillText('🗝', bx, by);
       ctx.shadowBlur = 0;
       ctx.restore();
     }
