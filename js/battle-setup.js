@@ -455,7 +455,7 @@
       }
 
       const bossBaseHp = bossDef.hpBase === 'buldyga' ? CONFIG.BULDYGA_HP : CONFIG.SPIDER_HP;
-      const bossHp = bossBaseHp * bossDef.hpMult;
+      const bossHp = bossDef.hp !== undefined ? bossDef.hp : bossBaseHp * bossDef.hpMult;
       const battleActiveSpiders = [{
         x: bossX,
         y: bossY,
@@ -476,9 +476,15 @@
         spawnTimer: undefined,
         stunTimer: 0,
         phaseIndex: 0,
-        phaseTimer: bossDef.phases[0].duration,
+        phaseTimer: bossDef.phases[0].duration || 0,
         strafeDir: 1,
         strafeSwitchTimer: CONFIG.BOSS_STRAFE_SWITCH_TIME,
+        dashCount: 0,
+        bullState: 'chase',
+        bullStateTimer: 0,
+        bullDashDirX: 0,
+        bullDashDirY: 0,
+        bullDashDistance: 0,
       }];
 
       // Battle-копии коллектиблов (сердечки, ключи, апгрейды, оружие)

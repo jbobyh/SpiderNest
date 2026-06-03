@@ -827,7 +827,7 @@
               }
               // Оружейный разгон: +0.2% за убийство, макс 90%
               if (s.upgrades.killAccel) {
-                s.upgrades.killAccelPercent = Math.min(90, s.upgrades.killAccelPercent + 0.2);
+                s.upgrades.killAccelPercent = Math.min(90, s.upgrades.killAccelPercent + 0.1);
                 playerProgress.upgrades.killAccelPercent = s.upgrades.killAccelPercent;
               }
               // Распухший: выстрел при смерти в игрока (масштабированный)
@@ -1183,12 +1183,22 @@
           // Фазовый босс: чередует поведение по таймеру
           const bossDef = BOSS_DEFS[currentLevel] || BOSS_DEFS[1];
 
-          // Обновляем таймер фазы
+          // Вспомогательная функция перехода к следующей фазе
+          const advancePhase = () => {
+            g.phaseIndex = (g.phaseIndex + 1) % bossDef.phases.length;
+            const nextPhase = bossDef.phases[g.phaseIndex];
+            g.phaseTimer = nextPhase.duration || 0;
+            g.dashCount = 0;
+            g.state = 'chase';
+            g.stateTimer = 0;
+          };
+
+          // Обновляем таймер фазы (только для тех, у кого есть duration)
           if (b.freezeTimer <= 0) {
-            g.phaseTimer -= dt;
-            if (g.phaseTimer <= 0) {
-              g.phaseIndex = (g.phaseIndex + 1) % bossDef.phases.length;
-              g.phaseTimer = bossDef.phases[g.phaseIndex].duration;
+            const cp = bossDef.phases[g.phaseIndex];
+            if (cp.id !== 'bull_limited' && cp.duration !== undefined) {
+              g.phaseTimer -= dt;
+              if (g.phaseTimer <= 0) advancePhase();
             }
           }
 
@@ -1197,7 +1207,9 @@
           let newX = g.x;
           let newY = g.y;
 
-          if (currentPhase.id === 'soldier') {
+          if (currentPhase.id === 'pause') {
+            // Фаза паузы: босс стоит, ничего не делает
+          } else if (currentPhase.id === 'soldier') {
             // Фаза солдата: преследует игрока
             if (g.stunTimer <= 0 && b.freezeTimer <= 0 && dist > 0) {
               newX += (dx / dist) * bossSpd * dt;
@@ -1234,6 +1246,84 @@
 
             newX = g.x + g.vx * dt;
             newY = g.y + g.vy * dt;
+          } else if (currentPhase.id === 'bull_limited') {
+            // Фаза быка: используем тот же FSM что и у обычного быка
+            const dashCellsPx = (currentPhase.dashCells || CONFIG.BULL_DASH_DISTANCE_CELLS) * CONFIG.CELL_PX * BATTLE_SCALE;
+            const chargeDist = BULL_CHARGE_DIST * BATTLE_SCALE * 8;
+            const dashDist = dashCellsPx;
+            const effectiveRadius = (g.radius || CONFIG.SPIDER_RADIUS) * BATTLE_SCALE;
+            const hitDist = effectiveRadius + CONFIG.PLAYER_RADIUS * BATTLE_SCALE;
+
+            // Используем state/stateTimer как у обычного быка
+            if (!g.state) g.state = 'chase';
+            if (g.stateTimer === undefined) g.stateTimer = 0;
+
+            switch (g.state) {
+              case 'chase':
+                if (g.stunTimer <= 0 && b.freezeTimer <= 0 && dist > chargeDist && dist > 0) {
+                  const spd = CONFIG.BULL_SPEED * BATTLE_SCALE;
+                  let newX = g.x + (dx / dist) * spd * dt;
+                  let newY = g.y + (dy / dist) * spd * dt;
+                  const chCellX = Math.floor(newX / BATTLE_CELL_PX) + b.cellOffsetX;
+                  const chCellY = Math.floor(newY / BATTLE_CELL_PX) + b.cellOffsetY;
+                  if (b.openCells.has(cellKey(chCellX, chCellY))) {
+                    g.x = newX; g.y = newY;
+                  }
+                } else if (dist <= chargeDist) {
+                  g.state = 'prepare';
+                  g.stateTimer = CONFIG.BULL_PREPARE_TIME;
+                }
+                break;
+
+              case 'prepare':
+                g.stateTimer -= dt;
+                if (g.stateTimer <= 0) {
+                  g.state = 'dash';
+                  if (dist > 0) { g.dashDirX = dx / dist; g.dashDirY = dy / dist; }
+                  else { g.dashDirX = 1; g.dashDirY = 0; }
+                  g.dashDistance = dashDist;
+                  g.stateTimer = 0;
+                }
+                break;
+
+              case 'dash': {
+                const dashSpeed = CONFIG.BULL_SPEED * 3 * BATTLE_SCALE;
+                const moveDist = dashSpeed * dt;
+                let newX = g.x + g.dashDirX * moveDist;
+                let newY = g.y + g.dashDirY * moveDist;
+                const newCellX = Math.floor(newX / BATTLE_CELL_PX) + b.cellOffsetX;
+                const newCellY = Math.floor(newY / BATTLE_CELL_PX) + b.cellOffsetY;
+                const hitWall = !b.openCells.has(cellKey(newCellX, newCellY));
+                const moved = Math.hypot(newX - g.x, newY - g.y);
+                g.stateTimer += moved;
+
+                if (hitWall || g.stateTimer >= g.dashDistance) {
+                  g.state = 'rest';
+                  g.stateTimer = CONFIG.BULL_REST_TIME;
+                  g.dashCount = (g.dashCount || 0) + 1;
+                  if (g.dashCount >= (currentPhase.maxDashes || 3)) advancePhase();
+                } else {
+                  g.x = newX; g.y = newY;
+                }
+
+                const newDist = Math.hypot(b.player.x - g.x, b.player.y - g.y);
+                if (newDist < hitDist) {
+                  dealPlayerDamage(s, true);
+                  g.state = 'rest';
+                  g.stateTimer = CONFIG.BULL_REST_TIME;
+                  g.dashCount = (g.dashCount || 0) + 1;
+                  if (g.dashCount >= (currentPhase.maxDashes || 3)) advancePhase();
+                }
+                break;
+              }
+
+              case 'rest':
+                g.stateTimer -= dt;
+                if (g.stateTimer <= 0) {
+                  g.state = 'chase';
+                }
+                break;
+            }
           } else if (currentPhase.id === 'shooter') {
             // Фаза плеваки: стрейф перпендикулярно + стрельба
             // Вектор перпендикулярный к направлению на игрока
@@ -1270,13 +1360,14 @@
             }
           }
 
-          // Движение с проверкой стен
-          const newCellX = Math.floor(newX / BATTLE_CELL_PX) + b.cellOffsetX;
-          const newCellY = Math.floor(newY / BATTLE_CELL_PX) + b.cellOffsetY;
-          if (b.openCells.has(cellKey(newCellX, newCellY))) {
-            g.x = newX;
-            g.y = newY;
-          } else if (currentPhase.id === 'shooter' || currentPhase.id === 'buldyga') {
+          // Движение с проверкой стен (bull_limited обрабатывает движение сам внутри switch)
+          if (currentPhase.id !== 'bull_limited') {
+            const newCellX = Math.floor(newX / BATTLE_CELL_PX) + b.cellOffsetX;
+            const newCellY = Math.floor(newY / BATTLE_CELL_PX) + b.cellOffsetY;
+            if (b.openCells.has(cellKey(newCellX, newCellY))) {
+              g.x = newX;
+              g.y = newY;
+            } else if (currentPhase.id === 'shooter' || currentPhase.id === 'buldyga') {
             // При стрейфе/инерции в стену — отражаем скорость (для булдыги) или разворачиваем стрейф
             if (currentPhase.id === 'buldyga') {
               g.vx *= -0.3;
@@ -1285,6 +1376,7 @@
               g.strafeDir = -g.strafeDir;
               g.strafeSwitchTimer = CONFIG.BOSS_STRAFE_SWITCH_TIME;
             }
+          }
           }
 
           // Касание игрока (масштабированное)
