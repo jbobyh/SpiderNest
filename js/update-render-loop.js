@@ -3286,9 +3286,10 @@
         }
         const levelCfg = getLevelConfig(currentLevel);
         Sounds.ambienceStop();
+        const saveExists = hasSave();
         showOverlay('GAME OVER', '#ff3a3a',
           ['Жизни закончились!', `Собрано сердечек: ${state.heartsCollected}/${levelCfg.heartsCount}`, `Время: ${Math.round(state.time)}с`],
-          'ПОПРОБОВАТЬ СНОВА', 'startGame');
+          saveExists ? 'ПОПРОБОВАТЬ СНОВА' : 'НАЧАТЬ ИГРУ', saveExists ? 'continueGame' : 'startGame');
         state.phase = 'stopped';
       }
 

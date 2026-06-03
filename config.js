@@ -401,7 +401,7 @@ const WEAPON_DEFS = {
     pellets: 1,
     spread: 0.20,
     damage: 0.5*2,
-    cooldown: 0.10,
+    cooldown: 0.12,
     bulletSpeed: 400,
     range: 18,
     penetrate: 0,
