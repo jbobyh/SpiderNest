@@ -89,6 +89,13 @@
     function inBounds(x, y) { return x >= 0 && x < 11 && y >= 0 && y < 11; }
     function easeInOutQuad(t) { return t < 0.5 ? 2*t*t : -1+(4-2*t)*t; }
 
+    // Контейнеры сердец: заполненные = текущие жизни, всего = жизни + открытые комнаты
+    function getHeartHudStats(s) {
+      const filled = s.player.lives;
+      const total = s.player.lives + s.openCells.size;
+      return { filled, total };
+    }
+
     // Helper функции для координат HUD (преобразование экранных координат в мировые)
     function getHudHeartCoords(index) {
       const iconSize = 20;

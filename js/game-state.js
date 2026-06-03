@@ -330,6 +330,9 @@
     const hudHeartImg = new Image();
     hudHeartImg.src = 'img/heart.png';
 
+    const hudHeartContainerImg = new Image();
+    hudHeartContainerImg.src = 'img/heart-container.png';
+
     const hudKeyImg = new Image();
     hudKeyImg.src = 'img/key.png';
 

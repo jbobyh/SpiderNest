@@ -2552,9 +2552,23 @@
           rowY += iconSize + rowGap;
         }
 
-        // Hearts — only show collected (no dim slots)
-        if (s.player.lives > 0) {
-          drawHudRow(hudHeartImg, s.player.lives, s.player.lives);
+        function drawHeartHudRow(total, filled) {
+          for (let i = 0; i < total; i++) {
+            const x = startX + i * (iconSize + iconGap);
+            if (hudHeartContainerImg.complete && hudHeartContainerImg.naturalWidth > 0) {
+              ctx.drawImage(hudHeartContainerImg, x, rowY, iconSize, iconSize);
+            }
+            if (i < filled && hudHeartImg.complete && hudHeartImg.naturalWidth > 0) {
+              ctx.drawImage(hudHeartImg, x, rowY, iconSize, iconSize);
+            }
+          }
+          rowY += iconSize + rowGap;
+        }
+
+        // Hearts — контейнеры показывают макс. здоровье при закрытии всех комнат
+        const { filled: heartFilled, total: heartTotal } = getHeartHudStats(s);
+        if (heartTotal > 0) {
+          drawHeartHudRow(heartTotal, heartFilled);
         }
 
         // Shields — only show collected (no dim slots)
