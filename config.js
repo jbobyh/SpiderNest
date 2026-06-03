@@ -38,12 +38,13 @@ const CONFIG = {
   MUZZLE_PARTICLES_LIFE: 0.2,         // время жизни частиц вспышки (сек)
 
   // Hit particles (when bullet hits enemy) - green blood
-  HIT_PARTICLES_COUNT: 6,             // кол-во частиц при попадании в врага
+  HIT_PARTICLES_COUNT: 3,             // кол-во частиц при попадании в врага
   HIT_PARTICLES_SPEED_MIN: 40,        // мин. скорость частиц крови
   HIT_PARTICLES_SPEED_MAX: 200,       // макс. скорость частиц крови
   HIT_PARTICLES_SPREAD: 0.6,          // угол разлёта крови (рад)
-  HIT_PARTICLES_LIFE: 2.0,            // время жизни частиц крови (сек)
+  HIT_PARTICLES_LIFE: 1.0,            // время жизни частиц крови (сек)
   HIT_PARTICLES_COLOR: '#00ff44',     // цвет крови врага
+  ENEMY_HIT_FLASH_DURATION: 0.18,     // длительность белой вспышки при уроне (сек)
 
   // Death particles (when enemy dies)
   DEATH_PARTICLES_COUNT: 16,          // кол-во частиц при смерти врага

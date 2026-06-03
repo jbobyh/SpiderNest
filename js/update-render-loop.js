@@ -1,4 +1,10 @@
     // ============================================================
+    // OFFSCREEN CANVAS FOR HIT FLASH
+    // ============================================================
+    const _hitFlashCanvas = document.createElement('canvas');
+    const _hitFlashCtx = _hitFlashCanvas.getContext('2d');
+
+    // ============================================================
     // WEAPON SPRITE DRAWING
     // ============================================================
     function drawWeaponSprite(ctx, weaponId, x, y, size, alpha, pulse) {
@@ -236,6 +242,7 @@
               b.damage *= 2;
             }
             g.hp -= (b.damage || CONFIG.BULLET_DAMAGE);
+            g.hitFlash = CONFIG.ENEMY_HIT_FLASH_DURATION;
             hit = true;
             Sounds.hit();
             addParticles(g.x, g.y, CONFIG.HIT_PARTICLES_COUNT, CONFIG.HIT_PARTICLES_SPEED, CONFIG.HIT_PARTICLES_LIFE, '#44cc22');
@@ -289,6 +296,9 @@
       // Обновление активных пауков
       for (let i = s.activeSpiders.length - 1; i >= 0; i--) {
         const g = s.activeSpiders[i];
+
+        // Hit flash таймер
+        if (g.hitFlash > 0) g.hitFlash -= dt;
 
         // Проверка на застревание (не для коконов)
         if (g.type !== 'cocoon') {
@@ -1789,13 +1799,31 @@
     }
 
     // Helper: draw enemy sprite (500x500px images)
-    function drawEnemySprite(img, x, y, radius, alpha, scale) {
+    function drawEnemySprite(img, x, y, radius, alpha, scale, hitFlash) {
       if (!img || !img.complete || img.naturalWidth === 0) return false;
       const drawSize = radius * 3.2 * scale;
-      ctx.save();
-      ctx.globalAlpha = alpha;
-      ctx.drawImage(img, x - drawSize / 2, y - drawSize / 2, drawSize, drawSize);
-      ctx.restore();
+      if (hitFlash > 0) {
+        const sz = Math.ceil(drawSize);
+        if (_hitFlashCanvas.width < sz) _hitFlashCanvas.width = sz;
+        if (_hitFlashCanvas.height < sz) _hitFlashCanvas.height = sz;
+        _hitFlashCtx.clearRect(0, 0, sz, sz);
+        _hitFlashCtx.drawImage(img, 0, 0, sz, sz);
+        _hitFlashCtx.globalCompositeOperation = 'source-atop';
+        _hitFlashCtx.globalAlpha = Math.min(1, hitFlash / CONFIG.ENEMY_HIT_FLASH_DURATION);
+        _hitFlashCtx.fillStyle = '#ffffff';
+        _hitFlashCtx.fillRect(0, 0, sz, sz);
+        _hitFlashCtx.globalCompositeOperation = 'source-over';
+        _hitFlashCtx.globalAlpha = 1;
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.drawImage(_hitFlashCanvas, 0, 0, sz, sz, x - drawSize / 2, y - drawSize / 2, drawSize, drawSize);
+        ctx.restore();
+      } else {
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.drawImage(img, x - drawSize / 2, y - drawSize / 2, drawSize, drawSize);
+        ctx.restore();
+      }
       return true;
     }
 
@@ -1824,7 +1852,7 @@
         else if (isPlevaka) img = enemyImages.plevaka;
         else if (isSoldier) img = enemyImages.soldier;
 
-        if (drawEnemySprite(img, g.x, g.y, r / scale, alpha, scale)) {
+        if (drawEnemySprite(img, g.x, g.y, r / scale, alpha, scale, g.hitFlash || 0)) {
           // Sprite drawn successfully - skip body rendering, draw only HP bar and indicators
           // HP бар
           let maxHp;

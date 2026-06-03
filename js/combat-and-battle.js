@@ -758,6 +758,7 @@
           if (dist < (CONFIG.SPIDER_RADIUS + CONFIG.BULLET_RADIUS) * BATTLE_SCALE) {
             const damage = bullet.damage || CONFIG.BULLET_DAMAGE;
             g.hp -= damage;
+            g.hitFlash = CONFIG.ENEMY_HIT_FLASH_DURATION;
             Sounds.hit();
             spawnDamageNumber(g.x, g.y - CONFIG.SPIDER_RADIUS * BATTLE_SCALE, damage, bullet.isCrit);
             // Green blood particles - fly in bullet direction
@@ -835,6 +836,9 @@
       for (let i = b.activeSpiders.length - 1; i >= 0; i--) {
         const g = b.activeSpiders[i];
         if (!g || g.x === undefined || g.y === undefined) continue;
+
+        // Hit flash таймер
+        if (g.hitFlash > 0) g.hitFlash -= dt;
 
         // Проверка на застревание (не для коконов)
         if (g.type !== 'cocoon') {
