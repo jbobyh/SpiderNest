@@ -836,6 +836,29 @@
         const g = b.activeSpiders[i];
         if (!g || g.x === undefined || g.y === undefined) continue;
 
+        // Проверка на застревание (не для коконов)
+        if (g.type !== 'cocoon') {
+          if (g.lastX === undefined) { g.lastX = g.x; g.lastY = g.y; g.stuckTimer = 0; }
+          const moved = Math.hypot(g.x - g.lastX, g.y - g.lastY);
+          if (moved < 1) {
+            g.stuckTimer += dt;
+            if (g.stuckTimer >= 7) {
+              // Враг застрял на 7 секунд - умирает
+              b.activeSpiders.splice(i, 1);
+              for (let k = 0; k < CONFIG.DEATH_PARTICLES_COUNT; k++) {
+                const speed = CONFIG.DEATH_PARTICLES_SPEED_MIN + Math.random() * (CONFIG.DEATH_PARTICLES_SPEED_MAX - CONFIG.DEATH_PARTICLES_SPEED_MIN);
+                const color = k % 2 === 0 ? '#44cc22' : '#88ff44';
+                addParticles(g.x, g.y, 1, speed, CONFIG.DEATH_PARTICLES_LIFE, color);
+              }
+              continue;
+            }
+          } else {
+            g.stuckTimer = 0;
+            g.lastX = g.x;
+            g.lastY = g.y;
+          }
+        }
+
         const dx = b.player.x - g.x;
         const dy = b.player.y - g.y;
         const dist = Math.hypot(dx, dy);
@@ -844,8 +867,15 @@
           // Плевака
           if (b.freezeTimer <= 0 && dist > SHOOTER_STOP_DIST * BATTLE_SCALE && dist > 0) {
             const spd = CONFIG.SHOOTER_SPEED * BATTLE_SCALE;
-            g.x += (dx / dist) * spd * dt;
-            g.y += (dy / dist) * spd * dt;
+            let newX = g.x + (dx / dist) * spd * dt;
+            let newY = g.y + (dy / dist) * spd * dt;
+            // Проверка стен battle-зоны
+            const newCellX = Math.floor(newX / BATTLE_CELL_PX) + b.cellOffsetX;
+            const newCellY = Math.floor(newY / BATTLE_CELL_PX) + b.cellOffsetY;
+            if (b.openCells.has(cellKey(newCellX, newCellY))) {
+              g.x = newX;
+              g.y = newY;
+            }
           }
           if (g.shootCd > 0) g.shootCd -= dt;
           if (dist <= SHOOTER_SHOOT_RANGE * BATTLE_SCALE && g.shootCd <= 0) {
@@ -874,8 +904,15 @@
               // Идёт к игроку пока не достигнет дистанции CHARGE_DIST
               if (b.freezeTimer <= 0 && dist > chargeDist && dist > 0) {
                 const spd = CONFIG.BULL_SPEED * BATTLE_SCALE;
-                g.x += (dx / dist) * spd * dt;
-                g.y += (dy / dist) * spd * dt;
+                let newX = g.x + (dx / dist) * spd * dt;
+                let newY = g.y + (dy / dist) * spd * dt;
+                // Проверка стен battle-зоны
+                const newCellX = Math.floor(newX / BATTLE_CELL_PX) + b.cellOffsetX;
+                const newCellY = Math.floor(newY / BATTLE_CELL_PX) + b.cellOffsetY;
+                if (b.openCells.has(cellKey(newCellX, newCellY))) {
+                  g.x = newX;
+                  g.y = newY;
+                }
               } else if (dist <= chargeDist) {
                 // Переход в подготовку
                 g.state = 'prepare';
@@ -1053,6 +1090,19 @@
           }
         } else if (g.type === 'cocoon') {
           // Кокон: стоит на месте, спавнит солдат (масштабированный)
+          // Проверка стены - может быть вытолкнут другими врагами
+          const cellX = Math.floor(g.x / BATTLE_CELL_PX) + b.cellOffsetX;
+          const cellY = Math.floor(g.y / BATTLE_CELL_PX) + b.cellOffsetY;
+          if (!b.openCells.has(cellKey(cellX, cellY))) {
+            // Вытолкнули в стену - умирает
+            b.activeSpiders.splice(i, 1);
+            for (let k = 0; k < CONFIG.DEATH_PARTICLES_COUNT; k++) {
+              const speed = CONFIG.DEATH_PARTICLES_SPEED_MIN + Math.random() * (CONFIG.DEATH_PARTICLES_SPEED_MAX - CONFIG.DEATH_PARTICLES_SPEED_MIN);
+              const color = k % 2 === 0 ? '#44cc22' : '#88ff44';
+              addParticles(g.x, g.y, 1, speed, CONFIG.DEATH_PARTICLES_LIFE, color);
+            }
+            continue;
+          }
           if (g.spawnTimer === undefined) g.spawnTimer = CONFIG.COCOON_SPAWN_INTERVAL;
           g.spawnTimer -= dt;
           if (g.spawnTimer <= 0) {

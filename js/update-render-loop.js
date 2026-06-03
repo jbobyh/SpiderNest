@@ -290,6 +290,29 @@
       for (let i = s.activeSpiders.length - 1; i >= 0; i--) {
         const g = s.activeSpiders[i];
 
+        // Проверка на застревание (не для коконов)
+        if (g.type !== 'cocoon') {
+          if (g.lastX === undefined) { g.lastX = g.x; g.lastY = g.y; g.stuckTimer = 0; }
+          const moved = Math.hypot(g.x - g.lastX, g.y - g.lastY);
+          if (moved < 1) {
+            g.stuckTimer += dt;
+            if (g.stuckTimer >= 5) {
+              // Враг застрял на 5 секунд - умирает
+              s.activeSpiders.splice(i, 1);
+              for (let k = 0; k < CONFIG.DEATH_PARTICLES_COUNT; k++) {
+                const speed = CONFIG.DEATH_PARTICLES_SPEED_MIN + Math.random() * (CONFIG.DEATH_PARTICLES_SPEED_MAX - CONFIG.DEATH_PARTICLES_SPEED_MIN);
+                const color = k % 2 === 0 ? '#44cc22' : '#88ff44';
+                addParticles(g.x, g.y, 1, speed, CONFIG.DEATH_PARTICLES_LIFE, color);
+              }
+              continue;
+            }
+          } else {
+            g.stuckTimer = 0;
+            g.lastX = g.x;
+            g.lastY = g.y;
+          }
+        }
+
         const dx = s.player.x - g.x;
         const dy = s.player.y - g.y;
         const dist = Math.hypot(dx, dy);
@@ -508,6 +531,19 @@
           }
         } else if (g.type === 'cocoon') {
           // Кокон: стоит на месте, спавнит солдат
+          // Проверка стены - может быть вытолкнут другими врагами
+          const cellX = Math.floor(g.x / CP);
+          const cellY = Math.floor(g.y / CP);
+          if (!s.openCells.has(cellKey(cellX, cellY))) {
+            // Вытолкнули в стену - умирает
+            s.activeSpiders.splice(i, 1);
+            for (let k = 0; k < CONFIG.DEATH_PARTICLES_COUNT; k++) {
+              const speed = CONFIG.DEATH_PARTICLES_SPEED_MIN + Math.random() * (CONFIG.DEATH_PARTICLES_SPEED_MAX - CONFIG.DEATH_PARTICLES_SPEED_MIN);
+              const color = k % 2 === 0 ? '#44cc22' : '#88ff44';
+              addParticles(g.x, g.y, 1, speed, CONFIG.DEATH_PARTICLES_LIFE, color);
+            }
+            continue;
+          }
           if (g.spawnTimer === undefined) g.spawnTimer = CONFIG.COCOON_SPAWN_INTERVAL;
           g.spawnTimer -= dt;
           if (g.spawnTimer <= 0) {
