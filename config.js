@@ -13,7 +13,7 @@ const CONFIG = {
   // Player
   INITIAL_LIVES: 3,       // начальное кол-во жизней
   LIVES_PER_HEART: 1,     // жизней на одно сердце
-  PLAYER_SPEED: 130,      // скорость игрока (пикс/сек)
+  PLAYER_SPEED: 100,      // скорость игрока (пикс/сек)
   PLAYER_RADIUS: 6,       // радиус коллизии игрока
   PLAYER_SPRITE_RADIUS: 20,        // визуальный радиус спрайта (половина ширины отрисовки)
   PLAYER_INVULNERABLE_TIME: 1,    // секунд неуязвимости после урона
@@ -25,8 +25,8 @@ const CONFIG = {
 
   // Shooting (default values, weapon-specific in WEAPON_DEFS)
   SHOOTING_ENABLED: true, // включить стрельбу
-  BULLET_SPEED: 320,      // скорость пули по умолчанию (пикс/сек)
-  BULLET_DAMAGE: 35,      // урон пули по умолчанию
+  BULLET_SPEED: 100,      // скорость пули по умолчанию (пикс/сек)
+  BULLET_DAMAGE: 1,      // урон пули по умолчанию
   BULLET_RADIUS: 3,       // радиус пули
   BULLET_LIFE: 1.5,                 // время жизни пули (сек)
 
@@ -77,7 +77,7 @@ const CONFIG = {
 
   // Spiders
   SPIDER_HP: 4,         // здоровье паука
-  SPIDER_SPEED: 70,       // скорость паука (пикс/сек)
+  SPIDER_SPEED: 60,       // скорость паука (пикс/сек)
   SPIDER_RADIUS: 7,       // радиус коллизии паука
   SPIDER_PHASE_SPEED: 2,          // скорость анимации парения
   SPIDER_WOBBLE_MIN: 0.3, // мин. амплитуда покачивания
@@ -116,8 +116,8 @@ const CONFIG = {
 
   // Buldyga
   BULDYGA_HP: 10,        // здоровье булдыги
-  BULDYGA_SPEED: 70,              // начальная скорость
-  BULDYGA_SPEED_INCREMENT: 10,    // ускорение каждую секунду
+  BULDYGA_SPEED: 60,              // начальная скорость
+  BULDYGA_SPEED_INCREMENT: 5,    // ускорение каждую секунду
   BULDYGA_RADIUS: 7,     // радиус коллизии булдыги
   BULDYGA_ACCEL: 180,             // ускорение инерции (пикс/с²)
   BULDYGA_FRICTION: 3.5,          // коэффициент торможения (затухание скорости)
