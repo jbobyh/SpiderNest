@@ -1341,6 +1341,13 @@
         if (b.deathCorpses[i].life <= 0) b.deathCorpses.splice(i, 1);
       }
 
+      // Смерть в battle - проверяем ДО завершения боя, чтобы показать Game Over сразу
+      if (s.player.lives <= 0) {
+        s.player.lives = 0;
+        s.phase = 'dead';
+        return;
+      }
+
       // Проверяем завершение боя: все враги убиты и содержимое ячейки собрано
       const hasEnemies = b.activeSpiders.length > 0;
       const cellContent = s.cellContents.get(b.openedCellKey);
@@ -1379,12 +1386,6 @@
         Sounds.zoom();
         s.phase = 'zoom_out_transition';
         return;
-      }
-
-      // Смерть в battle
-      if (s.player.lives <= 0) {
-        s.player.lives = 0;
-        s.phase = 'dead';
       }
     }
 

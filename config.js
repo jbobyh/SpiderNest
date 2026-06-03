@@ -45,7 +45,7 @@ const CONFIG = {
   HIT_PARTICLES_LIFE: 0.5,            // время жизни частиц крови (сек)
   HIT_PARTICLES_COLOR: '#00ff44',     // цвет крови врага
   ENEMY_HIT_FLASH_DURATION: 0.18,     // длительность белой вспышки при уроне (сек)
-  ENEMY_STUN_DURATION: 0.5,           // длительность стана при получении урона (сек)
+  ENEMY_STUN_DURATION: 0.3,           // длительность стана при получении урона (сек)
 
   // Death particles (when enemy dies)
   DEATH_PARTICLES_COUNT: 5,          // кол-во частиц при смерти врага
@@ -417,7 +417,7 @@ const WEAPON_DEFS = {
     spread: 0.05,
     damage: 3*2,
     cooldown: 1.4,
-    bulletSpeed: 550,
+    bulletSpeed: 700,
     range: 40,
     penetrate: 2,
     shakeAmount: 0.8,
