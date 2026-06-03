@@ -1424,7 +1424,7 @@
               ctx.fillStyle = upgDef.color;
               ctx.shadowColor = upgDef.color;
               ctx.shadowBlur = 10;
-              ctx.font = 'bold 20px "Huninn"';
+              ctx.font = 'bold 32px "Huninn"';
               ctx.textAlign = 'center';
               ctx.textBaseline = 'middle';
               ctx.fillText(upgDef.icon, hx, hy);
@@ -1512,7 +1512,7 @@
           ctx.fillStyle = upgDef.color;
           ctx.shadowColor = upgDef.color;
           ctx.shadowBlur = 15;
-          ctx.font = 'bold 24px "Huninn"';
+          ctx.font = 'bold 36px "Huninn"';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(upgDef.icon, upg.x, upg.y);
@@ -2782,7 +2782,7 @@
           ctx.fillStyle = upgDef.color;
           ctx.shadowColor = upgDef.color;
           ctx.shadowBlur = 15;
-          ctx.font = 'bold 24px "Huninn"';
+          ctx.font = 'bold 36px "Huninn"';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(upgDef.icon, upg.x, upg.y);
