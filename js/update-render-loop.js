@@ -42,6 +42,62 @@
       ctx.restore();
     }
 
+    function drawPlayerDashTrails(player, heroScale) {
+      if (!player.dashTrails) return;
+      for (const t of player.dashTrails) {
+        const alpha = (t.life / t.maxLife) * 0.4;
+        drawPlayerSprite(t.x, t.y, heroScale, alpha, t);
+      }
+    }
+
+    function drawPlayerDashActiveEffect(x, y, dirX, dirY, scale) {
+      ctx.save();
+      ctx.translate(x, y);
+      const angle = Math.atan2(dirY, dirX);
+      ctx.rotate(angle);
+      ctx.globalAlpha = 0.4;
+      const stretch = CONFIG.PLAYER_SPRITE_RADIUS * scale;
+      const grad = ctx.createRadialGradient(-stretch * 0.4, 0, 0, -stretch * 0.4, 0, stretch * 2);
+      grad.addColorStop(0, 'rgba(140, 235, 255, 0.85)');
+      grad.addColorStop(1, 'rgba(140, 235, 255, 0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.ellipse(-stretch * 0.5, 0, stretch * 1.8, stretch * 0.65, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawPlayerDashCooldownIndicator(x, y, cooldown, scale) {
+      if (cooldown <= 0) return;
+      const progress = 1 - (cooldown / CONFIG.PLAYER_DASH_COOLDOWN);
+      const r = (10 / 3) * scale;
+      const cx = x + CONFIG.PLAYER_SPRITE_RADIUS * scale * 0.95;
+      const cy = y - CONFIG.PLAYER_SPRITE_RADIUS * scale * 0.1;
+
+      ctx.save();
+      ctx.globalAlpha = 0.85;
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+      ctx.lineWidth = (2 / 3) * scale;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r - 0.4 * scale, 0, Math.PI * 2);
+      ctx.stroke();
+
+      if (progress > 0.01) {
+        ctx.strokeStyle = progress > 0.85 ? '#66ffee' : '#44bbdd';
+        ctx.lineCap = 'round';
+        ctx.lineWidth = (2 / 3) * scale;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r - 0.4 * scale, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
     // ============================================================
     // UPDATE
     // ============================================================
@@ -54,6 +110,7 @@
 
       // Кулдаун деша
       if (s.player.dashCooldown > 0) s.player.dashCooldown -= dt;
+      updatePlayerDashEffects(s.player, s.player.x, s.player.y, dt, 1, s.particles);
 
       // Обработка деша
       if (s.player.isDashing) {
@@ -1018,13 +1075,18 @@
 
       // Игрок в battle
       const p = b.player;
+      const HERO_DRAW_SCALE = (CONFIG.PLAYER_SPRITE_RADIUS * 2 * BATTLE_SCALE) / HERO_SW;
+      drawPlayerDashTrails(s.player, HERO_DRAW_SCALE);
+      if (s.player.isDashing) {
+        drawPlayerDashActiveEffect(p.x, p.y, s.player.dashDirX, s.player.dashDirY, BATTLE_SCALE);
+      }
       const blinkOk = s.player.invulnerable <= 0 || Math.floor(s.player.invulnerable * 10) % 2 === 0;
       if (blinkOk) {
-        const HERO_DRAW_SCALE = (CONFIG.PLAYER_SPRITE_RADIUS * 2 * BATTLE_SCALE) / HERO_SW;
-        drawPlayerSprite(p.x, p.y, HERO_DRAW_SCALE);
+        drawPlayerSprite(p.x, p.y, HERO_DRAW_SCALE, s.player.isDashing ? 0.9 : undefined);
         const aimAngleBattle = Math.atan2(s.mouse.y - p.y, s.mouse.x - p.x);
         drawPlayerWeapon(p.x, p.y, aimAngleBattle, HERO_DRAW_SCALE);
       }
+      drawPlayerDashCooldownIndicator(p.x, p.y, s.player.dashCooldown, BATTLE_SCALE);
 
       // Индикатор разброса в battle
       if (CONFIG.DEBUG_SPREAD_INDICATOR) {
@@ -1588,13 +1650,18 @@
 
       // Игрок
       const p = s.player;
+      const HERO_DRAW_SCALE = (CONFIG.PLAYER_SPRITE_RADIUS * 2) / HERO_SW;
+      drawPlayerDashTrails(p, HERO_DRAW_SCALE);
+      if (p.isDashing) {
+        drawPlayerDashActiveEffect(p.x, p.y, p.dashDirX, p.dashDirY, 1);
+      }
       const blinkOk = s.player.invulnerable <= 0 || Math.floor(s.player.invulnerable * 10) % 2 === 0;
       if (blinkOk) {
-        const HERO_DRAW_SCALE = (CONFIG.PLAYER_SPRITE_RADIUS * 2) / HERO_SW;
-        drawPlayerSprite(p.x, p.y, HERO_DRAW_SCALE);
+        drawPlayerSprite(p.x, p.y, HERO_DRAW_SCALE, p.isDashing ? 0.9 : undefined);
         const aimAngleWorld = Math.atan2(s.mouse.y - p.y, s.mouse.x - p.x);
         drawPlayerWeapon(p.x, p.y, aimAngleWorld, HERO_DRAW_SCALE);
       }
+      drawPlayerDashCooldownIndicator(p.x, p.y, p.dashCooldown, 1);
 
       // Индикатор разброса: две полупрозрачных линии от игрока
       if (CONFIG.DEBUG_SPREAD_INDICATOR) {

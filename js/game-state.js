@@ -447,16 +447,19 @@
       }
     }
 
-    function drawPlayerSprite(cx2, cy2, scale, alpha) {
+    function drawPlayerSprite(cx2, cy2, scale, alpha, snapshot) {
       if (!heroImg.complete || heroImg.naturalWidth === 0) return;
-      const anim = HERO_ANIMS[playerAnim.key];
-      const sx = playerAnim.frame * HERO_SW;
+      const frame = snapshot ? snapshot.frame : playerAnim.frame;
+      const key = snapshot ? snapshot.key : playerAnim.key;
+      const flip = snapshot ? snapshot.flip : playerAnim.flip;
+      const anim = HERO_ANIMS[key];
+      const sx = frame * HERO_SW;
       const sy = anim.row * HERO_SH;
       const drawSize = HERO_SW * scale;
       ctx.save();
       ctx.globalAlpha = alpha !== undefined ? alpha : 1;
       ctx.translate(cx2, cy2);
-      if (playerAnim.flip) ctx.scale(-1, 1);
+      if (flip) ctx.scale(-1, 1);
       ctx.drawImage(
         heroImg,
         sx, sy, HERO_SW, HERO_SH,
@@ -936,6 +939,8 @@
           dashDirX: 0,
           dashDirY: 0,
           dashProgress: 0,
+          dashTrails: [],
+          dashTrailTimer: 0,
         },
 
         spiders: trappedSpiders,

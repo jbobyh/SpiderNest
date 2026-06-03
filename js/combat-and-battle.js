@@ -522,6 +522,7 @@
 
       // Кулдаун деша
       if (s.player.dashCooldown > 0) s.player.dashCooldown -= dt;
+      updatePlayerDashEffects(s.player, b.player.x, b.player.y, dt, BATTLE_SCALE, b.particles);
 
       // Таймер заморозки врагов
       if (b.freezeTimer > 0) {

@@ -76,6 +76,67 @@
       }
     }
 
+    function updatePlayerDashEffects(player, px, py, dt, scale, particles) {
+      if (!player.dashTrails) {
+        player.dashTrails = [];
+        player.dashTrailTimer = 0;
+      }
+
+      for (let i = player.dashTrails.length - 1; i >= 0; i--) {
+        player.dashTrails[i].life -= dt;
+        if (player.dashTrails[i].life <= 0) player.dashTrails.splice(i, 1);
+      }
+
+      if (!player.isDashing) {
+        player._dashBurstFired = false;
+        return;
+      }
+
+      if (!player._dashBurstFired) {
+        player._dashBurstFired = true;
+        for (let i = 0; i < 8; i++) {
+          const p = getParticle();
+          const a = Math.atan2(player.dashDirY, player.dashDirX) + (Math.random() - 0.5) * 1.2;
+          const speed = 50 + Math.random() * 40;
+          p.x = px;
+          p.y = py;
+          p.vx = Math.cos(a) * speed;
+          p.vy = Math.sin(a) * speed;
+          p.life = 0.18 + Math.random() * 0.1;
+          p.maxLife = p.life;
+          p.color = Math.random() < 0.5 ? '#a8f0ff' : '#ffffff';
+          particles.push(p);
+        }
+      }
+
+      player.dashTrailTimer += dt;
+      if (player.dashTrailTimer >= 0.028) {
+        player.dashTrailTimer -= 0.028;
+        player.dashTrails.push({
+          x: px,
+          y: py,
+          frame: playerAnim.frame,
+          key: playerAnim.key,
+          flip: playerAnim.flip,
+          life: 0.22,
+          maxLife: 0.22,
+        });
+      }
+
+      if (Math.random() < 0.65) {
+        const p = getParticle();
+        const backOff = 5 * scale;
+        p.x = px - player.dashDirX * backOff + (Math.random() - 0.5) * 6 * scale;
+        p.y = py - player.dashDirY * backOff + (Math.random() - 0.5) * 6 * scale;
+        p.vx = -player.dashDirX * 45 + (Math.random() - 0.5) * 18;
+        p.vy = -player.dashDirY * 45 + (Math.random() - 0.5) * 18;
+        p.life = 0.1 + Math.random() * 0.08;
+        p.maxLife = p.life;
+        p.color = Math.random() < 0.5 ? '#a8f0ff' : '#cceeff';
+        particles.push(p);
+      }
+    }
+
     // ============================================================
     // UTILITY
     // ============================================================
