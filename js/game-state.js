@@ -30,6 +30,8 @@
         snd.play().catch(() => {});
       },
       death:          function() { Sounds.play('death.wav'); },
+      hitonplayer:    function() { Sounds.play('hitonplayer.wav'); },
+      levelcomplete:  function() { Sounds.play('levelcomplete.wav'); },
       wallhit:        function() { Sounds.play('wallhit' + (Math.floor(Math.random() * 3) + 1) + '.wav'); },
       zoom:           function() { Sounds.play('zoom.wav'); },
       _footstepTimer: 0,

@@ -390,6 +390,7 @@
             const ey0 = ec.y * CP, ey1 = (ec.y + 1) * CP;
             if (state.player.x > ex0 && state.player.x < ex1 && state.player.y > ey0 && state.player.y < ey1) {
               state.phase = 'level_complete';
+              Sounds.levelcomplete();
               return;
             }
           }

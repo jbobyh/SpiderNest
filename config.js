@@ -448,7 +448,7 @@ const WEAPON_DEFS = {
     damage: 1*2,
     cooldown: 0.8,
     burstSize: 3,           // кол-во пуль в очереди
-    burstCooldown: 0.08,    // задержка между пулями в очереди (сек)
+    burstCooldown: 0.1,    // задержка между пулями в очереди (сек)
     bulletSpeed: 400,
     range: 25,
     penetrate: 0,

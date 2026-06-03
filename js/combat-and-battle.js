@@ -256,6 +256,7 @@
 
       // Обычный урон - отнимаем жизнь
       s.player.lives--;
+      Sounds.hitonplayer();
 
       // Отступление: дополнительная неуязвимость
       const retreatBonus = s.upgrades.retreat;
