@@ -1305,8 +1305,20 @@
         const isExit = x === s.exitCell.x && y === s.exitCell.y;
 
         if (isExit) {
-          ctx.fillStyle = `rgba(0,60,20,0.9)`;
-          ctx.fillRect(x * CP, y * CP, CP, CP);
+          let exitImg;
+          if (s.keysCollected >= s.keysRequired && s.bossDefeated) {
+            exitImg = openExitImg;
+          } else {
+            if (currentLevel === 2) exitImg = closedExit2Img;
+            else if (currentLevel === 3) exitImg = closedExit3Img;
+            else exitImg = closedExit1Img;
+          }
+          if (exitImg && exitImg.complete && exitImg.naturalWidth > 0) {
+            ctx.drawImage(exitImg, x * CP, y * CP, CP, CP);
+          } else {
+            ctx.fillStyle = `rgba(0,60,20,0.9)`;
+            ctx.fillRect(x * CP, y * CP, CP, CP);
+          }
         } else {
           drawFloorCell(ctx, x, y, CP, s.openCells, 0, 0, currentLevel);
         }

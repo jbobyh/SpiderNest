@@ -336,6 +336,19 @@
     const floor4ExitImg = new Image();
     floor4ExitImg.src = 'img/floor-4exit-blue.png';
 
+    // Exit cell backgrounds
+    const closedExit1Img = new Image();
+    closedExit1Img.src = 'img/closedexit1.png';
+
+    const closedExit2Img = new Image();
+    closedExit2Img.src = 'img/closedexit2.png';
+
+    const closedExit3Img = new Image();
+    closedExit3Img.src = 'img/closedexit3.png';
+
+    const openExitImg = new Image();
+    openExitImg.src = 'img/openexit.png';
+
     const heroImg = new Image();
     heroImg.src = 'img/hero.png';
 
