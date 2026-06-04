@@ -340,6 +340,9 @@
     const hudShieldImg = new Image();
     hudShieldImg.src = 'img/shield.png';
 
+    const cursedChestImg = new Image();
+    cursedChestImg.src = 'img/open-treasure-chest.png';
+
     const hudCtrlF     = new Image(); hudCtrlF.src     = 'img/keyboard_f.png';
     const hudCtrlShift = new Image(); hudCtrlShift.src = 'img/keyboard_shift.png';
     const hudCtrlTab   = new Image(); hudCtrlTab.src   = 'img/keyboard_tab.png';

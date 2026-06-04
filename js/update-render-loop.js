@@ -976,10 +976,15 @@
         ctx.globalAlpha = 1;
         ctx.shadowColor = '#cc44ff';
         ctx.shadowBlur = 18 * BATTLE_SCALE;
-        ctx.font = `bold ${26 * BATTLE_SCALE}px serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('📦', bc.x, bc.y);
+        if (cursedChestImg.complete && cursedChestImg.naturalWidth > 0) {
+          const size = BATTLE_CELL_PX * 0.3;
+          ctx.drawImage(cursedChestImg, bc.x - size/2, bc.y - size/2, size, size);
+        } else {
+          ctx.font = `bold ${26 * BATTLE_SCALE}px serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('📦', bc.x, bc.y);
+        }
         ctx.shadowBlur = 0;
         ctx.globalAlpha = 1;
       }
@@ -1565,10 +1570,14 @@
         ctx.fillStyle = '#ffffff';
         ctx.shadowColor = '#cc44ff';
         ctx.shadowBlur = isOpen ? 18 : 8;
-        ctx.font = 'bold 26px serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('📦', chest.x, chest.y);
+        if (cursedChestImg.complete && cursedChestImg.naturalWidth > 0) {
+          ctx.drawImage(cursedChestImg, chest.x - CP*0.15, chest.y - CP*0.15, CP*0.3, CP*0.3);
+        } else {
+          ctx.font = 'bold 26px serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('📦', chest.x, chest.y);
+        }
         ctx.shadowBlur = 0;
       }
 
@@ -2967,10 +2976,14 @@
         ctx.globalAlpha = 1;
         ctx.shadowColor = '#cc44ff';
         ctx.shadowBlur = isOpen ? 18 : 8;
-        ctx.font = 'bold 26px serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('📦', chest.x, chest.y);
+        if (cursedChestImg.complete && cursedChestImg.naturalWidth > 0) {
+          ctx.drawImage(cursedChestImg, chest.x - CP*0.15, chest.y - CP*0.15, CP*0.3, CP*0.3);
+        } else {
+          ctx.font = 'bold 26px serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('📦', chest.x, chest.y);
+        }
         ctx.shadowBlur = 0;
       }
       ctx.globalAlpha = 1;
