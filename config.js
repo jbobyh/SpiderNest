@@ -512,7 +512,7 @@ const BOSS_DEFS = {
   },
   3: {
     type: 'boss_phase',
-    hp: 300,               // фиксированный HP
+    hp: 1000,               // фиксированный HP
     radiusMult: 2.5,
     speedMult: 1.0,
     name: 'БОСС',
