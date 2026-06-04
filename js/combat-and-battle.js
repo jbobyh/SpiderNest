@@ -173,6 +173,19 @@
     function dealPlayerDamage(s, isBattleMode) {
       if (s.player.invulnerable > 0 || CONFIG.DEBUG_INVULNERABLE) return false;
 
+      // Щит поглощает урон
+      if (s.upgrades.shield > 0) {
+        s.upgrades.shield--;
+        playerProgress.upgrades.shield--;
+        // Даем неуязвимость как при потере жизни
+        s.player.invulnerable = CONFIG.PLAYER_INVULNERABLE_TIME + s.upgrades.retreat;
+        // Отражение: выпускаем 3 пули в ближайших врагов
+        if (s.upgrades.reflection) {
+          fireReflectionBullets(s, isBattleMode);
+        }
+        return true; // Урон поглощен щитом
+      }
+
       // Последняя жизнь - если это смертельный урон (останется 0 жизней)
       if (s.upgrades.lastLife && s.player.lives <= 1) {
         s.upgrades.lastLife = false;
@@ -242,20 +255,9 @@
         
         // Показываем попап
         showUpgradePopup('ПОСЛЕДНЯЯ ЖИЗНЬ АКТИВИРОВАНА!', '#ff0000');
-        return true; // Урон предотвращен
-      }
-
-      // Щит поглощает урон
-      if (s.upgrades.shield > 0) {
-        s.upgrades.shield--;
-        playerProgress.upgrades.shield--;
         // Даем неуязвимость как при потере жизни
         s.player.invulnerable = CONFIG.PLAYER_INVULNERABLE_TIME + s.upgrades.retreat;
-        // Отражение: выпускаем 3 пули в ближайших врагов
-        if (s.upgrades.reflection) {
-          fireReflectionBullets(s, isBattleMode);
-        }
-        return true; // Урон поглощен щитом
+        return true; // Урон предотвращен
       }
 
       // Обычный урон - отнимаем жизнь
