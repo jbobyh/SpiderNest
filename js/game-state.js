@@ -33,11 +33,7 @@
       hitonplayer:    function() { Sounds.play('hitonplayer.wav'); },
       shield:         function() { Sounds.play('shield.wav'); },
       levelcomplete:  function() { Sounds.play('levelcomplete.wav'); },
-      _wallhitTimer:  0,
-      wallhit:        function(dt) {
-        Sounds._wallhitTimer -= dt;
-        if (Sounds._wallhitTimer > 0) return;
-        Sounds._wallhitTimer = 0.05;
+      wallhit:        function() {
         Sounds.play('wallhit' + (Math.floor(Math.random() * 3) + 1) + '.wav');
       },
       zoom:           function() { Sounds.play('zoom.wav'); },

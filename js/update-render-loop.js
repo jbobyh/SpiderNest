@@ -259,7 +259,7 @@
         b.life -= dt;
 
         if (b.life <= 0) {
-          Sounds.wallhit(dt);
+          Sounds.wallhit();
           addParticles(b.x, b.y, CONFIG.WALL_HIT_PARTICLES_COUNT, CONFIG.WALL_HIT_PARTICLES_SPEED, CONFIG.WALL_HIT_PARTICLES_LIFE, '#88aaff');
           s.bullets.splice(i, 1);
           continue;
@@ -275,10 +275,10 @@
             else if (yOk) { b.vx = -b.vx; b.x = prevX; }
             else { b.vx = -b.vx; b.vy = -b.vy; b.x = prevX; b.y = prevY; }
             b.hitSpiders = undefined;
-            Sounds.wallhit(dt);
+            Sounds.wallhit();
             addParticles(b.x, b.y, CONFIG.WALL_HIT_PARTICLES_COUNT, CONFIG.WALL_HIT_PARTICLES_SPEED, CONFIG.WALL_HIT_PARTICLES_LIFE, '#22ffdd');
           } else {
-            Sounds.wallhit(dt);
+            Sounds.wallhit();
             addParticles(b.x, b.y, CONFIG.WALL_HIT_PARTICLES_COUNT, CONFIG.WALL_HIT_PARTICLES_SPEED, CONFIG.WALL_HIT_PARTICLES_LIFE, '#88aaff');
             s.bullets.splice(i, 1);
             continue;
