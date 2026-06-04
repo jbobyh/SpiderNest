@@ -80,6 +80,7 @@ const CONFIG = {
   SPIDER_HP: 3*2,         // здоровье паука
   SPIDER_SPEED: 60,       // скорость паука (пикс/сек)
   SPIDER_RADIUS: 7,       // радиус коллизии паука
+  SPIDER_VISUAL_SCALE: 2.9,       // множитель визуального размера спрайта
   SPIDER_PHASE_SPEED: 2,          // скорость анимации парения
   SPIDER_WOBBLE_MIN: 0.2, // мин. амплитуда покачивания
   SPIDER_WOBBLE_MAX: 0.3, // макс. амплитуда покачивания
@@ -89,6 +90,7 @@ const CONFIG = {
   SHOOTER_HP: 2*2,             // здоровье плеваки
   SHOOTER_SPEED: 50,          // скорость плеваки (пикс/сек)
   SHOOTER_RADIUS: 6,          // радиус коллизии плеваки
+  SHOOTER_VISUAL_SCALE: 2.5,          // множитель визуального размера спрайта
   SHOOTER_BULLET_SPEED: 100,  // скорость пули плеваки
   SHOOTER_SHOOT_RANGE_CELLS: 2, // дальность стрельбы плеваки (в клетках)
   SHOOTER_SHOOT_CD: 1.5,     // кулдаун выстрела плеваки (сек)
@@ -109,6 +111,7 @@ const CONFIG = {
   BULL_HP: 4*2,           // здоровье быка
   BULL_SPEED: 70,         // скорость быка (пикс/сек)
   BULL_RADIUS: 6,         // радиус коллизии быка
+  BULL_VISUAL_SCALE: 3.2,         // множитель визуального размера спрайта
   BULL_PREPARE_TIME: 1,         // время подготовки рывка (сек)
   BULL_DASH_DISTANCE_CELLS: 1.0,  // дистанция рывка быка (в клетках)
   BULL_REST_TIME: 1.5,            // время отдыха после рывка (сек)
@@ -120,12 +123,14 @@ const CONFIG = {
   BULDYGA_SPEED: 60,              // начальная скорость
   BULDYGA_SPEED_INCREMENT: 20,    // ускорение каждую секунду
   BULDYGA_RADIUS: 6,     // радиус коллизии булдыги
+  BULDYGA_VISUAL_SCALE: 4.0,     // множитель визуального размера спрайта
   BULDYGA_ACCEL: 180,             // ускорение инерции (пикс/с²)
   BULDYGA_FRICTION: 3.5,          // коэффициент торможения (затухание скорости)
 
   // Cocoon (spawner)
   COCOON_HP: 8*2,         // здоровье кокона
   COCOON_RADIUS: 10,      // радиус коллизии кокона
+  COCOON_VISUAL_SCALE: 3.2,      // множитель визуального размера спрайта
   COCOON_SPAWN_INTERVAL: 3.0,     // секунд между спавнами солдат
   COCOON_CHANCE: 0.30,            // шанс спавна кокона на уровне 3
 
@@ -133,6 +138,7 @@ const CONFIG = {
   BLOATED_HP: 4*2,        // здоровье распухшего
   BLOATED_SPEED: 60,      // скорость распухшего (пикс/сек)
   BLOATED_RADIUS: 7,      // радиус коллизии распухшего
+  BLOATED_VISUAL_SCALE: 3.2,      // множитель визуального размера спрайта
   BLOATED_DEATH_SHOT_SPEED: 150,  // скорость пули при смерти (как у плеваки)
   BLOATED_CHANCE: 0.30,           // шанс спавна распухшего на уровне 3 (после кокона)
 

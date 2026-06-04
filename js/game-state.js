@@ -641,22 +641,22 @@
     function getEnemyStats(enemyType) {
       switch (enemyType) {
         case 'cocoon':
-          return { hp: CONFIG.COCOON_HP, radius: CONFIG.COCOON_RADIUS };
+          return { hp: CONFIG.COCOON_HP, radius: CONFIG.COCOON_RADIUS, visualScale: CONFIG.COCOON_VISUAL_SCALE };
         case 'bloated':
-          return { hp: CONFIG.BLOATED_HP, radius: CONFIG.BLOATED_RADIUS };
+          return { hp: CONFIG.BLOATED_HP, radius: CONFIG.BLOATED_RADIUS, visualScale: CONFIG.BLOATED_VISUAL_SCALE };
         case 'bull':
-          return { hp: CONFIG.BULL_HP, radius: CONFIG.BULL_RADIUS };
+          return { hp: CONFIG.BULL_HP, radius: CONFIG.BULL_RADIUS, visualScale: CONFIG.BULL_VISUAL_SCALE };
         case 'buldyga':
-          return { hp: CONFIG.BULDYGA_HP, radius: CONFIG.BULDYGA_RADIUS };
+          return { hp: CONFIG.BULDYGA_HP, radius: CONFIG.BULDYGA_RADIUS, visualScale: CONFIG.BULDYGA_VISUAL_SCALE };
         case 'plevaka':
-          return { hp: CONFIG.SHOOTER_HP, radius: CONFIG.SPIDER_RADIUS };
+          return { hp: CONFIG.SHOOTER_HP, radius: CONFIG.SPIDER_RADIUS, visualScale: CONFIG.SHOOTER_VISUAL_SCALE };
         default:
-          return { hp: CONFIG.SPIDER_HP, radius: CONFIG.SPIDER_RADIUS };
+          return { hp: CONFIG.SPIDER_HP, radius: CONFIG.SPIDER_RADIUS, visualScale: CONFIG.SPIDER_VISUAL_SCALE };
       }
     }
 
     function createTrappedEnemy(enemyType, gx, gy, homeX, homeY) {
-      const { hp, radius } = getEnemyStats(enemyType);
+      const { hp, radius, visualScale } = getEnemyStats(enemyType);
       return {
         x: gx, y: gy,
         homeX, homeY,
@@ -666,6 +666,7 @@
         vx: 0, vy: 0,
         radius,
         hp,
+        visualScale,
         type: enemyType,
         shootCd: 0,
         state: 'chase',

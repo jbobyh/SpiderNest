@@ -628,6 +628,7 @@
               vx: 0, vy: 0,
               radius: CONFIG.SPIDER_RADIUS,
               hp: CONFIG.SPIDER_HP,
+              visualScale: CONFIG.SPIDER_VISUAL_SCALE,
               type: 'soldier',
               shootCd: 0,
               state: 'chase',
@@ -1038,7 +1039,7 @@
         else if (isPlevaka) img = enemyImages.plevaka_dead;
         else if (isBull) img = enemyImages.bull_dead;
         else if (isBuldyga) img = enemyImages.buldyga_dead;
-        if (img) drawEnemySprite(img, c.x, c.y, c.radius / BATTLE_SCALE, alpha, BATTLE_SCALE, 0);
+        if (img) drawEnemySprite(img, c.x, c.y, c.radius / BATTLE_SCALE, alpha, BATTLE_SCALE, 0, false, c.visualScale);
       }
 
       // Враги в battle (масштабированы)
@@ -1626,7 +1627,7 @@
         else if (isPlevaka) img = enemyImages.plevaka_dead;
         else if (isBull) img = enemyImages.bull_dead;
         else if (isBuldyga) img = enemyImages.buldyga_dead;
-        if (img) drawEnemySprite(img, c.x, c.y, c.radius, alpha, 1, 0);
+        if (img) drawEnemySprite(img, c.x, c.y, c.radius, alpha, 1, 0, false, c.visualScale);
       }
 
       // Активные пауки (выпущенные)
@@ -2050,9 +2051,9 @@
     }
 
     // Helper: draw enemy sprite (500x500px images)
-    function drawEnemySprite(img, x, y, radius, alpha, scale, hitFlash, flip = false) {
+    function drawEnemySprite(img, x, y, radius, alpha, scale, hitFlash, flip = false, visualScale = 3.2) {
       if (!img || !img.complete || img.naturalWidth === 0) return false;
-      const drawSize = radius * 3.2 * scale;
+      const drawSize = radius * visualScale * scale;
       ctx.save();
       ctx.globalAlpha = alpha;
       if (flip) {
@@ -2132,7 +2133,7 @@
         ctx.fill();
         ctx.restore();
 
-        if (drawEnemySprite(img, g.x, g.y, r / scale, alpha, scale, g.hitFlash || 0, flipSprite)) {
+        if (drawEnemySprite(img, g.x, g.y, r / scale, alpha, scale, g.hitFlash || 0, flipSprite, g.visualScale)) {
           // Sprite drawn successfully - skip body rendering, draw only HP bar and indicators
           // HP бар
           let maxHp;

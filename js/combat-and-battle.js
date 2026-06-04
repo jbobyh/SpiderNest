@@ -15,6 +15,7 @@
         y: g.y,
         type: type,
         radius: radius,
+        visualScale: g.visualScale || 3.2,
         life: CORPSE_DURATION,
         maxLife: CORPSE_DURATION,
       });
@@ -1174,6 +1175,7 @@
               vx: 0, vy: 0,
               radius: CONFIG.SPIDER_RADIUS,
               hp: CONFIG.SPIDER_HP,
+              visualScale: CONFIG.SPIDER_VISUAL_SCALE,
               type: 'soldier',
               shootCd: 0,
               state: 'chase',
