@@ -273,6 +273,41 @@
       }
     }
 
+    .credits {
+      max-width: 720px;
+      margin-top: 20px;
+      padding: 16px 32px;
+      background:
+        linear-gradient(180deg, rgba(55, 35, 17, 0.96), rgba(31, 19, 10, 0.97)),
+        repeating-linear-gradient(90deg, rgba(255, 224, 160, 0.04) 0 1px, transparent 1px 16px);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      text-align: center;
+      position: relative;
+      z-index: 1;
+      box-shadow: 0 12px 34px var(--shadow), inset 0 1px 0 rgba(255, 224, 160, 0.1);
+    }
+
+    .credits p {
+      font-size: 0.7rem;
+      color: var(--accent);
+      letter-spacing: 0.15em;
+      margin-bottom: 12px;
+    }
+
+    .credits a {
+      display: block;
+      font-size: 0.65rem;
+      color: var(--dim);
+      text-decoration: none;
+      margin-bottom: 4px;
+      transition: color 0.15s;
+    }
+
+    .credits a:hover {
+      color: var(--accent);
+    }
+
     #upgrade-popup {
       position: absolute;
       top: 60px;
