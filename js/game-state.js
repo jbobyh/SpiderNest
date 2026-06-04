@@ -31,6 +31,7 @@
       },
       death:          function() { Sounds.play('death.wav'); },
       hitonplayer:    function() { Sounds.play('hitonplayer.wav'); },
+      shield:         function() { Sounds.play('shield.wav'); },
       levelcomplete:  function() { Sounds.play('levelcomplete.wav'); },
       _wallhitTimer:  0,
       wallhit:        function(dt) {
