@@ -107,6 +107,24 @@
         }
       },
 
+      stopGameMusic() {
+        // Stop level music
+        if (Sounds._levelMusic) {
+          Sounds._levelMusic.pause();
+          Sounds._levelMusic.currentTime = 0;
+          Sounds._levelMusic = null;
+        }
+        Sounds._currentMusicLevel = null;
+        // Stop boss music
+        if (Sounds._bossMusic) {
+          Sounds._bossMusic.pause();
+          Sounds._bossMusic.currentTime = 0;
+          Sounds._bossMusic = null;
+        }
+        // Clear music fade
+        Sounds._musicFade = null;
+      },
+
       playBossMusic() {
         const cfg = CONFIG.MUSIC.BOSS;
         if (!cfg) return;

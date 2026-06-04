@@ -388,9 +388,13 @@
             const ex0 = ec.x * CP, ex1 = (ec.x + 1) * CP;
             const ey0 = ec.y * CP, ey1 = (ec.y + 1) * CP;
             if (state.player.x > ex0 && state.player.x < ex1 && state.player.y > ey0 && state.player.y < ey1) {
-              state.phase = 'level_complete';
-              Sounds.levelcomplete();
-              Sounds.stopLevelMusic(CONFIG.FADE_DURATION_LEVEL_END);
+              if (currentLevel >= 3) {
+                state.phase = 'win';
+              } else {
+                state.phase = 'level_complete';
+                Sounds.levelcomplete();
+                Sounds.stopLevelMusic(CONFIG.FADE_DURATION_LEVEL_END);
+              }
               return;
             }
           }

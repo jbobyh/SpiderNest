@@ -3510,6 +3510,7 @@
           draw(state);
         }
         const levelCfg = getLevelConfig(currentLevel);
+        Sounds.stopGameMusic();
         Sounds.ambienceStop();
         const saveExists = hasSave();
         showOverlay('GAME OVER', '#ff3a3a',

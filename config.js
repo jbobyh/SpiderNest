@@ -139,7 +139,7 @@ const CONFIG = {
   BLOATED_SPEED: 60,      // скорость распухшего (пикс/сек)
   BLOATED_RADIUS: 7,      // радиус коллизии распухшего
   BLOATED_VISUAL_SCALE: 3.2,      // множитель визуального размера спрайта
-  BLOATED_DEATH_SHOT_SPEED: 150,  // скорость пули при смерти (как у плеваки)
+  BLOATED_DEATH_SHOT_SPEED: 120,  // скорость пули при смерти (как у плеваки)
   BLOATED_CHANCE: 0.30,           // шанс спавна распухшего на уровне 3 (после кокона)
 
   // Level generation

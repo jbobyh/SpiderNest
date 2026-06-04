@@ -583,7 +583,7 @@
           if (roomCount === 2) {
             speedMult *= 1.25; // +25% скорости при 2 комнатах
           } else if (roomCount > 2) {
-            const penalty = 0.15 * (roomCount - 2); // -15% за каждую комнату сверх двух
+            const penalty = 0.10 * (roomCount - 2); // -10% за каждую комнату сверх двух
             speedMult *= Math.max(0.1, 1 - penalty); // Не даем скорости упасть ниже 10%
           }
         }
@@ -1575,12 +1575,7 @@
       if (s.player.lives <= 0) {
         s.player.lives = 0;
         s.phase = 'dead';
-        // Stop boss music immediately on player death
-        if (Sounds._bossMusic) {
-          Sounds._bossMusic.pause();
-          Sounds._bossMusic.currentTime = 0;
-          Sounds._bossMusic = null;
-        }
+        Sounds.stopGameMusic();
         return;
       }
 
