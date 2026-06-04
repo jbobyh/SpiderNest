@@ -249,6 +249,8 @@
       if (s.upgrades.shield > 0) {
         s.upgrades.shield--;
         playerProgress.upgrades.shield--;
+        // Даем неуязвимость как при потере жизни
+        s.player.invulnerable = CONFIG.PLAYER_INVULNERABLE_TIME + s.upgrades.retreat;
         // Отражение: выпускаем 3 пули в ближайших врагов
         if (s.upgrades.reflection) {
           fireReflectionBullets(s, isBattleMode);
