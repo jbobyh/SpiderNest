@@ -545,7 +545,7 @@ const UPGRADE_TYPES = [
   { id: 'bulletSpeed',   label: '+30% скорость пули',      description: 'Пули летят быстрее',                     color: '#ffff44', max: 2, icon: '⚡' },
   { id: 'critChance',    label: '+5% шанс крита',          description: 'Шанс нанести двойной урон',                       color: '#ff0000', max: 3, icon: '⚔️' },
   { id: 'killAccel',     label: 'Убийственный разгон',     description: 'Каждое убийство ускоряет перезарядку на 0.1%',                  color: '#ff8800', max: 1, icon: '🏃' },
-  { id: 'enhancedPierce',label: 'Усиленное пробитие',      description: 'Пуля, пробившая врага, наносит повышенный урон',               color: '#aa44ff', max: 1, icon: '💜' },
+  { id: 'enhancedPierce',label: 'Усиленное пробитие',      description: 'Пуля, пробившая врага, наносит повышенный урон',               color: '#aa44ff', max: 1, icon: '🗡️' },
   { id: 'shield',        label: 'Щит',                     description: 'Поглощает один удар без потери жизни. Тратится.',                        color: '#00aaff', max: 2, icon: '🛡️' },
   { id: 'retreat',       label: 'Отступление',             description: 'После получения урона получи неуязвимость на 1.5 секунды',                  color: '#00ffaa', max: 2, icon: '🏃‍♂️' },
   { id: 'reflection',    label: 'Отражение',               description: 'При получении урона выпускает 3 пули в ближайших врагов',        color: '#ff00ff', max: 1, icon: '🔄' },
