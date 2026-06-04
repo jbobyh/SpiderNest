@@ -2162,11 +2162,7 @@
         if (drawEnemySprite(img, g.x, g.y, r / scale, alpha, scale, g.hitFlash || 0, flipSprite, g.visualScale)) {
           // Sprite drawn successfully - skip body rendering, draw only HP bar and indicators
           // HP бар
-          let maxHp;
-          if (isBull) maxHp = CONFIG.BULL_HP;
-          else if (isBuldyga) maxHp = CONFIG.BULDYGA_HP;
-          else if (isPlevaka) maxHp = CONFIG.SHOOTER_HP;
-          else maxHp = CONFIG.SPIDER_HP;
+          const maxHp = g.maxHp || CONFIG.SPIDER_HP;
 
           if (g.hp !== undefined && g.hp < maxHp) {
             const hpFrac = Math.max(0, g.hp / maxHp);
@@ -2254,7 +2250,7 @@
         ctx.globalAlpha = alpha;
 
         // HP бар для кокона
-        const maxHp = CONFIG.COCOON_HP;
+        const maxHp = g.maxHp || CONFIG.COCOON_HP;
         if (g.hp !== undefined && g.hp < maxHp) {
           const hpFrac = Math.max(0, g.hp / maxHp);
           ctx.globalAlpha = 0.8;
@@ -2401,13 +2397,7 @@
       }
 
       // HP бар
-      let maxHp;
-      if (isBull) maxHp = CONFIG.BULL_HP;
-      else if (isBuldyga) maxHp = CONFIG.BULDYGA_HP;
-      else if (isPlevaka) maxHp = CONFIG.SHOOTER_HP;
-      else if (isCocoon) maxHp = CONFIG.COCOON_HP;
-      else if (isBloated) maxHp = CONFIG.BLOATED_HP;
-      else maxHp = CONFIG.SPIDER_HP;
+      const maxHp = g.maxHp || (isBull ? CONFIG.BULL_HP : isBuldyga ? CONFIG.BULDYGA_HP : isPlevaka ? CONFIG.SHOOTER_HP : isCocoon ? CONFIG.COCOON_HP : isBloated ? CONFIG.BLOATED_HP : CONFIG.SPIDER_HP);
       if (g.hp !== undefined && g.hp < maxHp) {
         const hpFrac = Math.max(0, g.hp / maxHp);
         ctx.globalAlpha = 0.8;

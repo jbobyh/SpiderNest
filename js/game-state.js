@@ -675,19 +675,24 @@
     }
 
     function getEnemyStats(enemyType) {
+      // HP multipliers for regular enemies by level (bosses unaffected)
+      let hpMult = 1;
+      if (currentLevel === 2) hpMult = 2;
+      else if (currentLevel >= 3) hpMult = 4;
+
       switch (enemyType) {
         case 'cocoon':
-          return { hp: CONFIG.COCOON_HP, radius: CONFIG.COCOON_RADIUS, visualScale: CONFIG.COCOON_VISUAL_SCALE };
+          return { hp: CONFIG.COCOON_HP * hpMult, radius: CONFIG.COCOON_RADIUS, visualScale: CONFIG.COCOON_VISUAL_SCALE };
         case 'bloated':
-          return { hp: CONFIG.BLOATED_HP, radius: CONFIG.BLOATED_RADIUS, visualScale: CONFIG.BLOATED_VISUAL_SCALE };
+          return { hp: CONFIG.BLOATED_HP * hpMult, radius: CONFIG.BLOATED_RADIUS, visualScale: CONFIG.BLOATED_VISUAL_SCALE };
         case 'bull':
-          return { hp: CONFIG.BULL_HP, radius: CONFIG.BULL_RADIUS, visualScale: CONFIG.BULL_VISUAL_SCALE };
+          return { hp: CONFIG.BULL_HP * hpMult, radius: CONFIG.BULL_RADIUS, visualScale: CONFIG.BULL_VISUAL_SCALE };
         case 'buldyga':
-          return { hp: CONFIG.BULDYGA_HP, radius: CONFIG.BULDYGA_RADIUS, visualScale: CONFIG.BULDYGA_VISUAL_SCALE };
+          return { hp: CONFIG.BULDYGA_HP * hpMult, radius: CONFIG.BULDYGA_RADIUS, visualScale: CONFIG.BULDYGA_VISUAL_SCALE };
         case 'plevaka':
-          return { hp: CONFIG.SHOOTER_HP, radius: CONFIG.SPIDER_RADIUS, visualScale: CONFIG.SHOOTER_VISUAL_SCALE };
+          return { hp: CONFIG.SHOOTER_HP * hpMult, radius: CONFIG.SPIDER_RADIUS, visualScale: CONFIG.SHOOTER_VISUAL_SCALE };
         default:
-          return { hp: CONFIG.SPIDER_HP, radius: CONFIG.SPIDER_RADIUS, visualScale: CONFIG.SPIDER_VISUAL_SCALE };
+          return { hp: CONFIG.SPIDER_HP * hpMult, radius: CONFIG.SPIDER_RADIUS, visualScale: CONFIG.SPIDER_VISUAL_SCALE };
       }
     }
 
@@ -702,6 +707,7 @@
         vx: 0, vy: 0,
         radius,
         hp,
+        maxHp: hp,
         visualScale,
         type: enemyType,
         shootCd: 0,
