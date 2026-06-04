@@ -1910,7 +1910,7 @@
       const rows = [
         { label: 'ЖИЗНИ', value: `${s.player.lives}`, color: '#ff4444' },
         { label: 'СКОРОСТЬ БЕГА', value: `${Math.round(CONFIG.PLAYER_SPEED * s.upgrades.speedMult)}`, color: '#44ff88' },
-        { label: 'УРОН ПУЛИ', value: `${weapon?.damage || CONFIG.BULLET_DAMAGE}`, color: '#ff8800' },
+        { label: 'УРОН ПУЛИ', value: `${(weapon?.damage || CONFIG.BULLET_DAMAGE) + s.upgrades.damage}`, color: '#ff8800' },
         { label: 'ПУЛЬ ЗА ВЫСТРЕЛ', value: `${(weapon?.pellets || 1) + s.upgrades.pellets}`, color: '#00d4ff' },
         { label: 'ТОЧНОСТЬ', value: spreadDeg === 0 ? 'Идеальная' : `±${spreadDeg}°`, color: '#ff66aa' },
         { label: 'ДАЛЬНОСТЬ ПУЛИ', value: `${baseRange}`, color: '#88ff44' },
