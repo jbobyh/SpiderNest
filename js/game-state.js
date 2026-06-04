@@ -369,19 +369,23 @@
 
     // Enemy sprites (500x500px each)
     const enemyImages = {
+      bloated:  new Image(),
       buldyga:  new Image(),
       bull:     new Image(),
       plevaka:  new Image(),
       soldier:  new Image(),
     };
+    enemyImages.bloated.src  = 'img/bloated.png';
     enemyImages.buldyga.src  = 'img/buldyga.png';
     enemyImages.bull.src     = 'img/bull.png';
     enemyImages.plevaka.src  = 'img/plevaka.png';
     enemyImages.soldier.src  = 'img/soldier.png';
+    enemyImages.bloated_dead = new Image();
     enemyImages.buldyga_dead = new Image();
     enemyImages.bull_dead    = new Image();
     enemyImages.plevaka_dead = new Image();
     enemyImages.soldier_dead = new Image();
+    enemyImages.bloated_dead.src = 'img/bloated_dead.png';
     enemyImages.buldyga_dead.src = 'img/buldyga_dead.png';
     enemyImages.bull_dead.src    = 'img/bull_dead.png';
     enemyImages.plevaka_dead.src = 'img/plevaka_dead.png';
