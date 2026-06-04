@@ -128,7 +128,7 @@ const CONFIG = {
   BULDYGA_FRICTION: 3.5,          // коэффициент торможения (затухание скорости)
 
   // Cocoon (spawner)
-  COCOON_HP: 8*2,         // здоровье кокона
+  COCOON_HP: 16*2,         // здоровье кокона
   COCOON_RADIUS: 10,      // радиус коллизии кокона
   COCOON_VISUAL_SCALE: 3.2,      // множитель визуального размера спрайта
   COCOON_SPAWN_INTERVAL: 3.0,     // секунд между спавнами солдат
@@ -363,14 +363,22 @@ const ROOM_POOLS = {
       { bloated: 8, bull: 4, cocoon: 4 },
     ],
     simpleupgrade: [
-      { soldier: 1, shooter: 1, bull: 1, buldyga: 0, cocoon: 0, bloated: 0 },
-      { soldier: 2, shooter: 0, bull: 0, buldyga: 1, cocoon: 1, bloated: 0 },
-      { soldier: 1, shooter: 1, bull: 0, buldyga: 0, cocoon: 0, bloated: 1 },
+      { buldyga: 8, bull: 4, shooter: 6, cocoon: 5 },
+      { bloated: 5, bull: 6, shooter: 3, cocoon: 4 },
+      { bloated: 8, shooter: 6, bull: 6, cocoon: 5 },
+      { soldier: 8, shooter: 5, bull: 5, cocoon: 4 },
+      { buldyga: 6, shooter: 5, bull: 5, cocoon: 5 },
+      { bull: 10, cocoon: 4 },
+      { bloated: 8, bull: 4, cocoon: 4 },
     ],
     cursedupgrade: [
-      { soldier: 2, shooter: 1, bull: 1, buldyga: 1, cocoon: 0, bloated: 1 },
-      { soldier: 2, shooter: 2, bull: 1, buldyga: 0, cocoon: 1, bloated: 1 },
-      { soldier: 3, shooter: 0, bull: 1, buldyga: 1, cocoon: 1, bloated: 0 },
+      { buldyga: 8, bull: 4, shooter: 6, cocoon: 5 },
+      { bloated: 5, bull: 6, shooter: 3, cocoon: 4 },
+      { bloated: 8, shooter: 6, bull: 6, cocoon: 5 },
+      { soldier: 8, shooter: 5, bull: 5, cocoon: 4 },
+      { buldyga: 6, shooter: 5, bull: 5, cocoon: 5 },
+      { bull: 10, cocoon: 4 },
+      { bloated: 8, bull: 4, cocoon: 4 },
     ],
     enemy: [
       { soldier: 3, shooter: 1, bull: 1, buldyga: 1, cocoon: 1, bloated: 1 },
