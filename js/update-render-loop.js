@@ -2754,8 +2754,16 @@
     function showOverlay(title, color, lines, btnText, action = 'startGame') {
       const ov = document.getElementById('overlay');
       ov.style.display = 'flex';
+      ov.className = title === 'GAME OVER' ? 'gameover' : '';
+      const imagesHtml = title === 'GAME OVER' ? `
+    <div class="gameover-images">
+      <img src="img/death.png" alt="">
+      <img src="img/deathtext.png" class="death-text" alt="">
+    </div>
+  ` : '';
       ov.innerHTML = `
-    <h2 style="color:${color}">${title}</h2>
+    <h2 style="color:${color}">${title === 'GAME OVER' ? '' : title}</h2>
+    ${imagesHtml}
     ${lines.map(l => `<p>${l}</p>`).join('')}
     <button class="btn" id="start-btn" style="border-color:${color};color:${color}">
       ${btnText}
