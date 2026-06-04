@@ -1039,11 +1039,13 @@
         const isPlevaka = c.type === 'plevaka' || c.type === 'shooter';
         const isBull = c.type === 'bull';
         const isBuldyga = c.type === 'buldyga';
+        const isBloated = c.type === 'bloated';
         let img = null;
         if (isSoldier) img = enemyImages.soldier_dead;
         else if (isPlevaka) img = enemyImages.plevaka_dead;
         else if (isBull) img = enemyImages.bull_dead;
         else if (isBuldyga) img = enemyImages.buldyga_dead;
+        else if (isBloated) img = enemyImages.bloated_dead;
         if (img) drawEnemySprite(img, c.x, c.y, c.radius / BATTLE_SCALE, alpha, BATTLE_SCALE, 0, false, c.visualScale);
       }
 
@@ -1631,11 +1633,13 @@
         const isPlevaka = c.type === 'plevaka' || c.type === 'shooter';
         const isBull = c.type === 'bull';
         const isBuldyga = c.type === 'buldyga';
+        const isBloated = c.type === 'bloated';
         let img = null;
         if (isSoldier) img = enemyImages.soldier_dead;
         else if (isPlevaka) img = enemyImages.plevaka_dead;
         else if (isBull) img = enemyImages.bull_dead;
         else if (isBuldyga) img = enemyImages.buldyga_dead;
+        else if (isBloated) img = enemyImages.bloated_dead;
         if (img) drawEnemySprite(img, c.x, c.y, c.radius, alpha, 1, 0, false, c.visualScale);
       }
 
@@ -2107,13 +2111,13 @@
       const isSoldier = g.type === 'soldier' || g.type === 'chaser';
       const isCocoon = g.type === 'cocoon';
       const isBloated = g.type === 'bloated';
-      const hasSprite = isBull || isBuldyga || isPlevaka || isSoldier || isBossPhase;
+      const hasSprite = isBull || isBuldyga || isPlevaka || isSoldier || isBloated || isBossPhase;
       ctx.globalAlpha = alpha;
 
       // Calculate flip: player left of enemy -> flip sprite (not for cocoon, only in battle)
       const flipSprite = !isCocoon && state.phase === 'battle' && state.battle && state.battle.player.x < g.x;
 
-      // Draw sprite for enemies with images (bull, buldyga, plevaka, soldier)
+      // Draw sprite for enemies with images (bull, buldyga, plevaka, soldier, bloated)
       if (hasSprite) {
         let img = null;
         if (isBossPhase) {
@@ -2127,6 +2131,7 @@
         else if (isBuldyga) img = enemyImages.buldyga;
         else if (isPlevaka) img = enemyImages.plevaka;
         else if (isSoldier) img = enemyImages.soldier;
+        else if (isBloated) img = enemyImages.bloated;
 
         // Light glow under sprite
         const glowRadius = r * 1.5;

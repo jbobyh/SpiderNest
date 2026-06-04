@@ -7,7 +7,8 @@
       const type = g.type || 'soldier';
       const hasDead = type === 'soldier' || type === 'chaser' ||
                       type === 'plevaka' || type === 'shooter' ||
-                      type === 'bull' || type === 'buldyga';
+                      type === 'bull' || type === 'buldyga' ||
+                      type === 'bloated';
       if (!hasDead) return;
       Sounds.death();
       corpseArray.push({
