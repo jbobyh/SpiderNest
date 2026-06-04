@@ -662,3 +662,17 @@ const COCOON_ANIM = {
   frames: 7,
   fps: 8,
 };
+
+// ============================================================
+// PLEVAKA ENEMY SPRITE SHEET
+// Sprite sheet: 1500x1500, each sprite 500x500 (3 rows x 3 cols)
+// Row 0: run (3 frames) - when moving
+// Row 1: idle (3 frames) - when stationary
+// Row 2: shoot (3 frames) - when shooting
+// ============================================================
+const PLEVAKA_SW = 500, PLEVAKA_SH = 500; // размер одного спрайта (пикс)
+const PLEVAKA_ANIMS = {
+  run: { row: 0, frames: 3, fps: 3 },
+  idle: { row: 1, frames: 2, fps: 2 },
+  shoot: { row: 2, frames: 3, fps: 3 },
+};

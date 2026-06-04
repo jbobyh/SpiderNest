@@ -927,6 +927,22 @@
         if (g.type === 'plevaka' || g.type === 'shooter') {
           // Плевака
           const isStunned = g.stunTimer > 0;
+          
+          // Animation update
+          if (g.animState !== null) {
+            g.animTimer += dt;
+            const animConfig = PLEVAKA_ANIMS[g.animState];
+            if (animConfig && g.animTimer >= 1 / animConfig.fps) {
+              g.animTimer = 0;
+              g.animFrame = (g.animFrame + 1) % animConfig.frames;
+              // If shoot animation completes, return to idle
+              if (g.animState === 'shoot' && g.animFrame === 0) {
+                g.animState = 'idle';
+                g.animFrame = 0;
+              }
+            }
+          }
+          
           if (!isStunned && b.freezeTimer <= 0 && dist > SHOOTER_STOP_DIST * BATTLE_SCALE && dist > 0) {
             const spd = CONFIG.SHOOTER_SPEED * BATTLE_SCALE;
             let newX = g.x + (dx / dist) * spd * dt;
@@ -937,11 +953,26 @@
             if (b.openCells.has(cellKey(newCellX, newCellY))) {
               g.x = newX;
               g.y = newY;
+              // Running animation
+              if (g.animState !== null && g.animState !== 'shoot') {
+                g.animState = 'run';
+              }
+            }
+          } else {
+            // Stopped - idle animation
+            if (g.animState !== null && g.animState !== 'shoot') {
+              g.animState = 'idle';
             }
           }
           if (g.shootCd > 0) g.shootCd -= dt;
           if (dist <= SHOOTER_SHOOT_RANGE * BATTLE_SCALE && g.shootCd <= 0) {
             g.shootCd = CONFIG.SHOOTER_SHOOT_CD;
+            // Start shoot animation
+            if (g.animState !== null) {
+              g.animState = 'shoot';
+              g.animFrame = 0;
+              g.animTimer = 0;
+            }
             if (dist > 0) {
               b.enemyBullets.push({
                 x: g.x, y: g.y,

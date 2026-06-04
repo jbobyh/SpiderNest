@@ -387,16 +387,47 @@
         const dist = Math.hypot(dx, dy);
 
         if (g.type === 'plevaka' || g.type === 'shooter') {
-          // Плевака: движется к игроку, пока не достигнет дистанции SHOOTER_STOP_DIST
+          // Плевака: движется к игроку, пока не достигнет дистанцию SHOOTER_STOP_DIST
+          
+          // Animation update
+          if (g.animState !== null) {
+            g.animTimer += dt;
+            const animConfig = PLEVAKA_ANIMS[g.animState];
+            if (animConfig && g.animTimer >= 1 / animConfig.fps) {
+              g.animTimer = 0;
+              g.animFrame = (g.animFrame + 1) % animConfig.frames;
+              // If shoot animation completes, return to idle
+              if (g.animState === 'shoot' && g.animFrame === 0) {
+                g.animState = 'idle';
+                g.animFrame = 0;
+              }
+            }
+          }
+          
           if (dist > SHOOTER_STOP_DIST && dist > 0) {
             const spd = CONFIG.SHOOTER_SPEED;
             g.x += (dx / dist) * spd * dt;
             g.y += (dy / dist) * spd * dt;
+            // Running animation
+            if (g.animState !== null && g.animState !== 'shoot') {
+              g.animState = 'run';
+            }
+          } else {
+            // Stopped - idle animation
+            if (g.animState !== null && g.animState !== 'shoot') {
+              g.animState = 'idle';
+            }
           }
           // Стрельба
           if (g.shootCd > 0) g.shootCd -= dt;
           if (dist <= SHOOTER_SHOOT_RANGE && g.shootCd <= 0) {
             g.shootCd = CONFIG.SHOOTER_SHOOT_CD;
+            // Start shoot animation
+            if (g.animState !== null) {
+              g.animState = 'shoot';
+              g.animFrame = 0;
+              g.animTimer = 0;
+            }
             if (dist > 0) {
               s.enemyBullets.push({
                 x: g.x, y: g.y,
@@ -2076,7 +2107,7 @@
     }
 
     // Helper: draw enemy sprite (500x500px images)
-    function drawEnemySprite(img, x, y, radius, alpha, scale, hitFlash, flip = false, visualScale = 3.2) {
+    function drawEnemySprite(img, x, y, radius, alpha, scale, hitFlash, flip = false, visualScale = 3.2, spriteSheet = null, animConfig = null, animState = null, animFrame = 0) {
       if (!img || !img.complete || img.naturalWidth === 0) return false;
       const drawSize = radius * visualScale * scale;
       ctx.save();
@@ -2088,12 +2119,23 @@
       } else {
         ctx.translate(x - drawSize / 2, y - drawSize / 2);
       }
+      
+      // Calculate source coordinates for sprite sheet animation
+      let sourceX = 0, sourceY = 0, sourceW = img.naturalWidth, sourceH = img.naturalHeight;
+      if (spriteSheet && animConfig && animState && animConfig[animState]) {
+        const config = animConfig[animState];
+        sourceX = animFrame * PLEVAKA_SW;
+        sourceY = config.row * PLEVAKA_SH;
+        sourceW = PLEVAKA_SW;
+        sourceH = PLEVAKA_SH;
+      }
+      
       if (hitFlash > 0) {
         const sz = Math.ceil(drawSize);
         if (_hitFlashCanvas.width < sz) _hitFlashCanvas.width = sz;
         if (_hitFlashCanvas.height < sz) _hitFlashCanvas.height = sz;
         _hitFlashCtx.clearRect(0, 0, sz, sz);
-        _hitFlashCtx.drawImage(img, 0, 0, sz, sz);
+        _hitFlashCtx.drawImage(spriteSheet || img, sourceX, sourceY, sourceW, sourceH, 0, 0, sz, sz);
         _hitFlashCtx.globalCompositeOperation = 'source-atop';
         _hitFlashCtx.globalAlpha = Math.min(1, hitFlash / CONFIG.ENEMY_HIT_FLASH_DURATION);
         _hitFlashCtx.fillStyle = '#ffffff';
@@ -2102,7 +2144,7 @@
         _hitFlashCtx.globalAlpha = 1;
         ctx.drawImage(_hitFlashCanvas, 0, 0, sz, sz, 0, 0, drawSize, drawSize);
       } else {
-        ctx.drawImage(img, 0, 0, drawSize, drawSize);
+        ctx.drawImage(spriteSheet || img, sourceX, sourceY, sourceW, sourceH, 0, 0, drawSize, drawSize);
       }
       ctx.restore();
       return true;
@@ -2159,7 +2201,11 @@
         ctx.fill();
         ctx.restore();
 
-        if (drawEnemySprite(img, g.x, g.y, r / scale, alpha, scale, g.hitFlash || 0, flipSprite, g.visualScale)) {
+        if (drawEnemySprite(img, g.x, g.y, r / scale, alpha, scale, g.hitFlash || 0, flipSprite, g.visualScale, 
+            isPlevaka ? enemyImages.plevaka_anim : null, 
+            isPlevaka ? PLEVAKA_ANIMS : null, 
+            isPlevaka ? g.animState : null, 
+            isPlevaka ? g.animFrame : 0)) {
           // Sprite drawn successfully - skip body rendering, draw only HP bar and indicators
           // HP бар
           const maxHp = g.maxHp || CONFIG.SPIDER_HP;

@@ -129,6 +129,7 @@
             // Конвертируем позицию врага в battle-координаты
             const battleX = (g.homeX - cellOffsetX) * BATTLE_CELL_PX + (g.x - g.homeX * CP) * BATTLE_SCALE;
             const battleY = (g.homeY - cellOffsetY) * BATTLE_CELL_PX + (g.y - g.homeY * CP) * BATTLE_SCALE;
+            const isPlevaka = g.type === 'plevaka' || g.type === 'shooter';
             battleActiveSpiders.push({
               x: battleX, y: battleY,
               vx: 0, vy: 0,
@@ -150,6 +151,9 @@
               currentSpeed: g.currentSpeed,
               speedAccumulator: g.speedAccumulator,
               stunTimer: 0,
+              animState: isPlevaka ? (g.animState || 'idle') : null,
+              animFrame: isPlevaka ? (g.animFrame || 0) : null,
+              animTimer: isPlevaka ? (g.animTimer || 0) : null,
             });
             s.spiders.splice(i, 1);
           }
@@ -162,6 +166,7 @@
         if (battleCells.has(cellKey(gc.x, gc.y))) {
           const battleX = (gc.x - cellOffsetX) * BATTLE_CELL_PX + (g.x - gc.x * CP) * BATTLE_SCALE;
           const battleY = (gc.y - cellOffsetY) * BATTLE_CELL_PX + (g.y - gc.y * CP) * BATTLE_SCALE;
+          const isPlevaka = g.type === 'plevaka' || g.type === 'shooter';
           battleActiveSpiders.push({
             x: battleX, y: battleY,
             vx: 0, vy: 0,
@@ -183,6 +188,9 @@
             currentSpeed: g.currentSpeed,
             speedAccumulator: g.speedAccumulator,
             stunTimer: g.stunTimer || 0,
+            animState: isPlevaka ? (g.animState || 'idle') : null,
+            animFrame: isPlevaka ? (g.animFrame || 0) : null,
+            animTimer: isPlevaka ? (g.animTimer || 0) : null,
           });
         }
       }
@@ -574,6 +582,7 @@
         if (battleCells.has(cellKey(gc.x, gc.y))) {
           const battleX = (gc.x - cellOffsetX) * BATTLE_CELL_PX + (g.x - gc.x * CP) * BATTLE_SCALE;
           const battleY = (gc.y - cellOffsetY) * BATTLE_CELL_PX + (g.y - gc.y * CP) * BATTLE_SCALE;
+          const isPlevaka = g.type === 'plevaka' || g.type === 'shooter';
           battleSpiders.push({
             x: battleX, y: battleY,
             vx: 0, vy: 0,
@@ -594,6 +603,9 @@
             dashDistance: g.dashDistance,
             currentSpeed: g.currentSpeed,
             speedAccumulator: g.speedAccumulator,
+            animState: isPlevaka ? (g.animState || 'idle') : null,
+            animFrame: isPlevaka ? (g.animFrame || 0) : null,
+            animTimer: isPlevaka ? (g.animTimer || 0) : null,
           });
         }
       }

@@ -382,12 +382,14 @@
       buldyga:  new Image(),
       bull:     new Image(),
       plevaka:  new Image(),
+      plevaka_anim: new Image(),
       soldier:  new Image(),
     };
     enemyImages.bloated.src  = 'img/bloated.png';
     enemyImages.buldyga.src  = 'img/buldyga.png';
     enemyImages.bull.src     = 'img/bull.png';
     enemyImages.plevaka.src  = 'img/plevaka.png';
+    enemyImages.plevaka_anim.src = 'img/plevaka_anim.png';
     enemyImages.soldier.src  = 'img/soldier.png';
     enemyImages.bloated_dead = new Image();
     enemyImages.buldyga_dead = new Image();
@@ -698,6 +700,7 @@
 
     function createTrappedEnemy(enemyType, gx, gy, homeX, homeY) {
       const { hp, radius, visualScale } = getEnemyStats(enemyType);
+      const isPlevaka = enemyType === 'plevaka' || enemyType === 'shooter';
       return {
         x: gx, y: gy,
         homeX, homeY,
@@ -716,6 +719,10 @@
         dashTargetX: 0,
         dashTargetY: 0,
         dashDirX: 0,
+        // Animation state for plevaka
+        animState: isPlevaka ? 'idle' : null,
+        animFrame: isPlevaka ? 0 : null,
+        animTimer: isPlevaka ? 0 : null,
         dashDirY: 0,
         dashDistance: 0,
         currentSpeed: enemyType === 'buldyga' ? CONFIG.BULDYGA_SPEED : undefined,
