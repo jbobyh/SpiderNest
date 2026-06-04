@@ -150,10 +150,11 @@
     function inBounds(x, y) { return x >= 0 && x < 11 && y >= 0 && y < 11; }
     function easeInOutQuad(t) { return t < 0.5 ? 2*t*t : -1+(4-2*t)*t; }
 
-    // Контейнеры сердец: заполненные = текущие жизни, всего = жизни + открытые комнаты
+    // Контейнеры сердец: заполненные = текущие жизни, всего = жизни + открытые комнаты + pending (только если из HUD)
     function getHeartHudStats(s) {
       const filled = s.player.lives;
-      const total = s.player.lives + s.openCells.size;
+      // pendingOpenHeart: false | 'hud' | 'cell' — контейнер добавляем только при полёте из HUD
+      const total = s.player.lives + s.openCells.size + (pendingOpenHeart === 'hud' ? 1 : 0);
       return { filled, total };
     }
 

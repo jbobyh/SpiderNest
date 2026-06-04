@@ -168,6 +168,7 @@
       savePlayerProgress(state);
       currentLevel++;
       flyingHeart = null;
+      pendingOpenHeart = false;
       cursedChoiceState = null;
       state = initState(currentLevel);
       saveGame();
@@ -214,6 +215,7 @@
         maxSlots: 1,
       };
       flyingHeart = null;
+      pendingOpenHeart = false;
       cursedChoiceState = null;
       state = initState(currentLevel);
       draw(state);
@@ -657,7 +659,9 @@
             const openKey = k;
             const openCX = cx, openCY = cy;
 
+            pendingOpenHeart = 'cell';
             launchFlyingHeart(fromX, fromY, targetCellCX, targetCellCY, () => {
+              pendingOpenHeart = false;
               // Тратим жизнь
               state.player.lives--;
 
@@ -685,9 +689,11 @@
 
           // Тратим жизнь сразу (чтобы HUD обновился)
           state.player.lives--;
+          pendingOpenHeart = 'hud';
 
           const hudCoords = getHudHeartCoords(heartIndex);
           launchFlyingHeart(hudCoords.x, hudCoords.y, targetCellCX, targetCellCY, () => {
+            pendingOpenHeart = false;
             // Открываем когда долетело
             state.openCells.add(openKey);
             state.everRevealedCells.add(openKey);

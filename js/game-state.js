@@ -567,6 +567,7 @@
     // Летящее сердечко при открытии/закрытии клетки
     // { x, y, startX, startY, targetX, targetY, t, duration, onArrive }
     let flyingHeart = null;
+    let pendingOpenHeart = false; // false | 'hud' (heart from HUD to cell) | 'cell' (heart cell-to-cell)
 
     // Проверка связности: все не-выключенные клетки достижимы из старта
     function checkConnectivity(startX, startY, disabledSet, gridSize) {
