@@ -457,104 +457,101 @@
     // Draws wall.png on each border edge of openCells set.
     // wallW/wallH: size of one wall strip in world-units for this context (cellPx wide, depth fraction tall).
     // The wall is drawn OUTSIDE the open cell (into closed space), clipped to not overdraw open cells.
-    function drawOpenCellWalls(openCells, cellPx, wallDepth, offsetX = 0, offsetY = 0, level = 1) {
-      let wallImgToUse;
-      if (level === 2) wallImgToUse = wallGreenImg;
-      else if (level === 3) wallImgToUse = wallYImg;
-      else wallImgToUse = wallImg;
-      if (!wallImgToUse.complete || wallImgToUse.naturalWidth === 0) return;
+function drawOpenCellWalls(openCells, cellPx, wallDepth, offsetX = 0, offsetY = 0, level = 1) {
+  let wallImgToUse;
+  if (level === 2) wallImgToUse = wallGreenImg;
+  else if (level === 3) wallImgToUse = wallYImg;
+  else wallImgToUse = wallImg;
 
-      for (const k of openCells) {
-        const { x, y } = cellFromKey(k);
+  if (!wallImgToUse || !wallImgToUse.complete || wallImgToUse.naturalWidth === 0) return;
 
-        // dx,dy: direction toward the neighbour (outside)
-        // Wall drawn starting at the edge going outward by wallDepth
-        const sides = [
-          { dx: 0, dy: -1 }, // top
-          { dx: 0, dy:  1 }, // bottom
-          { dx: -1, dy: 0 }, // left
-          { dx:  1, dy: 0 }, // right
-        ];
+  const sides = [
+    { dx: 0, dy: -1, type: 'top' },
+    { dx: 1, dy: 0, type: 'right' },
+    { dx: 0, dy: 1, type: 'bottom' },
+    { dx: -1, dy: 0, type: 'left' },
+  ];
 
-        for (const { dx, dy } of sides) {
-          const nk = cellKey(x + dx, y + dy);
-          if (openCells.has(nk)) continue; // neighbour is open — no wall here
+  for (const k of openCells) {
+    const { x, y } = cellFromKey(k);
+    const baseX = (x - offsetX) * cellPx;
+    const baseY = (y - offsetY) * cellPx;
 
-          const cx0 = (x - offsetX) * cellPx;
-          const cy0 = (y - offsetY) * cellPx;
+    for (const { dx, dy, type } of sides) {
+      const nk = cellKey(x + dx, y + dy);
+      if (openCells.has(nk)) continue;
 
-          ctx.save();
+      ctx.save();
 
-          // Place and rotate the wall strip so its length runs along the shared edge.
-          // edgeMid = midpoint of the shared edge between this cell and neighbour.
-          // After rotate, local -Y points outward (away from open cell).
-          // Wall image designed for top: drawn at y=-wallDepth going upward (outward).
-          const edgeMidX = cx0 + (0.5 + dx * 0.5) * cellPx;
-          const edgeMidY = cy0 + (0.5 + dy * 0.5) * cellPx;
-
-          const angle = Math.atan2(dy, dx) + Math.PI / 2; // 0=top, rotates for each side
-
-          ctx.translate(edgeMidX, edgeMidY);
-          ctx.rotate(angle);
-          // Local coords: X along edge, -Y = outward direction
-          ctx.drawImage(wallImgToUse, -cellPx / 2, -wallDepth, cellPx, wallDepth);
-
-          ctx.restore();
-        }
+      if (type === 'top') {
+        ctx.drawImage(wallImgToUse, baseX, baseY, cellPx, wallDepth);
+      } else if (type === 'right') {
+        ctx.translate(baseX + cellPx, baseY);
+        ctx.rotate(Math.PI / 2);
+        ctx.drawImage(wallImgToUse, 0, 0, cellPx, wallDepth);
+      } else if (type === 'bottom') {
+        ctx.translate(baseX + cellPx, baseY + cellPx);
+        ctx.rotate(Math.PI);
+        ctx.drawImage(wallImgToUse, 0, 0, cellPx, wallDepth);
+      } else if (type === 'left') {
+        ctx.translate(baseX, baseY + cellPx);
+        ctx.rotate(-Math.PI / 2);
+        ctx.drawImage(wallImgToUse, 0, 0, cellPx, wallDepth);
       }
+
+      ctx.restore();
     }
+  }
+}
 
-    // Draws corner.png at each corner of the open area boundary.
-    // cornerSize: size of the corner square in world-units.
-    // Image is designed for top-left corner (outside), rotated for other corners.
-    // Two cases per diagonal direction (ddx, ddy):
-    //   External corner: both cardinal neighbours are closed → draw into diagonal cell
-    //   Internal (concave) corner: both cardinal neighbours are open, diagonal is closed → draw into diagonal cell
-    function drawOpenCellCorners(openCells, cellPx, cornerSize, offsetX = 0, offsetY = 0, level = 1) {
-      let cornerImgToUse;
-      if (level === 2) cornerImgToUse = cornerGreenImg;
-      else if (level === 3) cornerImgToUse = cornerYImg;
-      else cornerImgToUse = cornerImg;
-      if (!cornerImgToUse.complete || cornerImgToUse.naturalWidth === 0) return;
+function drawOpenCellCorners(openCells, cellPx, cornerSize, offsetX = 0, offsetY = 0, level = 1) {
+  let cornerImgToUse;
+  if (level === 2) cornerImgToUse = cornerGreenImg;
+  else if (level === 3) cornerImgToUse = cornerYImg;
+  else cornerImgToUse = cornerImg;
 
-      // Diagonal directions with their rotation angle (image = top-left = 0)
-      const diagonals = [
-        { ddx: -1, ddy: -1, angle: 0 },              // top-left
-        { ddx:  1, ddy: -1, angle: Math.PI / 2 },    // top-right
-        { ddx:  1, ddy:  1, angle: Math.PI },         // bottom-right
-        { ddx: -1, ddy:  1, angle: -Math.PI / 2 },   // bottom-left
-      ];
+  if (!cornerImgToUse || !cornerImgToUse.complete || cornerImgToUse.naturalWidth === 0) return;
 
-      for (const k of openCells) {
-        const { x, y } = cellFromKey(k);
+  const quadrants = [
+    { dx: -1, dy: -1, x: 0, y: 0 },                                    // top-left
+    { dx: 1, dy: -1, x: cellPx - cornerSize, y: 0 },                    // top-right
+    { dx: 1, dy: 1, x: cellPx - cornerSize, y: cellPx - cornerSize },   // bottom-right
+    { dx: -1, dy: 1, x: 0, y: cellPx - cornerSize },                    // bottom-left
+  ];
 
-        for (const { ddx, ddy, angle } of diagonals) {
-          const sideA = openCells.has(cellKey(x + ddx, y));
-          const sideB = openCells.has(cellKey(x, y + ddy));
-          const diagOpen = openCells.has(cellKey(x + ddx, y + ddy));
+  for (const k of openCells) {
+    const { x, y } = cellFromKey(k);
+    const baseX = (x - offsetX) * cellPx;
+    const baseY = (y - offsetY) * cellPx;
 
-          const isExternal = !sideA && !sideB;       // outer convex corner
-          const isInternal = sideA && sideB && !diagOpen; // inner concave corner
+    for (const q of quadrants) {
+      const sideA = openCells.has(cellKey(x + q.dx, y));
+      const sideB = openCells.has(cellKey(x, y + q.dy));
+      const diagOpen = openCells.has(cellKey(x + q.dx, y + q.dy));
 
-          if (!isExternal && !isInternal) continue;
+      const isExternal = !sideA && !sideB;
+      const isInternal = sideA && sideB && !diagOpen;
 
-          // Corner point in world coords (shared by this cell and the diagonal)
-          const cornerX = (x - offsetX + (ddx > 0 ? 1 : 0)) * cellPx;
-          const cornerY = (y - offsetY + (ddy > 0 ? 1 : 0)) * cellPx;
+      if (!isExternal && !isInternal) continue;
 
-          ctx.save();
-          ctx.translate(cornerX, cornerY);
-          if (isInternal) {
-            // Flip around image centre: rotate by angle+PI, draw at (0,0) so image
-            // occupies the same diagonal cell but mirrored — top-left corner faces inward
-            ctx.rotate(angle + Math.PI);
-            ctx.drawImage(cornerImgToUse, 0, 0, cornerSize, cornerSize);
-          } else {
-            ctx.rotate(angle);
-            ctx.drawImage(cornerImgToUse, -cornerSize, -cornerSize, cornerSize, cornerSize);
-          }
-          ctx.restore();
-        }
+      ctx.save();
+      ctx.translate(baseX + q.x, baseY + q.y);
+
+      if (q.dx === -1 && q.dy === -1) {
+        ctx.drawImage(cornerImgToUse, 0, 0, cornerSize, cornerSize);
+      } else if (q.dx === 1 && q.dy === -1) {
+        ctx.scale(-1, 1);
+        ctx.drawImage(cornerImgToUse, -cornerSize, 0, cornerSize, cornerSize);
+      } else if (q.dx === 1 && q.dy === 1) {
+        ctx.scale(-1, -1);
+        ctx.drawImage(cornerImgToUse, -cornerSize, -cornerSize, cornerSize, cornerSize);
+      } else if (q.dx === -1 && q.dy === 1) {
+        ctx.scale(1, -1);
+        ctx.drawImage(cornerImgToUse, 0, -cornerSize, cornerSize, cornerSize);
       }
+
+      ctx.restore();
     }
+  }
+}
 
