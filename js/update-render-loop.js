@@ -1284,10 +1284,19 @@
       ctx.save();
       ctx.translate(-camera.x + shakeX, -camera.y + shakeY);
 
-      // Фон игрового поля (поверх фона, под клетками)
+      // Фон для открытых и revealed клеток
       ctx.fillStyle = '#030810';
-      ctx.fillRect(0, 0, worldW, worldH);
-
+      for (const k of s.openCells) {
+        if (!visibleCells.has(k)) continue;
+        const { x, y } = cellFromKey(k);
+        ctx.fillRect(x * CP, y * CP, CP, CP);
+      }
+      for (const k of s.everRevealedCells) {
+        if (s.openCells.has(k) || s.disabledCells.has(k) || s.permanentlyClosed.has(k)) continue;
+        if (!visibleCells.has(k)) continue;
+        const { x, y } = cellFromKey(k);
+        ctx.fillRect(x * CP, y * CP, CP, CP);
+      }
 
       // Навсегда закрытые (чёрные) клетки — только те, что смежны с хотя бы одной открытой или everRevealed
       const blackCells = new Set([...s.permanentlyClosed, ...s.disabledCells]);
@@ -1295,37 +1304,12 @@
         const { x, y } = cellFromKey(k);
         if (!visibleCells.has(k)) continue;
         const revealed = someAdjacentCell(x, y, (nx, ny, nk) => s.everOpenedCells.has(nk));
-        if (revealed) {
-          if (rockImg.complete && rockImg.naturalWidth > 0) {
-            ctx.drawImage(rockImg, x * CP, y * CP, CP, CP);
-          } else {
-            ctx.fillStyle = '#000000';
-            ctx.fillRect(x * CP, y * CP, CP, CP);
-          }
+        if (!revealed) continue; // Не revealed = не видно (fog of war)
+        if (rockImg.complete && rockImg.naturalWidth > 0) {
+          ctx.drawImage(rockImg, x * CP, y * CP, CP, CP);
         } else {
-          if (closedCellImg.complete && closedCellImg.naturalWidth > 0) {
-            ctx.drawImage(closedCellImg, x * CP, y * CP, CP, CP);
-          } else {
-            ctx.fillStyle = '#1a1a2e';
-            ctx.fillRect(x * CP, y * CP, CP, CP);
-          }
-        }
-      }
-
-      // Неоткрытые клетки (не исследованные) — рисуем closedcell.png
-      for (let y = 0; y < s.gridSize; y++) {
-        for (let x = 0; x < s.gridSize; x++) {
-          const k = cellKey(x, y);
-          // Пропускаем если клетка уже открыта, открывалась ранее, или недоступна
-          if (s.openCells.has(k) || s.everRevealedCells.has(k) ||
-              s.disabledCells.has(k) || s.permanentlyClosed.has(k)) continue;
-          if (!visibleCells.has(k)) continue;
-          if (closedCellImg.complete && closedCellImg.naturalWidth > 0) {
-            ctx.drawImage(closedCellImg, x * CP, y * CP, CP, CP);
-          } else {
-            ctx.fillStyle = '#1a1a2e';
-            ctx.fillRect(x * CP, y * CP, CP, CP);
-          }
+          ctx.fillStyle = '#000000';
+          ctx.fillRect(x * CP, y * CP, CP, CP);
         }
       }
 
@@ -2877,14 +2861,22 @@
       ctx.scale(scale, scale);
       ctx.translate(-camX - VIEW_W / (2 * scale), -camY - VIEW_H / (2 * scale));
 
-      // Фон
-      ctx.fillStyle = '#030810';
-      const zoomWorldW = s.gridSize * CP;
-      const zoomWorldH = s.gridSize * CP;
-      ctx.fillRect(0, 0, zoomWorldW, zoomWorldH);
-
       // Содержимое клеток с fade-out (кроме pendingCellKey)
       const fadeAlpha = 1 - progress; // 1 -> 0
+
+      // Фон для открытых и revealed клеток
+      ctx.fillStyle = '#030810';
+      ctx.globalAlpha = fadeAlpha;
+      for (const k of s.openCells) {
+        const { x, y } = cellFromKey(k);
+        ctx.fillRect(x * CP, y * CP, CP, CP);
+      }
+      for (const k of s.everRevealedCells) {
+        if (s.openCells.has(k) || s.disabledCells.has(k) || s.permanentlyClosed.has(k)) continue;
+        const { x, y } = cellFromKey(k);
+        ctx.fillRect(x * CP, y * CP, CP, CP);
+      }
+      ctx.globalAlpha = 1;
 
       // Чёрные (disabled + permanently closed) клетки
       const blackCellsZ = new Set([...s.permanentlyClosed, ...s.disabledCells]);
@@ -2892,37 +2884,12 @@
       for (const k of blackCellsZ) {
         const { x, y } = cellFromKey(k);
         const revealedZ = someAdjacentCell(x, y, (nx, ny, nk) => s.everOpenedCells.has(nk));
-        if (revealedZ) {
-          if (rockImg.complete && rockImg.naturalWidth > 0) {
-            ctx.drawImage(rockImg, x * CP, y * CP, CP, CP);
-          } else {
-            ctx.fillStyle = '#000000';
-            ctx.fillRect(x * CP, y * CP, CP, CP);
-          }
+        if (!revealedZ) continue; // Не revealed = не видно (fog of war)
+        if (rockImg.complete && rockImg.naturalWidth > 0) {
+          ctx.drawImage(rockImg, x * CP, y * CP, CP, CP);
         } else {
-          if (closedCellImg.complete && closedCellImg.naturalWidth > 0) {
-            ctx.drawImage(closedCellImg, x * CP, y * CP, CP, CP);
-          } else {
-            ctx.fillStyle = '#1a1a2e';
-            ctx.fillRect(x * CP, y * CP, CP, CP);
-          }
-        }
-      }
-      ctx.globalAlpha = 1;
-
-      // Неоткрытые клетки (не исследованные) — рисуем closedcell.png
-      ctx.globalAlpha = fadeAlpha;
-      for (let cy2 = 0; cy2 < s.gridSize; cy2++) {
-        for (let cx2 = 0; cx2 < s.gridSize; cx2++) {
-          const k = cellKey(cx2, cy2);
-          if (s.openCells.has(k) || s.everRevealedCells.has(k) ||
-              s.disabledCells.has(k) || s.permanentlyClosed.has(k)) continue;
-          if (closedCellImg.complete && closedCellImg.naturalWidth > 0) {
-            ctx.drawImage(closedCellImg, cx2 * CP, cy2 * CP, CP, CP);
-          } else {
-            ctx.fillStyle = '#1a1a2e';
-            ctx.fillRect(cx2 * CP, cy2 * CP, CP, CP);
-          }
+          ctx.fillStyle = '#000000';
+          ctx.fillRect(x * CP, y * CP, CP, CP);
         }
       }
       ctx.globalAlpha = 1;
