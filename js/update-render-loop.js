@@ -1246,11 +1246,10 @@
 
       // Кешируем видимые клетки для оптимизации
       const visibleCells = new Set();
-      for (let y = 0; y < s.gridSize; y++) {
-        for (let x = 0; x < s.gridSize; x++) {
-          if (isCellVisible(x, y)) {
-            visibleCells.add(cellKey(x, y));
-          }
+      for (const k of s.blobCells) {
+        const { x, y } = cellFromKey(k);
+        if (isCellVisible(x, y)) {
+          visibleCells.add(k);
         }
       }
 
@@ -1379,7 +1378,7 @@
       for (const [ddx, ddy] of CARDINAL_DIRECTIONS) {
         const nx = playerCellForDraw.x + ddx, ny = playerCellForDraw.y + ddy;
         const nk = cellKey(nx, ny);
-        if (nx >= 0 && nx < s.gridSize && ny >= 0 && ny < s.gridSize &&
+        if (s.blobCells.has(nk) &&
             !s.openCells.has(nk) && !s.disabledCells.has(nk) && !s.permanentlyClosed.has(nk)) {
           playerAdjOpen.add(nk);
         }
@@ -1392,7 +1391,7 @@
       for (const k of adj) {
         if (!visibleCells.has(k)) continue;
         const { x, y } = cellFromKey(k);
-        if (x < 0 || x >= s.gridSize || y < 0 || y >= s.gridSize) continue;
+        if (!s.blobCells.has(k)) continue;
         if (playerAdjOpen.has(k)) {
           if (k === hoveredKey) {
             ctx.fillStyle = 'rgba(80,220,120,0.25)';
@@ -1411,7 +1410,7 @@
         if (adj.has(k)) continue;
         if (!visibleCells.has(k)) continue;
         const { x, y } = cellFromKey(k);
-        if (x < 0 || x >= s.gridSize || y < 0 || y >= s.gridSize) continue;
+        if (!s.blobCells.has(k)) continue;
         ctx.fillStyle = 'rgba(20,60,30,0.15)';
         ctx.fillRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
       }
@@ -1434,7 +1433,7 @@
       for (const k of adj) {
         if (!visibleCells.has(k)) continue;
         const { x, y } = cellFromKey(k);
-        if (x < 0 || x >= s.gridSize || y < 0 || y >= s.gridSize) continue;
+        if (!s.blobCells.has(k)) continue;
 
         // Показываем содержимое
         const isExitCell = x === s.exitCell.x && y === s.exitCell.y;
@@ -2909,7 +2908,7 @@
       for (const k of s.everRevealedCells) {
         if (s.openCells.has(k) || s.disabledCells.has(k) || s.permanentlyClosed.has(k)) continue;
         const { x, y } = cellFromKey(k);
-        if (x < 0 || x >= s.gridSize || y < 0 || y >= s.gridSize) continue;
+        if (!s.blobCells.has(k)) continue;
         ctx.fillStyle = 'rgba(40,30,50,0.3)';
         ctx.fillRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
       }
@@ -2919,7 +2918,7 @@
       for (const [ddx, ddy] of CARDINAL_DIRECTIONS) {
         const nx = playerCellZ.x + ddx, ny = playerCellZ.y + ddy;
         const nk = cellKey(nx, ny);
-        if (nx >= 0 && nx < s.gridSize && ny >= 0 && ny < s.gridSize &&
+        if (s.blobCells.has(nk) &&
             !s.openCells.has(nk) && !s.disabledCells.has(nk) && !s.permanentlyClosed.has(nk)) {
           const hovered = nk === cellKey(Math.floor(s.mouse.x / CP), Math.floor(s.mouse.y / CP));
           ctx.globalAlpha = fadeAlpha * (hovered ? 0.6 : 0.4);

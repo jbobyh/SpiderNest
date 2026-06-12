@@ -16,6 +16,7 @@
       return {
         gridSize: s.gridSize,
         keysRequired: s.keysRequired,
+        blobCells: s.blobCells ? [...s.blobCells] : [],
         openCells: [...s.openCells],
         everRevealedCells: [...s.everRevealedCells],
         everOpenedCells: [...s.everOpenedCells],
@@ -48,6 +49,7 @@
       const s = {
         gridSize: data.gridSize || 5,
         keysRequired: data.keysRequired || 2,
+        blobCells: new Set(data.blobCells || []),
         openCells: new Set(data.openCells),
         everRevealedCells: new Set(data.everRevealedCells),
         everOpenedCells: new Set(data.everOpenedCells),
@@ -95,7 +97,7 @@
       if (!state) return;
       try {
         const save = {
-          version: 1,
+          version: 2,
           currentLevel,
           playerProgress: {
             ...playerProgress,
@@ -115,7 +117,7 @@
         const raw = localStorage.getItem(SAVE_KEY);
         if (!raw) return false;
         const save = JSON.parse(raw);
-        if (!save || save.version !== 1) return false;
+        if (!save || save.version !== 2) return false;
         currentLevel = save.currentLevel;
         playerProgress = save.playerProgress;
         // Для старых сохранений без spawnedUpgrades и spawnedWeapons
@@ -462,7 +464,7 @@
         const cx = Math.floor(mx / CP);
         const cy = Math.floor(my / CP);
 
-        if (cx >= 0 && cx < state.gridSize && cy >= 0 && cy < state.gridSize) {
+        if (state.blobCells.has(cellKey(cx, cy))) {
           const k = cellKey(cx, cy);
           const playerC = cellOf(state.player.x, state.player.y);
           const playerKey = cellKey(playerC.x, playerC.y);
@@ -567,7 +569,7 @@
         // ПКМ — открыть или закрыть комнату
         const cx = Math.floor(mx / CP);
         const cy = Math.floor(my / CP);
-        if (cx < 0 || cx >= state.gridSize || cy < 0 || cy >= state.gridSize) return;
+        if (!state.blobCells.has(cellKey(cx, cy))) return;
         const k = cellKey(cx, cy);
 
         // Проверяем, не выключена ли клетка изначально

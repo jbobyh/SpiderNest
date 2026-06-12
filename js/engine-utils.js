@@ -147,7 +147,7 @@
     function cellKey(x, y) { return `${x},${y}`; }
     function cellFromKey(k) { const [x, y] = k.split(','); return { x: +x, y: +y }; }
     function cellOf(px, py) { return { x: Math.floor(px / CP), y: Math.floor(py / CP) }; }
-    function inBounds(x, y) { return x >= 0 && x < 11 && y >= 0 && y < 11; }
+    function inBounds(x, y) { return x >= -100 && x < 200 && y >= -100 && y < 200; }
     function easeInOutQuad(t) { return t < 0.5 ? 2*t*t : -1+(4-2*t)*t; }
 
     // Контейнеры сердец: заполненные = текущие жизни, всего = жизни + открытые комнаты + pending (только если из HUD)
@@ -412,7 +412,7 @@
     }
 
     function getCellBounds(cells) {
-      let minX = G, minY = G, maxX = 0, maxY = 0;
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
       for (const k of cells) {
         const { x, y } = cellFromKey(k);
         minX = Math.min(minX, x);

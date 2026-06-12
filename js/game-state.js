@@ -584,61 +584,33 @@
     let flyingHeart = null;
     let pendingOpenHeart = false; // false | 'hud' (heart from HUD to cell) | 'cell' (heart cell-to-cell)
 
-    // Проверка связности: все не-выключенные клетки достижимы из старта
-    function checkConnectivity(startX, startY, disabledSet, gridSize) {
-      const visited = new Set();
-      const queue = [`${startX},${startY}`];
-      visited.add(`${startX},${startY}`);
+    // Органическая генерация карты: BFS-расширение из центра
+    function generateBlobCells(cx, cy, cellCount) {
+      const cells = new Set();
+      const frontier = [];
+      const startKey = cellKey(cx, cy);
+      cells.add(startKey);
+      frontier.push({ x: cx, y: cy });
 
-      while (queue.length) {
-        const k = queue.shift();
-        const { x, y } = cellFromKey(k);
-        for (const [dx, dy] of CARDINAL_DIRECTIONS) {
+      while (cells.size < cellCount && frontier.length > 0) {
+        const idx = Math.floor(Math.random() * frontier.length);
+        const { x, y } = frontier[idx];
+        const dirs = shuffleInPlace([...CARDINAL_DIRECTIONS]);
+        let added = false;
+        for (const [dx, dy] of dirs) {
           const nx = x + dx, ny = y + dy;
           const nk = cellKey(nx, ny);
-          if (nx >= 0 && nx < gridSize && ny >= 0 && ny < gridSize && !disabledSet.has(nk) && !visited.has(nk)) {
-            visited.add(nk);
-            queue.push(nk);
+          if (!cells.has(nk)) {
+            cells.add(nk);
+            frontier.push({ x: nx, y: ny });
+            added = true;
+            break;
           }
         }
+        if (!added) frontier.splice(idx, 1);
       }
 
-      // Все не-выключенные клетки должны быть посещены
-      const totalCells = gridSize * gridSize;
-      return visited.size === totalCells - disabledSet.size;
-    }
-
-    function generateDisabledCells(startX, startY, exitX, exitY, gridSize, disabledCount) {
-      const maxAttempts = CONFIG.MAX_GENERATION_ATTEMPTS;
-
-      for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        const disabled = new Set();
-        const candidates = [];
-
-        // Собираем все клетки кроме старта и выхода
-        for (let y = 0; y < gridSize; y++) {
-          for (let x = 0; x < gridSize; x++) {
-            if ((x !== startX || y !== startY) && (x !== exitX || y !== exitY)) {
-              candidates.push({ x, y });
-            }
-          }
-        }
-
-        // Перемешиваем и берём нужное количество
-        shuffleInPlace(candidates);
-
-        for (let i = 0; i < Math.min(disabledCount, candidates.length); i++) {
-          disabled.add(cellKey(candidates[i].x, candidates[i].y));
-        }
-
-        // Проверяем связность
-        if (checkConnectivity(startX, startY, disabled, gridSize)) {
-          return disabled;
-        }
-      }
-
-      // Если не удалось, возвращаем пустой сет (не должно произойти при разумных значениях)
-      return new Set();
+      return cells;
     }
 
     const ENEMY_POOL_TYPE_MAP = {
@@ -762,31 +734,34 @@
       const levelConfig = getLevelConfig(level);
       const gridSize = levelConfig.gridSize;
       const keysRequired = levelConfig.keysRequired;
-      const disabledCount = levelConfig.disabledCells;
       const heartsConfig = levelConfig.heartsCount;
-      
+      const cellCount = levelConfig.cellCount || gridSize * gridSize;
+
       const cx = Math.floor(gridSize / 2);
       const cy = Math.floor(gridSize / 2);
-      
-      let ex, ey, ed;
-      do {
-        ex = Math.floor(Math.random() * gridSize);
-        ey = Math.floor(Math.random() * gridSize);
-        ed = Math.max(Math.abs(ex - cx), Math.abs(ey - cy));
-      } while (!(ed >= 2 && ed <= 4));
 
-      const disabledCells = generateDisabledCells(cx, cy, ex, ey, gridSize, disabledCount);
+      // Генерируем blob клеток
+      const blobCells = generateBlobCells(cx, cy, cellCount);
+      const disabledCells = new Set();
+
+      // Выбираем выход из крайних клеток blob (макс. Chebyshev-расстояние от центра, мин. 2)
+      let blobArr = [...blobCells].map(k => { const { x, y } = cellFromKey(k); return { x, y, k }; });
+      let exitCandidates = blobArr.filter(c => {
+        const d = Math.max(Math.abs(c.x - cx), Math.abs(c.y - cy));
+        return d >= 2;
+      });
+      if (exitCandidates.length === 0) exitCandidates = blobArr.filter(c => !(c.x === cx && c.y === cy));
+      shuffleInPlace(exitCandidates);
+      const exitCell = exitCandidates[0];
+      const ex = exitCell.x, ey = exitCell.y;
 
       // Генерируем содержимое клеток
       const cellContents = new Map(); // key -> {type: 'empty'|'heart'|'enemies', enemyCount?: number}
       const availableCells = [];
 
-      for (let y = 0; y < gridSize; y++) {
-        for (let x = 0; x < gridSize; x++) {
-          const k = cellKey(x, y);
-          if (!disabledCells.has(k) && !(x === cx && y === cy) && !(x === ex && y === ey)) {
-            availableCells.push({ x, y, k });
-          }
+      for (const { x, y, k } of blobArr) {
+        if (!(x === cx && y === cy) && !(x === ex && y === ey)) {
+          availableCells.push({ x, y, k });
         }
       }
 
@@ -841,11 +816,9 @@
         const diagonalOffsets = [[-1, -1], [1, -1], [-1, 1], [1, 1]];
         for (const [dx, dy] of diagonalOffsets) {
           const nx = cx + dx, ny = cy + dy;
-          if (nx >= 0 && nx < gridSize && ny >= 0 && ny < gridSize) {
-            const k = cellKey(nx, ny);
-            if (!disabledCells.has(k) && !cellContents.has(k)) {
-              weaponCells.push({ x: nx, y: ny, k });
-            }
+          const k = cellKey(nx, ny);
+          if (blobCells.has(k) && !cellContents.has(k)) {
+            weaponCells.push({ x: nx, y: ny, k });
           }
         }
         // Перемешиваем и берём нужное количество
@@ -961,6 +934,7 @@
       return {
         gridSize: gridSize,
         keysRequired: keysRequired,
+        blobCells: blobCells,
         openCells: initOpen,
         everRevealedCells: initEverRevealed, // клетки, которые когда-либо были видны (смежные или открытые)
         everOpenedCells: initEverOpened, // клетки, которые когда-либо были реально открыты
