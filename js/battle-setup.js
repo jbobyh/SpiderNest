@@ -196,6 +196,7 @@
 
       s.battle = {
         openCells: battleCells,
+        removedWalls: s.removedWalls || new Set(),
         cellOffsetX,
         cellOffsetY,
         width: battleWidth,
@@ -620,6 +621,7 @@
 
       s.battle = {
         openCells: battleCells,
+        removedWalls: s.removedWalls || new Set(),
         cellOffsetX,
         cellOffsetY,
         width: battleWidth,

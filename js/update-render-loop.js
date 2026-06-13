@@ -124,7 +124,7 @@
 
         // Проверяем столкновение со стенами
         const newCellX = cellOf(newX, newY);
-        if (!s.openCells.has(cellKey(newCellX.x, newCellX.y))) {
+        if (!s.openCells.has(cellKey(newCellX.x, newCellX.y)) || crossesWall(s, s.player.x, s.player.y, newX, newY)) {
           // Ударились о стену - прекращаем деш
           s.player.isDashing = false;
         } else {
@@ -158,13 +158,13 @@
         let npx = s.player.x + mvx * spd * dt;
         let npy = s.player.y + mvy * spd * dt;
 
-        // Движение только в открытых клетках
+        // Движение только в открытых клетках и не через перегородки
         const tcX = cellOf(npx, s.player.y);
-        if (s.openCells.has(cellKey(tcX.x, tcX.y))) {
+        if (s.openCells.has(cellKey(tcX.x, tcX.y)) && !crossesWall(s, s.player.x, s.player.y, npx, s.player.y)) {
           s.player.x = npx;
         }
         const tcY = cellOf(s.player.x, npy);
-        if (s.openCells.has(cellKey(tcY.x, tcY.y))) {
+        if (s.openCells.has(cellKey(tcY.x, tcY.y)) && !crossesWall(s, s.player.x, s.player.y, s.player.x, npy)) {
           s.player.y = npy;
         }
       }
@@ -576,7 +576,7 @@
           // Проверка стен - не выходим за открытые клетки
           const newCellX = Math.floor(newX / CP);
           const newCellY = Math.floor(newY / CP);
-          if (s.openCells.has(cellKey(newCellX, newCellY))) {
+          if (s.openCells.has(cellKey(newCellX, newCellY)) && !crossesWall(s, g.x, g.y, newX, newY)) {
             g.x = newX;
             g.y = newY;
           } else {
@@ -609,7 +609,7 @@
           // Проверка стен
           const newCellX = Math.floor(newX / CP);
           const newCellY = Math.floor(newY / CP);
-          if (s.openCells.has(cellKey(newCellX, newCellY))) {
+          if (s.openCells.has(cellKey(newCellX, newCellY)) && !crossesWall(s, g.x, g.y, newX, newY)) {
             g.x = newX;
             g.y = newY;
           }
@@ -679,7 +679,7 @@
           // Проверка стен
           const newCellX = Math.floor(newX / CP);
           const newCellY = Math.floor(newY / CP);
-          if (s.openCells.has(cellKey(newCellX, newCellY))) {
+          if (s.openCells.has(cellKey(newCellX, newCellY)) && !crossesWall(s, g.x, g.y, newX, newY)) {
             g.x = newX;
             g.y = newY;
           }
@@ -948,6 +948,40 @@
       // Стены по краям открытых клеток (battle)
       drawOpenCellWalls(b.openCells, BATTLE_CELL_PX, BATTLE_CELL_PX * 0.125, b.cellOffsetX, b.cellOffsetY, currentLevel);
       drawOpenCellCorners(b.openCells, BATTLE_CELL_PX, BATTLE_CELL_PX * 0.125, b.cellOffsetX, b.cellOffsetY, currentLevel);
+
+      // Стены-перегородки между соседними открытыми клетками (только не убранные)
+      if (b.removedWalls) {
+        const wallThickness = BATTLE_CELL_PX * 0.05;
+        const wallHalfT = wallThickness / 2;
+        ctx.fillStyle = 'rgba(20, 8, 30, 0.92)';
+        ctx.strokeStyle = 'rgba(80, 40, 120, 0.6)';
+        ctx.lineWidth = 1;
+        for (const k of b.openCells) {
+          const { x, y } = cellFromKey(k);
+          // правый сосед
+          const rkRight = cellKey(x + 1, y);
+          if (b.openCells.has(rkRight)) {
+            const wk = wallKey(x, y, x + 1, y);
+            if (!b.removedWalls.has(wk)) {
+              const bx = (x + 1 - b.cellOffsetX) * BATTLE_CELL_PX;
+              const by = (y - b.cellOffsetY) * BATTLE_CELL_PX;
+              ctx.fillRect(bx - wallHalfT, by, wallThickness, BATTLE_CELL_PX);
+              ctx.strokeRect(bx - wallHalfT, by, wallThickness, BATTLE_CELL_PX);
+            }
+          }
+          // нижний сосед
+          const rkDown = cellKey(x, y + 1);
+          if (b.openCells.has(rkDown)) {
+            const wk = wallKey(x, y, x, y + 1);
+            if (!b.removedWalls.has(wk)) {
+              const bx = (x - b.cellOffsetX) * BATTLE_CELL_PX;
+              const by = (y + 1 - b.cellOffsetY) * BATTLE_CELL_PX;
+              ctx.fillRect(bx, by - wallHalfT, BATTLE_CELL_PX, wallThickness);
+              ctx.strokeRect(bx, by - wallHalfT, BATTLE_CELL_PX, wallThickness);
+            }
+          }
+        }
+      }
 
       // Сердечки
       for (const heart of b.hearts) {
@@ -1345,18 +1379,6 @@
         if (!s.openCells.has(k) && !s.disabledCells.has(k) && !s.permanentlyClosed.has(k)) adj.add(k);
       }
 
-      // Клетки, смежные с игроком — доступны для открытия (ПКМ), подсвечиваем зелёным
-      const playerCellForDraw = cellOf(s.player.x, s.player.y);
-      const playerAdjOpen = new Set();
-      for (const [ddx, ddy] of CARDINAL_DIRECTIONS) {
-        const nx = playerCellForDraw.x + ddx, ny = playerCellForDraw.y + ddy;
-        const nk = cellKey(nx, ny);
-        if (s.blobCells.has(nk) &&
-            !s.openCells.has(nk) && !s.disabledCells.has(nk) && !s.permanentlyClosed.has(nk)) {
-          playerAdjOpen.add(nk);
-        }
-      }
-
       const hoveredCell = cellOf(s.mouse.x, s.mouse.y);
       const hoveredKey = cellKey(hoveredCell.x, hoveredCell.y);
 
@@ -1365,32 +1387,54 @@
         if (!visibleCells.has(k)) continue;
         const { x, y } = cellFromKey(k);
         if (!s.blobCells.has(k)) continue;
-        if (playerAdjOpen.has(k)) {
-          if (k === hoveredKey) {
-            ctx.fillStyle = 'rgba(80,220,120,0.25)';
-          } else {
-            ctx.fillStyle = 'rgba(45,138,69,0.15)';
-          }
-          ctx.fillRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
-        } else {
-          ctx.fillStyle = 'rgba(40,30,50,0.3)';
-          ctx.fillRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
-        }
-      }
-
-      // Зелёная подсветка клеток у игрока, не попавших в adj (ещё не в everRevealedCells)
-      for (const k of playerAdjOpen) {
-        if (adj.has(k)) continue;
-        if (!visibleCells.has(k)) continue;
-        const { x, y } = cellFromKey(k);
-        if (!s.blobCells.has(k)) continue;
-        ctx.fillStyle = 'rgba(20,60,30,0.15)';
+        ctx.fillStyle = 'rgba(40,30,50,0.3)';
         ctx.fillRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
       }
 
       // Стены по краям открытых клеток
       drawOpenCellWalls(s.openCells, CP, CP * 0.125, 0, 0, currentLevel);
       drawOpenCellCorners(s.openCells, CP, CP * 0.125, 0, 0, currentLevel);
+
+      // Стены-перегородки между соседними blob-клетками (только не убранные, только раскрытые)
+      if (s.removedWalls) {
+        const wallThickness = CP * 0.05;
+        const wallHalfT = wallThickness / 2;
+        ctx.save();
+        for (const k of s.everRevealedCells) {
+          if (!visibleCells.has(k)) continue;
+          const { x, y } = cellFromKey(k);
+          // Проверяем только правого и нижнего соседа (чтобы не рисовать дважды)
+          for (const [dx, dy] of [[1, 0], [0, 1]]) {
+            const nx = x + dx, ny = y + dy;
+            const nk = cellKey(nx, ny);
+            if (!s.blobCells.has(nk)) continue;
+            if (!s.everRevealedCells.has(nk)) continue;
+            const wk = wallKey(x, y, nx, ny);
+            if (s.removedWalls.has(wk)) continue; // стена убрана — не рисуем
+            // Граница между двумя клетками
+            if (dx === 1) {
+              // Вертикальная перегородка: x-граница = (x+1)*CP
+              const bx = (x + 1) * CP;
+              const by = y * CP;
+              ctx.fillStyle = 'rgba(20, 8, 30, 0.92)';
+              ctx.fillRect(bx - wallHalfT, by, wallThickness, CP);
+              ctx.strokeStyle = 'rgba(120, 80, 160, 0.5)';
+              ctx.lineWidth = 0.5;
+              ctx.strokeRect(bx - wallHalfT, by, wallThickness, CP);
+            } else {
+              // Горизонтальная перегородка: y-граница = (y+1)*CP
+              const bx = x * CP;
+              const by = (y + 1) * CP;
+              ctx.fillStyle = 'rgba(20, 8, 30, 0.92)';
+              ctx.fillRect(bx, by - wallHalfT, CP, wallThickness);
+              ctx.strokeStyle = 'rgba(120, 80, 160, 0.5)';
+              ctx.lineWidth = 0.5;
+              ctx.strokeRect(bx, by - wallHalfT, CP, wallThickness);
+            }
+          }
+        }
+        ctx.restore();
+      }
 
       // Пауки в закрытых комнатах (видны)
       for (const g of s.spiders) {

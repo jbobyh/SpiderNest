@@ -554,7 +554,7 @@
         const newCellY = Math.floor(newY / BATTLE_CELL_PX);
         const mapNewX = newCellX + b.cellOffsetX;
         const mapNewY = newCellY + b.cellOffsetY;
-        if (!b.openCells.has(cellKey(mapNewX, mapNewY))) {
+        if (!b.openCells.has(cellKey(mapNewX, mapNewY)) || battleCrossesWall(b, BATTLE_CELL_PX, b.player.x, b.player.y, newX, newY)) {
           // Ударились о стену - прекращаем деш
           s.player.isDashing = false;
         } else {
@@ -610,12 +610,12 @@
         npx = Math.max(pr, Math.min(npx, b.width - pr));
         npy = Math.max(pr, Math.min(npy, b.height - pr));
 
-        // Проверка - движение только по открытым клеткам battle
+        // Проверка - движение только по открытым клеткам battle и не через перегородки
         const tcX = Math.floor(npx / BATTLE_CELL_PX);
         const tcY = Math.floor(b.player.y / BATTLE_CELL_PX);
         const mapX = tcX + b.cellOffsetX;
         const mapY = tcY + b.cellOffsetY;
-        if (b.openCells.has(cellKey(mapX, mapY))) {
+        if (b.openCells.has(cellKey(mapX, mapY)) && !battleCrossesWall(b, BATTLE_CELL_PX, b.player.x, b.player.y, npx, b.player.y)) {
           b.player.x = npx;
         }
 
@@ -623,7 +623,7 @@
         const tcY2X = Math.floor(b.player.x / BATTLE_CELL_PX);
         const mapY2X = tcY2X + b.cellOffsetX;
         const mapY2Y = tcY2 + b.cellOffsetY;
-        if (b.openCells.has(cellKey(mapY2X, mapY2Y))) {
+        if (b.openCells.has(cellKey(mapY2X, mapY2Y)) && !battleCrossesWall(b, BATTLE_CELL_PX, b.player.x, b.player.y, b.player.x, npy)) {
           b.player.y = npy;
         }
       }
@@ -756,10 +756,13 @@
           }
         }
 
-        // Проверка столкновения со стенами (вне открытых клеток)
+        // Проверка столкновения со стенами (вне открытых клеток или через перегородку)
         const bulletCellX = Math.floor(bullet.x / BATTLE_CELL_PX) + b.cellOffsetX;
         const bulletCellY = Math.floor(bullet.y / BATTLE_CELL_PX) + b.cellOffsetY;
-        if (!bouncedThisFrame && !b.openCells.has(cellKey(bulletCellX, bulletCellY))) {
+        const bulletPrevX = bullet.x - bullet.vx * dt;
+        const bulletPrevY = bullet.y - bullet.vy * dt;
+        const bulletHitsPartition = !bouncedThisFrame && battleCrossesWall(b, BATTLE_CELL_PX, bulletPrevX, bulletPrevY, bullet.x, bullet.y);
+        if (!bouncedThisFrame && (!b.openCells.has(cellKey(bulletCellX, bulletCellY)) || bulletHitsPartition)) {
           if (bullet.ricochet && !bullet._ricocheted) {
             bullet._ricocheted = true;
             const prevX = bullet.x - bullet.vx * dt;
@@ -958,7 +961,7 @@
             // Проверка стен battle-зоны
             const newCellX = Math.floor(newX / BATTLE_CELL_PX) + b.cellOffsetX;
             const newCellY = Math.floor(newY / BATTLE_CELL_PX) + b.cellOffsetY;
-            if (b.openCells.has(cellKey(newCellX, newCellY))) {
+            if (b.openCells.has(cellKey(newCellX, newCellY)) && !battleCrossesWall(b, BATTLE_CELL_PX, g.x, g.y, newX, newY)) {
               g.x = newX;
               g.y = newY;
               // Running animation
@@ -1010,7 +1013,7 @@
                 // Проверка стен battle-зоны
                 const newCellX = Math.floor(newX / BATTLE_CELL_PX) + b.cellOffsetX;
                 const newCellY = Math.floor(newY / BATTLE_CELL_PX) + b.cellOffsetY;
-                if (b.openCells.has(cellKey(newCellX, newCellY))) {
+                if (b.openCells.has(cellKey(newCellX, newCellY)) && !battleCrossesWall(b, BATTLE_CELL_PX, g.x, g.y, newX, newY)) {
                   g.x = newX;
                   g.y = newY;
                 }
@@ -1055,7 +1058,7 @@
                 const newCellY = Math.floor(newY / BATTLE_CELL_PX) + b.cellOffsetY;
                 
                 let hitWall = false;
-                if (!b.openCells.has(cellKey(newCellX, newCellY))) {
+                if (!b.openCells.has(cellKey(newCellX, newCellY)) || battleCrossesWall(b, BATTLE_CELL_PX, g.x, g.y, newX, newY)) {
                   hitWall = true;
                 }
                 
@@ -1140,7 +1143,7 @@
           // Проверка стен battle-зоны
           const newCellX = Math.floor(newX / BATTLE_CELL_PX) + b.cellOffsetX;
           const newCellY = Math.floor(newY / BATTLE_CELL_PX) + b.cellOffsetY;
-          if (b.openCells.has(cellKey(newCellX, newCellY))) {
+          if (b.openCells.has(cellKey(newCellX, newCellY)) && !battleCrossesWall(b, BATTLE_CELL_PX, g.x, g.y, newX, newY)) {
             g.x = newX;
             g.y = newY;
           } else {
@@ -1174,7 +1177,7 @@
           // Проверка стен battle-зоны
           const newCellX = Math.floor(newX / BATTLE_CELL_PX) + b.cellOffsetX;
           const newCellY = Math.floor(newY / BATTLE_CELL_PX) + b.cellOffsetY;
-          if (b.openCells.has(cellKey(newCellX, newCellY))) {
+          if (b.openCells.has(cellKey(newCellX, newCellY)) && !battleCrossesWall(b, BATTLE_CELL_PX, g.x, g.y, newX, newY)) {
             g.x = newX;
             g.y = newY;
           }
@@ -1321,7 +1324,7 @@
                   let newY = g.y + (dy / dist) * spd * dt;
                   const chCellX = Math.floor(newX / BATTLE_CELL_PX) + b.cellOffsetX;
                   const chCellY = Math.floor(newY / BATTLE_CELL_PX) + b.cellOffsetY;
-                  if (b.openCells.has(cellKey(chCellX, chCellY))) {
+                  if (b.openCells.has(cellKey(chCellX, chCellY)) && !battleCrossesWall(b, BATTLE_CELL_PX, g.x, g.y, newX, newY)) {
                     g.x = newX; g.y = newY;
                   }
                 } else if (dist <= chargeDist) {
@@ -1348,7 +1351,7 @@
                 let newY = g.y + g.dashDirY * moveDist;
                 const newCellX = Math.floor(newX / BATTLE_CELL_PX) + b.cellOffsetX;
                 const newCellY = Math.floor(newY / BATTLE_CELL_PX) + b.cellOffsetY;
-                const hitWall = !b.openCells.has(cellKey(newCellX, newCellY));
+                const hitWall = !b.openCells.has(cellKey(newCellX, newCellY)) || battleCrossesWall(b, BATTLE_CELL_PX, g.x, g.y, newX, newY);
                 const moved = Math.hypot(newX - g.x, newY - g.y);
                 g.stateTimer += moved;
 
@@ -1419,7 +1422,7 @@
           if (currentPhase.id !== 'bull_limited') {
             const newCellX = Math.floor(newX / BATTLE_CELL_PX) + b.cellOffsetX;
             const newCellY = Math.floor(newY / BATTLE_CELL_PX) + b.cellOffsetY;
-            if (b.openCells.has(cellKey(newCellX, newCellY))) {
+            if (b.openCells.has(cellKey(newCellX, newCellY)) && !battleCrossesWall(b, BATTLE_CELL_PX, g.x, g.y, newX, newY)) {
               g.x = newX;
               g.y = newY;
             } else if (currentPhase.id === 'shooter' || currentPhase.id === 'buldyga') {
@@ -1458,7 +1461,7 @@
           // Проверка стен battle-зоны
           const newCellX = Math.floor(newX / BATTLE_CELL_PX) + b.cellOffsetX;
           const newCellY = Math.floor(newY / BATTLE_CELL_PX) + b.cellOffsetY;
-          if (b.openCells.has(cellKey(newCellX, newCellY))) {
+          if (b.openCells.has(cellKey(newCellX, newCellY)) && !battleCrossesWall(b, BATTLE_CELL_PX, g.x, g.y, newX, newY)) {
             g.x = newX;
             g.y = newY;
           }
@@ -1499,7 +1502,9 @@
         // Проверка столкновения вражеских пуль со стенами
         const enemyBulletCellX = Math.floor(eb.x / BATTLE_CELL_PX) + b.cellOffsetX;
         const enemyBulletCellY = Math.floor(eb.y / BATTLE_CELL_PX) + b.cellOffsetY;
-        if (!b.openCells.has(cellKey(enemyBulletCellX, enemyBulletCellY))) {
+        const ebPrevX = eb.x - eb.vx * dt;
+        const ebPrevY = eb.y - eb.vy * dt;
+        if (!b.openCells.has(cellKey(enemyBulletCellX, enemyBulletCellY)) || battleCrossesWall(b, BATTLE_CELL_PX, ebPrevX, ebPrevY, eb.x, eb.y)) {
           // Пуля в стене - уничтожаем
           for (let k = 0; k < 3; k++) {
             const a = Math.random() * Math.PI * 2;

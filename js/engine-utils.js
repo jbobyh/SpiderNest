@@ -150,11 +150,11 @@
     function inBounds(x, y) { return x >= -100 && x < 200 && y >= -100 && y < 200; }
     function easeInOutQuad(t) { return t < 0.5 ? 2*t*t : -1+(4-2*t)*t; }
 
-    // Контейнеры сердец: заполненные = текущие жизни, всего = жизни + открытые комнаты + pending (только если из HUD)
+    // Контейнеры сердец: заполненные = текущие жизни, всего = жизни + убранные стены + pending (только если из HUD)
     function getHeartHudStats(s) {
       const filled = s.player.lives;
-      // pendingOpenHeart: false | 'hud' | 'cell' — контейнер добавляем только при полёте из HUD
-      const total = s.player.lives + s.openCells.size + (pendingOpenHeart === 'hud' ? 1 : 0);
+      const removedCount = s.removedWalls ? s.removedWalls.size : 0;
+      const total = s.player.lives + removedCount + (pendingOpenHeart === 'hud' ? 1 : 0);
       return { filled, total };
     }
 
@@ -449,6 +449,114 @@
         if (predicate(nx, ny, cellKey(nx, ny))) return true;
       }
       return false;
+    }
+
+    // ============================================================
+    // WALL PARTITIONS (перегородки между комнатами)
+    // ============================================================
+
+    // Нормализованный ключ стены-перегородки между двумя соседними клетками.
+    // Меньшая клетка всегда первая, чтобы ключ был одинаков с обеих сторон.
+    function wallKey(ax, ay, bx, by) {
+      if (ax > bx || (ax === bx && ay > by)) {
+        return `${bx},${by}|${ax},${ay}`;
+      }
+      return `${ax},${ay}|${bx},${by}`;
+    }
+
+    function wallKeyFromStr(wk) {
+      const [left, right] = wk.split('|');
+      const [ax, ay] = left.split(',').map(Number);
+      const [bx, by] = right.split(',').map(Number);
+      return { ax, ay, bx, by };
+    }
+
+    // Ищет стену-перегородку в радиусе snapR от точки (mx, my).
+    // Возвращает { ax, ay, bx, by, wk } или null.
+    // Только стены между двумя blobCells.
+    function getWallAtPoint(s, mx, my) {
+      const snapR = CP * 0.30;
+      const snapR2 = snapR * snapR;
+      const cx0 = Math.floor((mx - snapR) / CP) - 1;
+      const cx1 = Math.floor((mx + snapR) / CP) + 1;
+      const cy0 = Math.floor((my - snapR) / CP) - 1;
+      const cy1 = Math.floor((my + snapR) / CP) + 1;
+
+      let bestDist2 = Infinity;
+      let best = null;
+
+      for (let gx = cx0; gx <= cx1; gx++) {
+        for (let gy = cy0; gy <= cy1; gy++) {
+          const k = cellKey(gx, gy);
+          if (!s.blobCells.has(k)) continue;
+          for (const [dx, dy] of [[1, 0], [0, 1]]) {
+            const nx = gx + dx, ny = gy + dy;
+            const nk = cellKey(nx, ny);
+            if (!s.blobCells.has(nk)) continue;
+            // Середина границы между двумя клетками
+            const midX = (gx + nx + 1) * CP / 2;
+            const midY = (gy + ny + 1) * CP / 2;
+            const d2 = (mx - midX) * (mx - midX) + (my - midY) * (my - midY);
+            if (d2 < snapR2 && d2 < bestDist2) {
+              bestDist2 = d2;
+              best = { ax: gx, ay: gy, bx: nx, by: ny, wk: wallKey(gx, gy, nx, ny) };
+            }
+          }
+        }
+      }
+      return best;
+    }
+
+    // Пересчитывает openCells через BFS от клетки игрока по убранным стенам.
+    // Клетка игрока всегда открыта. Клетка достижима если к ней ведёт убранная стена из уже открытой клетки.
+    function recomputeOpenCells(s) {
+      let seedK = cellKey(s.startCell.x, s.startCell.y);
+      if (s.player) {
+        const pc = cellOf(s.player.x, s.player.y);
+        const pk = cellKey(pc.x, pc.y);
+        if (s.blobCells.has(pk)) seedK = pk;
+      }
+      const open = new Set([seedK]);
+      const queue = [seedK];
+
+      while (queue.length) {
+        const k = queue.shift();
+        const { x, y } = cellFromKey(k);
+        for (const [dx, dy] of CARDINAL_DIRECTIONS) {
+          const nx = x + dx, ny = y + dy;
+          const nk = cellKey(nx, ny);
+          if (!s.blobCells.has(nk)) continue;
+          if (open.has(nk)) continue;
+          const wk = wallKey(x, y, nx, ny);
+          if (s.removedWalls.has(wk)) {
+            open.add(nk);
+            queue.push(nk);
+          }
+        }
+      }
+      s.openCells = open;
+    }
+
+    // Проверяет, пересекает ли движение из (x0,y0) в (x1,y1) закрытую стену-перегородку.
+    // Координаты в play-пространстве. Возвращает true если движение заблокировано.
+    function crossesWall(s, x0, y0, x1, y1) {
+      const c0x = Math.floor(x0 / CP), c0y = Math.floor(y0 / CP);
+      const c1x = Math.floor(x1 / CP), c1y = Math.floor(y1 / CP);
+      if (c0x === c1x && c0y === c1y) return false; // внутри одной клетки
+      const wk = wallKey(c0x, c0y, c1x, c1y);
+      return !s.removedWalls.has(wk);
+    }
+
+    // Аналог для battle-пространства. cellPx = BATTLE_CELL_PX.
+    function battleCrossesWall(b, cellPx, x0, y0, x1, y1) {
+      if (!b.removedWalls) return false;
+      const c0x = Math.floor(x0 / cellPx) + b.cellOffsetX;
+      const c0y = Math.floor(y0 / cellPx) + b.cellOffsetY;
+      const c1x = Math.floor(x1 / cellPx) + b.cellOffsetX;
+      const c1y = Math.floor(y1 / cellPx) + b.cellOffsetY;
+      if (c0x === c1x && c0y === c1y) return false;
+      const wk = wallKey(c0x, c0y, c1x, c1y);
+      return !b.removedWalls.has(wk);
     }
 
     // ============================================================

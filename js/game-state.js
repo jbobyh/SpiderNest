@@ -919,6 +919,7 @@
         gridSize: gridSize,
         blobCells: blobCells,
         openCells: initOpen,
+        removedWalls: new Set(), // ключи убранных стен-перегородок между комнатами
         everRevealedCells: initEverRevealed, // клетки, которые когда-либо были видны (смежные или открытые)
         everOpenedCells: initEverOpened, // клетки, которые когда-либо были реально открыты
         permanentlyClosed: new Set(), // чёрные клетки

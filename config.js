@@ -173,10 +173,10 @@ const CONFIG = {
 
   // Music
   MUSIC: {
-    1: { file: 'Three Red Hearts Candy.ogg', volume: 0.2 },
-    2: { file: 'Clement Panchout - Sweet 70s.wav', volume: 0.2 },
-    3: { file: 'Three Red Hearts - Box Jump.ogg', volume: 0.2 },
-    BOSS: { file: 'GEN Death metal.wav', volume: 0.3 },
+    1: { file: 'Three Red Hearts Candy.ogg', volume: 0.0 },
+    2: { file: 'Clement Panchout - Sweet 70s.wav', volume: 0.0 },
+    3: { file: 'Three Red Hearts - Box Jump.ogg', volume: 0.0 },
+    BOSS: { file: 'GEN Death metal.wav', volume: 0.0 },
   },
   FADE_DURATION_LEVEL_TO_BOSS: 0.5,  // seconds
   FADE_DURATION_BOSS_TO_LEVEL: 0.5,  // seconds

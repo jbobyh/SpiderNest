@@ -1,5 +1,5 @@
     function savePlayerProgress(s) {
-      playerProgress.totalLives = s.player.lives + s.openCells.size;
+      playerProgress.totalLives = s.player.lives + (s.removedWalls ? s.removedWalls.size : 0);
       playerProgress.totalHeartsCollected += s.heartsCollected;
       playerProgress.weaponSlots = [...(s.weaponSlots || ['pistol', null])];
       playerProgress.activeSlot = s.activeSlot || 0;
@@ -17,6 +17,7 @@
         gridSize: s.gridSize,
         blobCells: s.blobCells ? [...s.blobCells] : [],
         openCells: [...s.openCells],
+        removedWalls: s.removedWalls ? [...s.removedWalls] : [],
         everRevealedCells: [...s.everRevealedCells],
         everOpenedCells: [...s.everOpenedCells],
         permanentlyClosed: [...s.permanentlyClosed],
@@ -49,6 +50,7 @@
         gridSize: data.gridSize || 5,
         blobCells: new Set(data.blobCells || []),
         openCells: new Set(data.openCells),
+        removedWalls: new Set(data.removedWalls || []),
         everRevealedCells: new Set(data.everRevealedCells),
         everOpenedCells: new Set(data.everOpenedCells),
         permanentlyClosed: new Set(data.permanentlyClosed),
@@ -445,42 +447,22 @@
         Sounds.ambienceSyncVolume();
       }
 
-      // Обновление курсора при наведении на клетки
+      // Обновление курсора при наведении на стены-перегородки
       if (state && state.phase === 'play' && !paused) {
         const mx = p.x + camera.x;
         const my = p.y + camera.y;
-        const cx = Math.floor(mx / CP);
-        const cy = Math.floor(my / CP);
 
-        if (state.blobCells.has(cellKey(cx, cy))) {
-          const k = cellKey(cx, cy);
-          const playerC = cellOf(state.player.x, state.player.y);
-          const playerKey = cellKey(playerC.x, playerC.y);
-
-          // Проверка: можно открыть (unlocked)
-          const canOpen = !state.openCells.has(k) &&
-                          !state.disabledCells.has(k) &&
-                          !state.permanentlyClosed.has(k) &&
-                          Math.abs(cx - playerC.x) + Math.abs(cy - playerC.y) === 1;
-
-          // Проверка: можно закрыть (locked)
-          let canClose = false;
-          if (state.openCells.has(k) && k !== playerKey) {
-            const hasUncollectedSphere = state.summonSphere && !state.summonSphere.collected && state.summonSphere.cellKey === k;
-            const hasUncollectedHeart = state.hearts.some(heart => !heart.collected && heart.cellKey === k);
-            if (!hasUncollectedSphere && !hasUncollectedHeart) {
-              // Проверка связности: закрытие не должно создавать изолированных зон
-              const openWithoutCandidate = new Set(state.openCells);
-              openWithoutCandidate.delete(k);
-              const connected = getConnectedCells(openWithoutCandidate, playerKey);
-              canClose = connected.size === openWithoutCandidate.size;
+        const wall = getWallAtPoint(state, mx, my);
+        if (wall) {
+          const aOpen = state.openCells.has(cellKey(wall.ax, wall.ay));
+          const bOpen = state.openCells.has(cellKey(wall.bx, wall.by));
+          const adjacentToOpen = aOpen || bOpen;
+          if (adjacentToOpen) {
+            if (state.removedWalls.has(wall.wk)) {
+              C.style.cursor = "url('img/locked.png') 16 16, pointer";
+            } else {
+              C.style.cursor = "url('img/unlocked.png') 16 16, pointer";
             }
-          }
-
-          if (canOpen) {
-            C.style.cursor = "url('img/unlocked.png') 16 16, pointer";
-          } else if (canClose) {
-            C.style.cursor = "url('img/locked.png') 16 16, pointer";
           } else {
             C.style.cursor = 'crosshair';
           }
@@ -491,6 +473,68 @@
         C.style.cursor = 'crosshair';
       }
     });
+
+    // Находит дальнюю убранную стену для автозакрытия при lives=1.
+    // excludeWk — ключ стены которую сейчас открываем (не трогаем её).
+    // Возвращает { wk, midX, midY } или null.
+    function findAutoCloseWall(s, excludeWk) {
+      const playerCell = cellOf(s.player.x, s.player.y);
+      const playerKey = cellKey(playerCell.x, playerCell.y);
+
+      // BFS-дистанции от игрока по текущим openCells
+      const dist = new Map([[playerKey, 0]]);
+      const queue = [playerKey];
+      while (queue.length) {
+        const k = queue.shift();
+        const { x, y } = cellFromKey(k);
+        for (const [dx, dy] of CARDINAL_DIRECTIONS) {
+          const nk = cellKey(x + dx, y + dy);
+          if (s.openCells.has(nk) && !dist.has(nk)) {
+            dist.set(nk, dist.get(k) + 1);
+            queue.push(nk);
+          }
+        }
+      }
+
+      let best = null;
+      let bestScore = -1;
+
+      for (const wk of s.removedWalls) {
+        if (wk === excludeWk) continue;
+        const { ax, ay, bx, by } = wallKeyFromStr(wk);
+        // Симулируем закрытие: проверяем что игрок не отрезан
+        const testWalls = new Set(s.removedWalls);
+        testWalls.delete(wk);
+        const tOpen = new Set([playerKey]);
+        const tQ = [playerKey];
+        while (tQ.length) {
+          const tk = tQ.shift();
+          const { x: tx, y: ty } = cellFromKey(tk);
+          for (const [dx, dy] of CARDINAL_DIRECTIONS) {
+            const tnk = cellKey(tx + dx, ty + dy);
+            if (!s.blobCells.has(tnk) || tOpen.has(tnk)) continue;
+            if (testWalls.has(wallKey(tx, ty, tx + dx, ty + dy))) {
+              tOpen.add(tnk);
+              tQ.push(tnk);
+            }
+          }
+        }
+        if (!tOpen.has(playerKey)) continue;
+
+        // Оценка: максимальная BFS-дистанция от игрока до одной из сторон стены
+        const akc = cellKey(ax, ay), bkc = cellKey(bx, by);
+        const da = dist.get(akc) ?? Infinity;
+        const db = dist.get(bkc) ?? Infinity;
+        const score = Math.min(da, db); // дистанция до ближайшей стороны стены
+        if (score > bestScore) {
+          bestScore = score;
+          const midX = (ax + bx + 1) * CP / 2;
+          const midY = (ay + by + 1) * CP / 2;
+          best = { wk, midX, midY };
+        }
+      }
+      return best;
+    }
 
     C.addEventListener('mousedown', e => {
       if (!state) return;
@@ -554,192 +598,125 @@
           shoot(state);
         }
       } else if (e.button === 2) {
-        // ПКМ — открыть или закрыть комнату
-        const cx = Math.floor(mx / CP);
-        const cy = Math.floor(my / CP);
-        if (!state.blobCells.has(cellKey(cx, cy))) return;
-        const k = cellKey(cx, cy);
+        // ПКМ — убрать или восстановить стену-перегородку
+        if (flyingHeart) return;
 
-        // Проверяем, не выключена ли клетка изначально
-        if (state.disabledCells.has(k)) return;
+        const wall = getWallAtPoint(state, mx, my);
+        if (!wall) return;
 
-        if (!state.openCells.has(k) && !state.permanentlyClosed.has(k)) {
-          // ОТКРЫТЬ клетку — только смежная с клеткой игрока
-          const playerC = cellOf(state.player.x, state.player.y);
-          const isAdjToPlayer = Math.abs(cx - playerC.x) + Math.abs(cy - playerC.y) === 1;
-          if (!isAdjToPlayer) return;
+        const aKey = cellKey(wall.ax, wall.ay);
+        const bKey = cellKey(wall.bx, wall.by);
+        const aOpen = state.openCells.has(aKey);
+        const bOpen = state.openCells.has(bKey);
 
-          // Блокируем если уже летит сердечко
-          if (flyingHeart) return;
+        // Можно взаимодействовать только если хотя бы одна сторона открыта
+        if (!aOpen && !bOpen) return;
 
-          // Проверяем хватает ли жизней
+        // Середина стены — откуда/куда летит сердечко
+        const wallMidX = (wall.ax + wall.bx + 1) * CP / 2;
+        const wallMidY = (wall.ay + wall.by + 1) * CP / 2;
+
+        if (!state.removedWalls.has(wall.wk)) {
+          // УБРАТЬ стену: тратим жизнь
           if (state.player.lives < 1) return;
 
-          // Центр открываемой клетки (цель сердечка)
-          const targetCellCX = (cx + 0.5) * CP;
-          const targetCellCY = (cy + 0.5) * CP;
-
-          // Если 1 жизнь — автозакрываем клетку сначала, потом сердце летит из закрытой в открываемую
+          // Автозакрытие дальней стены если осталась 1 жизнь
           if (state.player.lives === 1) {
-            const playerCell = cellOf(state.player.x, state.player.y);
-            const playerKey = cellKey(playerCell.x, playerCell.y);
-
-            // Находим связанные с игроком клетки (BFS)
-            const connected = getConnectedCells(state.openCells, playerKey);
-
-            // Фильтруем кандидатов на закрытие
-            const candidates = [];
-            for (const openKey of state.openCells) {
-              if (openKey === playerKey) continue;
-              // Нельзя закрыть с несобранной сферой
-              if (state.summonSphere && !state.summonSphere.collected && state.summonSphere.cellKey === openKey) continue;
-              // Нельзя закрыть с несобранным сердцем
-              if (state.hearts.some(heart => !heart.collected && heart.cellKey === openKey)) continue;
-              candidates.push(openKey);
-            }
-
-            let cellToClose = null;
-
-            // Шаг 1: Ищем отсоединённые клетки (не в connected)
-            const isolated = candidates.filter(ck => !connected.has(ck));
-            if (isolated.length > 0) {
-              cellToClose = isolated[0];
-            } else {
-              // Шаг 2: Находим самую дальнюю по пути (BFS distance)
-              const distances = new Map();
-              const bfsQueue = [[playerKey, 0]];
-              distances.set(playerKey, 0);
-
-              while (bfsQueue.length) {
-                const [bk, d] = bfsQueue.shift();
-                const { x: bx2, y: by2 } = cellFromKey(bk);
-                for (const [dx, dy] of CARDINAL_DIRECTIONS) {
-                  const nk = cellKey(bx2 + dx, by2 + dy);
-                  if (state.openCells.has(nk) && !distances.has(nk)) {
-                    distances.set(nk, d + 1);
-                    bfsQueue.push([nk, d + 1]);
-                  }
-                }
-              }
-
-              let maxDist = -1;
-              for (const ck of candidates) {
-                if (connected.has(ck) && distances.has(ck)) {
-                  const d = distances.get(ck);
-                  if (d > maxDist) {
-                    maxDist = d;
-                    cellToClose = ck;
-                  }
-                }
-              }
-            }
-
-            // Если не нашли клетку для закрытия — отменяем
-            if (!cellToClose) return;
-
-            // Закрываем клетку сразу
-            state.openCells.delete(cellToClose);
-            // Возвращаем жизнь за закрытие
+            const wallToClose = findAutoCloseWall(state, wall.wk);
+            if (!wallToClose) return;
+            state.removedWalls.delete(wallToClose.wk);
+            recomputeOpenCells(state);
             state.player.lives++;
-
-            // Сердце летит из центра закрытой клетки в центр открываемой клетки
-            const { x: ccx, y: ccy } = cellFromKey(cellToClose);
-            const fromX = (ccx + 0.5) * CP;
-            const fromY = (ccy + 0.5) * CP;
-            const openKey = k;
-            const openCX = cx, openCY = cy;
-
             pendingOpenHeart = 'cell';
-            launchFlyingHeart(fromX, fromY, targetCellCX, targetCellCY, () => {
+            launchFlyingHeart(wallToClose.midX, wallToClose.midY, wallMidX, wallMidY, () => {
               pendingOpenHeart = false;
-              // Тратим жизнь
               state.player.lives--;
-
-              // Открываем
-              state.openCells.add(openKey);
-              state.everRevealedCells.add(openKey);
-              state.everOpenedCells.add(openKey);
-              revealAdjacentCells(state.everRevealedCells, openCX, openCY, state.disabledCells, state.permanentlyClosed);
-              // Далеко гляжу: раскрываем диагональные клетки
-              if (state.upgrades.farSight) {
-                revealDiagonalCells(state.everRevealedCells, openCX, openCY, state.disabledCells, state.permanentlyClosed);
+              state.removedWalls.add(wall.wk);
+              recomputeOpenCells(state);
+              const newlyOpenedCells2 = [];
+              if (!aOpen) newlyOpenedCells2.push({ x: wall.ax, y: wall.ay, k: aKey });
+              if (!bOpen) newlyOpenedCells2.push({ x: wall.bx, y: wall.by, k: bKey });
+              for (const no of newlyOpenedCells2) {
+                if (!state.everRevealedCells.has(no.k)) state.everRevealedCells.add(no.k);
+                if (!state.everOpenedCells.has(no.k)) state.everOpenedCells.add(no.k);
+                revealAdjacentCells(state.everRevealedCells, no.x, no.y, state.disabledCells, state.permanentlyClosed);
+                if (state.upgrades.farSight) revealDiagonalCells(state.everRevealedCells, no.x, no.y, state.disabledCells, state.permanentlyClosed);
               }
-
-              // Запускаем zoom transition или сохраняем
-              doOpenCellAfterHeart(openKey, openCX, openCY);
+              const triggerCell2 = newlyOpenedCells2.length > 0 ? newlyOpenedCells2[0] : { x: wall.bx, y: wall.by, k: bKey };
+              doOpenCellAfterHeart(triggerCell2.k, triggerCell2.x, triggerCell2.y);
             });
             return;
           }
 
-          // Обычный случай (жизней > 1): сердце летит из HUD к клетке
-          // Берем индекс последнего сердца в HUD (после траты жизни)
-          const heartIndex = state.player.lives - 1; // после траты жизни
-          const openKey = k;
-          const openCX = cx, openCY = cy;
-
-          // Тратим жизнь сразу (чтобы HUD обновился)
+          const heartIndex = state.player.lives - 1;
           state.player.lives--;
           pendingOpenHeart = 'hud';
 
           const hudCoords = getHudHeartCoords(heartIndex);
-          launchFlyingHeart(hudCoords.x, hudCoords.y, targetCellCX, targetCellCY, () => {
+          launchFlyingHeart(hudCoords.x, hudCoords.y, wallMidX, wallMidY, () => {
             pendingOpenHeart = false;
-            // Открываем когда долетело
-            state.openCells.add(openKey);
-            state.everRevealedCells.add(openKey);
-            state.everOpenedCells.add(openKey);
-            revealAdjacentCells(state.everRevealedCells, openCX, openCY, state.disabledCells, state.permanentlyClosed);
-            // Далеко гляжу: раскрываем диагональные клетки
-            if (state.upgrades.farSight) {
-              revealDiagonalCells(state.everRevealedCells, openCX, openCY, state.disabledCells, state.permanentlyClosed);
+            state.removedWalls.add(wall.wk);
+            recomputeOpenCells(state);
+
+            // Раскрываем newly-opened клетки для everRevealed
+            const newlyOpenedCells = [];
+            if (!aOpen) newlyOpenedCells.push({ x: wall.ax, y: wall.ay, k: aKey });
+            if (!bOpen) newlyOpenedCells.push({ x: wall.bx, y: wall.by, k: bKey });
+            for (const no of newlyOpenedCells) {
+              if (!state.everRevealedCells.has(no.k)) state.everRevealedCells.add(no.k);
+              if (!state.everOpenedCells.has(no.k)) state.everOpenedCells.add(no.k);
+              revealAdjacentCells(state.everRevealedCells, no.x, no.y, state.disabledCells, state.permanentlyClosed);
+              if (state.upgrades.farSight) {
+                revealDiagonalCells(state.everRevealedCells, no.x, no.y, state.disabledCells, state.permanentlyClosed);
+              }
             }
 
-            // Запускаем zoom transition или сохраняем
-            doOpenCellAfterHeart(openKey, openCX, openCY);
+            // Если за стеной была клетка с контентом — запускаем zoom/battle
+            // Выбираем первую новую клетку (или b-сторону если обе были открыты)
+            const triggerCell = newlyOpenedCells.length > 0
+              ? newlyOpenedCells[0]
+              : { x: wall.bx, y: wall.by, k: bKey };
+            doOpenCellAfterHeart(triggerCell.k, triggerCell.x, triggerCell.y);
           });
 
-        } else if (state.openCells.has(k)) {
-          // ЗАКРЫТЬ клетку
+        } else {
+          // ВОССТАНОВИТЬ стену: возвращаем жизнь
+          // Нельзя восстановить если игрок окажется изолирован
           const playerCell = cellOf(state.player.x, state.player.y);
-          if (k === cellKey(playerCell.x, playerCell.y)) return; // Нельзя закрыть клетку с игроком
-
-          // Блокируем если уже летит сердечко
-          if (flyingHeart) return;
-
-          // Нельзя закрыть клетку с несобранной сферой
-          const hasUncollectedSphere = state.summonSphere && !state.summonSphere.collected && state.summonSphere.cellKey === k;
-          if (hasUncollectedSphere) return;
-
-          // Нельзя закрыть клетку с несобранным сердцем
-          const hasUncollectedHeart = state.hearts.some(heart => !heart.collected && heart.cellKey === k);
-          if (hasUncollectedHeart) return;
-
-          // Нельзя закрыть клетку, которая разделит оставшиеся клетки на 2+ части
-          const openWithoutThis = new Set(state.openCells);
-          openWithoutThis.delete(k);
           const playerKey = cellKey(playerCell.x, playerCell.y);
-          if (openWithoutThis.has(playerKey)) {
-            const remainingConnected = getConnectedCells(openWithoutThis, playerKey);
-            if (remainingConnected.size !== openWithoutThis.size) return;
+
+          // Симулируем восстановление: BFS от playerKey по testWalls
+          // startCell всегда открыта (не через стену), поэтому сидируем её тоже
+          const startK = cellKey(state.startCell.x, state.startCell.y);
+          const testWalls = new Set(state.removedWalls);
+          testWalls.delete(wall.wk);
+          const testOpen = new Set([playerKey, startK]);
+          const testQueue = [playerKey, startK];
+          while (testQueue.length) {
+            const tk = testQueue.shift();
+            const { x: tx, y: ty } = cellFromKey(tk);
+            for (const [dx, dy] of CARDINAL_DIRECTIONS) {
+              const tnk = cellKey(tx + dx, ty + dy);
+              if (!state.blobCells.has(tnk) || testOpen.has(tnk)) continue;
+              if (testWalls.has(wallKey(tx, ty, tx + dx, ty + dy))) {
+                testOpen.add(tnk);
+                testQueue.push(tnk);
+              }
+            }
           }
 
-          // Возвращаем жизнь сразу
+          // Нельзя закрыть если игрок окажется изолирован (его клетка недостижима)
+          if (!testOpen.has(playerKey)) return;
+
+          state.removedWalls.delete(wall.wk);
+          recomputeOpenCells(state);
           state.player.lives++;
 
-          // Закрываем сразу
-          state.openCells.delete(k);
-          if (CONFIG.BLOCK_CELLS_FOREVER) {
-            state.permanentlyClosed.add(k);
-          }
-
-          // Сердце летит из центра закрытой клетки в HUD
-          const closedCX = (cx + 0.5) * CP;
-          const closedCY = (cy + 0.5) * CP;
-          // Цель - координаты нового сердца в HUD (индекс = lives-1 после возврата жизни)
+          // Сердце летит из середины стены в HUD
           const heartIndex = state.player.lives - 1;
-          launchFlyingHeart(closedCX, closedCY, 0, 0, () => {
+          launchFlyingHeart(wallMidX, wallMidY, 0, 0, () => {
             saveGame();
-          }, () => getHudHeartCoords(heartIndex)); // Динамическое получение координат HUD
+          }, () => getHudHeartCoords(heartIndex));
         }
       }
     });
