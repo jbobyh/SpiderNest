@@ -733,7 +733,6 @@
 
       const levelConfig = getLevelConfig(level);
       const gridSize = levelConfig.gridSize;
-      const keysRequired = levelConfig.keysRequired;
       const heartsConfig = levelConfig.heartsCount;
       const cellCount = levelConfig.cellCount || gridSize * gridSize;
 
@@ -744,23 +743,13 @@
       const blobCells = generateBlobCells(cx, cy, cellCount);
       const disabledCells = new Set();
 
-      // Выбираем выход из крайних клеток blob (макс. Chebyshev-расстояние от центра, мин. 2)
-      let blobArr = [...blobCells].map(k => { const { x, y } = cellFromKey(k); return { x, y, k }; });
-      let exitCandidates = blobArr.filter(c => {
-        const d = Math.max(Math.abs(c.x - cx), Math.abs(c.y - cy));
-        return d >= 2;
-      });
-      if (exitCandidates.length === 0) exitCandidates = blobArr.filter(c => !(c.x === cx && c.y === cy));
-      shuffleInPlace(exitCandidates);
-      const exitCell = exitCandidates[0];
-      const ex = exitCell.x, ey = exitCell.y;
-
       // Генерируем содержимое клеток
       const cellContents = new Map(); // key -> {type: 'empty'|'heart'|'enemies', enemyCount?: number}
       const availableCells = [];
+      let blobArr = [...blobCells].map(k => { const { x, y } = cellFromKey(k); return { x, y, k }; });
 
       for (const { x, y, k } of blobArr) {
-        if (!(x === cx && y === cy) && !(x === ex && y === ey)) {
+        if (!(x === cx && y === cy)) {
           availableCells.push({ x, y, k });
         }
       }
@@ -779,18 +768,13 @@
         return getDifficultyTier(dist, maxCellDist);
       }
 
-      // Расставляем ключи — только в клетках с дистанцией 2-4 от центра
-      const keyObjs = [];
-      const keyCandidates = availableCells.filter(c => {
-        const d = Math.max(Math.abs(c.x - cx), Math.abs(c.y - cy));
-        return d >= 2 && d <= 4;
-      });
-      const keysCount = Math.min(keysRequired, keyCandidates.length);
-      for (let i = 0; i < keysCount; i++) {
-        const cell = keyCandidates[i];
-        availableCells.splice(availableCells.indexOf(cell), 1);
-        setCellEnemies(cellContents, cell.k, { type: 'key' }, pickRoomPreset(level, 'key'));
-        keyObjs.push({ x: (cell.x + 0.5) * CP, y: (cell.y + 0.5) * CP, cellKey: cell.k, collected: false });
+      // Расставляем сферу призыва — случайная клетка от центра
+      let summonSphere = null;
+      if (availableCells.length > 0) {
+        const sphereIndex = Math.floor(Math.random() * availableCells.length);
+        const sphereCell = availableCells.splice(sphereIndex, 1)[0];
+        setCellEnemies(cellContents, sphereCell.k, { type: 'summonSphere' }, pickRoomPreset(level, 'key'));
+        summonSphere = { x: (sphereCell.x + 0.5) * CP, y: (sphereCell.y + 0.5) * CP, cellKey: sphereCell.k, collected: false };
       }
 
       // Расставляем сердечки
@@ -933,20 +917,19 @@
 
       return {
         gridSize: gridSize,
-        keysRequired: keysRequired,
         blobCells: blobCells,
         openCells: initOpen,
         everRevealedCells: initEverRevealed, // клетки, которые когда-либо были видны (смежные или открытые)
         everOpenedCells: initEverOpened, // клетки, которые когда-либо были реально открыты
         permanentlyClosed: new Set(), // чёрные клетки
         startCell: { x: cx, y: cy },
-        exitCell: { x: ex, y: ey },
+        exitCell: null, // выход создается после убийства босса
         disabledCells: disabledCells,
         cellContents: cellContents,
         hearts: hearts,
         heartsCollected: 0,
-        keyObjs: keyObjs,
-        keysCollected: 0,
+        summonSphere: summonSphere,
+        summonSphereCollected: false,
         upgradeObjs: upgradeObjs,
         chestObjs: chestObjs,
         revealedExit: false,
@@ -986,7 +969,7 @@
         phase: 'play', // 'play', 'battle', 'win', 'dead', 'stopped', 'level_complete'
 
         // Battle mode state
-        battle: null, // { openCells, cellContents, hearts, keyObjs, upgradeObjs, spiders, activeSpiders, ... }
+        battle: null, // { openCells, cellContents, hearts, upgradeObjs, spiders, activeSpiders, ... }
 
         // Boss battle flags
         bossSummonReady: false,

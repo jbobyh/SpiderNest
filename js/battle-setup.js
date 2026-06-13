@@ -33,10 +33,24 @@
 
       // Создаём battle-копии коллектиблов
       const battleHearts = [];
-      const battleKeys = [];
       const battleUpgrades = [];
+      let battleSummonSphere = null;
       const battleSpiders = [];
       const battleActiveSpiders = [];
+
+      // Сфера призыва
+      if (s.summonSphere && !s.summonSphere.collected) {
+        const sc = cellOf(s.summonSphere.x, s.summonSphere.y);
+        const sk = cellKey(sc.x, sc.y);
+        if (battleCells.has(sk)) {
+          battleSummonSphere = {
+            x: (sc.x - cellOffsetX) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
+            y: (sc.y - cellOffsetY) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
+            originalCellKey: sk,
+            collected: false
+          };
+        }
+      }
 
       // Сердечки
       for (const heart of s.hearts) {
@@ -48,21 +62,6 @@
             x: (hc.x - cellOffsetX) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
             y: (hc.y - cellOffsetY) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
             originalCellKey: hk,
-            collected: false
-          });
-        }
-      }
-
-      // Ключи
-      for (const keyObj of s.keyObjs) {
-        if (keyObj.collected) continue;
-        const kc = cellOf(keyObj.x, keyObj.y);
-        const kk = cellKey(kc.x, kc.y);
-        if (battleCells.has(kk)) {
-          battleKeys.push({
-            x: (kc.x - cellOffsetX) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
-            y: (kc.y - cellOffsetY) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
-            originalCellKey: kk,
             collected: false
           });
         }
@@ -202,8 +201,8 @@
         width: battleWidth,
         height: battleHeight,
         hearts: battleHearts,
-        keys: battleKeys,
         upgrades: battleUpgrades,
+        summonSphere: battleSummonSphere,
         chests: battleChests,
         weapons: battleWeapons,
         spiders: battleSpiders,
@@ -258,17 +257,6 @@
         }
       }
 
-      for (const bk of b.keys) {
-        if (bk.collected) {
-          const keyObj = s.keyObjs.find(k => k.cellKey === bk.originalCellKey);
-          if (keyObj && !keyObj.collected) {
-            keyObj.collected = true;
-            s.cellContents.delete(bk.originalCellKey);
-            s.keysCollected++;
-          }
-        }
-      }
-
       for (const bu of b.upgrades) {
         if (bu.collected) {
           const upg = s.upgradeObjs.find(u => u.cellKey === bu.originalCellKey);
@@ -289,12 +277,24 @@
           }
         }
       }
+
+      // Синхронизация сферы призыва
+      if (b.summonSphere && b.summonSphere.collected) {
+        if (s.summonSphere && !s.summonSphere.collected) {
+          s.summonSphere.collected = true;
+          s.summonSphereCollected = true;
+          s.cellContents.delete(b.summonSphere.originalCellKey);
+        }
+      }
     }
 
     function exitBattleMode(s) {
       if (!s.battle) return;
 
       const b = s.battle;
+
+      // Синхронизируем собранные коллектиблы
+      syncBattleCollectibles(s);
 
       // Конвертируем позицию игрока обратно
       const battleCellX = Math.floor(b.player.x / BATTLE_CELL_PX);
@@ -305,6 +305,14 @@
       const localY = b.player.y - battleCellY * BATTLE_CELL_PX;
       s.player.x = mapCellX * CP + localX / BATTLE_SCALE;
       s.player.y = mapCellY * CP + localY / BATTLE_SCALE;
+
+      // Открываем клетку выхода (если босс побежден и выход создан)
+      if (s.bossDefeated && s.exitCell) {
+        const exitKey = cellKey(s.exitCell.x, s.exitCell.y);
+        s.openCells.add(exitKey);
+        s.everRevealedCells.add(exitKey);
+        s.everOpenedCells.add(exitKey);
+      }
 
       // Переносим оставшихся врагов обратно
       s.activeSpiders = [];
@@ -501,12 +509,25 @@
         bullDashDistance: 0,
       }];
 
-      // Battle-копии коллектиблов (сердечки, ключи, апгрейды, оружие)
+      // Battle-копии коллектиблов (сердечки, апгрейды, оружие)
       const battleHearts = [];
-      const battleKeys = [];
       const battleUpgrades = [];
       const battleWeapons = [];
       const battleChests = [];
+      let battleSummonSphere = null;
+
+      // Сфера призыва
+      if (s.summonSphere && !s.summonSphere.collected) {
+        const sc = cellOf(s.summonSphere.x, s.summonSphere.y);
+        if (battleCells.has(cellKey(sc.x, sc.y))) {
+          battleSummonSphere = {
+            x: (sc.x - cellOffsetX) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
+            y: (sc.y - cellOffsetY) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
+            originalCellKey: cellKey(sc.x, sc.y),
+            collected: false
+          };
+        }
+      }
 
       for (const heart of s.hearts) {
         if (heart.collected) continue;
@@ -516,19 +537,6 @@
             x: (hc.x - cellOffsetX) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
             y: (hc.y - cellOffsetY) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
             originalCellKey: cellKey(hc.x, hc.y),
-            collected: false
-          });
-        }
-      }
-
-      for (const keyObj of s.keyObjs) {
-        if (keyObj.collected) continue;
-        const kc = cellOf(keyObj.x, keyObj.y);
-        if (battleCells.has(cellKey(kc.x, kc.y))) {
-          battleKeys.push({
-            x: (kc.x - cellOffsetX) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
-            y: (kc.y - cellOffsetY) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
-            originalCellKey: cellKey(kc.x, kc.y),
             collected: false
           });
         }
@@ -617,8 +625,8 @@
         width: battleWidth,
         height: battleHeight,
         hearts: battleHearts,
-        keys: battleKeys,
         upgrades: battleUpgrades,
+        summonSphere: battleSummonSphere,
         chests: battleChests,
         weapons: battleWeapons,
         spiders: battleSpiders,

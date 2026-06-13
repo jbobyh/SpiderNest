@@ -195,10 +195,10 @@ const CONFIG = {
 // LEVEL CONFIGURATION
 // ============================================================
 const LEVEL_CONFIG = {
-  // gridSize: размер сетки; keysRequired: кол-во ключей для выхода; disabledCells: заблокированных клеток; heartsCount: сердец на уровне
-  1: { gridSize: 5,  keysRequired: 1, cellCount: 25, heartsCount: 1 },
-  2: { gridSize: 7,  keysRequired: 2, cellCount: 49, heartsCount: 2 },
-  3: { gridSize: 9,  keysRequired: 3, cellCount: 81, heartsCount: 3 },
+  // gridSize: размер сетки; disabledCells: заблокированных клеток; heartsCount: сердец на уровне
+  1: { gridSize: 5, cellCount: 25, heartsCount: 1 },
+  2: { gridSize: 7, cellCount: 49, heartsCount: 2 },
+  3: { gridSize: 9, cellCount: 81, heartsCount: 3 },
 };
 
 // Количество оружия и апгрейдов на каждом уровне

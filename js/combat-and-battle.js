@@ -641,15 +641,16 @@
         }
       }
 
-      // Сбор ключей в battle
-      for (const keyObj of b.keys) {
-        if (!keyObj.collected) {
-          const dist = Math.hypot(b.player.x - keyObj.x, b.player.y - keyObj.y);
-          if (dist < CONFIG.PLAYER_RADIUS * BATTLE_SCALE + CONFIG.PICKUP_DISTANCE * BATTLE_SCALE) {
-            keyObj.collected = true;
-            Sounds.keycollect();
-            addParticles(keyObj.x, keyObj.y, CONFIG.PICKUP_PARTICLES_COUNT, CONFIG.PICKUP_PARTICLES_SPEED, CONFIG.PICKUP_PARTICLES_LIFE, '#ffd700');
-          }
+      // Сбор сферы призыва в battle
+      if (b.summonSphere && !b.summonSphere.collected) {
+        const dist = Math.hypot(b.player.x - b.summonSphere.x, b.player.y - b.summonSphere.y);
+        if (dist < CONFIG.PLAYER_RADIUS * BATTLE_SCALE + CONFIG.PICKUP_DISTANCE * BATTLE_SCALE) {
+          b.summonSphere.collected = true;
+          s.summonSphere.collected = true;
+          s.summonSphereCollected = true;
+          s.cellContents.delete(b.summonSphere.originalCellKey);
+          Sounds.keycollect();
+          addParticles(b.summonSphere.x, b.summonSphere.y, CONFIG.PICKUP_PARTICLES_COUNT, CONFIG.PICKUP_PARTICLES_SPEED, CONFIG.PICKUP_PARTICLES_LIFE, '#ff6600');
         }
       }
 
@@ -859,9 +860,16 @@
                   });
                 }
               }
-              // Босс убит - открываем выбор проклятого улучшения
+              // Босс убит - создаем выход в клетке смерти босса
               if (g.isBoss && b.isBossBattle) {
                 s.bossDefeated = true;
+                // Создаем выход в клетке где умер босс
+                const bossCellX = Math.floor(g.x / BATTLE_CELL_PX);
+                const bossCellY = Math.floor(g.y / BATTLE_CELL_PX);
+                s.exitCell = {
+                  x: bossCellX + b.cellOffsetX,
+                  y: bossCellY + b.cellOffsetY
+                };
                 Sounds.stopBossMusic();
                 showUpgradePopup('БОСС ПОБЕЖДЕН!', '#ff4400');
                 openCursedChoice(s, null);

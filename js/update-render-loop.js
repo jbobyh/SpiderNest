@@ -185,26 +185,22 @@
         }
       }
 
-      // Сбор ключей
-      for (const keyObj of s.keyObjs) {
-        if (!keyObj.collected) {
-          const dist = Math.hypot(s.player.x - keyObj.x, s.player.y - keyObj.y);
-          if (dist < CONFIG.PLAYER_RADIUS + CONFIG.PICKUP_DISTANCE) {
-            keyObj.collected = true;
-            s.cellContents.delete(keyObj.cellKey);
-            s.keysCollected++;
-            Sounds.keycollect();
-            // Частицы
-            addParticles(keyObj.x, keyObj.y, CONFIG.PICKUP_PARTICLES_COUNT, CONFIG.PICKUP_PARTICLES_SPEED, CONFIG.PICKUP_PARTICLES_LIFE, '#ffd700');
-          }
+      // Сбор сферы призыва (автоподбор при приближении)
+      if (s.summonSphere && !s.summonSphere.collected) {
+        const dist = Math.hypot(s.player.x - s.summonSphere.x, s.player.y - s.summonSphere.y);
+        if (dist < CONFIG.PLAYER_RADIUS + CONFIG.PICKUP_DISTANCE) {
+          s.summonSphere.collected = true;
+          s.summonSphereCollected = true;
+          s.cellContents.delete(s.summonSphere.cellKey);
+          Sounds.keycollect(); // reuse key collect sound for now
+          // Частицы
+          addParticles(s.summonSphere.x, s.summonSphere.y, CONFIG.PICKUP_PARTICLES_COUNT, CONFIG.PICKUP_PARTICLES_SPEED, CONFIG.PICKUP_PARTICLES_LIFE, '#ff6600');
         }
       }
 
-      // Проверка: все ключи собраны, клетка выхода была открыта/увидена и босс еще не побежден -> готовность к призыву босса
-      if (s.keysCollected >= s.keysRequired && s.phase === 'play' && !s.bossDefeated) {
-        const ec = s.exitCell;
-        const exitRevealed = s.everRevealedCells.has(cellKey(ec.x, ec.y));
-        s.bossSummonReady = exitRevealed;
+      // Проверка: сфера призыва собрана, игрок в режиме play и босс еще не побежден -> готовность к призыву босса
+      if (s.summonSphereCollected && s.phase === 'play' && !s.bossDefeated) {
+        s.bossSummonReady = true;
       } else {
         s.bossSummonReady = false;
       }
@@ -967,17 +963,16 @@
         ctx.shadowBlur = 0;
       }
 
-      // Ключи
-      for (const keyObj of b.keys) {
-        if (keyObj.collected) continue;
+      // Сфера призыва в battle
+      if (b.summonSphere && !b.summonSphere.collected) {
         const pulse = 0.8 + 0.2 * Math.sin(Date.now() * 0.008);
-        ctx.fillStyle = `rgba(255, 215, 0, ${pulse})`;
-        ctx.shadowColor = '#ffd700';
+        ctx.fillStyle = `rgba(255, 102, 0, ${pulse})`;
+        ctx.shadowColor = '#ff6600';
         ctx.shadowBlur = 15 * BATTLE_SCALE;
         ctx.font = `bold ${24 * BATTLE_SCALE}px "Huninn"`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('🔑', keyObj.x, keyObj.y);
+        ctx.fillText('🔮', b.summonSphere.x, b.summonSphere.y);
         ctx.shadowBlur = 0;
       }
 
@@ -1316,17 +1311,11 @@
       for (const k of s.openCells) {
         if (!visibleCells.has(k)) continue;
         const { x, y } = cellFromKey(k);
-        const isExit = x === s.exitCell.x && y === s.exitCell.y;
+        const isExit = s.exitCell && x === s.exitCell.x && y === s.exitCell.y;
 
         if (isExit) {
-          let exitImg;
-          if (s.keysCollected >= s.keysRequired && s.bossDefeated) {
-            exitImg = openExitImg;
-          } else {
-            if (currentLevel === 2) exitImg = closedExit2Img;
-            else if (currentLevel === 3) exitImg = closedExit3Img;
-            else exitImg = closedExit1Img;
-          }
+          // Выход всегда открыт после убийства босса
+          let exitImg = openExitImg;
           if (exitImg && exitImg.complete && exitImg.naturalWidth > 0) {
             ctx.drawImage(exitImg, x * CP, y * CP, CP, CP);
           } else {
@@ -1342,27 +1331,11 @@
           ctx.font = 'bold 10px "Huninn"';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          if (s.keysCollected >= s.keysRequired) {
-            if (s.bossDefeated) {
-              ctx.strokeStyle = `rgba(0,255,100,${0.5 + pulse * 0.5})`;
-              ctx.lineWidth = 2;
-              ctx.strokeRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
-              ctx.fillStyle = `rgba(0,255,100,${0.6 + pulse * 0.4})`;
-              ctx.fillText('ВЫХОД', (x + 0.5) * CP, (y + 0.5) * CP);
-            } else {
-              ctx.strokeStyle = `rgba(255,68,0,${0.5 + pulse * 0.5})`;
-              ctx.lineWidth = 2;
-              ctx.strokeRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
-              ctx.fillStyle = `rgba(255,68,0,${0.6 + pulse * 0.4})`;
-              ctx.fillText('ВЫХОД (БОСС)', (x + 0.5) * CP, (y + 0.5) * CP);
-            }
-          } else {
-            ctx.strokeStyle = `rgba(255,170,0,${0.5 + pulse * 0.5})`;
-            ctx.lineWidth = 2;
-            ctx.strokeRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
-            ctx.fillStyle = `rgba(255,170,0,${0.6 + pulse * 0.4})`;
-            ctx.fillText(`ВЫХОД (КЛЮЧИ ${s.keysCollected}/${s.keysRequired})`, (x + 0.5) * CP, (y + 0.5) * CP);
-          }
+          ctx.strokeStyle = `rgba(0,255,100,${0.5 + pulse * 0.5})`;
+          ctx.lineWidth = 2;
+          ctx.strokeRect(x * CP + 1, y * CP + 1, CP - 2, CP - 2);
+          ctx.fillStyle = `rgba(0,255,100,${0.6 + pulse * 0.4})`;
+          ctx.fillText('ВЫХОД', (x + 0.5) * CP, (y + 0.5) * CP);
         }
       }
 
@@ -1435,27 +1408,7 @@
         const { x, y } = cellFromKey(k);
         if (!s.blobCells.has(k)) continue;
 
-        // Показываем содержимое
-        const isExitCell = x === s.exitCell.x && y === s.exitCell.y;
-        if (isExitCell) {
-          const pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.005);
-          ctx.font = 'bold 11px "Huninn"';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          if (s.keysCollected >= s.keysRequired) {
-            if (s.bossDefeated) {
-              ctx.fillStyle = `rgba(0,255,100,${0.6 + pulse * 0.4})`;
-              ctx.fillText('ВЫХОД', (x + 0.5) * CP, (y + 0.5) * CP);
-            } else {
-              ctx.fillStyle = `rgba(255,68,0,${0.6 + pulse * 0.4})`;
-              ctx.fillText('ВЫХОД (БОСС)', (x + 0.5) * CP, (y + 0.5) * CP);
-            }
-          } else {
-            ctx.fillStyle = `rgba(255,170,0,${0.6 + pulse * 0.4})`;
-            ctx.fillText('ВЫХОД (ЗАКРЫТ)', (x + 0.5) * CP, (y + 0.5) * CP);
-          }
-        }
-
+        // Показываем содержимое (выход не показываем - его нет до убийства босса)
         const content = s.cellContents.get(k);
         if (content) {
           if (content.type === 'heart') {
@@ -1478,18 +1431,18 @@
             //   ctx.textAlign = 'center';
             //   ctx.textBaseline = 'middle';
             //   ctx.fillText(`${content.enemyCount}👻`, (x+0.5)*CP, (y+0.5)*CP);
-          } else if (content.type === 'key') {
-            // Рисуем ключик
+          } else if (content.type === 'summonSphere') {
+            // Рисуем сферу призыва
             const hx = (x + 0.5) * CP;
             const hy = (y + 0.5) * CP;
             const pulse = 0.8 + 0.2 * Math.sin(Date.now() * 0.008);
-            ctx.fillStyle = `rgba(255, 215, 0, ${pulse})`;
-            ctx.shadowColor = '#ffd700';
+            ctx.fillStyle = `rgba(255, 102, 0, ${pulse})`;
+            ctx.shadowColor = '#ff6600';
             ctx.shadowBlur = 15;
             ctx.font = 'bold 20px "Huninn"';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText('🔑', hx, hy);
+            ctx.fillText('🔮', hx, hy);
             ctx.shadowBlur = 0;
           } else if (content.type === 'upgrade') {
             const hx = (x + 0.5) * CP;
@@ -1547,22 +1500,21 @@
         ctx.shadowBlur = 0;
       }
 
-      // Ключи в открытых клетках
-      for (const keyObj of s.keyObjs) {
-        if (keyObj.collected) continue;
-        const kc = cellOf(keyObj.x, keyObj.y);
-        const keyCellKey = cellKey(kc.x, kc.y);
-        if (!s.openCells.has(keyCellKey) || !visibleCells.has(keyCellKey)) continue;
-
-        const pulse = 0.8 + 0.2 * Math.sin(Date.now() * 0.008);
-        ctx.fillStyle = `rgba(255, 215, 0, ${pulse})`;
-        ctx.shadowColor = '#ffd700';
-        ctx.shadowBlur = 15;
-        ctx.font = 'bold 24px "Huninn"';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('🔑', keyObj.x, keyObj.y);
-        ctx.shadowBlur = 0;
+      // Сфера призыва в открытых клетках
+      if (s.summonSphere && !s.summonSphere.collected) {
+        const sc = cellOf(s.summonSphere.x, s.summonSphere.y);
+        const sphereCellKey = cellKey(sc.x, sc.y);
+        if (s.openCells.has(sphereCellKey) && visibleCells.has(sphereCellKey)) {
+          const pulse = 0.8 + 0.2 * Math.sin(Date.now() * 0.008);
+          ctx.fillStyle = `rgba(255, 102, 0, ${pulse})`;
+          ctx.shadowColor = '#ff6600';
+          ctx.shadowBlur = 15;
+          ctx.font = 'bold 24px "Huninn"';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('🔮', s.summonSphere.x, s.summonSphere.y);
+          ctx.shadowBlur = 0;
+        }
       }
 
       // Апгрейды в открытых клетках
@@ -1758,10 +1710,10 @@
       {
         const px = s.player.x, py = s.player.y;
         const ec = s.exitCell;
-        const onExit = s.openCells.has(cellKey(ec.x, ec.y)) &&
+        const onExit = ec && s.openCells.has(cellKey(ec.x, ec.y)) &&
           px > ec.x * CP && px < (ec.x + 1) * CP &&
           py > ec.y * CP && py < (ec.y + 1) * CP &&
-          s.keysCollected >= s.keysRequired;
+          s.bossDefeated;
         let nearWeapon = false;
         for (const dw of s.droppedWeapons) {
           const wc = cellOf(dw.x, dw.y);
@@ -2690,8 +2642,7 @@
           drawHudRow(hudShieldImg, shieldCount, shieldCount);
         }
 
-        // Keys — show all slots, dim uncollected
-        drawHudRow(hudKeyImg, s.keysRequired, s.keysCollected);
+        // Ключи убраны — используется сфера призыва
       }
 
       // ── Weapon slots (bottom-left) ─────────────────────────────────
@@ -2946,21 +2897,21 @@
       }
       ctx.globalAlpha = 1;
 
-      // Ключи в открытых клетках
-      for (const keyObj of s.keyObjs) {
-        if (keyObj.collected) continue;
-        const kc = cellOf(keyObj.x, keyObj.y);
-        if (!s.openCells.has(cellKey(kc.x, kc.y))) continue;
-        const pulse = 0.8 + 0.2 * Math.sin(Date.now() * 0.008);
-        ctx.globalAlpha = fadeAlpha;
-        ctx.fillStyle = `rgba(255, 215, 0, ${pulse})`;
-        ctx.shadowColor = '#ffd700';
-        ctx.shadowBlur = 15;
-        ctx.font = 'bold 24px "Huninn"';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('🔑', keyObj.x, keyObj.y);
-        ctx.shadowBlur = 0;
+      // Сфера призыва в открытых клетках
+      if (s.summonSphere && !s.summonSphere.collected) {
+        const sc = cellOf(s.summonSphere.x, s.summonSphere.y);
+        if (s.openCells.has(cellKey(sc.x, sc.y))) {
+          const pulse = 0.8 + 0.2 * Math.sin(Date.now() * 0.008);
+          ctx.globalAlpha = fadeAlpha;
+          ctx.fillStyle = `rgba(255, 102, 0, ${pulse})`;
+          ctx.shadowColor = '#ff6600';
+          ctx.shadowBlur = 15;
+          ctx.font = 'bold 24px "Huninn"';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('🔮', s.summonSphere.x, s.summonSphere.y);
+          ctx.shadowBlur = 0;
+        }
       }
       ctx.globalAlpha = 1;
 

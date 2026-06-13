@@ -15,7 +15,6 @@
     function serializeState(s) {
       return {
         gridSize: s.gridSize,
-        keysRequired: s.keysRequired,
         blobCells: s.blobCells ? [...s.blobCells] : [],
         openCells: [...s.openCells],
         everRevealedCells: [...s.everRevealedCells],
@@ -26,12 +25,12 @@
         exitCell: s.exitCell,
         revealedExit: s.revealedExit,
         heartsCollected: s.heartsCollected,
-        keysCollected: s.keysCollected,
+        summonSphere: s.summonSphere,
+        summonSphereCollected: s.summonSphereCollected || false,
         bossDefeated: s.bossDefeated || false,
         player: { x: s.player.x, y: s.player.y, lives: s.player.lives, invulnerable: 0, dashCooldown: s.player.dashCooldown || 0, isDashing: false, dashDirX: 0, dashDirY: 0, dashProgress: 0 },
         cellContents: [...s.cellContents].map(([k, v]) => [k, v]),
         hearts: s.hearts,
-        keyObjs: s.keyObjs,
         upgradeObjs: s.upgradeObjs,
         chestObjs: s.chestObjs || [],
         upgrades: { ...s.upgrades },
@@ -48,7 +47,6 @@
     function deserializeState(data) {
       const s = {
         gridSize: data.gridSize || 5,
-        keysRequired: data.keysRequired || 2,
         blobCells: new Set(data.blobCells || []),
         openCells: new Set(data.openCells),
         everRevealedCells: new Set(data.everRevealedCells),
@@ -59,13 +57,13 @@
         exitCell: data.exitCell,
         revealedExit: data.revealedExit,
         heartsCollected: data.heartsCollected,
-        keysCollected: data.keysCollected,
+        summonSphere: data.summonSphere,
+        summonSphereCollected: data.summonSphereCollected || false,
         bossDefeated: data.bossDefeated || false,
         bossSummonReady: false,
         player: { ...data.player, isDashing: false, dashDirX: 0, dashDirY: 0, dashProgress: 0 },
         cellContents: new Map(data.cellContents),
         hearts: data.hearts,
-        keyObjs: data.keyObjs,
         upgradeObjs: data.upgradeObjs,
         chestObjs: data.chestObjs || [],
         upgrades: { ...data.upgrades },
@@ -319,18 +317,6 @@
             attempts++;
           }
         } else if (e.key === 'f' || e.key === 'F' || e.key === 'а' || e.key === 'А') {
-          // F призывает босса только если игрок стоит на клетке выхода (с зум-переходом)
-          if (state.phase === 'play' && state.bossSummonReady) {
-            const ec = state.exitCell;
-            const onExit = state.player.x > ec.x * CP && state.player.x < (ec.x + 1) * CP &&
-              state.player.y > ec.y * CP && state.player.y < (ec.y + 1) * CP;
-            if (onExit) {
-              startBossBattleZoomTransition();
-              e.preventDefault();
-              return;
-            }
-          }
-
           // Сначала пытаемся подобрать оружие рядом
           let pickedUp = false;
 
@@ -386,8 +372,8 @@
             }
           }
 
-          // Проверка выхода: если на клетке выхода с ключами и босс уже побежден — выходим
-          if (!pickedUp && state.keysCollected >= state.keysRequired && state.bossDefeated) {
+          // Проверка выхода: если на клетке выхода и босс уже побежден — выходим
+          if (!pickedUp && state.bossDefeated && state.exitCell) {
             const ec = state.exitCell;
             const ex0 = ec.x * CP, ex1 = (ec.x + 1) * CP;
             const ey0 = ec.y * CP, ey1 = (ec.y + 1) * CP;
@@ -405,6 +391,8 @@
         } else if (e.key === ' ' || e.key === 'Spacebar' || e.code === 'Space') {
           // Пробел - призвать босса когда готово (с зум-переходом)
           if (state.phase === 'play' && state.bossSummonReady) {
+            // Расходуем сферу призыва
+            state.summonSphereCollected = false;
             startBossBattleZoomTransition();
           }
         } else if (e.key === 'Shift' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
@@ -478,9 +466,9 @@
           // Проверка: можно закрыть (locked)
           let canClose = false;
           if (state.openCells.has(k) && k !== playerKey) {
-            const hasUncollectedKey = state.keyObjs.some(key => !key.collected && key.cellKey === k);
+            const hasUncollectedSphere = state.summonSphere && !state.summonSphere.collected && state.summonSphere.cellKey === k;
             const hasUncollectedHeart = state.hearts.some(heart => !heart.collected && heart.cellKey === k);
-            if (!hasUncollectedKey && !hasUncollectedHeart) {
+            if (!hasUncollectedSphere && !hasUncollectedHeart) {
               // Проверка связности: закрытие не должно создавать изолированных зон
               const openWithoutCandidate = new Set(state.openCells);
               openWithoutCandidate.delete(k);
@@ -603,8 +591,8 @@
             const candidates = [];
             for (const openKey of state.openCells) {
               if (openKey === playerKey) continue;
-              // Нельзя закрыть с несобранным ключом
-              if (state.keyObjs.some(key => !key.collected && key.cellKey === openKey)) continue;
+              // Нельзя закрыть с несобранной сферой
+              if (state.summonSphere && !state.summonSphere.collected && state.summonSphere.cellKey === openKey) continue;
               // Нельзя закрыть с несобранным сердцем
               if (state.hearts.some(heart => !heart.collected && heart.cellKey === openKey)) continue;
               candidates.push(openKey);
@@ -718,9 +706,9 @@
           // Блокируем если уже летит сердечко
           if (flyingHeart) return;
 
-          // Нельзя закрыть клетку с несобранным ключом
-          const hasUncollectedKey = state.keyObjs.some(key => !key.collected && key.cellKey === k);
-          if (hasUncollectedKey) return;
+          // Нельзя закрыть клетку с несобранной сферой
+          const hasUncollectedSphere = state.summonSphere && !state.summonSphere.collected && state.summonSphere.cellKey === k;
+          if (hasUncollectedSphere) return;
 
           // Нельзя закрыть клетку с несобранным сердцем
           const hasUncollectedHeart = state.hearts.some(heart => !heart.collected && heart.cellKey === k);
