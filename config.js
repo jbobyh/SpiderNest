@@ -385,7 +385,7 @@ const WEAPON_DEFS = {
     damage: 1*2,             // урон одной пули
     cooldown: 0.4,         // задержка между выстрелами (сек)
     bulletSpeed: 300,       // скорость пули (пикс/сек)
-    range: 100,              // дальность в клетках
+    range: 13,              // дальность в клетках
     penetrate: 0,           // кол-во врагов, которых пробивает пуля
     shakeAmount: 0,       // сила тряски камеры
     spriteAngle: 0.1,       // поправка угла спрайта (рад)
@@ -400,7 +400,7 @@ const WEAPON_DEFS = {
     damage: 1*2,
     cooldown: 0.75,
     bulletSpeed: 320,
-    range: 100,
+    range: 10,
     penetrate: 0,
     shakeAmount: 0.5,
     spriteAngle: 0.55,
@@ -412,10 +412,10 @@ const WEAPON_DEFS = {
     color: '#ff44ff',
     pellets: 1,
     spread: 0.20,
-    damage: 0.6,
+    damage: 0.5*2,
     cooldown: 0.12,
     bulletSpeed: 400,
-    range: 100,
+    range: 18,
     penetrate: 0,
     shakeAmount: 0,
     spriteAngle: 0.8,
@@ -430,7 +430,7 @@ const WEAPON_DEFS = {
     damage: 3*2,
     cooldown: 1.4,
     bulletSpeed: 700,
-    range: 100,
+    range: 40,
     penetrate: 2,
     shakeAmount: 0.8,
     spriteAngle: 0.7,
@@ -442,10 +442,10 @@ const WEAPON_DEFS = {
     color: '#8b4513',
     pellets: 1,
     spread: 0.08,
-    damage: 4,
+    damage: 1*2,
     cooldown: 0.7,
     bulletSpeed: 450,
-    range: 100,
+    range: 27,
     penetrate: 1,
     shakeAmount: 0.2,
     spriteAngle: 0,
@@ -462,7 +462,7 @@ const WEAPON_DEFS = {
     burstSize: 3,           // кол-во пуль в очереди (мультивыстрел: +1 за апгрейд pellets)
     burstDuration: 0.2,     // полное время очереди (сек); задержка между пулями = burstDuration / (размер очереди - 1)
     bulletSpeed: 400,
-    range: 100,
+    range: 25,
     penetrate: 0,
     shakeAmount: 0.3,
     spriteAngle: 0.7,
