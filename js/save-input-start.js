@@ -149,7 +149,7 @@
         const raw = localStorage.getItem(SAVE_KEY);
         if (!raw) return false;
         const save = JSON.parse(raw);
-        return save && save.version === 1;
+        return save && save.version === 2;
       } catch (e) { return false; }
     }
 
