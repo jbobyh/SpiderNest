@@ -5,6 +5,29 @@
     const BATTLE_CELL_PX = CP * BATTLE_SCALE;
     const RANGE_SCALE = CP / 10;
 
+    // Find room containing cellKey and return its center cell coordinates
+    function getRoomCenterCell(s, cellKey) {
+      if (!s.rooms || s.rooms.length === 0) return cellFromKey(cellKey);
+      
+      // Find which room contains this cell
+      for (const room of s.rooms) {
+        for (const cell of room.cells) {
+          if (cell.k === cellKey) {
+            // Calculate room center
+            let sumX = 0, sumY = 0;
+            for (const c of room.cells) {
+              sumX += c.x;
+              sumY += c.y;
+            }
+            const centerX = Math.floor(sumX / room.cells.length + 0.5);
+            const centerY = Math.floor(sumY / room.cells.length + 0.5);
+            return { x: centerX, y: centerY };
+          }
+        }
+      }
+      return cellFromKey(cellKey);
+    }
+
     function enterBattleMode(s, openedCellKey) {
       // Используем актуальные открытые клетки (после автозакрытия и всех изменений)
       const allOpenCells = new Set([...s.openCells]);
@@ -38,44 +61,50 @@
       const battleSpiders = [];
       const battleActiveSpiders = [];
 
-      // Сфера призыва
+      // Сфера призыва - use actual world coordinates, not cell center
       if (s.summonSphere && !s.summonSphere.collected) {
-        const sc = cellOf(s.summonSphere.x, s.summonSphere.y);
-        const sk = cellKey(sc.x, sc.y);
+        const sk = s.summonSphere.cellKey;
         if (battleCells.has(sk)) {
+          // Convert world coordinates to battle coordinates
+          const battleX = (s.summonSphere.x / CP - cellOffsetX) * BATTLE_CELL_PX;
+          const battleY = (s.summonSphere.y / CP - cellOffsetY) * BATTLE_CELL_PX;
           battleSummonSphere = {
-            x: (sc.x - cellOffsetX) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
-            y: (sc.y - cellOffsetY) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
+            x: battleX,
+            y: battleY,
             originalCellKey: sk,
             collected: false
           };
         }
       }
 
-      // Сердечки
+      // Сердечки - use actual world coordinates
       for (const heart of s.hearts) {
         if (heart.collected) continue;
-        const hc = cellOf(heart.x, heart.y);
-        const hk = cellKey(hc.x, hc.y);
+        const hk = heart.cellKey;
         if (battleCells.has(hk)) {
+          // Convert world coordinates to battle coordinates
+          const battleX = (heart.x / CP - cellOffsetX) * BATTLE_CELL_PX;
+          const battleY = (heart.y / CP - cellOffsetY) * BATTLE_CELL_PX;
           battleHearts.push({
-            x: (hc.x - cellOffsetX) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
-            y: (hc.y - cellOffsetY) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
+            x: battleX,
+            y: battleY,
             originalCellKey: hk,
             collected: false
           });
         }
       }
 
-      // Апгрейды
+      // Апгрейды - use actual world coordinates
       for (const upg of s.upgradeObjs) {
         if (upg.collected) continue;
-        const uc = cellOf(upg.x, upg.y);
-        const uk = cellKey(uc.x, uc.y);
+        const uk = upg.cellKey;
         if (battleCells.has(uk)) {
+          // Convert world coordinates to battle coordinates
+          const battleX = (upg.x / CP - cellOffsetX) * BATTLE_CELL_PX;
+          const battleY = (upg.y / CP - cellOffsetY) * BATTLE_CELL_PX;
           battleUpgrades.push({
-            x: (uc.x - cellOffsetX) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
-            y: (uc.y - cellOffsetY) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
+            x: battleX,
+            y: battleY,
             originalCellKey: uk,
             upgradeType: upg.upgradeType,
             collected: false
@@ -83,31 +112,35 @@
         }
       }
 
-      // Проклятые сундуки в battle
+      // Проклятые сундуки в battle - use actual world coordinates
       const battleChests = [];
       for (const chest of (s.chestObjs || [])) {
         if (chest.collected) continue;
-        const cc = cellOf(chest.x, chest.y);
-        const ck = cellKey(cc.x, cc.y);
+        const ck = chest.cellKey;
         if (battleCells.has(ck)) {
+          // Convert world coordinates to battle coordinates
+          const battleX = (chest.x / CP - cellOffsetX) * BATTLE_CELL_PX;
+          const battleY = (chest.y / CP - cellOffsetY) * BATTLE_CELL_PX;
           battleChests.push({
-            x: (cc.x - cellOffsetX) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
-            y: (cc.y - cellOffsetY) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
+            x: battleX,
+            y: battleY,
             originalCellKey: ck,
             collected: false,
           });
         }
       }
 
-      // Оружие на полу в battle
+      // Оружие на полу в battle - use actual world coordinates
       const battleWeapons = [];
       for (const dw of s.droppedWeapons) {
-        const wc = cellOf(dw.x, dw.y);
-        const wk = cellKey(wc.x, wc.y);
+        const wk = dw.cellKey;
         if (battleCells.has(wk)) {
+          // Convert world coordinates to battle coordinates
+          const battleX = (dw.x / CP - cellOffsetX) * BATTLE_CELL_PX;
+          const battleY = (dw.y / CP - cellOffsetY) * BATTLE_CELL_PX;
           battleWeapons.push({
-            x: (wc.x - cellOffsetX) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
-            y: (wc.y - cellOffsetY) * BATTLE_CELL_PX + BATTLE_CELL_PX / 2,
+            x: battleX,
+            y: battleY,
             weaponId: dw.weaponId,
             originalX: dw.x,
             originalY: dw.y,
@@ -117,10 +150,14 @@
       }
 
       // Враги из открытой клетки -> активные враги
-      const openedContent = s.cellContents.get(openedCellKey);
+      // Find room center since enemies spawn at room center, not at opened cell
+      const roomCenter = getRoomCenterCell(s, openedCellKey);
+      const roomCenterKey = cellKey(roomCenter.x, roomCenter.y);
+      const openedContent = s.cellContents.get(roomCenterKey);
+      
       if (openedContent && openedContent.enemyCount && !openedContent.enemiesReleased) {
         openedContent.enemiesReleased = true;
-        const { x: ox, y: oy } = cellFromKey(openedCellKey);
+        const { x: ox, y: oy } = roomCenter;
         for (let i = s.spiders.length - 1; i >= 0; i--) {
           const g = s.spiders[i];
           if (g.homeX === ox && g.homeY === oy) {

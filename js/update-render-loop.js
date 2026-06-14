@@ -1,4 +1,39 @@
     // ============================================================
+    // ROOM REVEAL LOGIC - ensure full room is revealed if any cell is
+    // ============================================================
+    function ensureFullRoomsRevealed(s) {
+      if (!s.rooms || s.rooms.length === 0) return;
+      
+      // Build a map of cell -> room index for quick lookup
+      const cellToRoom = new Map();
+      for (let i = 0; i < s.rooms.length; i++) {
+        const room = s.rooms[i];
+        for (const cell of room.cells) {
+          cellToRoom.set(cell.k, i);
+        }
+      }
+      
+      // For each revealed cell, reveal its entire room
+      const roomsToReveal = new Set();
+      for (const k of s.everRevealedCells) {
+        const roomIdx = cellToRoom.get(k);
+        if (roomIdx !== undefined) {
+          roomsToReveal.add(roomIdx);
+        }
+      }
+      
+      // Reveal all cells in those rooms
+      for (const roomIdx of roomsToReveal) {
+        const room = s.rooms[roomIdx];
+        for (const cell of room.cells) {
+          if (!s.everRevealedCells.has(cell.k)) {
+            s.everRevealedCells.add(cell.k);
+          }
+        }
+      }
+    }
+
+    // ============================================================
     // OFFSCREEN CANVAS FOR HIT FLASH
     // ============================================================
     const _hitFlashCanvas = document.createElement('canvas');
@@ -1259,6 +1294,9 @@
     // DRAW
     // ============================================================
     function draw(s) {
+      // Ensure full rooms are revealed if any cell is revealed
+      ensureFullRoomsRevealed(s);
+      
       beginFrame();
 
       // Камера всегда центрирована на игроке
@@ -1313,16 +1351,17 @@
       ctx.translate(-camera.x + shakeX, -camera.y + shakeY);
 
       // Фон для открытых и revealed клеток
-      ctx.fillStyle = '#030810';
       for (const k of s.openCells) {
         if (!visibleCells.has(k)) continue;
         const { x, y } = cellFromKey(k);
+        ctx.fillStyle = (s.roomColors && s.roomColors.get(k)) || '#0e0f1a';
         ctx.fillRect(x * CP, y * CP, CP, CP);
       }
       for (const k of s.everRevealedCells) {
         if (s.openCells.has(k) || s.disabledCells.has(k) || s.permanentlyClosed.has(k)) continue;
         if (!visibleCells.has(k)) continue;
         const { x, y } = cellFromKey(k);
+        ctx.fillStyle = (s.roomColors && s.roomColors.get(k)) || '#0e0f1a';
         ctx.fillRect(x * CP, y * CP, CP, CP);
       }
 
@@ -1452,63 +1491,9 @@
         const { x, y } = cellFromKey(k);
         if (!s.blobCells.has(k)) continue;
 
-        // Показываем содержимое (выход не показываем - его нет до убийства босса)
-        const content = s.cellContents.get(k);
-        if (content) {
-          if (content.type === 'heart') {
-            // Рисуем сердечко
-            const hx = (x + 0.5) * CP;
-            const hy = (y + 0.5) * CP;
-            const pulse = 0.8 + 0.2 * Math.sin(Date.now() * 0.008);
-            ctx.fillStyle = `rgba(255, 107, 157, ${pulse})`;
-            ctx.shadowColor = '#ff6b9d';
-            ctx.shadowBlur = 15;
-            ctx.font = 'bold 20px "Huninn"';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('♥', hx, hy);
-            ctx.shadowBlur = 0;
-            // } else if (content.type === 'enemies') {
-            //   // Рисуем индикатор врагов
-            //   ctx.fillStyle = 'rgba(176, 96, 255, 0.6)';
-            //   ctx.font = 'bold 14px "Huninn"';
-            //   ctx.textAlign = 'center';
-            //   ctx.textBaseline = 'middle';
-            //   ctx.fillText(`${content.enemyCount}👻`, (x+0.5)*CP, (y+0.5)*CP);
-          } else if (content.type === 'summonSphere') {
-            // Рисуем сферу призыва
-            const hx = (x + 0.5) * CP;
-            const hy = (y + 0.5) * CP;
-            const pulse = 0.8 + 0.2 * Math.sin(Date.now() * 0.008);
-            ctx.fillStyle = `rgba(255, 102, 0, ${pulse})`;
-            ctx.shadowColor = '#ff6600';
-            ctx.shadowBlur = 15;
-            ctx.font = 'bold 20px "Huninn"';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('🔮', hx, hy);
-            ctx.shadowBlur = 0;
-          } else if (content.type === 'upgrade') {
-            const hx = (x + 0.5) * CP;
-            const hy = (y + 0.5) * CP;
-            const upgDef = UPGRADE_TYPES.find(u => u.id === content.upgradeType);
-            if (upgDef) {
-              ctx.fillStyle = upgDef.color;
-              ctx.shadowColor = upgDef.color;
-              ctx.shadowBlur = 10;
-              ctx.font = 'bold 32px "Huninn"';
-              ctx.textAlign = 'center';
-              ctx.textBaseline = 'middle';
-              ctx.fillText(upgDef.icon, hx, hy);
-              ctx.shadowBlur = 0;
-            }
-          }
-        }
-
         // Оружие в закрытых смежных клетках (видно через стены)
         for (const dw of s.droppedWeapons) {
-          const wc = cellOf(dw.x, dw.y);
-          if (cellKey(wc.x, wc.y) !== k) continue;
+          if (dw.cellKey !== k) continue;
           const wDef = WEAPON_DEFS[dw.weaponId];
           if (!wDef) continue;
           const pulse = 0.7 + 0.3 * Math.sin(Date.now() * 0.007);
@@ -1524,13 +1509,71 @@
           ctx.fillText(wDef.label, dw.x, dw.y + 8);
           ctx.globalAlpha = 1;
         }
+
+        // Предметы в закрытых смежных клетках (видны через стены)
+        // Сердечки
+        for (const heart of s.hearts) {
+          if (heart.collected || heart.cellKey !== k) continue;
+          const pulse = 0.8 + 0.2 * Math.sin(Date.now() * 0.008);
+          ctx.fillStyle = `rgba(255, 107, 157, ${pulse})`;
+          ctx.shadowColor = '#ff6b9d';
+          ctx.shadowBlur = 15;
+          ctx.font = 'bold 20px "Huninn"';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('♥', heart.x, heart.y);
+          ctx.shadowBlur = 0;
+        }
+        // Сфера призыва
+        if (s.summonSphere && !s.summonSphere.collected && s.summonSphere.cellKey === k) {
+          const pulse = 0.8 + 0.2 * Math.sin(Date.now() * 0.008);
+          ctx.fillStyle = `rgba(255, 102, 0, ${pulse})`;
+          ctx.shadowColor = '#ff6600';
+          ctx.shadowBlur = 15;
+          ctx.font = 'bold 20px "Huninn"';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('🔮', s.summonSphere.x, s.summonSphere.y);
+          ctx.shadowBlur = 0;
+        }
+        // Апгрейды
+        for (const upg of s.upgradeObjs) {
+          if (upg.collected || upg.cellKey !== k) continue;
+          const upgDef = UPGRADE_TYPES.find(u => u.id === upg.upgradeType);
+          if (upgDef) {
+            ctx.fillStyle = upgDef.color;
+            ctx.shadowColor = upgDef.color;
+            ctx.shadowBlur = 10;
+            ctx.font = 'bold 32px "Huninn"';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(upgDef.icon, upg.x, upg.y);
+            ctx.shadowBlur = 0;
+          }
+        }
+        // Проклятые сундуки
+        for (const chest of (s.chestObjs || [])) {
+          if (chest.collected || chest.cellKey !== k) continue;
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = '#ffffff';
+          ctx.shadowColor = '#cc44ff';
+          ctx.shadowBlur = 8;
+          if (cursedChestImg.complete && cursedChestImg.naturalWidth > 0) {
+            ctx.drawImage(cursedChestImg, chest.x - CP*0.15, chest.y - CP*0.15, CP*0.3, CP*0.3);
+          } else {
+            ctx.font = 'bold 26px serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('📦', chest.x, chest.y);
+          }
+          ctx.shadowBlur = 0;
+        }
       }
 
       // Сердечки в открытых клетках
       for (const heart of s.hearts) {
         if (heart.collected) continue;
-        const hc = cellOf(heart.x, heart.y);
-        const heartCellKey = cellKey(hc.x, hc.y);
+        const heartCellKey = heart.cellKey;
         if (!s.openCells.has(heartCellKey) || !visibleCells.has(heartCellKey)) continue;
 
         const pulse = 0.8 + 0.2 * Math.sin(Date.now() * 0.008);
@@ -1546,8 +1589,7 @@
 
       // Сфера призыва в открытых клетках
       if (s.summonSphere && !s.summonSphere.collected) {
-        const sc = cellOf(s.summonSphere.x, s.summonSphere.y);
-        const sphereCellKey = cellKey(sc.x, sc.y);
+        const sphereCellKey = s.summonSphere.cellKey;
         if (s.openCells.has(sphereCellKey) && visibleCells.has(sphereCellKey)) {
           const pulse = 0.8 + 0.2 * Math.sin(Date.now() * 0.008);
           ctx.fillStyle = `rgba(255, 102, 0, ${pulse})`;
@@ -1564,8 +1606,7 @@
       // Апгрейды в открытых клетках
       for (const upg of s.upgradeObjs) {
         if (upg.collected) continue;
-        const uc = cellOf(upg.x, upg.y);
-        const upgCellKey = cellKey(uc.x, uc.y);
+        const upgCellKey = upg.cellKey;
         if (!s.openCells.has(upgCellKey) || !visibleCells.has(upgCellKey)) continue;
 
         const upgDef = UPGRADE_TYPES.find(u => u.id === upg.upgradeType);
@@ -1584,8 +1625,7 @@
       // Проклятые сундуки (видны в открытых И в revealed-клетках)
       for (const chest of (s.chestObjs || [])) {
         if (chest.collected) continue;
-        const cc = cellOf(chest.x, chest.y);
-        const ck = cellKey(cc.x, cc.y);
+        const ck = chest.cellKey;
         if (!visibleCells.has(ck)) continue;
         const isOpen = s.openCells.has(ck);
         const isRevealed = s.everRevealedCells.has(ck);
@@ -1607,8 +1647,7 @@
 
       // Оружие на полу
       for (const dw of s.droppedWeapons) {
-        const wc = cellOf(dw.x, dw.y);
-        const weaponCellKey = cellKey(wc.x, wc.y);
+        const weaponCellKey = dw.cellKey;
         if (!s.openCells.has(weaponCellKey) || !visibleCells.has(weaponCellKey)) continue;
         const wDef = WEAPON_DEFS[dw.weaponId];
         if (!wDef) continue;
@@ -2848,6 +2887,9 @@
     // ZOOM DRAW (play map with zoom transform)
     // ============================================================
     function drawZoom(s, scale, camX, camY, progress, pendingCellKey, frozenAngle) {
+      // Ensure full rooms are revealed if any cell is revealed
+      ensureFullRoomsRevealed(s);
+      
       beginFrame();
       ctx.save();
       // Трансформация: зум от центра экрана
@@ -2859,15 +2901,16 @@
       const fadeAlpha = 1 - progress; // 1 -> 0
 
       // Фон для открытых и revealed клеток
-      ctx.fillStyle = '#030810';
       ctx.globalAlpha = fadeAlpha;
       for (const k of s.openCells) {
         const { x, y } = cellFromKey(k);
+        ctx.fillStyle = (s.roomColors && s.roomColors.get(k)) || '#0e0f1a';
         ctx.fillRect(x * CP, y * CP, CP, CP);
       }
       for (const k of s.everRevealedCells) {
         if (s.openCells.has(k) || s.disabledCells.has(k) || s.permanentlyClosed.has(k)) continue;
         const { x, y } = cellFromKey(k);
+        ctx.fillStyle = (s.roomColors && s.roomColors.get(k)) || '#0e0f1a';
         ctx.fillRect(x * CP, y * CP, CP, CP);
       }
       ctx.globalAlpha = 1;
@@ -2926,8 +2969,7 @@
       // Сердечки в открытых клетках
       for (const heart of s.hearts) {
         if (heart.collected) continue;
-        const hc = cellOf(heart.x, heart.y);
-        if (!s.openCells.has(cellKey(hc.x, hc.y))) continue;
+        if (!s.openCells.has(heart.cellKey)) continue;
         const pulse = 0.8 + 0.2 * Math.sin(Date.now() * 0.008);
         ctx.globalAlpha = fadeAlpha;
         ctx.fillStyle = `rgba(255, 107, 157, ${pulse})`;
@@ -2943,8 +2985,7 @@
 
       // Сфера призыва в открытых клетках
       if (s.summonSphere && !s.summonSphere.collected) {
-        const sc = cellOf(s.summonSphere.x, s.summonSphere.y);
-        if (s.openCells.has(cellKey(sc.x, sc.y))) {
+        if (s.openCells.has(s.summonSphere.cellKey)) {
           const pulse = 0.8 + 0.2 * Math.sin(Date.now() * 0.008);
           ctx.globalAlpha = fadeAlpha;
           ctx.fillStyle = `rgba(255, 102, 0, ${pulse})`;
@@ -2962,8 +3003,7 @@
       // Апгрейды в открытых клетках
       for (const upg of s.upgradeObjs) {
         if (upg.collected) continue;
-        const uc = cellOf(upg.x, upg.y);
-        if (!s.openCells.has(cellKey(uc.x, uc.y))) continue;
+        if (!s.openCells.has(upg.cellKey)) continue;
         const upgDef = UPGRADE_TYPES.find(u => u.id === upg.upgradeType);
         if (upgDef) {
           ctx.globalAlpha = fadeAlpha;
@@ -2982,8 +3022,7 @@
       // Проклятые сундуки (открытые + revealed)
       for (const chest of (s.chestObjs || [])) {
         if (chest.collected) continue;
-        const cc = cellOf(chest.x, chest.y);
-        const ck = cellKey(cc.x, cc.y);
+        const ck = chest.cellKey;
         const isOpen = s.openCells.has(ck);
         const isRevealed = s.everRevealedCells.has(ck);
         if (!isOpen && !isRevealed) continue;
@@ -3004,8 +3043,7 @@
 
       // Оружие в открытых клетках
       for (const dw of s.droppedWeapons) {
-        const wc = cellOf(dw.x, dw.y);
-        if (!s.openCells.has(cellKey(wc.x, wc.y))) continue;
+        if (!s.openCells.has(dw.cellKey)) continue;
         const wDef = WEAPON_DEFS[dw.weaponId];
         if (!wDef) continue;
         const pulse = 0.7 + 0.3 * Math.sin(Date.now() * 0.007);
@@ -3328,7 +3366,10 @@
 
     // Открывает клетку после того как сердечко долетело (запускает zoom или сохраняет)
     function doOpenCellAfterHeart(openKey, openCX, openCY) {
-      const content = state.cellContents.get(openKey);
+      // For multi-cell rooms, check room center content instead of opened cell
+      const roomCenter = getRoomCenterCell(state, openKey);
+      const roomCenterKey = cellKey(roomCenter.x, roomCenter.y);
+      const content = state.cellContents.get(roomCenterKey);
       const hasContent = content && (content.type === 'heart' || content.type === 'key' || content.type === 'upgrade' || content.type === 'chest' ||
                          (content.enemyCount && content.enemyCount > 0 && !content.enemiesReleased));
       if (hasContent) {

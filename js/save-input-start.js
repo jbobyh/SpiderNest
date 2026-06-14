@@ -1,10 +1,40 @@
     function savePlayerProgress(s) {
-      playerProgress.totalLives = s.player.lives + (s.removedWalls ? s.removedWalls.size : 0);
+      playerProgress.totalLives = s.player.lives;
       playerProgress.totalHeartsCollected += s.heartsCollected;
       playerProgress.weaponSlots = [...(s.weaponSlots || ['pistol', null])];
       playerProgress.activeSlot = s.activeSlot || 0;
       playerProgress.maxSlots = s.maxSlots || 1;
       // upgrades already saved during applyUpgrade
+    }
+
+    // Reveal entire room when a cell is opened
+    function revealRoom(state, cellKey) {
+      if (!state.rooms || state.rooms.length === 0) return;
+      
+      // Find which room contains this cell
+      for (const room of state.rooms) {
+        let found = false;
+        for (const cell of room.cells) {
+          if (cell.k === cellKey) {
+            found = true;
+            break;
+          }
+        }
+        if (found) {
+          // Reveal all cells in this room
+          for (const cell of room.cells) {
+            if (!state.everRevealedCells.has(cell.k)) {
+              state.everRevealedCells.add(cell.k);
+            }
+            // Also reveal adjacent cells (neighbors) for each cell in the room
+            revealAdjacentCells(state.everRevealedCells, cell.x, cell.y, state.disabledCells, state.permanentlyClosed);
+            if (state.upgrades.farSight) {
+              revealDiagonalCells(state.everRevealedCells, cell.x, cell.y, state.disabledCells, state.permanentlyClosed);
+            }
+          }
+          break;
+        }
+      }
     }
 
     // ============================================================
@@ -15,9 +45,13 @@
     function serializeState(s) {
       return {
         gridSize: s.gridSize,
+        rooms: s.rooms || [],
         blobCells: s.blobCells ? [...s.blobCells] : [],
         openCells: [...s.openCells],
         removedWalls: s.removedWalls ? [...s.removedWalls] : [],
+        internalWalls: s.internalWalls ? [...s.internalWalls] : [],
+        roomColors: s.roomColors ? [...s.roomColors] : [],
+        playerRemovedWalls: s.playerRemovedWalls || 0,
         everRevealedCells: [...s.everRevealedCells],
         everOpenedCells: [...s.everOpenedCells],
         permanentlyClosed: [...s.permanentlyClosed],
@@ -48,9 +82,13 @@
     function deserializeState(data) {
       const s = {
         gridSize: data.gridSize || 5,
+        rooms: data.rooms || [],
         blobCells: new Set(data.blobCells || []),
         openCells: new Set(data.openCells),
         removedWalls: new Set(data.removedWalls || []),
+        internalWalls: new Set(data.internalWalls || []),
+        roomColors: new Map(data.roomColors || []),
+        playerRemovedWalls: data.playerRemovedWalls || 0,
         everRevealedCells: new Set(data.everRevealedCells),
         everOpenedCells: new Set(data.everOpenedCells),
         permanentlyClosed: new Set(data.permanentlyClosed),
@@ -453,7 +491,7 @@
         const my = p.y + camera.y;
 
         const wall = getWallAtPoint(state, mx, my);
-        if (wall) {
+        if (wall && !state.internalWalls.has(wall.wk)) {
           const aOpen = state.openCells.has(cellKey(wall.ax, wall.ay));
           const bOpen = state.openCells.has(cellKey(wall.bx, wall.by));
           const adjacentToOpen = aOpen || bOpen;
@@ -609,6 +647,9 @@
         const aOpen = state.openCells.has(aKey);
         const bOpen = state.openCells.has(bKey);
 
+        // Нельзя взаимодействовать со стенами внутри одной комнаты
+        if (state.internalWalls.has(wall.wk)) return;
+
         // Можно взаимодействовать только если хотя бы одна сторона открыта
         if (!aOpen && !bOpen) return;
 
@@ -625,6 +666,7 @@
             const wallToClose = findAutoCloseWall(state, wall.wk);
             if (!wallToClose) return;
             state.removedWalls.delete(wallToClose.wk);
+            state.playerRemovedWalls--;
             recomputeOpenCells(state);
             state.player.lives++;
             pendingOpenHeart = 'cell';
@@ -632,6 +674,7 @@
               pendingOpenHeart = false;
               state.player.lives--;
               state.removedWalls.add(wall.wk);
+              state.playerRemovedWalls++;
               recomputeOpenCells(state);
               const newlyOpenedCells2 = [];
               if (!aOpen) newlyOpenedCells2.push({ x: wall.ax, y: wall.ay, k: aKey });
@@ -639,6 +682,9 @@
               for (const no of newlyOpenedCells2) {
                 if (!state.everRevealedCells.has(no.k)) state.everRevealedCells.add(no.k);
                 if (!state.everOpenedCells.has(no.k)) state.everOpenedCells.add(no.k);
+                // Reveal entire room for this cell
+                revealRoom(state, no.k);
+                // Also reveal adjacent cells (neighbors)
                 revealAdjacentCells(state.everRevealedCells, no.x, no.y, state.disabledCells, state.permanentlyClosed);
                 if (state.upgrades.farSight) revealDiagonalCells(state.everRevealedCells, no.x, no.y, state.disabledCells, state.permanentlyClosed);
               }
@@ -656,6 +702,7 @@
           launchFlyingHeart(hudCoords.x, hudCoords.y, wallMidX, wallMidY, () => {
             pendingOpenHeart = false;
             state.removedWalls.add(wall.wk);
+            state.playerRemovedWalls++;
             recomputeOpenCells(state);
 
             // Раскрываем newly-opened клетки для everRevealed
@@ -665,6 +712,9 @@
             for (const no of newlyOpenedCells) {
               if (!state.everRevealedCells.has(no.k)) state.everRevealedCells.add(no.k);
               if (!state.everOpenedCells.has(no.k)) state.everOpenedCells.add(no.k);
+              // Reveal entire room for this cell
+              revealRoom(state, no.k);
+              // Also reveal adjacent cells (neighbors)
               revealAdjacentCells(state.everRevealedCells, no.x, no.y, state.disabledCells, state.permanentlyClosed);
               if (state.upgrades.farSight) {
                 revealDiagonalCells(state.everRevealedCells, no.x, no.y, state.disabledCells, state.permanentlyClosed);
@@ -709,6 +759,7 @@
           if (!testOpen.has(playerKey)) return;
 
           state.removedWalls.delete(wall.wk);
+          state.playerRemovedWalls--;
           recomputeOpenCells(state);
           state.player.lives++;
 

@@ -482,7 +482,9 @@
         if (droppedId) {
           const dox = dropPlayX !== undefined ? dropPlayX : px;
           const doy = dropPlayY !== undefined ? dropPlayY : py;
-          s.droppedWeapons.push({ x: dox, y: doy, weaponId: droppedId });
+          const wc = cellOf(dox, doy);
+          const wk = cellKey(wc.x, wc.y);
+          s.droppedWeapons.push({ x: dox, y: doy, weaponId: droppedId, cellKey: wk });
         }
         s.weaponSlots[s.activeSlot] = weaponId;
       }
@@ -1626,7 +1628,10 @@
 
       // Проверяем завершение боя: все враги убиты и содержимое ячейки собрано
       const hasEnemies = b.activeSpiders.length > 0;
-      const cellContent = s.cellContents.get(b.openedCellKey);
+      // For multi-cell rooms, check room center content instead of opened cell
+      const roomCenter = getRoomCenterCell(s, b.openedCellKey);
+      const roomCenterKey = cellKey(roomCenter.x, roomCenter.y);
+      const cellContent = s.cellContents.get(roomCenterKey);
       const cellContentCollected = !cellContent || cellContent.type === 'empty' || cellContent.type === 'enemies';
 
       if (!hasEnemies && cellContentCollected) {

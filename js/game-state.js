@@ -613,6 +613,216 @@
       return cells;
     }
 
+    // ============================================================
+    // ROOM GENERATION SYSTEM
+    // ============================================================
+    const ROOM_SIZE_WEIGHTS = [
+      { size: 1, weight: 0.40 },
+      { size: 2, weight: 0.30 },
+      { size: 3, weight: 0.20 },
+      { size: 4, weight: 0.10 },
+    ];
+
+    function pickRoomSize() {
+      const r = Math.random();
+      let cumulative = 0;
+      for (const { size, weight } of ROOM_SIZE_WEIGHTS) {
+        cumulative += weight;
+        if (r < cumulative) return size;
+      }
+      return 1;
+    }
+
+    // Generate room shapes
+    function generateRoomShape(centerX, centerY, size) {
+      const cells = [];
+      const keySet = new Set();
+
+      function addCell(x, y) {
+        const k = cellKey(x, y);
+        if (!keySet.has(k)) {
+          keySet.add(k);
+          cells.push({ x, y, k });
+        }
+      }
+
+      // Always include center
+      addCell(centerX, centerY);
+
+      if (size === 1) {
+        return cells;
+      }
+
+      if (size === 2) {
+        // 2x1 line - random orientation
+        const horizontal = Math.random() < 0.5;
+        if (horizontal) {
+          addCell(centerX + 1, centerY);
+        } else {
+          addCell(centerX, centerY + 1);
+        }
+        return cells;
+      }
+
+      if (size === 3) {
+        // 50% line, 50% L-shape
+        const isLine = Math.random() < 0.5;
+        if (isLine) {
+          // 3x1 line - random orientation
+          const horizontal = Math.random() < 0.5;
+          if (horizontal) {
+            addCell(centerX - 1, centerY);
+            addCell(centerX + 1, centerY);
+          } else {
+            addCell(centerX, centerY - 1);
+            addCell(centerX, centerY + 1);
+          }
+        } else {
+          // L-shape - 4 variants
+          const variant = Math.floor(Math.random() * 4);
+          switch (variant) {
+            case 0: addCell(centerX + 1, centerY); addCell(centerX, centerY + 1); break;
+            case 1: addCell(centerX + 1, centerY); addCell(centerX, centerY - 1); break;
+            case 2: addCell(centerX - 1, centerY); addCell(centerX, centerY + 1); break;
+            case 3: addCell(centerX - 1, centerY); addCell(centerX, centerY - 1); break;
+          }
+        }
+        return cells;
+      }
+
+      if (size === 4) {
+        // Always 2x2 square - start from top-left of the 2x2
+        // Place center at top-left of the quad
+        addCell(centerX + 1, centerY);
+        addCell(centerX, centerY + 1);
+        addCell(centerX + 1, centerY + 1);
+        return cells;
+      }
+
+      return cells;
+    }
+
+    function getInternalWalls(cells) {
+      const walls = [];
+      const cellSet = new Set(cells.map(c => c.k));
+
+      for (const { x, y } of cells) {
+        // Check right neighbor
+        const rightKey = cellKey(x + 1, y);
+        if (cellSet.has(rightKey)) {
+          walls.push(wallKey(x, y, x + 1, y));
+        }
+        // Check bottom neighbor
+        const bottomKey = cellKey(x, y + 1);
+        if (cellSet.has(bottomKey)) {
+          walls.push(wallKey(x, y, x, y + 1));
+        }
+      }
+
+      return walls;
+    }
+
+    // Generate rooms using BFS expansion with room-sized steps
+    function generateRooms(startX, startY, targetCellCount) {
+      const rooms = [];
+      const allCells = new Map(); // cellKey -> roomIndex
+      const removedWalls = new Set();
+      const internalWalls = new Set();
+
+      // Start with 1-cell room at center
+      const startRoom = {
+        cells: [{ x: startX, y: startY, k: cellKey(startX, startY) }],
+        size: 1,
+        cellKeys: new Set([cellKey(startX, startY)]),
+      };
+      rooms.push(startRoom);
+      allCells.set(cellKey(startX, startY), 0);
+
+      // BFS frontier - cells that are on the edge and can expand
+      const frontier = [{ x: startX, y: startY }];
+
+      while (allCells.size < targetCellCount && frontier.length > 0) {
+        // Pick random frontier cell
+        const idx = Math.floor(Math.random() * frontier.length);
+        const { x, y } = frontier[idx];
+
+        // Try to place a room adjacent to this cell
+        const dirs = shuffleInPlace([...CARDINAL_DIRECTIONS]);
+        let placed = false;
+
+        for (const [dx, dy] of dirs) {
+          // Pick room size
+          const size = pickRoomSize();
+          const centerX = x + dx;
+          const centerY = y + dy;
+
+          // Generate room shape
+          const roomCells = generateRoomShape(centerX, centerY, size);
+
+          // Check if all cells are free
+          let allFree = true;
+          for (const cell of roomCells) {
+            if (allCells.has(cell.k)) {
+              allFree = false;
+              break;
+            }
+          }
+
+          if (allFree && roomCells.length > 0) {
+            // Check connectivity - at least one cell must be adjacent to existing frontier
+            let hasAdjacent = false;
+            for (const cell of roomCells) {
+              for (const [ndx, ndy] of CARDINAL_DIRECTIONS) {
+                const neighborKey = cellKey(cell.x + ndx, cell.y + ndy);
+                if (allCells.has(neighborKey)) {
+                  hasAdjacent = true;
+                  break;
+                }
+              }
+              if (hasAdjacent) break;
+            }
+
+            if (hasAdjacent || roomCells.length === 1) {
+              // Place the room
+              const roomIndex = rooms.length;
+              const cellKeys = new Set();
+              for (const cell of roomCells) {
+                cellKeys.add(cell.k);
+                allCells.set(cell.k, roomIndex);
+              }
+
+              // Add internal walls to removed set
+              const roomInternalWalls = getInternalWalls(roomCells);
+              for (const w of roomInternalWalls) {
+                removedWalls.add(w);
+                internalWalls.add(w);
+              }
+
+              rooms.push({
+                cells: roomCells,
+                size: roomCells.length,
+                cellKeys: cellKeys,
+              });
+
+              // Add new cells to frontier
+              for (const cell of roomCells) {
+                frontier.push({ x: cell.x, y: cell.y });
+              }
+
+              placed = true;
+              break;
+            }
+          }
+        }
+
+        if (!placed) {
+          frontier.splice(idx, 1);
+        }
+      }
+
+      return { rooms, allCells: new Set(allCells.keys()), removedWalls, internalWalls };
+    }
+
     const ENEMY_POOL_TYPE_MAP = {
       soldier: 'soldier',
       shooter: 'plevaka',
@@ -739,104 +949,148 @@
       const cx = Math.floor(gridSize / 2);
       const cy = Math.floor(gridSize / 2);
 
-      // Генерируем blob клеток
-      const blobCells = generateBlobCells(cx, cy, cellCount);
+      // Генерируем комнаты разных размеров
+      const { rooms, allCells: blobCells, removedWalls: roomRemovedWalls, internalWalls: roomInternalWalls } = generateRooms(cx, cy, cellCount);
       const disabledCells = new Set();
 
-      // Генерируем содержимое клеток
+      // Генерируем содержимое комнат (каждая комната имеет один тип контента)
       const cellContents = new Map(); // key -> {type: 'empty'|'heart'|'enemies', enemyCount?: number}
-      const availableCells = [];
-      let blobArr = [...blobCells].map(k => { const { x, y } = cellFromKey(k); return { x, y, k }; });
+      const cellToRoom = new Map(); // cellKey -> roomIndex (для быстрого поиска)
 
-      for (const { x, y, k } of blobArr) {
-        if (!(x === cx && y === cy)) {
-          availableCells.push({ x, y, k });
+      // Строим маппинг клетка -> комната
+      for (let i = 0; i < rooms.length; i++) {
+        for (const cell of rooms[i].cells) {
+          cellToRoom.set(cell.k, i);
         }
       }
 
-      // Перемешиваем
-      shuffleInPlace(availableCells);
-
-      let maxCellDist = 0;
-      for (const cell of availableCells) {
-        const d = cellDistanceFromStart(cell.x, cell.y, cx, cy);
-        if (d > maxCellDist) maxCellDist = d;
+      // Собираем все комнаты кроме стартовой
+      const availableRooms = [];
+      for (let i = 1; i < rooms.length; i++) { // room[0] - стартовая
+        availableRooms.push(i);
       }
 
-      function tierForCell(cell) {
+      // Перемешиваем комнаты
+      shuffleInPlace(availableRooms);
+
+      // Вычисляем maxDist для тиров сложности
+      let maxCellDist = 0;
+      for (const roomIdx of availableRooms) {
+        for (const cell of rooms[roomIdx].cells) {
+          const d = cellDistanceFromStart(cell.x, cell.y, cx, cy);
+          if (d > maxCellDist) maxCellDist = d;
+        }
+      }
+
+      function tierForRoom(roomIdx) {
+        // Используем первую клетку комнаты для определения тира
+        const cell = rooms[roomIdx].cells[0];
         const dist = cellDistanceFromStart(cell.x, cell.y, cx, cy);
         return getDifficultyTier(dist, maxCellDist);
       }
 
-      // Расставляем сферу призыва — случайная клетка от центра
+      function getRoomCenter(roomIdx) {
+        const room = rooms[roomIdx];
+        let sumX = 0, sumY = 0;
+        for (const cell of room.cells) {
+          sumX += cell.x;
+          sumY += cell.y;
+        }
+        return { x: (sumX / room.cells.length + 0.5) * CP, y: (sumY / room.cells.length + 0.5) * CP };
+      }
+
+      function getCenterCellKey(roomIdx) {
+        const room = rooms[roomIdx];
+        let sumX = 0, sumY = 0;
+        for (const cell of room.cells) {
+          sumX += cell.x;
+          sumY += cell.y;
+        }
+        const centerX = Math.floor(sumX / room.cells.length + 0.5);
+        const centerY = Math.floor(sumY / room.cells.length + 0.5);
+        return cellKey(centerX, centerY);
+      }
+
+      function setRoomContent(roomIdx, type, extraFields, preset) {
+        const room = rooms[roomIdx];
+        for (const cell of room.cells) {
+          setCellEnemies(cellContents, cell.k, { ...extraFields, type }, preset);
+        }
+      }
+
+      // Расставляем сферу призыва — случайная комната
       let summonSphere = null;
-      if (availableCells.length > 0) {
-        const sphereIndex = Math.floor(Math.random() * availableCells.length);
-        const sphereCell = availableCells.splice(sphereIndex, 1)[0];
-        setCellEnemies(cellContents, sphereCell.k, { type: 'summonSphere' }, pickRoomPreset(level, 'key'));
-        summonSphere = { x: (sphereCell.x + 0.5) * CP, y: (sphereCell.y + 0.5) * CP, cellKey: sphereCell.k, collected: false };
+      if (availableRooms.length > 0) {
+        const sphereIdx = Math.floor(Math.random() * availableRooms.length);
+        const roomIdx = availableRooms.splice(sphereIdx, 1)[0];
+        setRoomContent(roomIdx, 'summonSphere', {}, pickRoomPreset(level, 'key'));
+        const center = getRoomCenter(roomIdx);
+        const centerKey = getCenterCellKey(roomIdx);
+        summonSphere = { x: center.x, y: center.y, cellKey: centerKey, collected: false };
       }
 
       // Расставляем сердечки
-      const heartsCount = Math.min(heartsConfig, availableCells.length);
+      const hearts = [];
+      const heartsCount = Math.min(heartsConfig, availableRooms.length);
       for (let i = 0; i < heartsCount; i++) {
-        const cell = availableCells.shift();
-        setCellEnemies(cellContents, cell.k, { type: 'heart' }, pickRoomPreset(level, tierForCell(cell)));
+        const roomIdx = availableRooms.shift();
+        setRoomContent(roomIdx, 'heart', {}, pickRoomPreset(level, tierForRoom(roomIdx)));
+        const center = getRoomCenter(roomIdx);
+        const centerKey = getCenterCellKey(roomIdx);
+        hearts.push({ x: center.x, y: center.y, cellKey: centerKey, collected: false });
       }
 
-      // Генерируем оружие на полу: 1 на ур.1, 2 на ур.2, 2 на ур.3
-      // Оружие не повторяется между уровнями!
+      // Генерируем оружие на полу
       const droppedWeapons = [];
       const allWeapons = ['shotgun', 'smg', 'rifle', 'revolver', 'carbine'];
-      // Фильтруем уже заспавненные оружия
       const weaponPool = allWeapons.filter(w => !playerProgress.spawnedWeapons.includes(w));
       shuffleInPlace(weaponPool);
       const targetWeaponCount = LEVEL_WEAPON_COUNTS[level] || 1;
-      const weaponCount = Math.min(targetWeaponCount, availableCells.length, weaponPool.length);
+      const weaponCount = Math.min(targetWeaponCount, availableRooms.length, weaponPool.length);
 
-      // На 1 уровне оружие спавнится на диагональных клетках от старта
-      let weaponCells = [];
+      // На 1 уровне оружие спавнится в комнатах рядом со стартом (диагональные)
+      let weaponRoomIndices = [];
       if (level === 1) {
         const diagonalOffsets = [[-1, -1], [1, -1], [-1, 1], [1, 1]];
         for (const [dx, dy] of diagonalOffsets) {
           const nx = cx + dx, ny = cy + dy;
           const k = cellKey(nx, ny);
-          if (blobCells.has(k) && !cellContents.has(k)) {
-            weaponCells.push({ x: nx, y: ny, k });
+          const roomIdx = cellToRoom.get(k);
+          if (roomIdx !== undefined && !rooms[roomIdx].contentSet) {
+            weaponRoomIndices.push(roomIdx);
           }
         }
-        // Перемешиваем и берём нужное количество
-        shuffleInPlace(weaponCells);
-        weaponCells = weaponCells.slice(0, weaponCount);
+        shuffleInPlace(weaponRoomIndices);
+        weaponRoomIndices = weaponRoomIndices.slice(0, weaponCount);
       }
 
       for (let i = 0; i < weaponCount; i++) {
-        let cell;
-        if (level === 1 && i < weaponCells.length) {
-          cell = weaponCells[i];
-          // Удаляем эту клетку из availableCells чтобы не было конфликтов
-          const idx = availableCells.findIndex(c => c.k === cell.k);
-          if (idx >= 0) availableCells.splice(idx, 1);
+        let roomIdx;
+        if (level === 1 && i < weaponRoomIndices.length) {
+          roomIdx = weaponRoomIndices[i];
+          // Удаляем эту комнату из availableRooms
+          const idx = availableRooms.indexOf(roomIdx);
+          if (idx >= 0) availableRooms.splice(idx, 1);
         } else {
-          cell = availableCells.shift();
+          if (availableRooms.length === 0) break;
+          roomIdx = availableRooms.shift();
         }
-        if (!cell) continue;
+        if (roomIdx === undefined) continue;
         const weaponId = weaponPool[i];
-        droppedWeapons.push({
-          x: (cell.x + 0.5) * CP,
-          y: (cell.y + 0.5) * CP,
-          weaponId: weaponId,
-          cellKey: cell.k,
-        });
-        // Запоминаем что это оружие заспавнилось
+        const center = getRoomCenter(roomIdx);
+        const centerKey = getCenterCellKey(roomIdx);
+        droppedWeapons.push({ x: center.x, y: center.y, weaponId: weaponId, cellKey: centerKey });
         playerProgress.spawnedWeapons.push(weaponId);
+        // Помечаем все клетки комнаты как содержащие оружие (для предотвращения конфликтов)
+        for (const cell of rooms[roomIdx].cells) {
+          cellContents.set(cell.k, { type: 'weapon', weaponId });
+        }
       }
 
-      // Расставляем апгрейды (после оружия, т.к. оружие в приоритете)
+      // Расставляем апгрейды
       const upgradeObjs = [];
       const targetCount = LEVEL_UPGRADE_COUNTS[level] || 4;
 
-      // Собираем доступные апгрейды (не превысили глобальный max)
       const availableUpgrades = [];
       for (const upg of UPGRADE_TYPES) {
         const spawnedCount = playerProgress.spawnedUpgrades[upg.id] || 0;
@@ -846,7 +1100,6 @@
         }
       }
 
-      // Перемешиваем и берем уникальные для этого уровня
       shuffleInPlace(availableUpgrades);
       const uniqueUpgrades = [];
       const usedInThisLevel = new Set();
@@ -857,55 +1110,59 @@
         if (uniqueUpgrades.length >= targetCount) break;
       }
 
-      // Обновляем глобальный счетчик заспавненных
       for (const upgId of uniqueUpgrades) {
         playerProgress.spawnedUpgrades[upgId] = (playerProgress.spawnedUpgrades[upgId] || 0) + 1;
       }
 
-      // Размещаем апгрейды
-      const upgsCount = Math.min(uniqueUpgrades.length, availableCells.length);
+      const upgsCount = Math.min(uniqueUpgrades.length, availableRooms.length);
       for (let i = 0; i < upgsCount; i++) {
-        const cell = availableCells.shift();
+        const roomIdx = availableRooms.shift();
         const upgId = uniqueUpgrades[i];
-        setCellEnemies(cellContents, cell.k, { type: 'upgrade', upgradeType: upgId }, pickRoomPreset(level, 'simpleupgrade'));
-        upgradeObjs.push({ x: (cell.x + 0.5) * CP, y: (cell.y + 0.5) * CP, cellKey: cell.k, upgradeType: upgId, collected: false });
+        setRoomContent(roomIdx, 'upgrade', { upgradeType: upgId }, pickRoomPreset(level, 'simpleupgrade'));
+        const center = getRoomCenter(roomIdx);
+        const centerKey = getCenterCellKey(roomIdx);
+        upgradeObjs.push({ x: center.x, y: center.y, cellKey: centerKey, upgradeType: upgId, collected: false });
       }
 
       // Расставляем проклятые сундуки
       const chestObjs = [];
-      const chestCount = Math.min(LEVEL_CHEST_COUNTS[level] || 1, availableCells.length);
+      const chestCount = Math.min(LEVEL_CHEST_COUNTS[level] || 1, availableRooms.length);
       for (let i = 0; i < chestCount; i++) {
-        const cell = availableCells.shift();
-        if (!cell) break;
-        setCellEnemies(cellContents, cell.k, { type: 'chest' }, pickRoomPreset(level, 'cursedupgrade'));
-        chestObjs.push({ x: (cell.x + 0.5) * CP, y: (cell.y + 0.5) * CP, cellKey: cell.k, collected: false });
+        const roomIdx = availableRooms.shift();
+        if (roomIdx === undefined) break;
+        setRoomContent(roomIdx, 'chest', {}, pickRoomPreset(level, 'cursedupgrade'));
+        const center = getRoomCenter(roomIdx);
+        const centerKey = getCenterCellKey(roomIdx);
+        chestObjs.push({ x: center.x, y: center.y, cellKey: centerKey, collected: false });
       }
 
-      // Расставляем врагов в оставшиеся клетки (не на всех — по шансу ENEMY_SPAWN_CHANCE)
-      while (availableCells.length > 0) {
-        const cell = availableCells.shift();
-        if (Math.random() < CONFIG.ENEMY_SPAWN_CHANCE) {
-          setCellEnemies(cellContents, cell.k, { type: 'enemies' }, pickRoomPreset(level, tierForCell(cell)));
-        } else {
+      // Расставляем врагов (комнаты целиком)
+      const enemyRoomCount = Math.floor(availableRooms.length * CONFIG.ENEMY_SPAWN_CHANCE);
+      shuffleInPlace(availableRooms);
+      for (let i = 0; i < enemyRoomCount; i++) {
+        const roomIdx = availableRooms.shift();
+        setRoomContent(roomIdx, 'enemies', {}, pickRoomPreset(level, tierForRoom(roomIdx)));
+      }
+
+      // Оставшиеся комнаты - пустые
+      for (const roomIdx of availableRooms) {
+        for (const cell of rooms[roomIdx].cells) {
           cellContents.set(cell.k, { type: 'empty' });
         }
       }
 
-      // Создаём врагов в закрытых комнатах по пресетам
+      // Создаём врагов в закрытых комнатах по пресетам (один раз на комнату, в центре)
       const trappedSpiders = [];
+      const processedRooms = new Set(); // Track which rooms already have enemies spawned
       for (const [k, content] of cellContents) {
         if (content.enemyPreset && content.enemyCount > 0) {
-          const { x, y } = cellFromKey(k);
-          spawnEnemiesFromPreset(content.enemyPreset, x, y, trappedSpiders);
-        }
-      }
-
-      // Собираем сердечки для отслеживания
-      const hearts = [];
-      for (const [k, content] of cellContents) {
-        if (content.type === 'heart') {
-          const { x, y } = cellFromKey(k);
-          hearts.push({ x: (x + 0.5) * CP, y: (y + 0.5) * CP, cellKey: k, collected: false });
+          // Find which room this cell belongs to
+          const roomIdx = cellToRoom.get(k);
+          if (roomIdx === undefined || processedRooms.has(roomIdx)) continue;
+          processedRooms.add(roomIdx);
+          // Spawn enemies at room center cell (integer coordinates)
+          const { x: spawnX, y: spawnY } = cellFromKey(getCenterCellKey(roomIdx));
+          spawnEnemiesFromPreset(content.enemyPreset, spawnX, spawnY, trappedSpiders);
         }
       }
 
@@ -913,13 +1170,33 @@
       const initOpen = new Set([`${cx},${cy}`]);
       const initEverOpened = new Set([`${cx},${cy}`]);
       const initEverRevealed = new Set([`${cx},${cy}`]);
+      // Reveal all cells of starting room (and adjacent)
+      for (const cell of rooms[0].cells) {
+        initEverRevealed.add(cell.k);
+      }
       revealAdjacentCells(initEverRevealed, cx, cy, disabledCells);
+
+      // Генерируем цвет фона для каждой комнаты (оттенок #0e0f1a)
+      const roomColors = new Map(); // cellKey -> cssColor
+      for (let i = 0; i < rooms.length; i++) {
+        const hue = Math.floor(Math.random() * 360);
+        const sat = 18 + Math.floor(Math.random() * 22); // 18..39%
+        const lit = 7 + Math.floor(Math.random() * 5);   // 7..11%
+        const color = `hsl(${hue},${sat}%,${lit}%)`;
+        for (const cell of rooms[i].cells) {
+          roomColors.set(cell.k, color);
+        }
+      }
 
       return {
         gridSize: gridSize,
-        blobCells: blobCells,
+        rooms: rooms, // комнаты с их размерами (для reference)
+        blobCells: blobCells, // все клетки карты (Set для совместимости)
         openCells: initOpen,
-        removedWalls: new Set(), // ключи убранных стен-перегородок между комнатами
+        removedWalls: roomRemovedWalls,
+        internalWalls: roomInternalWalls,
+        roomColors: roomColors, // цвет фона для каждой клетки (по комнате)
+        playerRemovedWalls: 0, // счётчик стен, убранных игроком (для HUD)
         everRevealedCells: initEverRevealed, // клетки, которые когда-либо были видны (смежные или открытые)
         everOpenedCells: initEverOpened, // клетки, которые когда-либо были реально открыты
         permanentlyClosed: new Set(), // чёрные клетки

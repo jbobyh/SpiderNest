@@ -145,16 +145,16 @@
     const DIAGONAL_DIRECTIONS = [[1, 1], [-1, 1], [1, -1], [-1, -1]];
 
     function cellKey(x, y) { return `${x},${y}`; }
-    function cellFromKey(k) { const [x, y] = k.split(','); return { x: +x, y: +y }; }
+    function cellFromKey(k) { if (!k) return { x: 0, y: 0 }; const [x, y] = k.split(','); return { x: +x, y: +y }; }
     function cellOf(px, py) { return { x: Math.floor(px / CP), y: Math.floor(py / CP) }; }
     function inBounds(x, y) { return x >= -100 && x < 200 && y >= -100 && y < 200; }
     function easeInOutQuad(t) { return t < 0.5 ? 2*t*t : -1+(4-2*t)*t; }
 
-    // Контейнеры сердец: заполненные = текущие жизни, всего = жизни + убранные стены + pending (только если из HUD)
+    // Контейнеры сердец: заполненные = текущие жизни, всего = жизни + убранные игроком стены + pending
     function getHeartHudStats(s) {
       const filled = s.player.lives;
-      const removedCount = s.removedWalls ? s.removedWalls.size : 0;
-      const total = s.player.lives + removedCount + (pendingOpenHeart === 'hud' ? 1 : 0);
+      const playerRemovedCount = s.playerRemovedWalls || 0;
+      const total = s.player.lives + playerRemovedCount + (pendingOpenHeart === 'hud' ? 1 : 0);
       return { filled, total };
     }
 
