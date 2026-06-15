@@ -41,6 +41,9 @@ import {
 import {
   initOverlay, updateOverlay, destroyOverlay, isOverlayActive,
 } from './render/overlay.js';
+import {
+  initTooltip, updateTooltip, destroyTooltip,
+} from './render/tooltip.js';
 import { initInput, destroyInput } from './core/input.js';
 import { Sounds }               from './core/sound.js';
 import {
@@ -101,6 +104,7 @@ export function startGameLoop({
   initFlyingHeartRenderer(layers.particles);
   initHud(layers.hud);
   initOverlay(layers.hud);
+  initTooltip(layers.hud);
 
   // Tile layer for current level
   buildTileLayer(layers.tiles, {
@@ -152,6 +156,7 @@ export function stopGameLoop() {
   clearCollectibles();
   destroyFlyingHeartRenderer();
   destroyOverlay();
+  destroyTooltip();
   clearWorldLayers();
   _running = false;
 }
@@ -228,6 +233,7 @@ function _render(dt) {
   syncParticles(_state.particles);
   syncCollectibles(_state);
   syncFlyingHeart();
+  updateTooltip(_state, _camera);
   const nearWeapon = _state.phase === 'play' ? isNearWeapon(_state) : false;
   const nearAltar  = _state.phase === 'play' ? isNearAltar(_state)  : false;
   updateHud(_state, _currentLevel, nearWeapon, nearAltar);

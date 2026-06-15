@@ -10,14 +10,14 @@
 // in battle, reads from state.battle.* arrays.
 // ============================================================
 
-import { Sprite, Texture, Graphics } from 'pixi.js';
+import { Sprite, Texture, Graphics, Text } from 'pixi.js';
 import { weaponTextures } from './entity-pool.js';
 import { cellOf, cellKey } from '../world/constants.js';
 
 let _layer = null;
 
 const _hearts   = new Map(); // key → Sprite
-const _upgrades = new Map(); // key → Graphics
+const _upgrades = new Map(); // key → Text
 const _chests   = new Map(); // key → Sprite
 const _weapons  = new Map(); // key → Sprite
 const _altars   = new Map(); // cellKey → Sprite
@@ -85,7 +85,7 @@ function _syncHearts(hearts) {
 
 // ── Upgrade orbs ──────────────────────────────────────────────
 
-const ORB_R = 10;
+const EMOJI_SIZE = 22;
 
 function _syncUpgrades(upgrades) {
   const alive = new Set();
@@ -96,17 +96,16 @@ function _syncUpgrades(upgrades) {
     if (!_upgrades.has(k)) {
       const def = (typeof UPGRADE_TYPES !== 'undefined' ? UPGRADE_TYPES : [])
         .find(t => t.id === u.upgradeType);
-      const col = def ? _hexToNum(def.color) : 0xffcc00;
-      const g = new Graphics();
-      g.circle(0, 0, ORB_R).fill({ color: col, alpha: 0.9 });
-      g.circle(0, 0, ORB_R).stroke({ color: 0xffffff, alpha: 0.35, width: 1.5 });
-      _layer.addChild(g);
-      _upgrades.set(k, g);
+      const emoji = def ? def.icon : '⚡';
+      const text = new Text({ text: emoji, style: { fontSize: EMOJI_SIZE, fontFamily: 'Arial' } });
+      text.anchor.set(0.5);
+      _layer.addChild(text);
+      _upgrades.set(k, text);
     }
     _upgrades.get(k).position.set(u.x, u.y);
   }
-  for (const [k, g] of _upgrades) {
-    if (!alive.has(k)) { g.destroy(); _upgrades.delete(k); }
+  for (const [k, text] of _upgrades) {
+    if (!alive.has(k)) { text.destroy(); _upgrades.delete(k); }
   }
 }
 

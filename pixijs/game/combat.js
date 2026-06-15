@@ -4,7 +4,7 @@
 // CONFIG / WEAPON_DEFS are globals loaded from config.js.
 // ============================================================
 
-import { inRoom, cellOf, cellKey, CELL_PX } from '../world/constants.js';
+import { inRoom, cellOf, cellKey, CELL_PX, crossesWall } from '../world/constants.js';
 import { Sounds } from '../core/sound.js';
 import { spawnParticles } from '../render/particles.js';
 
@@ -133,6 +133,7 @@ export function updateBullets(state, dt, onEnemyKilled, onPlayerHit) {
 
   for (let i = bullets.length - 1; i >= 0; i--) {
     const b = bullets[i];
+    const prevX = b.x, prevY = b.y;
     b.x    += b.vx * dt;
     b.y    += b.vy * dt;
     b.life -= dt;
@@ -147,15 +148,31 @@ export function updateBullets(state, dt, onEnemyKilled, onPlayerHit) {
       continue;
     }
 
-    if (!inRoom(b.x, b.y, state.openCells)) {
+    // Check partition wall crossing
+    const hitsPartition = crossesWall(state.removedWalls, prevX, prevY, b.x, b.y);
+
+    if (!inRoom(b.x, b.y, state.openCells) || hitsPartition) {
       if (b.ricochet && !b._ricocheted) {
         b._ricocheted = true;
         const px = b.x - b.vx * dt, py = b.y - b.vy * dt;
-        const xOk = inRoom(b.x, py, state.openCells);
-        const yOk = inRoom(px, b.y, state.openCells);
-        if (xOk)      { b.vy = -b.vy; b.y = py; }
-        else if (yOk) { b.vx = -b.vx; b.x = px; }
-        else          { b.vx = -b.vx; b.vy = -b.vy; b.x = px; b.y = py; }
+
+        // Determine bounce direction by checking which cell boundary was crossed
+        const c0x = Math.floor(prevX / CELL_PX);
+        const c0y = Math.floor(prevY / CELL_PX);
+        const c1x = Math.floor(b.x / CELL_PX);
+        const c1y = Math.floor(b.y / CELL_PX);
+
+        if (c0x !== c1x && c0y !== c1y) {
+          // Hit corner - bounce both
+          b.vx = -b.vx; b.vy = -b.vy; b.x = px; b.y = py;
+        } else if (c0x !== c1x) {
+          // Crossed vertical cell boundary - bounce X
+          b.vx = -b.vx; b.x = px;
+        } else {
+          // Crossed horizontal cell boundary - bounce Y
+          b.vy = -b.vy; b.y = py;
+        }
+
         b.hitSpiders = undefined;
         Sounds.wallhit();
         spawnParticles(state.particles, b.x, b.y, CONFIG.WALL_HIT_PARTICLES_COUNT, 0, Math.PI * 2,
