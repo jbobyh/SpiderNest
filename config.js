@@ -156,7 +156,7 @@ const CONFIG = {
   UPGRADE_POPUP_DURATION: 2.0,    // секунд
 
   // Battle mode
-  BATTLE_SCALE: 10,               // во сколько раз больше клетки в бою
+  BATTLE_SCALE: 1,                // unified coords — no separate battle space
   BATTLE_TRANSITION_DURATION: 1.0, // секунд на zoom
 
   // Zoom/Transitions

@@ -1,0 +1,244 @@
+// ============================================================
+// COLLECTIBLES — hearts, summon sphere, upgrades, chests,
+//                weapons, enemy-room spawning / altar system
+// ============================================================
+
+import { cellOf, cellKey, CELL_PX } from '../world/constants.js';
+import { Sounds } from '../core/sound.js';
+import { applyUpgrade } from './upgrades.js';
+import { pickupWeapon  } from './combat.js';
+
+const PICKUP_R = CONFIG.PLAYER_RADIUS + CONFIG.PICKUP_DISTANCE;
+
+// ── Play-mode collectibles update ─────────────────────────────
+
+export function updateCollectibles(state, playerProgress, onParticles, onUpgradePopup) {
+  const s = state;
+  const px = s.player.x, py = s.player.y;
+
+  // Hearts
+  for (const heart of s.hearts) {
+    if (heart.collected || heart.spawned === false) continue;
+    if (Math.hypot(px - heart.x, py - heart.y) < PICKUP_R) {
+      heart.collected = true;
+      s.cellContents.delete(heart.cellKey);
+      s.player.lives += CONFIG.LIVES_PER_HEART;
+      s.heartsCollected++;
+      Sounds.heartcollect();
+      onParticles(heart.x, heart.y, CONFIG.PICKUP_PARTICLES_COUNT, '#ff6b9d');
+    }
+  }
+
+  // Summon sphere
+  if (s.summonSphere && !s.summonSphere.collected) {
+    if (Math.hypot(px - s.summonSphere.x, py - s.summonSphere.y) < PICKUP_R) {
+      s.summonSphere.collected = true;
+      s.summonSphereCollected  = true;
+      s.cellContents.delete(s.summonSphere.cellKey);
+      Sounds.keycollect();
+      onParticles(s.summonSphere.x, s.summonSphere.y, CONFIG.PICKUP_PARTICLES_COUNT, '#ff6600');
+    }
+  }
+
+  s.bossSummonReady = s.summonSphereCollected && s.phase === 'play' && !s.bossDefeated;
+
+  // Upgrades
+  for (const upg of s.upgradeObjs) {
+    if (upg.collected || upg.spawned === false) continue;
+    if (Math.hypot(px - upg.x, py - upg.y) < PICKUP_R) {
+      upg.collected = true;
+      s.cellContents.delete(upg.cellKey);
+      applyUpgrade(state, playerProgress, upg.upgradeType);
+      Sounds.upgradecollect();
+      const def   = (UPGRADE_TYPES || []).find(u => u.id === upg.upgradeType);
+      const color = def ? def.color : '#ffcc00';
+      onParticles(upg.x, upg.y, CONFIG.PICKUP_PARTICLES_COUNT, color);
+    }
+  }
+
+  // Cursed chests
+  for (const chest of (s.chestObjs || [])) {
+    if (chest.collected || chest.spawned === false) continue;
+    if (Math.hypot(px - chest.x, py - chest.y) < PICKUP_R) {
+      openCursedChoice(state, playerProgress, chest);
+      break;
+    }
+  }
+
+  // Dropped weapons — pickup manually via F key (handled in play-mode.js)
+  // for (const dw of (s.droppedWeapons || [])) {
+  //   if (dw.picked) continue;
+  //   if (Math.hypot(px - dw.x, py - dw.y) < PICKUP_R) {
+  //     dw.picked = true;
+  //     const idx = s.droppedWeapons.indexOf(dw);
+  //     if (idx >= 0) s.droppedWeapons.splice(idx, 1);
+  //     pickupWeapon(state, dw.weaponId, s.particles, px, py, 1, px, py);
+  //     playerProgress.weaponSlots = [...s.weaponSlots];
+  //     playerProgress.activeSlot  = s.activeSlot;
+  //     playerProgress.maxSlots    = s.maxSlots;
+  //   }
+  // }
+}
+
+// ── Battle-mode collectibles update ───────────────────────────
+
+export function updateBattleCollectibles(state, playerProgress, onParticles) {
+  const b  = state.battle;
+  const BS = CONFIG.BATTLE_SCALE;
+  const PR = (CONFIG.PLAYER_RADIUS + CONFIG.PICKUP_DISTANCE) * BS;
+  const px = b.player.x, py = b.player.y;
+
+  // Hearts
+  for (const heart of b.hearts) {
+    if (heart.collected) continue;
+    if (Math.hypot(px - heart.x, py - heart.y) < PR) {
+      heart.collected = true;
+      state.player.lives += CONFIG.LIVES_PER_HEART;
+      Sounds.heartcollect();
+      onParticles(heart.x, heart.y, CONFIG.PICKUP_PARTICLES_COUNT, '#ff6b9d');
+      // Sync to world
+      const worldHeart = state.hearts.find(h => h.cellKey === heart.originalCellKey);
+      if (worldHeart) worldHeart.collected = true;
+    }
+  }
+
+  // Summon sphere
+  if (b.summonSphere && !b.summonSphere.collected) {
+    if (Math.hypot(px - b.summonSphere.x, py - b.summonSphere.y) < PR) {
+      b.summonSphere.collected        = true;
+      state.summonSphere.collected    = true;
+      state.summonSphereCollected     = true;
+      state.cellContents.delete(b.summonSphere.originalCellKey);
+      Sounds.keycollect();
+      onParticles(b.summonSphere.x, b.summonSphere.y, CONFIG.PICKUP_PARTICLES_COUNT, '#ff6600');
+    }
+  }
+
+  // Upgrades
+  for (const upg of (b.upgrades || [])) {
+    if (upg.collected) continue;
+    if (Math.hypot(px - upg.x, py - upg.y) < PR) {
+      upg.collected = true;
+      applyUpgrade(state, playerProgress, upg.upgradeType);
+      Sounds.upgradecollect();
+      const def   = (UPGRADE_TYPES || []).find(u => u.id === upg.upgradeType);
+      const color = def ? def.color : '#ffcc00';
+      onParticles(upg.x, upg.y, CONFIG.PICKUP_PARTICLES_COUNT, color);
+      // Sync
+      const worldUpg = state.upgradeObjs.find(u => u.cellKey === upg.originalCellKey);
+      if (worldUpg) worldUpg.collected = true;
+    }
+  }
+
+  // Cursed chests
+  for (const bc of (b.chests || [])) {
+    if (bc.collected) continue;
+    if (Math.hypot(px - bc.x, py - bc.y) < PR) {
+      const worldChest = (state.chestObjs || []).find(c => c.cellKey === bc.originalCellKey);
+      if (worldChest) {
+        openCursedChoice(state, playerProgress, worldChest);
+        bc.collected = true;
+      }
+      break;
+    }
+  }
+
+  // Dropped weapons in battle
+  for (const dw of (b.droppedWeapons || [])) {
+    if (dw.picked) continue;
+    if (Math.hypot(px - dw.x, py - dw.y) < PR) {
+      dw.picked = true;
+      pickupWeapon(state, dw.weaponId, b.particles, px, py, BS, dw.originalX, dw.originalY);
+      playerProgress.weaponSlots = [...state.weaponSlots];
+      playerProgress.activeSlot  = state.activeSlot;
+      playerProgress.maxSlots    = state.maxSlots;
+    }
+  }
+}
+
+// ── Sync battle collectibles back to world state ──────────────
+
+export function syncBattleCollectibles(state) {
+  const b = state.battle;
+  if (!b) return;
+  for (const bh of b.hearts) {
+    if (!bh.collected) continue;
+    const wh = state.hearts.find(h => h.cellKey === bh.originalCellKey);
+    if (wh) wh.collected = true;
+  }
+  for (const bu of (b.upgrades || [])) {
+    if (!bu.collected) continue;
+    const wu = state.upgradeObjs.find(u => u.cellKey === bu.originalCellKey);
+    if (wu) wu.collected = true;
+  }
+}
+
+// ── Enemy room / altar logic ──────────────────────────────────
+
+export function checkAltarActivation(state, fKeyPressed, onEnterBattle) {
+  if (!fKeyPressed) return false;
+  const px = state.player.x, py = state.player.y;
+  for (const altar of (state.roomAltars || [])) {
+    if (altar.activated) continue;
+    if (!state.openCells.has(altar.cellKey)) continue;
+    const content = state.cellContents.get(altar.cellKey);
+    if (!content || !content.enemyCount || content.enemyCount <= 0 || content.enemiesReleased) continue;
+    const dist = Math.hypot(px - altar.x, py - altar.y);
+    if (dist < CONFIG.PLAYER_RADIUS + CONFIG.PICKUP_DISTANCE) {
+      altar.activated = true;
+      if (onEnterBattle) onEnterBattle(altar.cellKey);
+      return true;
+    }
+  }
+  return false;
+}
+
+export function isNearAltar(state) {
+  if (state.phase !== 'play') return false;
+  const px = state.player.x, py = state.player.y;
+  for (const altar of (state.roomAltars || [])) {
+    if (altar.activated) continue;
+    if (!state.openCells.has(altar.cellKey)) continue;
+    const content = state.cellContents.get(altar.cellKey);
+    if (!content || !content.enemyCount || content.enemyCount <= 0 || content.enemiesReleased) continue;
+    if (Math.hypot(px - altar.x, py - altar.y) < CONFIG.PLAYER_RADIUS + CONFIG.PICKUP_DISTANCE) return true;
+  }
+  return false;
+}
+
+// ── Spawning bonus items after room cleared ───────────────────
+
+export function spawnRoomRewards(state, cellKey) {
+  for (const heart of state.hearts) {
+    if (heart.cellKey === cellKey) heart.spawned = true;
+  }
+  for (const upg of state.upgradeObjs) {
+    if (upg.cellKey === cellKey) upg.spawned = true;
+  }
+  for (const chest of (state.chestObjs || [])) {
+    if (chest.cellKey === cellKey) chest.spawned = true;
+  }
+  if (state.summonSphere?.cellKey === cellKey) state.summonSphere.spawned = true;
+}
+
+// ── Cursed chest choice (delegates to DOM overlay) ───────────
+
+export function openCursedChoice(state, playerProgress, chest) {
+  if (!chest && !state._pendingCursedChoice) {
+    state._pendingCursedChoice = { chest: null, callback: null };
+  }
+  if (!chest) return;
+  if (chest.collected) return;
+  // Pause game, show choice overlay — actual rendering is in HUD layer
+  state._cursedChoiceState = { chest, active: true };
+}
+
+export function applyCursedChoice(state, playerProgress, choiceId) {
+  if (!state._cursedChoiceState) return;
+  const chest = state._cursedChoiceState.chest;
+  if (chest) chest.collected = true;
+  state._cursedChoiceState = null;
+
+  if (!choiceId) return;
+  applyUpgrade(state, playerProgress, choiceId);
+}

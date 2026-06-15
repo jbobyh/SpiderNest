@@ -1,0 +1,201 @@
+import { Assets } from 'pixi.js';
+import '@pixi/sound';  // registers audio parsers with PixiJS Assets
+
+const IMG = '../img/';
+const SND = '../sounds/';
+
+// ============================================================
+// ASSET MANIFEST
+// Split into bundles so music can be loaded lazily.
+// ============================================================
+
+const MANIFEST = {
+  bundles: [
+
+    // ── Tilemap textures ────────────────────────────────────
+    {
+      name: 'tiles',
+      assets: [
+        { alias: 'background',                        src: IMG + 'background.png' },
+        // Blue (level 1)
+        { alias: 'floor-blue',                        src: IMG + 'floor-blue.png' },
+        { alias: 'floor-rightexit-blue',              src: IMG + 'floor-rightexit-blue.png' },
+        { alias: 'floor-rightbottomexit-blue',        src: IMG + 'floor-rightbottomexit-blue.png' },
+        { alias: 'floor-leftrightbottomexit-blue',    src: IMG + 'floor-leftrightbottomexit-blue.png' },
+        { alias: 'floor-topdownexit-blue',            src: IMG + 'floor-topdownexit-blue.png' },
+        { alias: 'floor-4exit-blue',                  src: IMG + 'floor-4exit-blue.png' },
+        { alias: 'wall',                              src: IMG + 'wall.png' },
+        { alias: 'corner',                            src: IMG + 'corner.png' },
+        // Green (level 2)
+        { alias: 'floor-green',                       src: IMG + 'floor-green.png' },
+        { alias: 'floor-rightexit-green',             src: IMG + 'floor-rightexit-green.png' },
+        { alias: 'floor-rightbottomexit-green',       src: IMG + 'floor-rightbottomexit-green.png' },
+        { alias: 'floor-leftrightbottomexit-green',   src: IMG + 'floor-leftrightbottomexit-green.png' },
+        { alias: 'floor-topdownexit-green',           src: IMG + 'floor-topdownexit-green.png' },
+        { alias: 'floor-4exit-green',                 src: IMG + 'floor-4exit-green.png' },
+        { alias: 'wall-green',                        src: IMG + 'wall-green.png' },
+        { alias: 'corner-green',                      src: IMG + 'corner-green.png' },
+        // Yellow/brown (level 3)
+        { alias: 'floor-y',                           src: IMG + 'floor-y.png' },
+        { alias: 'floor-rightexit-y',                 src: IMG + 'floor-rightexit-y.png' },
+        { alias: 'floor-rightbottomexit-y',           src: IMG + 'floor-rightbottomexit-y.png' },
+        { alias: 'floor-leftrightbottomexit-y',       src: IMG + 'floor-leftrightbottomexit-y.png' },
+        { alias: 'floor-topdownexit-y',               src: IMG + 'floor-topdownexit-y.png' },
+        { alias: 'floor-4exit-y',                     src: IMG + 'floor-4exit-y.png' },
+        { alias: 'wall-y',                            src: IMG + 'wall-y.png' },
+        { alias: 'corner-y',                          src: IMG + 'corner-y.png' },
+        // Special cells
+        { alias: 'closedcell',                        src: IMG + 'closedcell.png' },
+        { alias: 'rock',                              src: IMG + 'rock.png' },
+        { alias: 'closedexit1',                       src: IMG + 'closedexit1.png' },
+        { alias: 'closedexit2',                       src: IMG + 'closedexit2.png' },
+        { alias: 'closedexit3',                       src: IMG + 'closedexit3.png' },
+        { alias: 'openexit',                          src: IMG + 'openexit.png' },
+        { alias: 'altar',                             src: IMG + 'altar.png' },
+      ],
+    },
+
+    // ── Character & entity sprites ──────────────────────────
+    {
+      name: 'entities',
+      assets: [
+        // Hero sprite sheet (2500×3000, 500×500 frames, 5 cols × 6 rows)
+        { alias: 'hero',              src: IMG + 'hero.png' },
+        // Enemies — static sprites
+        { alias: 'soldier',           src: IMG + 'soldier.png' },
+        { alias: 'soldier-dead',      src: IMG + 'soldier_dead.png' },
+        { alias: 'bloated',           src: IMG + 'bloated.png' },
+        { alias: 'bloated-dead',      src: IMG + 'bloated_dead.png' },
+        { alias: 'buldyga',           src: IMG + 'buldyga.png' },
+        { alias: 'buldyga-dead',      src: IMG + 'buldyga_dead.png' },
+        { alias: 'bull',              src: IMG + 'bull.png' },
+        { alias: 'bull-dead',         src: IMG + 'bull_dead.png' },
+        // Plevaka (shooter) — animated sprite sheet (1500×1500, 3 rows × 3 cols)
+        { alias: 'plevaka',           src: IMG + 'plevaka.png' },
+        { alias: 'plevaka-anim',      src: IMG + 'plevaka_anim.png' },
+        { alias: 'plevaka-dead',      src: IMG + 'plevaka_dead.png' },
+        // Cocoon — animated sprite sheet (3500×500, 7 frames horizontal)
+        { alias: 'cocoon',            src: IMG + 'cocoon.png' },
+        // Screens
+        { alias: 'death-screen',      src: IMG + 'death.png' },
+        { alias: 'gameover-screen',   src: IMG + 'gameover.png' },
+        { alias: 'gameover-text',     src: IMG + 'gameover-text.png' },
+        { alias: 'deathtext',         src: IMG + 'deathtext.png' },
+      ],
+    },
+
+    // ── HUD & collectibles ──────────────────────────────────
+    {
+      name: 'hud',
+      assets: [
+        { alias: 'heart',             src: IMG + 'heart.png' },
+        { alias: 'heart-container',   src: IMG + 'heart-container.png' },
+        { alias: 'key',               src: IMG + 'key.png' },
+        { alias: 'shield',            src: IMG + 'shield.png' },
+        { alias: 'locked',            src: IMG + 'locked.png' },
+        { alias: 'unlocked',          src: IMG + 'unlocked.png' },
+        { alias: 'open-treasure-chest', src: IMG + 'open-treasure-chest.png' },
+        // Weapon sprites (HUD + floor pickups)
+        { alias: 'weapon-pistol',     src: IMG + 'pistol.png' },
+        { alias: 'weapon-shotgun',    src: IMG + 'shotgun.png' },
+        { alias: 'weapon-smg',        src: IMG + 'smg.png' },
+        { alias: 'weapon-rifle',      src: IMG + 'rifle.png' },
+        { alias: 'weapon-revolver',   src: IMG + 'revolver.png' },
+        { alias: 'weapon-carbine',    src: IMG + 'carbine.png' },
+        // Input hint icons
+        { alias: 'ctrl-f',            src: IMG + 'keyboard_f.png' },
+        { alias: 'ctrl-shift',        src: IMG + 'keyboard_shift.png' },
+        { alias: 'ctrl-tab',          src: IMG + 'keyboard_tab.png' },
+        { alias: 'mouse-left',        src: IMG + 'mouse_left.png' },
+        { alias: 'mouse-right',       src: IMG + 'mouse_right.png' },
+      ],
+    },
+
+    // ── Short sound effects (loaded eagerly) ────────────────
+    {
+      name: 'sfx',
+      assets: [
+        { alias: 'keycollect',    src: SND + 'keycollect.wav' },
+        { alias: 'heartcollect',  src: SND + 'heartcollect.wav' },
+        { alias: 'hearttravel',   src: SND + 'hearttravel.wav' },
+        { alias: 'hit1',          src: SND + 'hit1.wav' },
+        { alias: 'hit2',          src: SND + 'hit2.wav' },
+        { alias: 'hit3',          src: SND + 'hit3.wav' },
+        { alias: 'hit4',          src: SND + 'hit4.wav' },
+        { alias: 'hit5',          src: SND + 'hit5.wav' },
+        { alias: 'upgradecollect',src: SND + 'upgradecollect.wav' },
+        { alias: 'weaponcollect', src: SND + 'weaponcollect.wav' },
+        { alias: 'shot_pistol',   src: SND + 'shotpistol.wav' },
+        { alias: 'shot_shotgun',  src: SND + 'shotshotgun.wav' },
+        { alias: 'shot_smg',      src: SND + 'shotsmg.wav' },
+        { alias: 'shot_rifle',    src: SND + 'shotrifle.wav' },
+        { alias: 'shot_revolver', src: SND + 'shotrevolver.wav' },
+        { alias: 'shot_carbine',  src: SND + 'shotcarbine.wav' },
+        { alias: 'death',         src: SND + 'death.wav' },
+        { alias: 'hitonplayer',   src: SND + 'hitonplayer.wav' },
+        { alias: 'shield-sfx',    src: SND + 'shield.wav' },
+        { alias: 'levelcomplete', src: SND + 'levelcomplete.wav' },
+        { alias: 'wallhit1',      src: SND + 'wallhit1.wav' },
+        { alias: 'wallhit2',      src: SND + 'wallhit2.wav' },
+        { alias: 'wallhit3',      src: SND + 'wallhit3.wav' },
+        { alias: 'zoom',          src: SND + 'zoom.wav' },
+        { alias: 'footstep0',     src: SND + 'footstep_concrete_000.ogg' },
+        { alias: 'footstep1',     src: SND + 'footstep_concrete_001.ogg' },
+        { alias: 'footstep2',     src: SND + 'footstep_concrete_002.ogg' },
+        { alias: 'footstep3',     src: SND + 'footstep_concrete_003.ogg' },
+        { alias: 'footstep4',     src: SND + 'footstep_concrete_004.ogg' },
+      ],
+    },
+
+    // ── Music (large files — load on demand via loadMusicBundle) ──
+    {
+      name: 'music',
+      assets: [
+        { alias: 'music_level1',  src: SND + 'Three Red Hearts Candy.ogg' },
+        { alias: 'music_level2',  src: SND + 'Clement Panchout - Sweet 70s.wav' },
+        { alias: 'music_level3',  src: SND + 'Three Red Hearts - Box Jump.ogg' },
+        { alias: 'music_boss',    src: SND + 'GEN Death metal.wav' },
+        { alias: 'ambience',      src: SND + 'Ambience.wav' },
+      ],
+    },
+
+  ],
+};
+
+// ============================================================
+// LOAD FUNCTIONS
+// ============================================================
+
+let _initialised = false;
+
+/**
+ * Load all non-music assets.
+ * @param {(progress: number) => void} [onProgress] — called with 0..1
+ */
+export async function loadAssets(onProgress) {
+  if (!_initialised) {
+    await Assets.init({ manifest: MANIFEST });
+    _initialised = true;
+  }
+  await Assets.loadBundle(['tiles', 'entities', 'hud', 'sfx'], onProgress);
+}
+
+/**
+ * Load music bundle (large files — call once game actually starts).
+ * @param {(progress: number) => void} [onProgress]
+ */
+export async function loadMusicBundle(onProgress) {
+  if (!_initialised) {
+    await Assets.init({ manifest: MANIFEST });
+    _initialised = true;
+  }
+  await Assets.loadBundle('music', onProgress);
+}
+
+/**
+ * Convenience: get a loaded texture/sound by alias.
+ * @param {string} alias
+ */
+export function getAsset(alias) {
+  return Assets.get(alias);
+}

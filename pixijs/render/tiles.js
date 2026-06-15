@@ -1,0 +1,308 @@
+// ============================================================
+// TILES — floor / outer-wall / corner / partition sprites
+//
+// buildTileLayer(container, worldData, level)
+//   Clears and rebuilds all tile sprites into `container`.
+//   Call on level start and after any wall open/close event.
+//
+// Direction convention (matches original engine-utils.js):
+//   0 = right  [+1,  0]
+//   1 = bottom [ 0, +1]
+//   2 = left   [-1,  0]
+//   3 = top    [ 0, -1]
+// ============================================================
+
+import { Container, Sprite, Texture, Graphics } from 'pixi.js';
+import {
+  CELL_PX, CARDINAL_DIRECTIONS,
+  cellKey, cellFromKey, wallKey,
+} from '../world/constants.js';
+
+const WALL_DEPTH  = CELL_PX * 0.125;
+const CORNER_SIZE = CELL_PX * 0.125;
+const PART_T      = CELL_PX * 0.05;   // partition wall thickness
+
+// Direction vectors in the canonical order 0..3
+const DIR_VECS = [[1, 0], [0, 1], [-1, 0], [0, -1]];
+
+// ── Level texture aliases ────────────────────────────────────
+
+function lvlSuffix(level) { return level === 2 ? 'green' : level === 3 ? 'y' : 'blue'; }
+function wallAlias(level)  { return level === 2 ? 'wall-green' : level === 3 ? 'wall-y' : 'wall'; }
+function cornerAlias(level){ return level === 2 ? 'corner-green' : level === 3 ? 'corner-y' : 'corner'; }
+
+// ── Floor tile selection ─────────────────────────────────────
+
+function getOpenDirs(x, y, openCells) {
+  const dirs = [];
+  for (let d = 0; d < 4; d++) {
+    const [dx, dy] = DIR_VECS[d];
+    if (openCells.has(cellKey(x + dx, y + dy))) dirs.push(d);
+  }
+  return dirs;
+}
+
+function floorAlias(openDirs, level) {
+  const s = lvlSuffix(level);
+  switch (openDirs.length) {
+    case 0: return `floor-${s}`;
+    case 4: return `floor-4exit-${s}`;
+    case 1: return `floor-rightexit-${s}`;
+    case 2: {
+      const [d1, d2] = openDirs;
+      return (d1 + 2) % 4 === d2 ? `floor-topdownexit-${s}` : `floor-rightbottomexit-${s}`;
+    }
+    default: return `floor-leftrightbottomexit-${s}`;
+  }
+}
+
+function floorRotation(openDirs) {
+  switch (openDirs.length) {
+    case 0: case 4: return 0;
+    case 1: return openDirs[0] * Math.PI / 2;
+    case 2: {
+      const [d1, d2] = openDirs;
+      if ((d1 + 2) % 4 === d2) {
+        // straight: topdownexit has exits at 1(bottom) + 3(top) = no rotation
+        return (openDirs.includes(1) && openDirs.includes(3)) ? 0 : Math.PI / 2;
+      }
+      // corner: rightbottomexit has exits 0+1; find r so rotated dirs = [0,1]
+      for (let r = 0; r < 4; r++) {
+        const rot = openDirs.map(d => (d - r + 4) % 4).sort((a, b) => a - b);
+        if (rot[0] === 0 && rot[1] === 1) return r * Math.PI / 2;
+      }
+      return 0;
+    }
+    default: {
+      // T-junction: leftrightbottomexit has missing=top(3) at r=0
+      const missing = [0, 1, 2, 3].find(d => !openDirs.includes(d));
+      return ((missing + 1) % 4) * Math.PI / 2;
+    }
+  }
+}
+
+// ── Sprite factories ─────────────────────────────────────────
+
+function makeFloorSprite(x, y, openDirs, level) {
+  const alias   = floorAlias(openDirs, level);
+  const fallTex = Texture.from(`floor-${lvlSuffix(level)}`);
+  let tex;
+  try { tex = Texture.from(alias); } catch { tex = fallTex; }
+
+  const spr = new Sprite(tex);
+  spr.anchor.set(0.5);
+  spr.width    = CELL_PX;
+  spr.height   = CELL_PX;
+  spr.position.set((x + 0.5) * CELL_PX, (y + 0.5) * CELL_PX);
+  spr.rotation = floorRotation(openDirs);
+  return spr;
+}
+
+function makeWallStrips(x, y, openCells, level) {
+  const tex     = Texture.from(wallAlias(level));
+  const sprites = [];
+
+  for (let d = 0; d < 4; d++) {
+    const [dx, dy] = DIR_VECS[d];
+    if (openCells.has(cellKey(x + dx, y + dy))) continue;
+
+    // Edge midpoint (world coords)
+    const emx   = (x + 0.5 + dx * 0.5) * CELL_PX;
+    const emy   = (y + 0.5 + dy * 0.5) * CELL_PX;
+    const angle = Math.atan2(dy, dx) + Math.PI / 2;
+
+    const spr = new Sprite(tex);
+    spr.anchor.set(0.5, 1); // bottom-centre → bottom aligns to the cell edge
+    spr.width    = CELL_PX;
+    spr.height   = WALL_DEPTH;
+    spr.position.set(emx, emy);
+    spr.rotation = angle;
+    sprites.push(spr);
+  }
+  return sprites;
+}
+
+const DIAG_CORNERS = [
+  { ddx: -1, ddy: -1, angle: 0 },
+  { ddx:  1, ddy: -1, angle: Math.PI / 2 },
+  { ddx:  1, ddy:  1, angle: Math.PI },
+  { ddx: -1, ddy:  1, angle: -Math.PI / 2 },
+];
+
+function makeCornerSprites(x, y, openCells, level) {
+  const tex     = Texture.from(cornerAlias(level));
+  const sprites = [];
+
+  for (const { ddx, ddy, angle } of DIAG_CORNERS) {
+    const sideA    = openCells.has(cellKey(x + ddx, y));
+    const sideB    = openCells.has(cellKey(x, y + ddy));
+    const diagOpen = openCells.has(cellKey(x + ddx, y + ddy));
+    const isExternal = !sideA && !sideB;
+    const isInternal = sideA && sideB && !diagOpen;
+    if (!isExternal && !isInternal) continue;
+
+    const cornerX = (x + (ddx > 0 ? 1 : 0)) * CELL_PX;
+    const cornerY = (y + (ddy > 0 ? 1 : 0)) * CELL_PX;
+
+    const spr = new Sprite(tex);
+    spr.width  = CORNER_SIZE;
+    spr.height = CORNER_SIZE;
+    spr.position.set(cornerX, cornerY);
+    if (isInternal) {
+      spr.anchor.set(0);
+      spr.rotation = angle + Math.PI;
+    } else {
+      spr.anchor.set(1);
+      spr.rotation = angle;
+    }
+    sprites.push(spr);
+  }
+  return sprites;
+}
+
+// ── Closed / rock cell sprites ───────────────────────────────
+
+function makeClosedCellSprites(blobCells, openCells, everRevealedCells, everOpenedCells,
+                                permanentlyClosed, disabledCells) {
+  const sprites = [];
+  const blackCells = new Set([
+    ...(permanentlyClosed && typeof permanentlyClosed[Symbol.iterator] === 'function' ? permanentlyClosed : []),
+    ...(disabledCells && typeof disabledCells[Symbol.iterator] === 'function' ? disabledCells : [])
+  ]);
+
+  for (const k of blackCells) {
+    const { x, y } = cellFromKey(k);
+    // Only show if at least one adjacent cell has ever been opened (fog-of-war)
+    let revealed = false;
+    for (const [dx, dy] of CARDINAL_DIRECTIONS) {
+      if (everOpenedCells.has(cellKey(x + dx, y + dy))) { revealed = true; break; }
+    }
+    if (!revealed) continue;
+
+    let tex;
+    try { tex = Texture.from('rock'); } catch { continue; }
+    const spr = new Sprite(tex);
+    spr.x = x * CELL_PX;
+    spr.y = y * CELL_PX;
+    spr.width = spr.height = CELL_PX;
+    sprites.push(spr);
+  }
+
+  // closedcell texture for revealed-but-not-open blobCells
+  for (const k of everRevealedCells) {
+    if (openCells.has(k) || blackCells.has(k)) continue;
+    if (!blobCells.has(k)) continue;
+    const { x, y } = cellFromKey(k);
+    let tex;
+    try { tex = Texture.from('closedcell'); } catch { continue; }
+    const spr = new Sprite(tex);
+    spr.x = x * CELL_PX;
+    spr.y = y * CELL_PX;
+    spr.width = spr.height = CELL_PX;
+    spr.alpha = 0.35;
+    sprites.push(spr);
+  }
+
+  return sprites;
+}
+
+// ── Partition walls (Graphics) ────────────────────────────────
+// Drawn for every boundary between two blobCells that is NOT in removedWalls
+// and where both cells have been revealed at least once.
+
+function buildPartitions(blobCells, removedWalls, everRevealedCells) {
+  const g  = new Graphics();
+  const HT = PART_T / 2;
+
+  for (const k of everRevealedCells) {
+    if (!blobCells.has(k)) continue;
+    const { x, y } = cellFromKey(k);
+
+    for (const [dx, dy] of [[1, 0], [0, 1]]) {
+      const nx = x + dx, ny = y + dy;
+      const nk = cellKey(nx, ny);
+      if (!blobCells.has(nk) || !everRevealedCells.has(nk)) continue;
+      if (removedWalls.has(wallKey(x, y, nx, ny))) continue;
+
+      if (dx === 1) {
+        // vertical strip at x-boundary
+        const bx = (x + 1) * CELL_PX;
+        const by = y * CELL_PX;
+        g.rect(bx - HT, by, PART_T, CELL_PX)
+          .fill({ color: 0x14081e, alpha: 0.92 })
+          .stroke({ color: 0x785090, alpha: 0.5, width: 0.5 });
+      } else {
+        // horizontal strip at y-boundary
+        const bx = x * CELL_PX;
+        const by = (y + 1) * CELL_PX;
+        g.rect(bx, by - HT, CELL_PX, PART_T)
+          .fill({ color: 0x14081e, alpha: 0.92 })
+          .stroke({ color: 0x785090, alpha: 0.5, width: 0.5 });
+      }
+    }
+  }
+  return g;
+}
+
+// ── Public API ────────────────────────────────────────────────
+
+/**
+ * Build (or fully rebuild) all tile sprites into `targetContainer`.
+ * Destroys previous children.
+ *
+ * @param {Container} targetContainer — should be layers.tiles
+ * @param {{
+ *   blobCells: Set<string>,
+ *   openCells: Set<string>,
+ *   everRevealedCells: Set<string>,
+ *   everOpenedCells: Set<string>,
+ *   removedWalls: Set<string>,
+ *   permanentlyClosed: Set<string>,
+ *   disabledCells: Set<string>,
+ * }} worldData
+ * @param {number} level — 1 | 2 | 3
+ */
+export function buildTileLayer(targetContainer, worldData, level) {
+  targetContainer.removeChildren().forEach(c => c.destroy({ children: true }));
+
+  const {
+    blobCells, openCells, everRevealedCells, everOpenedCells,
+    removedWalls, permanentlyClosed, disabledCells,
+  } = worldData;
+
+  // ── 1. Closed / rock cell overlays ──
+  const closedContainer = new Container({ label: 'closed' });
+  for (const spr of makeClosedCellSprites(
+    blobCells, openCells, everRevealedCells, everOpenedCells, permanentlyClosed, disabledCells,
+  )) closedContainer.addChild(spr);
+
+  // ── 2. Floor tiles (open cells) ──
+  const floorContainer = new Container({ label: 'floors' });
+  for (const k of openCells) {
+    const { x, y } = cellFromKey(k);
+    floorContainer.addChild(makeFloorSprite(x, y, getOpenDirs(x, y, openCells), level));
+  }
+
+  // ── 3. Outer wall strips ──
+  const wallContainer = new Container({ label: 'outer-walls' });
+  for (const k of openCells) {
+    const { x, y } = cellFromKey(k);
+    for (const spr of makeWallStrips(x, y, openCells, level)) wallContainer.addChild(spr);
+  }
+
+  // ── 4. Corner pieces ──
+  const cornerContainer = new Container({ label: 'corners' });
+  for (const k of openCells) {
+    const { x, y } = cellFromKey(k);
+    for (const spr of makeCornerSprites(x, y, openCells, level)) cornerContainer.addChild(spr);
+  }
+
+  // ── 5. Partition walls between blob cells ──
+  const partitions = buildPartitions(blobCells, removedWalls, everRevealedCells);
+  partitions.label = 'partitions';
+
+  targetContainer.addChild(closedContainer, floorContainer, wallContainer, cornerContainer, partitions);
+}
+
+// Alias — call whenever openCells or removedWalls change.
+export const rebuildTileLayer = buildTileLayer;
