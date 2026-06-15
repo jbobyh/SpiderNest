@@ -981,8 +981,8 @@
       }
 
       // Стены по краям открытых клеток (battle)
-      drawOpenCellWalls(b.openCells, BATTLE_CELL_PX, BATTLE_CELL_PX * 0.125, b.cellOffsetX, b.cellOffsetY, currentLevel);
-      drawOpenCellCorners(b.openCells, BATTLE_CELL_PX, BATTLE_CELL_PX * 0.125, b.cellOffsetX, b.cellOffsetY, currentLevel);
+      // drawOpenCellWalls(b.openCells, BATTLE_CELL_PX, BATTLE_CELL_PX * 0.125, b.cellOffsetX, b.cellOffsetY, currentLevel);
+      // drawOpenCellCorners(b.openCells, BATTLE_CELL_PX, BATTLE_CELL_PX * 0.125, b.cellOffsetX, b.cellOffsetY, currentLevel);
 
       // Стены-перегородки между соседними открытыми клетками (только не убранные)
       if (b.removedWalls) {
@@ -1431,8 +1431,8 @@
       }
 
       // Стены по краям открытых клеток
-      drawOpenCellWalls(s.openCells, CP, CP * 0.125, 0, 0, currentLevel);
-      drawOpenCellCorners(s.openCells, CP, CP * 0.125, 0, 0, currentLevel);
+      // drawOpenCellWalls(s.openCells, CP, CP * 0.125, 0, 0, currentLevel);
+      // drawOpenCellCorners(s.openCells, CP, CP * 0.125, 0, 0, currentLevel);
 
       // Стены-перегородки между соседними blob-клетками (только не убранные, только раскрытые)
       if (s.removedWalls) {
@@ -2973,8 +2973,8 @@
       }
 
       // Стены по краям открытых клеток (zoom)
-      drawOpenCellWalls(s.openCells, CP, CP * 0.125, 0, 0, currentLevel);
-      drawOpenCellCorners(s.openCells, CP, CP * 0.125, 0, 0, currentLevel);
+      // drawOpenCellWalls(s.openCells, CP, CP * 0.125, 0, 0, currentLevel);
+      // drawOpenCellCorners(s.openCells, CP, CP * 0.125, 0, 0, currentLevel);
 
       // Смежные закрытые клетки (ever revealed) с плавным fade
       ctx.globalAlpha = fadeAlpha * 0.6;

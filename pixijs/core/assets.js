@@ -52,6 +52,7 @@ const MANIFEST = {
         { alias: 'closedexit3',                       src: IMG + 'closedexit3.png' },
         { alias: 'openexit',                          src: IMG + 'openexit.png' },
         { alias: 'altar',                             src: IMG + 'altar.png' },
+        { alias: 'floor-stone',                       src: IMG + 'kenney_textures/floor_stone.png' },
       ],
     },
 

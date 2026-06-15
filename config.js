@@ -159,6 +159,10 @@ const CONFIG = {
   BATTLE_SCALE: 1,                // unified coords — no separate battle space
   BATTLE_TRANSITION_DURATION: 1.0, // секунд на zoom
 
+  // Camera zoom
+  PLAY_MODE_ZOOM: 1,              // зум камеры в play режиме
+  BATTLE_ZOOM_MULTIPLIER: 1,      // множитель к вычисленному зуму в battle режиме
+
   // Zoom/Transitions
   ZOOM_DURATION: 1.0,             // секунд
 

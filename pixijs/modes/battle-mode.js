@@ -60,7 +60,7 @@ export function createBattleState(state, openedCellKey) {
   const wallPad = CP * 0.125;
   const scaleX  = CONFIG.VIEW_W / (bCols * CP + wallPad * 2);
   const scaleY  = CONFIG.VIEW_H / (bRows * CP + wallPad * 2);
-  const zoom    = Math.min(scaleX, scaleY);
+  const zoom    = Math.min(scaleX, scaleY) * CONFIG.BATTLE_ZOOM_MULTIPLIER;
   const centerX = (minX + bCols / 2) * CP;
   const centerY = (minY + bRows / 2) * CP;
 
@@ -148,7 +148,7 @@ export function createBossBattleState(state, currentLevel) {
   const wallPad = CP * 0.125;
   const scaleX  = CONFIG.VIEW_W / (bCols * CP + wallPad * 2);
   const scaleY  = CONFIG.VIEW_H / (bRows * CP + wallPad * 2);
-  const zoom    = Math.min(scaleX, scaleY);
+  const zoom    = Math.min(scaleX, scaleY) * CONFIG.BATTLE_ZOOM_MULTIPLIER;
   const centerX = (minX + bCols / 2) * CP;
   const centerY = (minY + bRows / 2) * CP;
 
@@ -413,10 +413,22 @@ function _startDash(state) {
   if (k['s'] || k['ы'] || k['arrowdown'])  mvy += 1;
   if (k['a'] || k['ф'] || k['arrowleft'])  mvx -= 1;
   if (k['d'] || k['в'] || k['arrowright']) mvx += 1;
-  const mx   = (state.mouse || mouse).x;
-  const my   = (state.mouse || mouse).y;
-  const dirX = mvx || Math.cos(Math.atan2(my - state.player.y, mx - state.player.x));
-  const dirY = mvy || Math.sin(Math.atan2(my - state.player.y, mx - state.player.x));
+  if (mvx && mvy) { mvx *= Math.SQRT1_2; mvy *= Math.SQRT1_2; }
+  
+  const isMoving = mvx !== 0 || mvy !== 0;
+  
+  let dirX, dirY;
+  if (isMoving) {
+    dirX = mvx;
+    dirY = mvy;
+  } else {
+    const mx   = (state.mouse || mouse).x;
+    const my   = (state.mouse || mouse).y;
+    const angle = Math.atan2(my - state.player.y, mx - state.player.x);
+    dirX = Math.cos(angle);
+    dirY = Math.sin(angle);
+  }
+  
   const len  = Math.hypot(dirX, dirY);
   if (len === 0) return;
   state.player.isDashing    = true;

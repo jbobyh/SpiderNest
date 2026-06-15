@@ -3,7 +3,8 @@
 // ============================================================
 
 export const SUBCELL_PX       = 14;
-export const SUBCELLS_PER_CELL = 9;
+export const TILES_PER_CELL    = 9;
+export const SUBCELLS_PER_CELL = TILES_PER_CELL;
 export const CELL_PX           = SUBCELL_PX * SUBCELLS_PER_CELL; // 126 px
 
 export const CARDINAL_DIRECTIONS = [[1, 0], [-1, 0], [0, 1], [0, -1]];

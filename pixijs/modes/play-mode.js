@@ -143,7 +143,7 @@ export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}
   if (remaining <= 0) hideUpgradePopup();
 
   // ── Camera ───────────────────────────────────────────────
-  camera.setZoom(1);
+  camera.setZoom(CONFIG.PLAY_MODE_ZOOM);
   camera.pan(state.player.x, state.player.y);
   camera.update(dt);
 }
@@ -193,8 +193,18 @@ function _stepMovement(state, dt) {
 
 function _startDash(state) {
   const { mvx, mvy } = getMovementDir();
-  const dirX = mvx || Math.cos(Math.atan2(state.mouse.y - state.player.y, state.mouse.x - state.player.x));
-  const dirY = mvy || Math.sin(Math.atan2(state.mouse.y - state.player.y, state.mouse.x - state.player.x));
+  const isMoving = mvx !== 0 || mvy !== 0;
+  
+  let dirX, dirY;
+  if (isMoving) {
+    dirX = mvx;
+    dirY = mvy;
+  } else {
+    const angle = Math.atan2(state.mouse.y - state.player.y, state.mouse.x - state.player.x);
+    dirX = Math.cos(angle);
+    dirY = Math.sin(angle);
+  }
+  
   const len  = Math.hypot(dirX, dirY);
   if (len === 0) return;
 

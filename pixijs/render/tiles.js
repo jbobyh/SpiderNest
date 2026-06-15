@@ -12,9 +12,9 @@
 //   3 = top    [ 0, -1]
 // ============================================================
 
-import { Container, Sprite, Texture, Graphics } from 'pixi.js';
+import { Container, Sprite, TilingSprite, Texture, Graphics, Assets } from 'pixi.js';
 import {
-  CELL_PX, CARDINAL_DIRECTIONS,
+  CELL_PX, SUBCELL_PX, TILES_PER_CELL, CARDINAL_DIRECTIONS,
   cellKey, cellFromKey, wallKey,
 } from '../world/constants.js';
 
@@ -84,18 +84,21 @@ function floorRotation(openDirs) {
 // ── Sprite factories ─────────────────────────────────────────
 
 function makeFloorSprite(x, y, openDirs, level) {
-  const alias   = floorAlias(openDirs, level);
-  const fallTex = Texture.from(`floor-${lvlSuffix(level)}`);
-  let tex;
-  try { tex = Texture.from(alias); } catch { tex = fallTex; }
-
-  const spr = new Sprite(tex);
-  spr.anchor.set(0.5);
-  spr.width    = CELL_PX;
-  spr.height   = CELL_PX;
-  spr.position.set((x + 0.5) * CELL_PX, (y + 0.5) * CELL_PX);
-  spr.rotation = floorRotation(openDirs);
-  return spr;
+  const tex = Assets.get('floor-stone');
+  const container = new Container();
+  // Create TILES_PER_CELL x TILES_PER_CELL grid of sprites within the cell
+  for (let sy = 0; sy < TILES_PER_CELL; sy++) {
+    for (let sx = 0; sx < TILES_PER_CELL; sx++) {
+      const spr = new Sprite(tex);
+      spr.width = SUBCELL_PX;
+      spr.height = SUBCELL_PX;
+      spr.x = sx * SUBCELL_PX;
+      spr.y = sy * SUBCELL_PX;
+      container.addChild(spr);
+    }
+  }
+  container.position.set(x * CELL_PX, y * CELL_PX);
+  return container;
 }
 
 function makeWallStrips(x, y, openCells, level) {
@@ -225,17 +228,33 @@ function buildPartitions(blobCells, removedWalls, everRevealedCells) {
       if (removedWalls.has(wallKey(x, y, nx, ny))) continue;
 
       if (dx === 1) {
-        // vertical strip at x-boundary
+        // vertical strip at x-boundary — bevelled ends (45°)
         const bx = (x + 1) * CELL_PX;
         const by = y * CELL_PX;
-        g.rect(bx - HT, by, PART_T, CELL_PX)
+        const H  = CELL_PX;
+        g.poly([
+          bx - HT, by + HT,       // top-left
+          bx,      by,            // top tip
+          bx + HT, by + HT,       // top-right
+          bx + HT, by + H - HT,   // bottom-right
+          bx,      by + H,        // bottom tip
+          bx - HT, by + H - HT,   // bottom-left
+        ])
           .fill({ color: 0x14081e, alpha: 0.92 })
           .stroke({ color: 0x785090, alpha: 0.5, width: 0.5 });
       } else {
-        // horizontal strip at y-boundary
+        // horizontal strip at y-boundary — bevelled ends (45°)
         const bx = x * CELL_PX;
         const by = (y + 1) * CELL_PX;
-        g.rect(bx, by - HT, CELL_PX, PART_T)
+        const W  = CELL_PX;
+        g.poly([
+          bx + HT,     by - HT,   // top-left
+          bx + W - HT, by - HT,   // top-right
+          bx + W,      by,        // right tip
+          bx + W - HT, by + HT,   // bottom-right
+          bx + HT,     by + HT,   // bottom-left
+          bx,          by,        // left tip
+        ])
           .fill({ color: 0x14081e, alpha: 0.92 })
           .stroke({ color: 0x785090, alpha: 0.5, width: 0.5 });
       }
@@ -284,18 +303,20 @@ export function buildTileLayer(targetContainer, worldData, level) {
   }
 
   // ── 3. Outer wall strips ──
+  // const wallContainer = new Container({ label: 'outer-walls' });
+  // for (const k of openCells) {
+  //   const { x, y } = cellFromKey(k);
+  //   for (const spr of makeWallStrips(x, y, openCells, level)) wallContainer.addChild(spr);
+  // }
   const wallContainer = new Container({ label: 'outer-walls' });
-  for (const k of openCells) {
-    const { x, y } = cellFromKey(k);
-    for (const spr of makeWallStrips(x, y, openCells, level)) wallContainer.addChild(spr);
-  }
 
   // ── 4. Corner pieces ──
+  // const cornerContainer = new Container({ label: 'corners' });
+  // for (const k of openCells) {
+  //   const { x, y } = cellFromKey(k);
+  //   for (const spr of makeCornerSprites(x, y, openCells, level)) cornerContainer.addChild(spr);
+  // }
   const cornerContainer = new Container({ label: 'corners' });
-  for (const k of openCells) {
-    const { x, y } = cellFromKey(k);
-    for (const spr of makeCornerSprites(x, y, openCells, level)) cornerContainer.addChild(spr);
-  }
 
   // ── 5. Partition walls between blob cells ──
   const partitions = buildPartitions(blobCells, removedWalls, everRevealedCells);
