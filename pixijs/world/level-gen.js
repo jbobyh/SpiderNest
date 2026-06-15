@@ -441,20 +441,44 @@ export function generateLevel(level, playerProgress) {
 
   // ── Hide spawned items in enemy rooms ──
   for (const h of hearts) {
-    const c = cellContents.get(h.cellKey);
-    if (c && c.enemyCount > 0) h.spawned = false;
+    const ri = cellToRoom.get(h.cellKey);
+    if (ri !== undefined) {
+      const room = rooms[ri];
+      for (const cell of room.cells) {
+        const c = cellContents.get(cell.k);
+        if (c && c.enemyCount > 0) { h.spawned = false; break; }
+      }
+    }
   }
   for (const u of upgradeObjs) {
-    const c = cellContents.get(u.cellKey);
-    if (c && c.enemyCount > 0) u.spawned = false;
+    const ri = cellToRoom.get(u.cellKey);
+    if (ri !== undefined) {
+      const room = rooms[ri];
+      for (const cell of room.cells) {
+        const c = cellContents.get(cell.k);
+        if (c && c.enemyCount > 0) { u.spawned = false; break; }
+      }
+    }
   }
   for (const c of chestObjs) {
-    const cont = cellContents.get(c.cellKey);
-    if (cont && cont.enemyCount > 0) c.spawned = false;
+    const ri = cellToRoom.get(c.cellKey);
+    if (ri !== undefined) {
+      const room = rooms[ri];
+      for (const cell of room.cells) {
+        const cont = cellContents.get(cell.k);
+        if (cont && cont.enemyCount > 0) { c.spawned = false; break; }
+      }
+    }
   }
   if (summonSphere) {
-    const c = cellContents.get(summonSphere.cellKey);
-    if (c && c.enemyCount > 0) summonSphere.spawned = false;
+    const ri = cellToRoom.get(summonSphere.cellKey);
+    if (ri !== undefined) {
+      const room = rooms[ri];
+      for (const cell of room.cells) {
+        const c = cellContents.get(cell.k);
+        if (c && c.enemyCount > 0) { summonSphere.spawned = false; break; }
+      }
+    }
   }
 
   // ── Spawn trapped enemies ──

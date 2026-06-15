@@ -12,6 +12,7 @@
 
 import { Sprite, Texture, Graphics } from 'pixi.js';
 import { weaponTextures } from './entity-pool.js';
+import { cellOf, cellKey } from '../world/constants.js';
 
 let _layer = null;
 
@@ -54,7 +55,7 @@ export function syncCollectibles(state) {
   _syncHearts  (state.hearts        || []);
   _syncUpgrades(state.upgradeObjs   || []);
   _syncChests  (state.chestObjs     || []);
-  _syncWeapons (state.droppedWeapons || []);
+  _syncWeapons (state.droppedWeapons || [], inBattle ? state.battle?.openCells : state.openCells);
   _syncSphere  (state.summonSphere);
   if (!inBattle) _syncAltars(state.roomAltars || [], state.openCells, state.cellContents);
   else           _syncAltars([], null, null);
@@ -140,10 +141,12 @@ function _syncChests(chests) {
 
 const WEAPON_SIZE = 28;
 
-function _syncWeapons(droppedWeapons) {
+function _syncWeapons(droppedWeapons, openCells) {
   const alive = new Set();
   for (const dw of droppedWeapons) {
     if (dw.picked) continue;
+    const wc = cellOf(dw.x, dw.y);
+    if (!openCells || !openCells.has(cellKey(wc.x, wc.y))) continue;
     const k = `${dw.weaponId}|${Math.round(dw.x)},${Math.round(dw.y)}`;
     alive.add(k);
     if (!_weapons.has(k)) {

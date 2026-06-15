@@ -64,8 +64,8 @@ export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}
   } else {
     _stepMovement(state, dt);
 
-    // Initiate dash on spacebar
-    if (keys[' '] && state.player.dashCooldown <= 0) {
+    // Initiate dash on shift
+    if (keys['shift'] && state.player.dashCooldown <= 0) {
       _startDash(state);
     }
   }

@@ -357,9 +357,11 @@ export function updateEnemyBullets(state, dt, onPlayerHit) {
 
     const pd = Math.hypot(eb.x - state.player.x, eb.y - state.player.y);
     if (pd < CONFIG.PLAYER_RADIUS + CONFIG.BULLET_RADIUS) {
-      if (onPlayerHit) onPlayerHit(state, false);
-      ebs.splice(i, 1);
-      _playerHitParticles(state.particles, state.player.x, state.player.y, 1);
+      if (!state.player.isDashing) {
+        if (onPlayerHit) onPlayerHit(state, false);
+        ebs.splice(i, 1);
+        _playerHitParticles(state.particles, state.player.x, state.player.y, 1);
+      }
     }
   }
 }
@@ -394,9 +396,11 @@ export function updateBattleEnemyBullets(state, dt, onPlayerHit) {
 
     const pd = Math.hypot(eb.x - b.player.x, eb.y - b.player.y);
     if (pd < (CONFIG.PLAYER_RADIUS + CONFIG.BULLET_RADIUS) * BS) {
-      if (onPlayerHit) onPlayerHit(state, true);
-      ebs.splice(i, 1);
-      _playerHitParticles(b.particles, b.player.x, b.player.y, BS);
+      if (!b.player.isDashing) {
+        if (onPlayerHit) onPlayerHit(state, true);
+        ebs.splice(i, 1);
+        _playerHitParticles(b.particles, b.player.x, b.player.y, BS);
+      }
     }
   }
 }

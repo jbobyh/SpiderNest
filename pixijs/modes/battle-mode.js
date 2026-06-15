@@ -257,7 +257,7 @@ export function updateBattleMode(state, playerProgress, camera, dt, callbacks = 
   _updateDashTrails(state, dt);
   if (state.player.isDashing) {
     _stepDash(state, dt);
-  } else if (keys && keys[' '] && state.player.dashCooldown <= 0) {
+  } else if (keys && keys['shift'] && state.player.dashCooldown <= 0) {
     _startDash(state);
   }
 

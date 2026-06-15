@@ -1148,23 +1148,47 @@
       }
 
       // Для комнат с врагами — бонусы появляются только после победы
-      // Проверяем cellContents для каждого бонуса (не только из enemyRooms, т.к. бонусы удалились из availableRooms)
+      // Проверяем все ячейки комнаты на наличие врагов
       for (const h of hearts) {
-        const content = cellContents.get(h.cellKey);
-        if (content && content.enemyCount > 0) h.spawned = false;
+        const roomIdx = cellToRoom.get(h.cellKey);
+        if (roomIdx !== undefined) {
+          const room = rooms[roomIdx];
+          for (const cell of room.cells) {
+            const content = cellContents.get(cell.k);
+            if (content && content.enemyCount > 0) { h.spawned = false; break; }
+          }
+        }
       }
       for (const u of upgradeObjs) {
-        const content = cellContents.get(u.cellKey);
-        if (content && content.enemyCount > 0) u.spawned = false;
+        const roomIdx = cellToRoom.get(u.cellKey);
+        if (roomIdx !== undefined) {
+          const room = rooms[roomIdx];
+          for (const cell of room.cells) {
+            const content = cellContents.get(cell.k);
+            if (content && content.enemyCount > 0) { u.spawned = false; break; }
+          }
+        }
       }
       for (const c of chestObjs) {
-        const content = cellContents.get(c.cellKey);
-        if (content && content.enemyCount > 0) c.spawned = false;
+        const roomIdx = cellToRoom.get(c.cellKey);
+        if (roomIdx !== undefined) {
+          const room = rooms[roomIdx];
+          for (const cell of room.cells) {
+            const content = cellContents.get(cell.k);
+            if (content && content.enemyCount > 0) { c.spawned = false; break; }
+          }
+        }
       }
       // Summoning sphere also hidden until enemies defeated
       if (summonSphere) {
-        const content = cellContents.get(summonSphere.cellKey);
-        if (content && content.enemyCount > 0) summonSphere.spawned = false;
+        const roomIdx = cellToRoom.get(summonSphere.cellKey);
+        if (roomIdx !== undefined) {
+          const room = rooms[roomIdx];
+          for (const cell of room.cells) {
+            const content = cellContents.get(cell.k);
+            if (content && content.enemyCount > 0) { summonSphere.spawned = false; break; }
+          }
+        }
       }
 
       // Оставшиеся комнаты - пустые

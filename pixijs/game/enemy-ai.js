@@ -110,9 +110,11 @@ export function updateEnemyAI(state, playerProgress, dt, onPlayerDamaged) {
         g.x = nx; g.y = ny;
       }
       if (dist < (g.radius || CONFIG.BLOATED_RADIUS) + CONFIG.PLAYER_RADIUS) {
-        if (onPlayerDamaged) onPlayerDamaged(state, playerProgress, false);
-        s.activeSpiders.splice(i, 1);
-        _playerHitParticles(s.particles, s.player.x, s.player.y, 1);
+        if (!s.player.isDashing) {
+          if (onPlayerDamaged) onPlayerDamaged(state, playerProgress, false);
+          s.activeSpiders.splice(i, 1);
+          _playerHitParticles(s.particles, s.player.x, s.player.y, 1);
+        }
         continue;
       }
 
@@ -129,10 +131,12 @@ export function updateEnemyAI(state, playerProgress, dt, onPlayerDamaged) {
         g.x = nx; g.y = ny;
       }
       if (dist < (g.radius || CONFIG.SPIDER_RADIUS) + CONFIG.PLAYER_RADIUS) {
-        spawnCorpse(s.deathCorpses, g, g.radius || CONFIG.SPIDER_RADIUS);
-        if (onPlayerDamaged) onPlayerDamaged(state, playerProgress, false);
-        s.activeSpiders.splice(i, 1);
-        _playerHitParticles(s.particles, s.player.x, s.player.y, 1);
+        if (!s.player.isDashing) {
+          spawnCorpse(s.deathCorpses, g, g.radius || CONFIG.SPIDER_RADIUS);
+          if (onPlayerDamaged) onPlayerDamaged(state, playerProgress, false);
+          s.activeSpiders.splice(i, 1);
+          _playerHitParticles(s.particles, s.player.x, s.player.y, 1);
+        }
         continue;
       }
     }
@@ -223,9 +227,11 @@ export function updateBattleEnemyAI(state, playerProgress, dt, onPlayerDamaged) 
         }
       }
       if (dist < ((g.radius || CONFIG.BLOATED_RADIUS) + CONFIG.PLAYER_RADIUS) * BS) {
-        if (onPlayerDamaged) onPlayerDamaged(state, playerProgress, true);
-        b.activeSpiders.splice(i, 1);
-        _playerHitParticles(b.particles, b.player.x, b.player.y, BS);
+        if (!b.player.isDashing) {
+          if (onPlayerDamaged) onPlayerDamaged(state, playerProgress, true);
+          b.activeSpiders.splice(i, 1);
+          _playerHitParticles(b.particles, b.player.x, b.player.y, BS);
+        }
         continue;
       }
 
@@ -243,10 +249,12 @@ export function updateBattleEnemyAI(state, playerProgress, dt, onPlayerDamaged) 
         }
       }
       if (dist < ((g.radius || CONFIG.SPIDER_RADIUS) + CONFIG.PLAYER_RADIUS) * BS) {
-        spawnCorpse(b.deathCorpses, g, (g.radius || CONFIG.SPIDER_RADIUS) * BS);
-        if (onPlayerDamaged) onPlayerDamaged(state, playerProgress, true);
-        b.activeSpiders.splice(i, 1);
-        _playerHitParticles(b.particles, b.player.x, b.player.y, BS);
+        if (!b.player.isDashing) {
+          spawnCorpse(b.deathCorpses, g, (g.radius || CONFIG.SPIDER_RADIUS) * BS);
+          if (onPlayerDamaged) onPlayerDamaged(state, playerProgress, true);
+          b.activeSpiders.splice(i, 1);
+          _playerHitParticles(b.particles, b.player.x, b.player.y, BS);
+        }
         continue;
       }
     }
@@ -339,7 +347,7 @@ function _updateBullPlay(g, s, dx, dy, dist, dt, CHARGE_DIST, DASH_DIST, CP, pla
       } else { g.x = nx; g.y = ny; }
       const nd = Math.hypot(s.player.x - g.x, s.player.y - g.y);
       if (nd < hitDist) {
-        if (onPlayerDamaged) onPlayerDamaged(s, playerProgress, false);
+        if (!s.player.isDashing && onPlayerDamaged) onPlayerDamaged(s, playerProgress, false);
         g.state = 'rest'; g.stateTimer = CONFIG.BULL_REST_TIME;
       }
       break;
@@ -388,10 +396,12 @@ function _updateBuldygaPlay(g, s, dx, dy, dist, dt, CP, playerProgress, onPlayer
   } else { g.vx *= -0.3; g.vy *= -0.3; }
 
   if (dist < (g.radius || CONFIG.BULDYGA_RADIUS) + CONFIG.PLAYER_RADIUS) {
-    spawnCorpse(s.deathCorpses, g, g.radius || CONFIG.BULDYGA_RADIUS);
-    if (onPlayerDamaged) onPlayerDamaged(s, playerProgress, false);
-    s.activeSpiders.splice(i, 1);
-    _playerHitParticles(s.particles, s.player.x, s.player.y, 1);
+    if (!s.player.isDashing) {
+      spawnCorpse(s.deathCorpses, g, g.radius || CONFIG.BULDYGA_RADIUS);
+      if (onPlayerDamaged) onPlayerDamaged(s, playerProgress, false);
+      s.activeSpiders.splice(i, 1);
+      _playerHitParticles(s.particles, s.player.x, s.player.y, 1);
+    }
   }
 }
 
@@ -448,7 +458,7 @@ function _updateBullBattle(g, b, state, dx, dy, dist, dt, BS, CPB, CHARGE_DIST, 
         g.state = 'rest'; g.stateTimer = CONFIG.BULL_REST_TIME;
       } else { g.x = nx; g.y = ny; }
       if (Math.hypot(b.player.x - g.x, b.player.y - g.y) < hitDist) {
-        if (onPlayerDamaged) onPlayerDamaged(state, playerProgress, true);
+        if (!b.player.isDashing && onPlayerDamaged) onPlayerDamaged(state, playerProgress, true);
         g.state = 'rest'; g.stateTimer = CONFIG.BULL_REST_TIME;
       }
       break;
@@ -496,10 +506,12 @@ function _updateBuldygaBattle(g, b, state, dx, dy, dist, dt, BS, CPB, playerProg
   } else { g.vx *= -0.3; g.vy *= -0.3; }
 
   if (dist < ((g.radius || CONFIG.BULDYGA_RADIUS) + CONFIG.PLAYER_RADIUS) * BS) {
-    spawnCorpse(b.deathCorpses, g, (g.radius || CONFIG.BULDYGA_RADIUS) * BS);
-    if (onPlayerDamaged) onPlayerDamaged(state, playerProgress, true);
-    b.activeSpiders.splice(i, 1);
-    _playerHitParticles(b.particles, b.player.x, b.player.y, BS);
+    if (!b.player.isDashing) {
+      spawnCorpse(b.deathCorpses, g, (g.radius || CONFIG.BULDYGA_RADIUS) * BS);
+      if (onPlayerDamaged) onPlayerDamaged(state, playerProgress, true);
+      b.activeSpiders.splice(i, 1);
+      _playerHitParticles(b.particles, b.player.x, b.player.y, BS);
+    }
   }
 }
 
