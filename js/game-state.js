@@ -355,6 +355,9 @@
     const cocoonImg = new Image();
     cocoonImg.src = 'img/cocoon.png';
 
+    const altarImg = new Image();
+    altarImg.src = 'img/altar.png';
+
     const hudHeartImg = new Image();
     hudHeartImg.src = 'img/heart.png';
 
@@ -1026,7 +1029,7 @@
         setRoomContent(roomIdx, 'summonSphere', {}, pickRoomPreset(level, 'key'));
         const center = getRoomCenter(roomIdx);
         const centerKey = getCenterCellKey(roomIdx);
-        summonSphere = { x: center.x, y: center.y, cellKey: centerKey, collected: false };
+        summonSphere = { x: center.x, y: center.y, cellKey: centerKey, collected: false, spawned: true };
       }
 
       // Расставляем сердечки
@@ -1037,7 +1040,7 @@
         setRoomContent(roomIdx, 'heart', {}, pickRoomPreset(level, tierForRoom(roomIdx)));
         const center = getRoomCenter(roomIdx);
         const centerKey = getCenterCellKey(roomIdx);
-        hearts.push({ x: center.x, y: center.y, cellKey: centerKey, collected: false });
+        hearts.push({ x: center.x, y: center.y, cellKey: centerKey, collected: false, spawned: true });
       }
 
       // Генерируем оружие на полу
@@ -1121,7 +1124,7 @@
         setRoomContent(roomIdx, 'upgrade', { upgradeType: upgId }, pickRoomPreset(level, 'simpleupgrade'));
         const center = getRoomCenter(roomIdx);
         const centerKey = getCenterCellKey(roomIdx);
-        upgradeObjs.push({ x: center.x, y: center.y, cellKey: centerKey, upgradeType: upgId, collected: false });
+        upgradeObjs.push({ x: center.x, y: center.y, cellKey: centerKey, upgradeType: upgId, collected: false, spawned: true });
       }
 
       // Расставляем проклятые сундуки
@@ -1133,7 +1136,7 @@
         setRoomContent(roomIdx, 'chest', {}, pickRoomPreset(level, 'cursedupgrade'));
         const center = getRoomCenter(roomIdx);
         const centerKey = getCenterCellKey(roomIdx);
-        chestObjs.push({ x: center.x, y: center.y, cellKey: centerKey, collected: false });
+        chestObjs.push({ x: center.x, y: center.y, cellKey: centerKey, collected: false, spawned: true });
       }
 
       // Расставляем врагов (комнаты целиком)
@@ -1142,6 +1145,26 @@
       for (let i = 0; i < enemyRoomCount; i++) {
         const roomIdx = availableRooms.shift();
         setRoomContent(roomIdx, 'enemies', {}, pickRoomPreset(level, tierForRoom(roomIdx)));
+      }
+
+      // Для комнат с врагами — бонусы появляются только после победы
+      // Проверяем cellContents для каждого бонуса (не только из enemyRooms, т.к. бонусы удалились из availableRooms)
+      for (const h of hearts) {
+        const content = cellContents.get(h.cellKey);
+        if (content && content.enemyCount > 0) h.spawned = false;
+      }
+      for (const u of upgradeObjs) {
+        const content = cellContents.get(u.cellKey);
+        if (content && content.enemyCount > 0) u.spawned = false;
+      }
+      for (const c of chestObjs) {
+        const content = cellContents.get(c.cellKey);
+        if (content && content.enemyCount > 0) c.spawned = false;
+      }
+      // Summoning sphere also hidden until enemies defeated
+      if (summonSphere) {
+        const content = cellContents.get(summonSphere.cellKey);
+        if (content && content.enemyCount > 0) summonSphere.spawned = false;
       }
 
       // Оставшиеся комнаты - пустые
@@ -1257,6 +1280,29 @@
         weaponSlots: [...playerProgress.weaponSlots],
         activeSlot: playerProgress.activeSlot,
         maxSlots: playerProgress.maxSlots,
+
+        // Room altars for enemy rooms (battle trigger)
+        roomAltars: (() => {
+          const altars = [];
+          const processedRooms = new Set();
+          for (const [k, content] of cellContents) {
+            if (content.enemyPreset && content.enemyCount > 0 && !content.enemiesReleased) {
+              const roomIdx = cellToRoom.get(k);
+              if (roomIdx === undefined || processedRooms.has(roomIdx)) continue;
+              processedRooms.add(roomIdx);
+              const centerKey = getCenterCellKey(roomIdx);
+              const { x: cx, y: cy } = cellFromKey(centerKey);
+              altars.push({
+                roomIdx,
+                x: (cx + 0.5) * CP,
+                y: (cy + 0.5) * CP,
+                cellKey: centerKey,
+                activated: false,
+              });
+            }
+          }
+          return altars;
+        })(),
       };
     }
 

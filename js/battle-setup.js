@@ -149,50 +149,96 @@
         }
       }
 
-      // Враги из открытой клетки -> активные враги
+      // Враги из открытой клетки -> активные враги (спавнятся из углов с задержкой)
       // Find room center since enemies spawn at room center, not at opened cell
       const roomCenter = getRoomCenterCell(s, openedCellKey);
       const roomCenterKey = cellKey(roomCenter.x, roomCenter.y);
       const openedContent = s.cellContents.get(roomCenterKey);
       
+      // Массив для отложенного спавна врагов из углов
+      const pendingSpawns = [];
+      
       if (openedContent && openedContent.enemyCount && !openedContent.enemiesReleased) {
         openedContent.enemiesReleased = true;
         const { x: ox, y: oy } = roomCenter;
+        // Собираем врагов для спавна
+        const enemiesToSpawn = [];
         for (let i = s.spiders.length - 1; i >= 0; i--) {
           const g = s.spiders[i];
           if (g.homeX === ox && g.homeY === oy) {
             g.trapped = false;
-            // Конвертируем позицию врага в battle-координаты
-            const battleX = (g.homeX - cellOffsetX) * BATTLE_CELL_PX + (g.x - g.homeX * CP) * BATTLE_SCALE;
-            const battleY = (g.homeY - cellOffsetY) * BATTLE_CELL_PX + (g.y - g.homeY * CP) * BATTLE_SCALE;
             const isPlevaka = g.type === 'plevaka' || g.type === 'shooter';
-            battleActiveSpiders.push({
-              x: battleX, y: battleY,
-              vx: 0, vy: 0,
-              hp: g.hp,
-              maxHp: g.maxHp,
-              type: g.type,
-              phase: g.phase,
-              wobble: g.wobble,
-              shootCd: 0,
-              radius: g.radius,
-              visualScale: g.visualScale,
-              state: g.state,
-              stateTimer: g.stateTimer,
-              dashTargetX: g.dashTargetX,
-              dashTargetY: g.dashTargetY,
-              dashDirX: g.dashDirX,
-              dashDirY: g.dashDirY,
-              dashDistance: g.dashDistance,
-              currentSpeed: g.currentSpeed,
-              speedAccumulator: g.speedAccumulator,
-              stunTimer: 0,
-              animState: isPlevaka ? (g.animState || 'idle') : null,
-              animFrame: isPlevaka ? (g.animFrame || 0) : null,
-              animTimer: isPlevaka ? (g.animTimer || 0) : null,
+            enemiesToSpawn.push({
+              g: g,
+              isPlevaka: isPlevaka,
             });
             s.spiders.splice(i, 1);
           }
+        }
+        // Находим границы именно той комнаты, которую открыл игрок
+        // (не всей battle-зоны, а только ячеек этой комнаты)
+        let roomMinX = Infinity, roomMinY = Infinity, roomMaxX = -Infinity, roomMaxY = -Infinity;
+        const openedRoom = s.rooms.find(r => r.cells.some(c => c.k === openedCellKey));
+        if (openedRoom) {
+          for (const cell of openedRoom.cells) {
+            if (battleCells.has(cell.k)) {
+              roomMinX = Math.min(roomMinX, cell.x);
+              roomMinY = Math.min(roomMinY, cell.y);
+              roomMaxX = Math.max(roomMaxX, cell.x);
+              roomMaxY = Math.max(roomMaxY, cell.y);
+            }
+          }
+        }
+        // Если не нашли комнату, используем границы всей battle-зоны
+        if (roomMinX === Infinity) {
+          roomMinX = minX; roomMinY = minY; roomMaxX = maxX; roomMaxY = maxY;
+        }
+        // Вычисляем углы комнаты в battle-координатах
+        const margin = BATTLE_CELL_PX * 0.15;
+        const roomBattleLeft = (roomMinX - cellOffsetX) * BATTLE_CELL_PX;
+        const roomBattleTop = (roomMinY - cellOffsetY) * BATTLE_CELL_PX;
+        const roomBattleRight = (roomMaxX - cellOffsetX + 1) * BATTLE_CELL_PX;
+        const roomBattleBottom = (roomMaxY - cellOffsetY + 1) * BATTLE_CELL_PX;
+        const corners = [
+          { x: roomBattleLeft + margin, y: roomBattleTop + margin }, // левый верхний
+          { x: roomBattleRight - margin, y: roomBattleTop + margin }, // правый верхний
+          { x: roomBattleLeft + margin, y: roomBattleBottom - margin }, // левый нижний
+          { x: roomBattleRight - margin, y: roomBattleBottom - margin }, // правый нижний
+        ];
+        // Распределяем врагов по углам для отложенного спавна
+        for (let i = 0; i < enemiesToSpawn.length; i++) {
+          const { g, isPlevaka } = enemiesToSpawn[i];
+          const corner = corners[i % 4];
+          // Добавляем небольшой рандомный offset
+          const offsetRange = BATTLE_CELL_PX * 0.1;
+          const battleX = corner.x + (Math.random() - 0.5) * offsetRange;
+          const battleY = corner.y + (Math.random() - 0.5) * offsetRange;
+          pendingSpawns.push({
+            x: battleX, y: battleY,
+            vx: 0, vy: 0,
+            hp: g.hp,
+            maxHp: g.maxHp,
+            type: g.type,
+            phase: g.phase,
+            wobble: g.wobble,
+            shootCd: 0,
+            radius: g.radius,
+            visualScale: g.visualScale,
+            state: g.state,
+            stateTimer: g.stateTimer,
+            dashTargetX: g.dashTargetX,
+            dashTargetY: g.dashTargetY,
+            dashDirX: g.dashDirX,
+            dashDirY: g.dashDirY,
+            dashDistance: g.dashDistance,
+            currentSpeed: g.currentSpeed,
+            speedAccumulator: g.speedAccumulator,
+            stunTimer: 0,
+            animState: isPlevaka ? (g.animState || 'idle') : null,
+            animFrame: isPlevaka ? (g.animFrame || 0) : null,
+            animTimer: isPlevaka ? (g.animTimer || 0) : null,
+            spawnDelay: i * 0.35, // Задержка спавна 0.35 сек между врагами
+          });
         }
       }
 
@@ -245,6 +291,7 @@
         weapons: battleWeapons,
         spiders: battleSpiders,
         activeSpiders: battleActiveSpiders,
+        pendingSpawns: pendingSpawns, // Отложенный спавн врагов из углов
         bullets: [],
         enemyBullets: [],
         particles: [],
@@ -333,6 +380,13 @@
 
       // Синхронизируем собранные коллектиблы
       syncBattleCollectibles(s);
+
+      // Показываем бонусы в комнате (после победы над врагами)
+      const roomCenter = getRoomCenterCell(s, b.openedCellKey);
+      const roomCenterKey = cellKey(roomCenter.x, roomCenter.y);
+      for (const h of s.hearts) if (h.cellKey === roomCenterKey) h.spawned = true;
+      for (const u of s.upgradeObjs) if (u.cellKey === roomCenterKey) u.spawned = true;
+      for (const c of (s.chestObjs || [])) if (c.cellKey === roomCenterKey) c.spawned = true;
 
       // Конвертируем позицию игрока обратно
       const battleCellX = Math.floor(b.player.x / BATTLE_CELL_PX);

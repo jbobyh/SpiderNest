@@ -76,6 +76,7 @@
         activeSlot: s.activeSlot || 0,
         maxSlots: s.maxSlots || 1,
         time: s.time,
+        roomAltars: s.roomAltars || [],
       };
     }
 
@@ -103,9 +104,9 @@
         bossSummonReady: false,
         player: { ...data.player, isDashing: false, dashDirX: 0, dashDirY: 0, dashProgress: 0 },
         cellContents: new Map(data.cellContents),
-        hearts: data.hearts,
-        upgradeObjs: data.upgradeObjs,
-        chestObjs: data.chestObjs || [],
+        hearts: (data.hearts || []).map(h => ({ ...h, spawned: h.spawned !== false })),
+        upgradeObjs: (data.upgradeObjs || []).map(u => ({ ...u, spawned: u.spawned !== false })),
+        chestObjs: (data.chestObjs || []).map(c => ({ ...c, spawned: c.spawned !== false })),
         upgrades: { ...data.upgrades },
         spiders: data.spiders.map(g => ({ ...g })),
         activeSpiders: (data.activeSpiders || []).map(g => ({ ...g })),
@@ -127,6 +128,7 @@
         time: data.time || 0,
         phase: 'play',
         battle: null,
+        roomAltars: data.roomAltars || [],
       };
       return s;
     }
@@ -357,7 +359,56 @@
             attempts++;
           }
         } else if (e.key === 'f' || e.key === 'F' || e.key === 'а' || e.key === 'А') {
-          // Сначала пытаемся подобрать оружие рядом
+          // Сначала проверяем взаимодействие с алтарем (приоритет)
+          let altarActivated = false;
+          if (state.phase === 'play' && state.roomAltars) {
+            for (const altar of state.roomAltars) {
+              if (altar.activated) continue;
+              if (!state.openCells.has(altar.cellKey)) continue;
+              const content = state.cellContents.get(altar.cellKey);
+              if (!content || !content.enemyCount || content.enemyCount <= 0 || content.enemiesReleased) continue;
+              const dist = Math.hypot(state.player.x - altar.x, state.player.y - altar.y);
+              if (dist < CONFIG.PLAYER_RADIUS + CONFIG.PICKUP_DISTANCE) {
+                // Активируем алтарь и запускаем бой
+                altar.activated = true;
+                altarActivated = true;
+                // Запускаем zoom transition для боя
+                const allOpenCells = new Set([...state.openCells]);
+                const playerCell2 = cellOf(state.player.x, state.player.y);
+                const playerKey2 = cellKey(playerCell2.x, playerCell2.y);
+                const futureCells = getConnectedCells(allOpenCells, playerKey2);
+                const { minX: fMinX, minY: fMinY, maxX: fMaxX, maxY: fMaxY } = getCellBounds(futureCells);
+                const fCols = fMaxX - fMinX + 1;
+                const fRows = fMaxY - fMinY + 1;
+                const battleWallPad = BATTLE_CELL_PX * 0.125;
+                const battleW = fCols * BATTLE_CELL_PX + battleWallPad * 2;
+                const battleH = fRows * BATTLE_CELL_PX + battleWallPad * 2;
+                const staticScale = Math.min(VIEW_W / battleW, VIEW_H / battleH, 1);
+                const toScale = staticScale * BATTLE_SCALE;
+                const fCenterX = (fMinX + fCols / 2) * CP;
+                const fCenterY = (fMinY + fRows / 2) * CP;
+                const fromCenterX = camera.x + VIEW_W / 2;
+                const fromCenterY = camera.y + VIEW_H / 2;
+                zoomTransition = {
+                  fromCenterX, fromCenterY,
+                  toCenterX: fCenterX, toCenterY: fCenterY,
+                  fromScale: 1,
+                  toCamX: fCenterX - VIEW_W / (2 * toScale),
+                  toCamY: fCenterY - VIEW_H / (2 * toScale),
+                  toScale,
+                  t: 0,
+                  pendingCellKey: altar.cellKey,
+                  frozenAngle: Math.atan2(state.mouse.y - state.player.y, state.mouse.x - state.player.x),
+                };
+                Sounds.zoom();
+                state.phase = 'zoom_transition';
+                break;
+              }
+            }
+          }
+          if (altarActivated) return;
+
+          // Пытаемся подобрать оружие рядом
           let pickedUp = false;
 
           if (state.phase === 'play') {

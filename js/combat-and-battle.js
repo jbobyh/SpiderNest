@@ -541,6 +541,55 @@
         }
       }
 
+      // Обработка отложенного спавна врагов из углов
+      if (b.pendingSpawns && b.pendingSpawns.length > 0) {
+        for (let i = b.pendingSpawns.length - 1; i >= 0; i--) {
+          const spawn = b.pendingSpawns[i];
+          spawn.spawnDelay -= dt;
+          if (spawn.spawnDelay <= 0) {
+            // Спавним врага
+            b.activeSpiders.push({
+              x: spawn.x, y: spawn.y,
+              vx: spawn.vx, vy: spawn.vy,
+              hp: spawn.hp,
+              maxHp: spawn.maxHp,
+              type: spawn.type,
+              phase: spawn.phase,
+              wobble: spawn.wobble,
+              shootCd: spawn.shootCd,
+              radius: spawn.radius,
+              visualScale: spawn.visualScale,
+              state: spawn.state,
+              stateTimer: spawn.stateTimer,
+              dashTargetX: spawn.dashTargetX,
+              dashTargetY: spawn.dashTargetY,
+              dashDirX: spawn.dashDirX,
+              dashDirY: spawn.dashDirY,
+              dashDistance: spawn.dashDistance,
+              currentSpeed: spawn.currentSpeed,
+              speedAccumulator: spawn.speedAccumulator,
+              stunTimer: spawn.stunTimer,
+              animState: spawn.animState,
+              animFrame: spawn.animFrame,
+              animTimer: spawn.animTimer,
+            });
+            // Эффект появления
+            for (let k = 0; k < 8; k++) {
+              const a = Math.random() * Math.PI * 2;
+              const speed = 40 + Math.random() * 40;
+              b.particles.push({
+                x: spawn.x, y: spawn.y,
+                vx: Math.cos(a) * speed * BATTLE_SCALE,
+                vy: Math.sin(a) * speed * BATTLE_SCALE,
+                life: 0.4, maxLife: 0.4,
+                color: '#ff6600',
+              });
+            }
+            b.pendingSpawns.splice(i, 1);
+          }
+        }
+      }
+
       // Обработка деша в battle mode
       if (s.player.isDashing) {
         const dashSpeed = CONFIG.PLAYER_DASH_SPEED * BATTLE_SCALE;
@@ -1626,8 +1675,10 @@
         return;
       }
 
-      // Проверяем завершение боя: все враги убиты и содержимое ячейки собрано
-      const hasEnemies = b.activeSpiders.length > 0;
+      // Проверяем завершение боя: все враги убиты (включая ожидающих спавна) и содержимое ячейки собрано
+      const hasActiveEnemies = b.activeSpiders.length > 0;
+      const hasPendingEnemies = b.pendingSpawns && b.pendingSpawns.length > 0;
+      const hasEnemies = hasActiveEnemies || hasPendingEnemies;
       // For multi-cell rooms, check room center content instead of opened cell
       const roomCenter = getRoomCenterCell(s, b.openedCellKey);
       const roomCenterKey = cellKey(roomCenter.x, roomCenter.y);

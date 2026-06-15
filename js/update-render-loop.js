@@ -206,7 +206,7 @@
 
       // Сбор сердечек
       for (const heart of s.hearts) {
-        if (!heart.collected) {
+        if (!heart.collected && heart.spawned !== false) {
           const dist = Math.hypot(s.player.x - heart.x, s.player.y - heart.y);
           if (dist < CONFIG.PLAYER_RADIUS + CONFIG.PICKUP_DISTANCE) {
             heart.collected = true;
@@ -242,7 +242,7 @@
 
       // Сбор апгрейдов
       for (const upg of s.upgradeObjs) {
-        if (!upg.collected) {
+        if (!upg.collected && upg.spawned !== false) {
           const dist = Math.hypot(s.player.x - upg.x, s.player.y - upg.y);
           if (dist < CONFIG.PLAYER_RADIUS + CONFIG.PICKUP_DISTANCE) {
             upg.collected = true;
@@ -259,7 +259,7 @@
 
       // Сбор проклятых сундуков
       for (const chest of (s.chestObjs || [])) {
-        if (!chest.collected) {
+        if (!chest.collected && chest.spawned !== false) {
           const dist = Math.hypot(s.player.x - chest.x, s.player.y - chest.y);
           if (dist < CONFIG.PLAYER_RADIUS + CONFIG.PICKUP_DISTANCE) {
             openCursedChoice(s, chest);
@@ -1475,16 +1475,8 @@
         ctx.restore();
       }
 
-      // Пауки в закрытых комнатах (видны)
-      for (const g of s.spiders) {
-        if (!g.trapped) continue;
-        const gc = cellOf(g.x, g.y);
-        const cellKey_gc = cellKey(gc.x, gc.y);
-        // Видны если клетка когда-либо была смежной с открытой И сейчас видна
-        if (!s.everRevealedCells.has(cellKey_gc) || !visibleCells.has(cellKey_gc)) continue;
-
-        drawSpider(g, 1); // Непрозрачные, статичны
-      }
+      // Пауки в закрытых комнатах - скрыты до активации алтаря
+      // Не отрисовываем trapped spiders в play mode
 
       for (const k of adj) {
         if (!visibleCells.has(k)) continue;
@@ -1513,7 +1505,7 @@
         // Предметы в закрытых смежных клетках (видны через стены)
         // Сердечки
         for (const heart of s.hearts) {
-          if (heart.collected || heart.cellKey !== k) continue;
+          if (heart.collected || heart.spawned === false || heart.cellKey !== k) continue;
           const pulse = 0.8 + 0.2 * Math.sin(Date.now() * 0.008);
           ctx.fillStyle = `rgba(255, 107, 157, ${pulse})`;
           ctx.shadowColor = '#ff6b9d';
@@ -1525,7 +1517,7 @@
           ctx.shadowBlur = 0;
         }
         // Сфера призыва
-        if (s.summonSphere && !s.summonSphere.collected && s.summonSphere.cellKey === k) {
+        if (s.summonSphere && !s.summonSphere.collected && s.summonSphere.spawned !== false && s.summonSphere.cellKey === k) {
           const pulse = 0.8 + 0.2 * Math.sin(Date.now() * 0.008);
           ctx.fillStyle = `rgba(255, 102, 0, ${pulse})`;
           ctx.shadowColor = '#ff6600';
@@ -1538,7 +1530,7 @@
         }
         // Апгрейды
         for (const upg of s.upgradeObjs) {
-          if (upg.collected || upg.cellKey !== k) continue;
+          if (upg.collected || upg.spawned === false || upg.cellKey !== k) continue;
           const upgDef = UPGRADE_TYPES.find(u => u.id === upg.upgradeType);
           if (upgDef) {
             ctx.fillStyle = upgDef.color;
@@ -1553,7 +1545,7 @@
         }
         // Проклятые сундуки
         for (const chest of (s.chestObjs || [])) {
-          if (chest.collected || chest.cellKey !== k) continue;
+          if (chest.collected || chest.spawned === false || chest.cellKey !== k) continue;
           ctx.globalAlpha = 1;
           ctx.fillStyle = '#ffffff';
           ctx.shadowColor = '#cc44ff';
@@ -1572,7 +1564,7 @@
 
       // Сердечки в открытых клетках
       for (const heart of s.hearts) {
-        if (heart.collected) continue;
+        if (heart.collected || heart.spawned === false) continue;
         const heartCellKey = heart.cellKey;
         if (!s.openCells.has(heartCellKey) || !visibleCells.has(heartCellKey)) continue;
 
@@ -1588,7 +1580,7 @@
       }
 
       // Сфера призыва в открытых клетках
-      if (s.summonSphere && !s.summonSphere.collected) {
+      if (s.summonSphere && !s.summonSphere.collected && s.summonSphere.spawned !== false) {
         const sphereCellKey = s.summonSphere.cellKey;
         if (s.openCells.has(sphereCellKey) && visibleCells.has(sphereCellKey)) {
           const pulse = 0.8 + 0.2 * Math.sin(Date.now() * 0.008);
@@ -1605,7 +1597,7 @@
 
       // Апгрейды в открытых клетках
       for (const upg of s.upgradeObjs) {
-        if (upg.collected) continue;
+        if (upg.collected || upg.spawned === false) continue;
         const upgCellKey = upg.cellKey;
         if (!s.openCells.has(upgCellKey) || !visibleCells.has(upgCellKey)) continue;
 
@@ -1624,7 +1616,7 @@
 
       // Проклятые сундуки (видны в открытых И в revealed-клетках)
       for (const chest of (s.chestObjs || [])) {
-        if (chest.collected) continue;
+        if (chest.collected || chest.spawned === false) continue;
         const ck = chest.cellKey;
         if (!visibleCells.has(ck)) continue;
         const isOpen = s.openCells.has(ck);
@@ -1663,6 +1655,32 @@
         ctx.textBaseline = 'middle';
         ctx.fillText(wDef.label, dw.x, dw.y + 8);
         ctx.globalAlpha = 1;
+      }
+
+      // Алтари для призыва врагов (в открытых комнатах с врагами)
+      if (s.roomAltars) {
+        for (const altar of s.roomAltars) {
+          if (altar.activated) continue;
+          if (!s.openCells.has(altar.cellKey) || !visibleCells.has(altar.cellKey)) continue;
+          // Проверяем что в комнате еще есть невыпущенные враги
+          const content = s.cellContents.get(altar.cellKey);
+          if (!content || !content.enemyCount || content.enemyCount <= 0 || content.enemiesReleased) continue;
+          const pulse = 0.8 + 0.2 * Math.sin(Date.now() * 0.006);
+          ctx.save();
+          ctx.globalAlpha = pulse;
+          ctx.shadowColor = '#ff4400';
+          ctx.shadowBlur = 15;
+          if (altarImg.complete && altarImg.naturalWidth > 0) {
+            ctx.drawImage(altarImg, altar.x - 12, altar.y - 12, 24, 24);
+          } else {
+            ctx.fillStyle = '#ff4400';
+            ctx.beginPath();
+            ctx.arc(altar.x, altar.y, 24, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.shadowBlur = 0;
+          ctx.restore();
+        }
       }
 
       // Пули игрока
@@ -1803,7 +1821,21 @@
           if (!s.openCells.has(cellKey(wc.x, wc.y))) continue;
           if (Math.hypot(px - dw.x, py - dw.y) < CONFIG.PLAYER_RADIUS + CONFIG.WEAPON_PICKUP_DISTANCE) { nearWeapon = true; break; }
         }
-        if (onExit || nearWeapon) {
+        // Проверка близости к алтарю
+        let nearAltar = false;
+        if (s.roomAltars) {
+          for (const altar of s.roomAltars) {
+            if (altar.activated) continue;
+            if (!s.openCells.has(altar.cellKey)) continue;
+            const content = s.cellContents.get(altar.cellKey);
+            if (!content || !content.enemyCount || content.enemyCount <= 0 || content.enemiesReleased) continue;
+            if (Math.hypot(px - altar.x, py - altar.y) < CONFIG.PLAYER_RADIUS + CONFIG.PICKUP_DISTANCE) {
+              nearAltar = true;
+              break;
+            }
+          }
+        }
+        if (onExit || nearWeapon || nearAltar) {
           const text = 'F';
           const bx = VIEW_W / 2;
           const by = VIEW_H - 36;
@@ -1841,7 +1873,10 @@
           ctx.fillStyle = 'rgba(160, 200, 224, 0.9)';
           ctx.font = '11px "Huninn"';
           ctx.textAlign = 'left';
-          ctx.fillText(onExit ? 'Выход' : 'Подобрать', kx + keySize + 6, by);
+          let hintText = 'Подобрать';
+          if (onExit) hintText = 'Выход';
+          else if (nearAltar) hintText = 'Призвать врагов';
+          ctx.fillText(hintText, kx + keySize + 6, by);
           ctx.restore();
         }
       }
@@ -1907,7 +1942,7 @@
 
       // Tooltip апгрейда при наведении (play mode, экранные координаты)
       for (const upg of s.upgradeObjs) {
-        if (upg.collected) continue;
+        if (upg.collected || upg.spawned === false) continue;
         const uc = cellOf(upg.x, upg.y);
         const upgCk = cellKey(uc.x, uc.y);
         if (!s.everRevealedCells.has(upgCk)) continue;
@@ -2968,7 +3003,7 @@
 
       // Сердечки в открытых клетках
       for (const heart of s.hearts) {
-        if (heart.collected) continue;
+        if (heart.collected || heart.spawned === false) continue;
         if (!s.openCells.has(heart.cellKey)) continue;
         const pulse = 0.8 + 0.2 * Math.sin(Date.now() * 0.008);
         ctx.globalAlpha = fadeAlpha;
@@ -3002,7 +3037,7 @@
 
       // Апгрейды в открытых клетках
       for (const upg of s.upgradeObjs) {
-        if (upg.collected) continue;
+        if (upg.collected || upg.spawned === false) continue;
         if (!s.openCells.has(upg.cellKey)) continue;
         const upgDef = UPGRADE_TYPES.find(u => u.id === upg.upgradeType);
         if (upgDef) {
@@ -3021,7 +3056,7 @@
 
       // Проклятые сундуки (открытые + revealed)
       for (const chest of (s.chestObjs || [])) {
-        if (chest.collected) continue;
+        if (chest.collected || chest.spawned === false) continue;
         const ck = chest.cellKey;
         const isOpen = s.openCells.has(ck);
         const isRevealed = s.everRevealedCells.has(ck);
@@ -3370,9 +3405,13 @@
       const roomCenter = getRoomCenterCell(state, openKey);
       const roomCenterKey = cellKey(roomCenter.x, roomCenter.y);
       const content = state.cellContents.get(roomCenterKey);
-      const hasContent = content && (content.type === 'heart' || content.type === 'key' || content.type === 'upgrade' || content.type === 'chest' ||
-                         (content.enemyCount && content.enemyCount > 0 && !content.enemiesReleased));
-      if (hasContent) {
+      // Zoom запускается только для контента без врагов (сердечки, ключи, апгрейды, сундуки)
+      // Для комнат с врагами используется алтарь (F для активации)
+      const hasBonusContent = content && (content.type === 'heart' || content.type === 'key' || content.type === 'upgrade' || content.type === 'chest');
+      const hasEnemies = content && content.enemyCount && content.enemyCount > 0 && !content.enemiesReleased;
+      // Зум только если есть бонус и НЕТ врагов. Если есть враги — алтарь
+      const shouldZoom = hasBonusContent && !hasEnemies;
+      if (shouldZoom) {
         const allOpenCells = new Set([...state.openCells]);
         allOpenCells.add(openKey);
         const playerCell2 = cellOf(state.player.x, state.player.y);
