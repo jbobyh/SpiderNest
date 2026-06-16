@@ -136,19 +136,26 @@ export function handleWallToggle(state, mx, my, rightHeld) {
 
   if (!state.removedWalls.has(wall.wk)) {
     // OPEN wall: spend a life
-    if (state.player.lives < 1) return;
-
-    // Check purified before spending life
     const aKey = cellKey(wall.ax, wall.ay);
     const bKey = cellKey(wall.bx, wall.by);
+
+    // Check for cursed chest in adjacent cells
+    const aContent = state.cellContents.get(aKey);
+    const bContent = state.cellContents.get(bKey);
+    const hasCursedChest = (aContent?.type === 'chest') || (bContent?.type === 'chest');
+    const cost = hasCursedChest ? 2 : 1;
+
+    if (state.player.lives < cost) return;
+
+    // Check purified before spending life
     const roomA = state.cellToRoom?.get(aKey);
     const roomB = state.cellToRoom?.get(bKey);
     const purifiedA = roomA !== undefined && state.purified?.has(roomA);
     const purifiedB = roomB !== undefined && state.purified?.has(roomB);
     if (!purifiedA && !purifiedB) return; // Deny interaction
 
-    // Auto-close far wall if only 1 life left
-    if (state.player.lives === 1) {
+    // Auto-close far wall if only 1 life left (not for cursed rooms)
+    if (state.player.lives === 1 && !hasCursedChest) {
       const wallToClose = findAutoCloseWall(state, wall.wk);
       if (!wallToClose) return;
 
@@ -164,8 +171,8 @@ export function handleWallToggle(state, mx, my, rightHeld) {
       return;
     }
 
-    const heartIndex = state.player.lives - 1;
-    state.player.lives--;
+    const heartIndex = state.player.lives - cost;
+    state.player.lives -= cost;
     pendingOpenHeart = 'hud';
 
     const hudCoords = getHudHeartCoords(state, heartIndex);
@@ -174,12 +181,19 @@ export function handleWallToggle(state, mx, my, rightHeld) {
       doOpenWall(state, wall.wk);
     });
   } else {
-    // CLOSE wall: recover a life
+    // CLOSE wall: recover lives
     if (state.player.lives >= 5) return; // max lives cap
 
     // Check purified before recovering life
     const aKey = cellKey(wall.ax, wall.ay);
     const bKey = cellKey(wall.bx, wall.by);
+
+    // Check for cursed chest in adjacent cells
+    const aContent = state.cellContents.get(aKey);
+    const bContent = state.cellContents.get(bKey);
+    const hasCursedChest = (aContent?.type === 'chest') || (bContent?.type === 'chest');
+    const refund = hasCursedChest ? 2 : 1;
+
     const roomA = state.cellToRoom?.get(aKey);
     const roomB = state.cellToRoom?.get(bKey);
     const purifiedA = roomA !== undefined && state.purified?.has(roomA);
@@ -192,7 +206,7 @@ export function handleWallToggle(state, mx, my, rightHeld) {
     launchFlyingHeart(wallMidX, wallMidY, 0, 0, () => {
       pendingOpenHeart = false;
       doCloseWall(state, wall.wk);
-      state.player.lives++;
+      state.player.lives += refund;
     }, () => getHudHeartCoords(state, heartIndex));
   }
 }

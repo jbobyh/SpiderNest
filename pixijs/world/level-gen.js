@@ -439,6 +439,16 @@ export function generateLevel(level, playerProgress) {
     for (const cell of rooms[ri].cells) cellContents.set(cell.k, { type: 'empty' });
   }
 
+  // ── All rooms without enemies are immediately purified ──
+  const purified = new Set([0]);
+  for (let ri = 0; ri < rooms.length; ri++) {
+    const centerKey = getCenterCellKey(ri);
+    const content = cellContents.get(centerKey);
+    if (!content || !content.enemyPreset || content.enemyCount <= 0) {
+      purified.add(ri);
+    }
+  }
+
   // ── Hide spawned items in enemy rooms ──
   for (const h of hearts) {
     const ri = cellToRoom.get(h.cellKey);
@@ -559,6 +569,6 @@ export function generateLevel(level, playerProgress) {
     droppedWeapons,
     trappedSpiders,
     roomAltars,
-    purified:           new Set([0]),
+    purified,
   };
 }
