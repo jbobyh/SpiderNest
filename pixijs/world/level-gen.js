@@ -330,16 +330,6 @@ export function generateLevel(level, playerProgress) {
     summonSphere = { x: center.x, y: center.y, cellKey: getCenterCellKey(ri), collected: false, spawned: false };
   }
 
-  // ── Hearts ──
-  const hearts = [];
-  const hCount = Math.min(heartsCount, availableRooms.length);
-  for (let i = 0; i < hCount; i++) {
-    const ri     = availableRooms.shift();
-    setRoomContent(ri, 'heart', {}, pickRoomPreset(level, tierForRoom(ri)));
-    const center = getRoomCenter(ri);
-    hearts.push({ x: center.x, y: center.y, cellKey: getCenterCellKey(ri), collected: false, spawned: true });
-  }
-
   // ── Weapons ──
   const droppedWeapons = [];
   const allWeapons     = ['shotgun', 'smg', 'rifle', 'revolver', 'carbine'];
@@ -376,6 +366,16 @@ export function generateLevel(level, playerProgress) {
     droppedWeapons.push({ x: center.x, y: center.y, weaponId, cellKey: getCenterCellKey(ri) });
     playerProgress.spawnedWeapons.push(weaponId);
     for (const cell of rooms[ri].cells) cellContents.set(cell.k, { type: 'weapon', weaponId });
+  }
+
+  // ── Hearts ──
+  const hearts = [];
+  const hCount = Math.min(heartsCount, availableRooms.length);
+  for (let i = 0; i < hCount; i++) {
+    const ri     = availableRooms.shift();
+    setRoomContent(ri, 'heart', {}, pickRoomPreset(level, tierForRoom(ri)));
+    const center = getRoomCenter(ri);
+    hearts.push({ x: center.x, y: center.y, cellKey: getCenterCellKey(ri), collected: false, spawned: false });
   }
 
   // ── Upgrades ──
@@ -450,16 +450,6 @@ export function generateLevel(level, playerProgress) {
   }
 
   // ── Hide spawned items in enemy rooms ──
-  for (const h of hearts) {
-    const ri = cellToRoom.get(h.cellKey);
-    if (ri !== undefined) {
-      const room = rooms[ri];
-      for (const cell of room.cells) {
-        const c = cellContents.get(cell.k);
-        if (c && c.enemyCount > 0) { h.spawned = false; break; }
-      }
-    }
-  }
   for (const u of upgradeObjs) {
     const ri = cellToRoom.get(u.cellKey);
     if (ri !== undefined) {

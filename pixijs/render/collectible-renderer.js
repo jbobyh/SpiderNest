@@ -34,7 +34,7 @@ export function clearCollectibles() {
   for (const s of _upgrades.values()) s.destroy({ children: true });
   for (const s of _chests.values())   s.destroy({ children: true });
   for (const s of _weapons.values())  s.destroy({ children: true });
-  for (const s of _altars.values())   s.destroy({ children: true });
+  for (const e of _altars.values())   { e.spr.destroy(); e.label.destroy(); }
   if (_sphere) { _sphere.destroy(); _sphere = null; }
   _hearts.clear();
   _upgrades.clear();
@@ -199,15 +199,24 @@ function _syncAltars(altars, openCells, cellContents) {
     alive.add(k);
     if (!_altars.has(k)) {
       const spr = _makeSprite('altar', ALTAR_SIZE);
+      const label = new Text({
+        text: String(content.enemyCount),
+        style: { fontSize: 12, fontFamily: 'Arial', fontWeight: 'bold', fill: 0xffffff, stroke: { color: 0x000000, width: 3 } },
+      });
+      label.anchor.set(0.5, 1);
       _layer.addChild(spr);
-      _altars.set(k, spr);
+      _layer.addChild(label);
+      _altars.set(k, { spr, label });
     }
-    const spr = _altars.get(k);
+    const { spr, label } = _altars.get(k);
     spr.position.set(altar.x, altar.y);
     spr.alpha = pulse;
+    label.text = String(content.enemyCount);
+    label.position.set(altar.x, altar.y - ALTAR_SIZE / 2 - 4);
+    label.alpha = pulse;
   }
-  for (const [k, spr] of _altars) {
-    if (!alive.has(k)) { spr.destroy(); _altars.delete(k); }
+  for (const [k, e] of _altars) {
+    if (!alive.has(k)) { e.spr.destroy(); e.label.destroy(); _altars.delete(k); }
   }
 }
 

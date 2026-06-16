@@ -110,7 +110,7 @@ export function createBattleState(state, openedCellKey) {
       const off = CP * 0.1;
       pendingSpawns.push({
         enemy: _enemyCopy(g, cor.x + (Math.random() - 0.5) * off, cor.y + (Math.random() - 0.5) * off),
-        spawnDelay: i * 0.35,
+        spawnDelay: 1.0 + i * 0.5,
       });
     }
   }
@@ -359,6 +359,15 @@ function _processPendingSpawns(b, state, dt) {
   for (let i = b.pendingSpawns.length - 1; i >= 0; i--) {
     const ps = b.pendingSpawns[i];
     ps.spawnDelay -= dt;
+    // Emit particles continuously during the last second before spawn
+    if (ps.spawnDelay > 0 && ps.spawnDelay <= 1.0) {
+      if (!ps.particleTimer) ps.particleTimer = 0;
+      ps.particleTimer += dt;
+      if (ps.particleTimer >= 0.1) {
+        spawnParticles(state.particles, ps.enemy.x, ps.enemy.y, 1, 0, Math.PI * 2, 20, 40, 0.3, '#ff0000');
+        ps.particleTimer = 0;
+      }
+    }
     if (ps.spawnDelay <= 0) {
       state.activeSpiders.push(ps.enemy);
       b.pendingSpawns.splice(i, 1);
