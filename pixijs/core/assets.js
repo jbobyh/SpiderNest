@@ -54,6 +54,10 @@ const MANIFEST = {
         { alias: 'altar',                             src: IMG + 'altar.png' },
         { alias: 'floor-stone',                       src: IMG + 'kenney_textures/floor_stone.png' },
         { alias: 'floor-stone-dark',                  src: IMG + 'kenney_textures/floor_stone_dark.png' },
+        { alias: 'floor-stone-pattern',              src: IMG + 'kenney_textures/floor_stone_pattern.png' },
+        { alias: 'floor-stone-pattern-dark',         src: IMG + 'kenney_textures/floor_stone_pattern_dark.png' },
+        { alias: 'floor-stone-pattern-small',        src: IMG + 'kenney_textures/floor_stone_pattern_small.png' },
+        { alias: 'floor-stone-pattern-small-dark',   src: IMG + 'kenney_textures/floor_stone_pattern_small_dark.png' },
       ],
     },
 

@@ -31,7 +31,7 @@ import {
 import {
   initParticles, syncParticles, clearParticles,
 } from './render/particles.js';
-import { initHud, updateHud }   from './render/hud.js';
+import { initHud, updateHud, updateBossHpBar, showLevelComplete, hideLevelComplete }   from './render/hud.js';
 import {
   initCollectibleRenderer, syncCollectibles, clearCollectibles,
 } from './render/collectible-renderer.js';
@@ -118,7 +118,8 @@ export function startGameLoop({
     disabledCells:      _state.disabledCells,
     rooms:              _state.rooms,
     purified:           _state.purified,
-    cellToRoom:         _state.cellToRoom,
+    chestObjs:          _state.chestObjs,
+    hearts:             _state.hearts,
   }, _currentLevel);
 
   // Input
@@ -240,7 +241,13 @@ function _render(dt) {
   updateTooltip(_state, _camera);
   const nearWeapon = _state.phase === 'play' ? isNearWeapon(_state) : false;
   const nearAltar  = _state.phase === 'play' ? isNearAltar(_state)  : false;
-  updateHud(_state, _currentLevel, nearWeapon, nearAltar);
+  const bossSummonReady = _state.phase === 'play' ? _state.bossSummonReady : false;
+  updateHud(_state, _currentLevel, nearWeapon, nearAltar, bossSummonReady);
+
+  // Update boss HP bar during boss battle
+  if (_state.battle?.isBossBattle) {
+    updateBossHpBar(_state);
+  }
 
   // Rebuild tile layer when walls change (lazy: track removedWalls size)
   if (_state._lastRemovedWallsSize !== _state.removedWalls.size) {
@@ -255,7 +262,8 @@ function _render(dt) {
       disabledCells:      _state.disabledCells,
       rooms:              _state.rooms,
       purified:           _state.purified,
-      cellToRoom:         _state.cellToRoom,
+      chestObjs:          _state.chestObjs,
+      hearts:             _state.hearts,
     }, _currentLevel);
   }
 }
@@ -308,7 +316,8 @@ function _onZoomOutComplete(_tr) {
     disabledCells:      _state.disabledCells,
     rooms:              _state.rooms,
     purified:           _state.purified,
-    cellToRoom:         _state.cellToRoom,
+    chestObjs:          _state.chestObjs,
+    hearts:             _state.hearts,
   }, _currentLevel);
 }
 
@@ -328,8 +337,10 @@ function _onLevelComplete(state, playerProgress) {
   Sounds.stopGameMusic();
   savePlayerProgress(state, playerProgress);
   saveGame(state, _currentLevel, playerProgress);
-  const el = document.getElementById('level-complete-screen');
-  if (el) el.classList.remove('hidden');
+  showLevelComplete(() => {
+    hideLevelComplete();
+    nextLevel();
+  });
 }
 
 // ── Level restart / next level (called from DOM buttons) ──────

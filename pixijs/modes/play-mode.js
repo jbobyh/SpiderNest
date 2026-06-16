@@ -138,6 +138,13 @@ export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}
   state.bossSummonReady =
     state.summonSphereCollected && state.phase === 'play' && !state.bossDefeated;
 
+  // ── Boss summon (Space key) ─────────────────────────────
+  if (keys[' '] && !_spaceWasPressed && state.bossSummonReady) {
+    _spaceWasPressed = true;
+    if (onEnterBattle) onEnterBattle(null); // null = boss summon
+  }
+  if (!keys[' ']) _spaceWasPressed = false;
+
   // ── Upgrade popup timer ───────────────────────────────────
   const remaining = tickUpgradePopupTimer(dt);
   if (remaining <= 0) hideUpgradePopup();
@@ -344,6 +351,7 @@ function _updateCursor(state, camera) {
 
 const WEAPON_PICKUP_R = CONFIG.PLAYER_RADIUS + CONFIG.WEAPON_PICKUP_DISTANCE;
 let _fWasPressed = false;
+let _spaceWasPressed = false;
 
 function _handleWeaponPickup(state, playerProgress, keys) {
   const fPressed = keys['f'] || keys['F'] || keys['а'] || keys['А'];

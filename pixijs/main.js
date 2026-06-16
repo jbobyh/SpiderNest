@@ -67,11 +67,12 @@ async function boot() {
 }
 
 function _wireEndScreens() {
-  const nextBtn = document.getElementById('next-level-btn');
-  if (nextBtn) nextBtn.addEventListener('click', () => {
-    document.getElementById('level-complete-screen')?.classList.add('hidden');
-    nextLevel();
-  });
+  // DOM handler for level-complete-screen is now handled by HUD overlay
+  // const nextBtn = document.getElementById('next-level-btn');
+  // if (nextBtn) nextBtn.addEventListener('click', () => {
+  //   document.getElementById('level-complete-screen')?.classList.add('hidden');
+  //   nextLevel();
+  // });
 }
 
 // ──────────────────────────────────────────────────────────

@@ -327,7 +327,7 @@ export function generateLevel(level, playerProgress) {
     const ri     = availableRooms.splice(si, 1)[0];
     setRoomContent(ri, 'summonSphere', {}, pickRoomPreset(level, 'key'));
     const center = getRoomCenter(ri);
-    summonSphere = { x: center.x, y: center.y, cellKey: getCenterCellKey(ri), collected: false, spawned: true };
+    summonSphere = { x: center.x, y: center.y, cellKey: getCenterCellKey(ri), collected: false, spawned: false };
   }
 
   // ── Hearts ──

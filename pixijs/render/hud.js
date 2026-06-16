@@ -38,6 +38,9 @@ const dom = {
   weaponPanel:  null,
   hintsPanel:   null,
   pickupHint:   null, // dynamic hint for weapon pickup
+  bossSummonHint: null, // hint for boss summon (space key)
+  bossHpBar:    null, // boss HP bar (top center)
+  levelComplete: null, // level complete screen overlay
 };
 
 // ── Init ──────────────────────────────────────────────────────
@@ -77,12 +80,30 @@ export function initHud(parentContainer) {
   _parent.addChild(dom.pickupHint);
   _buildPickupHint();
 
+  // Boss summon hint (center, shows when sphere collected)
+  dom.bossSummonHint = new Container({ label: 'boss-summon-hint' });
+  dom.bossSummonHint.visible = false;
+  _parent.addChild(dom.bossSummonHint);
+  _buildBossSummonHint();
+
+  // Boss HP bar (top center, shows during boss battle)
+  dom.bossHpBar = new Container({ label: 'boss-hp-bar' });
+  dom.bossHpBar.visible = false;
+  _parent.addChild(dom.bossHpBar);
+  _buildBossHpBar();
+
+  // Level complete screen overlay
+  dom.levelComplete = new Container({ label: 'level-complete' });
+  dom.levelComplete.visible = false;
+  _parent.addChild(dom.levelComplete);
+  _buildLevelComplete();
+
   _buildHintsPanel();
 }
 
 // ── Update (call every frame or on state change) ─────────────
 
-export function updateHud(gameState, currentLevel, nearWeapon = false, nearAltar = false) {
+export function updateHud(gameState, currentLevel, nearWeapon = false, nearAltar = false, bossSummonReady = false) {
   if (!_parent || !gameState) return;
 
   dom.levelLabel.text = `Уровень ${currentLevel}`;
@@ -96,6 +117,9 @@ export function updateHud(gameState, currentLevel, nearWeapon = false, nearAltar
   const showHint = nearWeapon || nearAltar;
   dom.pickupHint.visible = showHint;
   if (showHint) _setPickupHintText(nearAltar ? 'Призвать врагов' : 'подобрать');
+
+  // Show/hide boss summon hint
+  dom.bossSummonHint.visible = bossSummonReady && !showHint;
 }
 
 // ── Hearts ────────────────────────────────────────────────────
@@ -372,4 +396,219 @@ function _setPickupHintText(text) {
   for (const child of dom.pickupHint.children) {
     if (child.label === 'hint-label') { child.text = text; break; }
   }
+}
+
+// ── Boss summon hint (Space key) ──────────────────────────────
+
+function _buildBossSummonHint() {
+  dom.bossSummonHint.removeChildren().forEach(c => c.destroy());
+
+  const KEY_SIZE = 28, GAP = 6;
+  const panelW = KEY_SIZE + 100;
+  const panelH = KEY_SIZE + 10;
+
+  const bg = new Graphics();
+  bg.rect(0, 0, panelW, panelH)
+    .fill({ color: 0x050a0f, alpha: 0.75 })
+    .stroke({ color: 0xff6600, alpha: 0.8, width: 1 });
+  dom.bossSummonHint.addChild(bg);
+
+  // Space key icon (draw as rectangle with text)
+  const keyBg = new Graphics();
+  keyBg.rect(0, 0, KEY_SIZE, KEY_SIZE)
+    .fill({ color: 0x1a3a5c, alpha: 0.8 })
+    .stroke({ color: 0x00d4ff, alpha: 0.9, width: 1 });
+  keyBg.position.set(5, 5);
+  dom.bossSummonHint.addChild(keyBg);
+
+  const keyLbl = new Text({ text: 'SPC', style: new TextStyle({
+    fill: '#00d4ff',
+    fontSize: 10,
+    fontFamily: 'Huninn, monospace',
+    fontWeight: 'bold',
+  })});
+  keyLbl.anchor.set(0.5, 0.5);
+  keyLbl.position.set(5 + KEY_SIZE / 2, 5 + KEY_SIZE / 2);
+  dom.bossSummonHint.addChild(keyLbl);
+
+  // Label
+  const lbl = new Text({ text: 'ПРИЗВАТЬ БОССА', style: new TextStyle({
+    fill: '#ff6600',
+    fontSize: 11,
+    fontFamily: 'Huninn, monospace',
+    fontWeight: 'bold',
+  })});
+  lbl.anchor.set(0, 0.5);
+  lbl.position.set(KEY_SIZE + 12, panelH / 2);
+  dom.bossSummonHint.addChild(lbl);
+
+  // Center on screen (above player area)
+  dom.bossSummonHint.position.set((VW - panelW) / 2, VH - 120);
+}
+
+// ── Boss HP bar (top center) ───────────────────────────────────
+
+function _buildBossHpBar() {
+  dom.bossHpBar.removeChildren().forEach(c => c.destroy());
+
+  const BAR_W = 400;
+  const BAR_H = 16;
+  const X = (VW - BAR_W) / 2;
+  const Y = 20;
+
+  // Background (dark red)
+  const bg = new Graphics();
+  bg.rect(0, 0, BAR_W, BAR_H)
+    .fill({ color: 0x331111, alpha: 0.9 })
+    .stroke({ color: 0x662222, alpha: 0.8, width: 1 });
+  bg.position.set(X, Y);
+  bg.label = 'boss-hp-bg';
+  dom.bossHpBar.addChild(bg);
+
+  // HP fill (red, will be resized)
+  const fill = new Graphics();
+  fill.rect(0, 0, BAR_W, BAR_H)
+    .fill({ color: 0xff4444, alpha: 0.95 });
+  fill.position.set(X, Y);
+  fill.label = 'boss-hp-fill';
+  dom.bossHpBar.addChild(fill);
+
+  // HP text
+  const hpText = new Text({ text: '1000/1000', style: new TextStyle({
+    fill: '#ffffff',
+    fontSize: 11,
+    fontFamily: 'Huninn, monospace',
+    fontWeight: 'bold',
+  })});
+  hpText.anchor.set(0.5, 0.5);
+  hpText.position.set(X + BAR_W / 2, Y + BAR_H / 2 + 1);
+  hpText.label = 'boss-hp-text';
+  dom.bossHpBar.addChild(hpText);
+
+  // "BOSS" label above bar
+  const bossLabel = new Text({ text: 'BOSS', style: new TextStyle({
+    fill: '#ff6666',
+    fontSize: 12,
+    fontFamily: 'Huninn, monospace',
+    fontWeight: 'bold',
+  })});
+  bossLabel.anchor.set(0.5, 1);
+  bossLabel.position.set(X + BAR_W / 2, Y - 2);
+  bossLabel.label = 'boss-label';
+  dom.bossHpBar.addChild(bossLabel);
+}
+
+export function updateBossHpBar(gameState) {
+  if (!gameState?.battle?.isBossBattle) {
+    dom.bossHpBar.visible = false;
+    return;
+  }
+
+  const boss = gameState.activeSpiders.find(e => e.isBoss);
+  if (!boss) {
+    dom.bossHpBar.visible = false;
+    return;
+  }
+
+  dom.bossHpBar.visible = true;
+
+  const BAR_W = 400;
+  const hpPercent = Math.max(0, boss.hp / boss.maxHp);
+
+  // Update fill width
+  const fill = dom.bossHpBar.getChildByLabel('boss-hp-fill');
+  if (fill) {
+    fill.clear();
+    fill.rect(0, 0, BAR_W * hpPercent, 16)
+      .fill({ color: 0xff4444, alpha: 0.95 });
+  }
+
+  // Update text
+  const hpText = dom.bossHpBar.getChildByLabel('boss-hp-text');
+  if (hpText) {
+    hpText.text = `${Math.ceil(boss.hp)}/${boss.maxHp}`;
+  }
+}
+
+// ── Level complete screen overlay ─────────────────────────────
+
+let _nextLevelCallback = null;
+
+function _buildLevelComplete() {
+  dom.levelComplete.removeChildren().forEach(c => c.destroy());
+
+  // Semi-transparent background
+  const bg = new Graphics();
+  bg.rect(0, 0, VW, VH)
+    .fill({ color: 0x040a04, alpha: 0.88 });
+  dom.levelComplete.addChild(bg);
+
+  // Title
+  const title = new Text({ text: 'УРОВЕНЬ ПРОЙДЕН!', style: new TextStyle({
+    fill: '#44ff88',
+    fontSize: 32,
+    fontFamily: 'Huninn, monospace',
+    fontWeight: 'bold',
+    letterSpacing: 4,
+  })});
+  title.anchor.set(0.5, 0.5);
+  title.position.set(VW / 2, VH / 2 - 40);
+  title.label = 'level-complete-title';
+  dom.levelComplete.addChild(title);
+
+  // Subtitle
+  const subtitle = new Text({ text: 'Путь на следующий этаж открыт.', style: new TextStyle({
+    fill: '#aaccbb',
+    fontSize: 14,
+    fontFamily: 'Huninn, monospace',
+  })});
+  subtitle.anchor.set(0.5, 0.5);
+  subtitle.position.set(VW / 2, VH / 2 + 10);
+  subtitle.label = 'level-complete-sub';
+  dom.levelComplete.addChild(subtitle);
+
+  // Next level button
+  const btnW = 200, btnH = 40;
+  const btnX = (VW - btnW) / 2;
+  const btnY = VH / 2 + 60;
+
+  const btnBg = new Graphics();
+  btnBg.rect(0, 0, btnW, btnH)
+    .fill({ color: 0x00d4ff, alpha: 0.2 })
+    .stroke({ color: 0x00d4ff, alpha: 0.8, width: 2 });
+  btnBg.position.set(btnX, btnY);
+  btnBg.label = 'level-complete-btn-bg';
+  btnBg.eventMode = 'static';
+  btnBg.cursor = 'pointer';
+  dom.levelComplete.addChild(btnBg);
+
+  const btnText = new Text({ text: 'СЛЕДУЮЩИЙ УРОВЕНЬ', style: new TextStyle({
+    fill: '#00d4ff',
+    fontSize: 14,
+    fontFamily: 'Huninn, monospace',
+    fontWeight: 'bold',
+  })});
+  btnText.anchor.set(0.5, 0.5);
+  btnText.position.set(btnX + btnW / 2, btnY + btnH / 2);
+  btnText.label = 'level-complete-btn-text';
+  btnText.eventMode = 'static';
+  dom.levelComplete.addChild(btnText);
+
+  // Click handler
+  btnBg.on('pointerdown', () => {
+    if (_nextLevelCallback) _nextLevelCallback();
+  });
+  btnText.on('pointerdown', () => {
+    if (_nextLevelCallback) _nextLevelCallback();
+  });
+}
+
+export function showLevelComplete(onNextLevel) {
+  _nextLevelCallback = onNextLevel;
+  dom.levelComplete.visible = true;
+}
+
+export function hideLevelComplete() {
+  dom.levelComplete.visible = false;
+  _nextLevelCallback = null;
 }
