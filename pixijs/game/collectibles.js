@@ -219,6 +219,16 @@ export function spawnRoomRewards(state, cellKey) {
     if (chest.cellKey === cellKey) chest.spawned = true;
   }
   if (state.summonSphere?.cellKey === cellKey) state.summonSphere.spawned = true;
+
+  // Mark room as purified
+  if (state.rooms && state.purified) {
+    for (let i = 0; i < state.rooms.length; i++) {
+      if (state.rooms[i].cells.some(c => c.k === cellKey)) {
+        state.purified.add(i);
+        break;
+      }
+    }
+  }
 }
 
 // ── Cursed chest choice (delegates to DOM overlay) ───────────

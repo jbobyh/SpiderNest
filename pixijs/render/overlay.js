@@ -1,15 +1,16 @@
 // ============================================================
-// OVERLAY — cursed-choice PixiJS panel in the HUD layer.
+// OVERLAY — cursed-choice and game-over PixiJS panels in the HUD layer.
 //
-// DOM game-over / level-complete screens live in index.html;
-// their visibility is toggled by game-loop.js via element IDs:
-//   #game-over-screen  / #restart-btn
-//   #level-complete-screen / #next-level-btn
-//
-// This module manages only the in-game cursed-choice panel.
+// This module manages:
+//   - Cursed-choice panel (in-game cursed chest)
+//   - Game-over screen (player death)
 //
 // initOverlay(hudLayer)
 // updateOverlay(state, playerProgress)  — call each frame
+// showGameOver(state, playerProgress, onRestart) — show death screen
+// hideGameOver() — hide death screen
+// isOverlayActive() — cursed choice active
+// isGameOverActive() — game over screen active
 // destroyOverlay()
 //
 // Globals: CONFIG, CURSED_UPGRADE_TYPES (from config.js)
@@ -26,6 +27,8 @@ const VH = CONFIG.VIEW_H;
 let _hud   = null;
 let _panel = null;
 let _ctx   = null; // { state, playerProgress } while panel is open
+let _gameOverPanel = null;
+let _gameOverCallback = null; // onRestart callback
 
 // ── Text styles ───────────────────────────────────────────────
 
@@ -39,16 +42,33 @@ const ST_HINT = new TextStyle({
   wordWrap: true, wordWrapWidth: 380,
 });
 
+// Game-over styles
+const ST_GO_TITLE = new TextStyle({
+  fill: '#ff4444', fontSize: 32,
+  fontFamily: 'Huninn, monospace', fontWeight: 'bold', align: 'center',
+});
+const ST_GO_SUB = new TextStyle({
+  fill: '#aaccbb', fontSize: 14,
+  fontFamily: 'Huninn, monospace', align: 'center',
+});
+const ST_GO_BTN = new TextStyle({
+  fill: '#ffffff', fontSize: 14, fontWeight: 'bold',
+  fontFamily: 'Huninn, monospace', align: 'center',
+});
+
 // ── Public API ────────────────────────────────────────────────
 
 export function initOverlay(hudLayer) {
   _hud   = hudLayer;
   _panel = null;
   _ctx   = null;
+  _gameOverPanel = null;
+  _gameOverCallback = null;
 }
 
 export function destroyOverlay() {
   _hidePanel();
+  _hideGameOver();
   _hud = null;
 }
 
@@ -71,6 +91,86 @@ export function updateOverlay(state, playerProgress) {
 /** Returns true while the cursed-choice panel is visible (game logic should pause). */
 export function isOverlayActive() {
   return _panel !== null;
+}
+
+/** Returns true while the game-over screen is visible (game logic should pause). */
+export function isGameOverActive() {
+  return _gameOverPanel !== null;
+}
+
+/**
+ * Show the game-over screen in canvas.
+ * @param {object} state - game state
+ * @param {object} playerProgress - player progress
+ * @param {function} onRestart - callback when restart button is clicked
+ */
+export function showGameOver(state, playerProgress, onRestart) {
+  if (_gameOverPanel) return; // Already showing
+  _gameOverCallback = onRestart;
+
+  const cont = new Container({ label: 'game-over' });
+
+  // Full-screen dim
+  const dim = new Graphics();
+  dim.rect(0, 0, VW, VH).fill({ color: 0x0a0404, alpha: 0.88 });
+  cont.addChild(dim);
+
+  // Title
+  const title = new Text({ text: 'ВЫ ПОГИБЛИ', style: ST_GO_TITLE });
+  title.anchor.set(0.5, 0);
+  title.position.set(VW / 2, VH / 2 - 40);
+  cont.addChild(title);
+
+  // Subtitle
+  const sub = new Text({ text: 'Пауки победили...', style: ST_GO_SUB });
+  sub.anchor.set(0.5, 0);
+  sub.position.set(VW / 2, VH / 2 + 10);
+  cont.addChild(sub);
+
+  // Restart button
+  const btnW = 200;
+  const btnH = 50;
+  const btnX = (VW - btnW) / 2;
+  const btnY = VH / 2 + 50;
+
+  const btn = new Graphics();
+  const _drawNormal = () =>
+    btn.clear()
+       .rect(btnX, btnY, btnW, btnH)
+       .fill({ color: 0x1a0030, alpha: 0.95 })
+       .stroke({ color: 0xff4444, alpha: 0.8, width: 2 });
+  const _drawHover = () =>
+    btn.clear()
+       .rect(btnX, btnY, btnW, btnH)
+       .fill({ color: 0x2d0050, alpha: 0.98 })
+       .stroke({ color: 0xff6666, alpha: 1, width: 2 });
+
+  _drawNormal();
+  btn.eventMode = 'static';
+  btn.cursor = 'pointer';
+  btn.hitArea = { contains: (x, y) => x >= btnX && x <= btnX + btnW && y >= btnY && y <= btnY + btnH };
+  btn.on('pointerover', _drawHover);
+  btn.on('pointerout', _drawNormal);
+  btn.on('pointerdown', () => {
+    if (_gameOverCallback) _gameOverCallback();
+  });
+  cont.addChild(btn);
+
+  const btnText = new Text({ text: 'НАЧАТЬ ЗАНОВО', style: ST_GO_BTN });
+  btnText.anchor.set(0.5, 0.5);
+  btnText.position.set(VW / 2, btnY + btnH / 2);
+  cont.addChild(btnText);
+
+  _hud.addChild(cont);
+  _gameOverPanel = cont;
+}
+
+export function hideGameOver() {
+  if (_gameOverPanel) {
+    _gameOverPanel.destroy({ children: true });
+    _gameOverPanel = null;
+  }
+  _gameOverCallback = null;
 }
 
 // ── Cursed choice panel ───────────────────────────────────────

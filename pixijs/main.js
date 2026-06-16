@@ -67,12 +67,6 @@ async function boot() {
 }
 
 function _wireEndScreens() {
-  const restartBtn = document.getElementById('restart-btn');
-  if (restartBtn) restartBtn.addEventListener('click', () => {
-    document.getElementById('game-over-screen')?.classList.add('hidden');
-    restartLevel();
-  });
-
   const nextBtn = document.getElementById('next-level-btn');
   if (nextBtn) nextBtn.addEventListener('click', () => {
     document.getElementById('level-complete-screen')?.classList.add('hidden');

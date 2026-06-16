@@ -559,5 +559,6 @@ export function generateLevel(level, playerProgress) {
     droppedWeapons,
     trappedSpiders,
     roomAltars,
+    purified:           new Set([0]),
   };
 }

@@ -37,7 +37,7 @@
       border-radius: 3px;
       transition: width 0.1s linear;
     }
-    #game-over-screen, #level-complete-screen {
+    #level-complete-screen {
       position: absolute;
       inset: 0;
       display: flex;
@@ -47,14 +47,9 @@
       gap: 18px;
       z-index: 15;
       pointer-events: all;
-    }
-    #game-over-screen {
-      background: rgba(10, 4, 4, 0.88);
-    }
-    #level-complete-screen {
       background: rgba(4, 10, 4, 0.88);
     }
-    #game-over-screen.hidden, #level-complete-screen.hidden {
+    #level-complete-screen.hidden {
       display: none;
     }
     .end-screen-title {
@@ -63,7 +58,6 @@
       font-weight: bold;
       letter-spacing: 4px;
     }
-    #game-over-screen .end-screen-title   { color: #ff4444; text-shadow: 0 0 30px #ff000066; }
     #level-complete-screen .end-screen-title { color: #44ff88; text-shadow: 0 0 30px #00ff4466; }
     .end-screen-sub {
       font-family: 'Huninn', monospace;
@@ -88,11 +82,6 @@
         <p>Найди выход. Не дай паукам добраться до тебя.</p>
         <button class="btn" id="start-btn">НАЧАТЬ ИГРУ</button>
         <button class="btn" id="continue-btn" style="display:none">ПРОДОЛЖИТЬ</button>
-      </div>
-      <div id="game-over-screen" class="hidden">
-        <div class="end-screen-title">ВЫ ПОГИБЛИ</div>
-        <div class="end-screen-sub">Пауки победили...</div>
-        <button class="btn" id="restart-btn">НАЧАТЬ ЗАНОВО</button>
       </div>
       <div id="level-complete-screen" class="hidden">
         <div class="end-screen-title">УРОВЕНЬ ПРОЙДЕН!</div>

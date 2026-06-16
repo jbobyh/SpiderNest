@@ -330,6 +330,16 @@ export function exitBattleMode(state) {
     spawnRoomRewards(state, b.roomCellKey);
   }
 
+  // Mark room as purified after battle victory
+  if (b.roomCellKey && state.rooms && state.purified) {
+    for (let i = 0; i < state.rooms.length; i++) {
+      if (state.rooms[i].cells.some(c => c.k === b.roomCellKey)) {
+        state.purified.add(i);
+        break;
+      }
+    }
+  }
+
   // If boss was defeated, open exit cell
   if (state.bossDefeated && state.exitCell) {
     const ek = cellKey(state.exitCell.x, state.exitCell.y);

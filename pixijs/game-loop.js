@@ -40,6 +40,7 @@ import {
 } from './render/flying-heart.js';
 import {
   initOverlay, updateOverlay, destroyOverlay, isOverlayActive,
+  showGameOver, hideGameOver, isGameOverActive,
 } from './render/overlay.js';
 import {
   initTooltip, updateTooltip, destroyTooltip,
@@ -115,6 +116,9 @@ export function startGameLoop({
     removedWalls:       _state.removedWalls,
     permanentlyClosed:  _state.permanentlyClosed,
     disabledCells:      _state.disabledCells,
+    rooms:              _state.rooms,
+    purified:           _state.purified,
+    cellToRoom:         _state.cellToRoom,
   }, _currentLevel);
 
   // Input
@@ -176,8 +180,8 @@ function _loop(dt) {
   // Update overlay (cursed-choice panel) — must run before phase dispatch
   updateOverlay(_state, _playerProgress);
 
-  // If the cursed-choice overlay is open, skip game logic but still render
-  if (isOverlayActive()) {
+  // If the cursed-choice or game-over overlay is open, skip game logic but still render
+  if (isOverlayActive() || isGameOverActive()) {
     _render(safeDt);
     return;
   }
@@ -249,6 +253,9 @@ function _render(dt) {
       removedWalls:       _state.removedWalls,
       permanentlyClosed:  _state.permanentlyClosed,
       disabledCells:      _state.disabledCells,
+      rooms:              _state.rooms,
+      purified:           _state.purified,
+      cellToRoom:         _state.cellToRoom,
     }, _currentLevel);
   }
 }
@@ -290,7 +297,7 @@ function _onZoomOutComplete(_tr) {
   exitBattleMode(_state);
   Sounds.playLevelMusic(_currentLevel);
 
-  // Rebuild tiles (walls may have changed)
+  // Rebuild tiles (walls may have changed, room purification updated)
   buildTileLayer(layers.tiles, {
     blobCells:          _state.blobCells,
     openCells:          _state.openCells,
@@ -299,6 +306,9 @@ function _onZoomOutComplete(_tr) {
     removedWalls:       _state.removedWalls,
     permanentlyClosed:  _state.permanentlyClosed,
     disabledCells:      _state.disabledCells,
+    rooms:              _state.rooms,
+    purified:           _state.purified,
+    cellToRoom:         _state.cellToRoom,
   }, _currentLevel);
 }
 
@@ -306,9 +316,11 @@ function _onPlayerDead(state, playerProgress) {
   state.phase = 'dead';
   Sounds.stopGameMusic();
   savePlayerProgress(state, playerProgress);
-  // Show DOM game-over overlay
-  const el = document.getElementById('game-over-screen');
-  if (el) el.classList.remove('hidden');
+  // Show canvas game-over overlay
+  showGameOver(state, playerProgress, () => {
+    hideGameOver();
+    restartLevel();
+  });
 }
 
 function _onLevelComplete(state, playerProgress) {

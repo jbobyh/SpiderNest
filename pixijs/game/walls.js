@@ -138,6 +138,15 @@ export function handleWallToggle(state, mx, my, rightHeld) {
     // OPEN wall: spend a life
     if (state.player.lives < 1) return;
 
+    // Check purified before spending life
+    const aKey = cellKey(wall.ax, wall.ay);
+    const bKey = cellKey(wall.bx, wall.by);
+    const roomA = state.cellToRoom?.get(aKey);
+    const roomB = state.cellToRoom?.get(bKey);
+    const purifiedA = roomA !== undefined && state.purified?.has(roomA);
+    const purifiedB = roomB !== undefined && state.purified?.has(roomB);
+    if (!purifiedA && !purifiedB) return; // Deny interaction
+
     // Auto-close far wall if only 1 life left
     if (state.player.lives === 1) {
       const wallToClose = findAutoCloseWall(state, wall.wk);
@@ -167,6 +176,15 @@ export function handleWallToggle(state, mx, my, rightHeld) {
   } else {
     // CLOSE wall: recover a life
     if (state.player.lives >= 5) return; // max lives cap
+
+    // Check purified before recovering life
+    const aKey = cellKey(wall.ax, wall.ay);
+    const bKey = cellKey(wall.bx, wall.by);
+    const roomA = state.cellToRoom?.get(aKey);
+    const roomB = state.cellToRoom?.get(bKey);
+    const purifiedA = roomA !== undefined && state.purified?.has(roomA);
+    const purifiedB = roomB !== undefined && state.purified?.has(roomB);
+    if (!purifiedA && !purifiedB) return; // Deny interaction
 
     pendingOpenHeart = 'hud';
     const heartIndex = state.player.lives;

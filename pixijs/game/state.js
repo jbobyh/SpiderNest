@@ -73,10 +73,19 @@ export function createGameState(level, playerProgress) {
     roomColors,
     startCell,
     disabledCells,
+    purified,
   } = generateLevel(level, playerProgress);
 
   const cx = startCell.x;
   const cy = startCell.y;
+
+  // Build cellToRoom map
+  const cellToRoom = new Map();
+  for (let i = 0; i < rooms.length; i++) {
+    for (const cell of rooms[i].cells) {
+      cellToRoom.set(cell.k, i);
+    }
+  }
 
   const initOpen         = new Set([cellKey(cx, cy)]);
   const initEverOpened   = new Set([cellKey(cx, cy)]);
@@ -148,6 +157,8 @@ export function createGameState(level, playerProgress) {
     activeSlot: playerProgress.activeSlot,
     maxSlots: playerProgress.maxSlots,
     roomAltars,
+    purified,
+    cellToRoom,
   };
 }
 
@@ -274,13 +285,14 @@ function _playerSeedKey(state) {
 }
 
 export function doOpenWall(state, wk) {
+  const { ax, ay, bx, by } = wallKeyFromStr(wk);
+  const aKey = cellKey(ax, ay);
+  const bKey = cellKey(bx, by);
+
   state.removedWalls.add(wk);
   state.playerRemovedWalls++;
   state.openCells = recomputeOpenCells(state.blobCells, state.removedWalls, _playerSeedKey(state));
 
-  const { ax, ay, bx, by } = wallKeyFromStr(wk);
-  const aKey = cellKey(ax, ay);
-  const bKey = cellKey(bx, by);
   for (const { k, x, y } of [{ k: aKey, x: ax, y: ay }, { k: bKey, x: bx, y: by }]) {
     if (!state.everRevealedCells.has(k)) state.everRevealedCells.add(k);
     if (!state.everOpenedCells.has(k))   state.everOpenedCells.add(k);
@@ -291,6 +303,10 @@ export function doOpenWall(state, wk) {
 }
 
 export function doCloseWall(state, wk) {
+  const { ax, ay, bx, by } = wallKeyFromStr(wk);
+  const aKey = cellKey(ax, ay);
+  const bKey = cellKey(bx, by);
+
   state.removedWalls.delete(wk);
   state.playerRemovedWalls--;
   state.openCells = recomputeOpenCells(state.blobCells, state.removedWalls, _playerSeedKey(state));
@@ -340,6 +356,8 @@ function _serializeState(s) {
     maxSlots:      s.maxSlots || 1,
     time:          s.time,
     roomAltars:    s.roomAltars || [],
+    purified:      [...(s.purified || [])],
+    cellToRoom:    [...(s.cellToRoom || [])],
   };
 }
 
@@ -396,5 +414,7 @@ function _deserializeState(data) {
     phase:         'play',
     battle:        null,
     roomAltars:    data.roomAltars || [],
+    purified:      new Set(data.purified || []),
+    cellToRoom:    new Map(data.cellToRoom || []),
   };
 }
