@@ -2,10 +2,14 @@
 // WORLD CONSTANTS & COORDINATE UTILITIES
 // ============================================================
 
-export const SUBCELL_PX       = 14;
-export const TILES_PER_CELL    = 9;
-export const SUBCELLS_PER_CELL = TILES_PER_CELL;
-export const CELL_PX           = SUBCELL_PX * SUBCELLS_PER_CELL; // 126 px
+export const CELL_PX           = 126; // physical cell size in pixels (drives physics & collision)
+
+export const FLOOR_TILES_PER_CELL = 3;                           // how many floor tiles fill one cell (render only)
+export const FLOOR_TILE_PX        = CELL_PX / FLOOR_TILES_PER_CELL;
+
+export const TILES_PER_CELL    = FLOOR_TILES_PER_CELL;           // alias
+export const SUBCELLS_PER_CELL = FLOOR_TILES_PER_CELL;           // alias
+export const SUBCELL_PX        = FLOOR_TILE_PX;                  // alias
 
 export const CARDINAL_DIRECTIONS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 export const DIAGONAL_DIRECTIONS = [[1, 1], [-1, 1], [1, -1], [-1, -1]];

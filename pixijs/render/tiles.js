@@ -14,7 +14,7 @@
 
 import { Container, Sprite, TilingSprite, Texture, Graphics, Assets } from 'pixi.js';
 import {
-  CELL_PX, SUBCELL_PX, TILES_PER_CELL, CARDINAL_DIRECTIONS,
+  CELL_PX, FLOOR_TILES_PER_CELL, FLOOR_TILE_PX, SUBCELL_PX, TILES_PER_CELL, CARDINAL_DIRECTIONS,
   cellKey, cellFromKey, wallKey,
 } from '../world/constants.js';
 
@@ -136,14 +136,14 @@ function makeFloorSprite(x, y, openDirs, level, purifiedRooms, cellToRoom, cellC
   const tex = Assets.get(texAlias);
 
   const container = new Container();
-  // Create TILES_PER_CELL x TILES_PER_CELL grid of sprites within the cell
-  for (let sy = 0; sy < TILES_PER_CELL; sy++) {
-    for (let sx = 0; sx < TILES_PER_CELL; sx++) {
+  // Create FLOOR_TILES_PER_CELL x FLOOR_TILES_PER_CELL grid of sprites within the cell
+  for (let sy = 0; sy < FLOOR_TILES_PER_CELL; sy++) {
+    for (let sx = 0; sx < FLOOR_TILES_PER_CELL; sx++) {
       const spr = new Sprite(tex);
-      spr.width = SUBCELL_PX;
-      spr.height = SUBCELL_PX;
-      spr.x = sx * SUBCELL_PX;
-      spr.y = sy * SUBCELL_PX;
+      spr.width = FLOOR_TILE_PX;
+      spr.height = FLOOR_TILE_PX;
+      spr.x = sx * FLOOR_TILE_PX;
+      spr.y = sy * FLOOR_TILE_PX;
       container.addChild(spr);
     }
   }
