@@ -83,7 +83,7 @@ function floorRotation(openDirs) {
 
 // ── Sprite factories ─────────────────────────────────────────
 
-function makeFloorSprite(x, y, openDirs, level, purifiedRooms, cellToRoom, cellContents, chestObjs, hearts) {
+function makeFloorSprite(x, y, openDirs, level, purifiedRooms, cellToRoom, cellContents, chestObjs, hearts, upgradeChests) {
   const k = cellKey(x, y);
   const roomIdx = cellToRoom ? cellToRoom.get(k) : undefined;
   const isPurified = roomIdx !== undefined && purifiedRooms && purifiedRooms.has(roomIdx);
@@ -100,13 +100,25 @@ function makeFloorSprite(x, y, openDirs, level, purifiedRooms, cellToRoom, cellC
     }
   }
 
-  // Check if room has chest (cursed upgrade) using chestObjs
-  let hasChest = false;
+  // Check if room has cursed chest using chestObjs
+  let hasCursedChest = false;
   if (!hasHeart && roomIdx !== undefined && chestObjs && chestObjs.length > 0) {
     for (const chest of chestObjs) {
       const chestRoomIdx = cellToRoom.get(chest.cellKey);
       if (chestRoomIdx === roomIdx) {
-        hasChest = true;
+        hasCursedChest = true;
+        break;
+      }
+    }
+  }
+
+  // Check if room has upgrade chest
+  let hasUpgradeChest = false;
+  if (!hasHeart && !hasCursedChest && roomIdx !== undefined && upgradeChests && upgradeChests.length > 0) {
+    for (const chest of upgradeChests) {
+      const chestRoomIdx = cellToRoom.get(chest.cellKey);
+      if (chestRoomIdx === roomIdx) {
+        hasUpgradeChest = true;
         break;
       }
     }
@@ -116,7 +128,7 @@ function makeFloorSprite(x, y, openDirs, level, purifiedRooms, cellToRoom, cellC
   let texAlias;
   if (hasHeart) {
     texAlias = isPurified ? 'floor-stone-pattern-small' : 'floor-stone-pattern-small-dark';
-  } else if (hasChest) {
+  } else if (hasCursedChest || hasUpgradeChest) {
     texAlias = isPurified ? 'floor-stone-pattern' : 'floor-stone-pattern-dark';
   } else {
     texAlias = isPurified ? 'floor-stone' : 'floor-stone-dark';
@@ -415,6 +427,7 @@ function buildExternalWalls(blobCells, everRevealedCells) {
  *   purified: Set<number>,
  *   chestObjs: Array<{cellKey: string}>,
  *   hearts: Array<{cellKey: string}>,
+ *   upgradeChests: Array<{cellKey: string}>,
  * }} worldData
  * @param {number} level — 1 | 2 | 3
  */
@@ -423,7 +436,7 @@ export function buildTileLayer(targetContainer, worldData, level) {
 
   const {
     blobCells, openCells, everRevealedCells, everOpenedCells,
-    removedWalls, permanentlyClosed, disabledCells, rooms, purified, chestObjs, hearts,
+    removedWalls, permanentlyClosed, disabledCells, rooms, purified, chestObjs, hearts, upgradeChests,
   } = worldData;
 
   // Build cellToRoom map
@@ -442,11 +455,15 @@ export function buildTileLayer(targetContainer, worldData, level) {
     blobCells, openCells, everRevealedCells, everOpenedCells, permanentlyClosed, disabledCells,
   )) closedContainer.addChild(spr);
 
-  // ── 2. Floor tiles (open cells) ──
+  // ── 2. Floor tiles (open cells + revealed cells that are blobCells) ──
   const floorContainer = new Container({ label: 'floors' });
-  for (const k of openCells) {
+  const allFloorCells = new Set([...openCells]);
+  for (const k of everRevealedCells) {
+    if (blobCells.has(k)) allFloorCells.add(k);
+  }
+  for (const k of allFloorCells) {
     const { x, y } = cellFromKey(k);
-    floorContainer.addChild(makeFloorSprite(x, y, getOpenDirs(x, y, openCells), level, purified, cellToRoom, null, chestObjs, hearts));
+    floorContainer.addChild(makeFloorSprite(x, y, getOpenDirs(x, y, allFloorCells), level, purified, cellToRoom, null, chestObjs, hearts, upgradeChests));
   }
 
   // ── 3. Outer wall strips ──

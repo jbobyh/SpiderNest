@@ -10,18 +10,19 @@
 // in battle, reads from state.battle.* arrays.
 // ============================================================
 
-import { Sprite, Texture, Graphics, Text } from 'pixi.js';
+import { Sprite, Texture, Graphics, Text, Assets } from 'pixi.js';
 import { weaponTextures } from './entity-pool.js';
 import { cellOf, cellKey } from '../world/constants.js';
 
 let _layer = null;
 
-const _hearts   = new Map(); // key → Sprite
-const _upgrades = new Map(); // key → Text
-const _chests   = new Map(); // key → Sprite
-const _weapons  = new Map(); // key → Sprite
-const _altars   = new Map(); // cellKey → Sprite
-let   _sphere   = null;      // Graphics | null
+const _hearts        = new Map(); // key → Sprite
+const _upgrades      = new Map(); // key → Text
+const _chests        = new Map(); // key → Sprite
+const _upgradeChests = new Map(); // key → Sprite
+const _weapons       = new Map(); // key → Sprite
+const _altars        = new Map(); // cellKey → Sprite
+let   _sphere        = null;      // Graphics | null
 
 // ── Public API ────────────────────────────────────────────────
 
@@ -30,15 +31,17 @@ export function initCollectibleRenderer(entitiesLayer) {
 }
 
 export function clearCollectibles() {
-  for (const s of _hearts.values())   s.destroy({ children: true });
-  for (const s of _upgrades.values()) s.destroy({ children: true });
-  for (const s of _chests.values())   s.destroy({ children: true });
-  for (const s of _weapons.values())  s.destroy({ children: true });
-  for (const e of _altars.values())   { e.spr.destroy(); e.label.destroy(); }
+  for (const s of _hearts.values())        s.destroy({ children: true });
+  for (const s of _upgrades.values())      s.destroy({ children: true });
+  for (const s of _chests.values())         s.destroy({ children: true });
+  for (const s of _upgradeChests.values()) s.destroy({ children: true });
+  for (const s of _weapons.values())       s.destroy({ children: true });
+  for (const e of _altars.values())        { e.spr.destroy(); e.label.destroy(); }
   if (_sphere) { _sphere.destroy(); _sphere = null; }
   _hearts.clear();
   _upgrades.clear();
   _chests.clear();
+  _upgradeChests.clear();
   _weapons.clear();
   _altars.clear();
 }
@@ -52,13 +55,17 @@ export function syncCollectibles(state) {
 
   const inBattle = state.phase === 'battle' || state.phase === 'zoom_out';
 
-  _syncHearts  (state.hearts        || []);
-  _syncUpgrades(state.upgradeObjs   || []);
-  _syncChests  (state.chestObjs     || []);
-  _syncWeapons (state.droppedWeapons || [], inBattle ? state.battle?.openCells : state.openCells);
-  _syncSphere  (state.summonSphere);
-  if (!inBattle) _syncAltars(state.roomAltars || [], state.openCells, state.cellContents);
-  else           _syncAltars([], null, null);
+  const openCells       = inBattle ? state.battle?.openCells : state.openCells;
+  const everRevealedCells = (!inBattle) ? state.everRevealedCells : new Set();
+
+  _syncHearts       (state.hearts         || []);
+  _syncUpgrades     (state.upgradeObjs    || []);
+  _syncChests       (state.chestObjs      || []);
+  _syncUpgradeChests(state.upgradeChests  || [], openCells, everRevealedCells);
+  _syncWeapons      (state.droppedWeapons || [], openCells, everRevealedCells);
+  _syncSphere       (state.summonSphere);
+  if (!inBattle) _syncAltars(state.roomAltars || [], state.openCells, state.cellContents, everRevealedCells);
+  else           _syncAltars([], null, null, null);
 }
 
 // ── Hearts ────────────────────────────────────────────────────
@@ -109,7 +116,7 @@ function _syncUpgrades(upgrades) {
   }
 }
 
-// ── Chests ────────────────────────────────────────────────────
+// ── Cursed Chests ────────────────────────────────────────────
 
 const CHEST_SIZE = 30;
 
@@ -125,7 +132,7 @@ function _syncChests(chests) {
       catch { spr = new Sprite(Texture.WHITE); }
       spr.anchor.set(0.5);
       spr.width = spr.height = CHEST_SIZE;
-      spr.tint  = 0xaa44ff;
+      spr.tint  = 0xaa44ff; // Purple tint for cursed chests
       _layer.addChild(spr);
       _chests.set(k, spr);
     }
@@ -136,16 +143,49 @@ function _syncChests(chests) {
   }
 }
 
+// ── Upgrade Chests ────────────────────────────────────────────
+
+const UPGRADE_CHEST_SIZE = 28;
+
+function _syncUpgradeChests(chests, openCells, everRevealedCells) {
+  const alive = new Set();
+  for (const c of chests) {
+    if (c.collected || c.spawned === false) continue;
+    // Show in open cells OR revealed rooms
+    const cc = cellOf(c.x, c.y);
+    const ck = cellKey(cc.x, cc.y);
+    const isVisible = openCells?.has(ck) || everRevealedCells?.has(ck);
+    if (!isVisible) continue;
+    const k = c.cellKey ?? `uc:${Math.round(c.x)},${Math.round(c.y)}`;
+    alive.add(k);
+    if (!_upgradeChests.has(k)) {
+      const tex = Assets.get('chest');
+      const spr = new Sprite(tex ?? Texture.WHITE);
+      spr.anchor.set(0.5);
+      spr.width = spr.height = UPGRADE_CHEST_SIZE;
+      // No tint - use natural chest color
+      _layer.addChild(spr);
+      _upgradeChests.set(k, spr);
+    }
+    _upgradeChests.get(k).position.set(c.x, c.y);
+  }
+  for (const [k, s] of _upgradeChests) {
+    if (!alive.has(k)) { s.destroy(); _upgradeChests.delete(k); }
+  }
+}
+
 // ── Dropped / battle weapons ──────────────────────────────────
 
 const WEAPON_SIZE = 28;
 
-function _syncWeapons(droppedWeapons, openCells) {
+function _syncWeapons(droppedWeapons, openCells, everRevealedCells) {
   const alive = new Set();
   for (const dw of droppedWeapons) {
     if (dw.picked) continue;
     const wc = cellOf(dw.x, dw.y);
-    if (!openCells || !openCells.has(cellKey(wc.x, wc.y))) continue;
+    const wck = cellKey(wc.x, wc.y);
+    const isVisible = openCells?.has(wck) || everRevealedCells?.has(wck);
+    if (!isVisible) continue;
     const k = `${dw.weaponId}|${Math.round(dw.x)},${Math.round(dw.y)}`;
     alive.add(k);
     if (!_weapons.has(k)) {
@@ -187,12 +227,14 @@ function _syncSphere(sphere) {
 
 const ALTAR_SIZE = 24;
 
-function _syncAltars(altars, openCells, cellContents) {
+function _syncAltars(altars, openCells, cellContents, everRevealedCells) {
   const alive = new Set();
   const pulse = 0.7 + 0.3 * Math.sin(Date.now() * 0.006);
   for (const altar of altars) {
     if (altar.activated) continue;
-    if (!openCells || !openCells.has(altar.cellKey)) continue;
+    // Show in open cells OR revealed rooms
+    const isVisible = openCells?.has(altar.cellKey) || everRevealedCells?.has(altar.cellKey);
+    if (!isVisible) continue;
     const content = cellContents ? cellContents.get(altar.cellKey) : null;
     if (!content || !content.enemyCount || content.enemyCount <= 0 || content.enemiesReleased) continue;
     const k = altar.cellKey;

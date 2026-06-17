@@ -415,6 +415,22 @@ export function generateLevel(level, playerProgress) {
     });
   }
 
+  // ── Upgrade chests (replace altars in upgrade rooms) ──
+  const upgradeChests = [];
+  for (const u of upgradeObjs) {
+    const ri = cellToRoom.get(u.cellKey);
+    if (ri !== undefined) {
+      const center = getRoomCenter(ri);
+      upgradeChests.push({
+        x: center.x, y: center.y,
+        cellKey: u.cellKey,
+        upgradeType: u.upgradeType,
+        collected: false,
+        spawned: true,
+      });
+    }
+  }
+
   // ── Cursed chests ──
   const chestObjs  = [];
   const chestCount = Math.min(LEVEL_CHEST_COUNTS[level] || 1, availableRooms.length);
@@ -460,6 +476,8 @@ export function generateLevel(level, playerProgress) {
       }
     }
   }
+  // Upgrade chests are always visible (unlike regular upgrade orbs)
+  // They serve as the battle trigger, so player must see them to interact
   for (const c of chestObjs) {
     const ri = cellToRoom.get(c.cellKey);
     if (ri !== undefined) {
@@ -513,11 +531,13 @@ export function generateLevel(level, playerProgress) {
     for (const cell of rooms[i].cells) roomColors.set(cell.k, color);
   }
 
-  // ── Room altars (battle triggers) ──
+  // ── Room altars (battle triggers) — skip upgrade/chest rooms ──
   const roomAltars        = [];
   const altarProcessed    = new Set();
   for (const [k, content] of cellContents) {
     if (!content.enemyPreset || content.enemyCount <= 0 || content.enemiesReleased) continue;
+    // Skip rooms with upgrade or chest (they use chest interaction instead)
+    if (content.type === 'upgrade' || content.type === 'chest') continue;
     const ri = cellToRoom.get(k);
     if (ri === undefined || altarProcessed.has(ri)) continue;
     altarProcessed.add(ri);
@@ -554,6 +574,7 @@ export function generateLevel(level, playerProgress) {
     summonSphere,
     summonSphereCollected: false,
     upgradeObjs,
+    upgradeChests,
     chestObjs,
     revealedExit:       false,
     droppedWeapons,

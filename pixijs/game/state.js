@@ -65,6 +65,7 @@ export function createGameState(level, playerProgress) {
     cellContents,
     hearts,
     upgradeObjs,
+    upgradeChests,
     chestObjs,
     droppedWeapons,
     summonSphere,
@@ -91,11 +92,26 @@ export function createGameState(level, playerProgress) {
   const initEverOpened   = new Set([cellKey(cx, cy)]);
   const initEverRevealed = new Set([cellKey(cx, cy)]);
 
-  // Reveal starting room cells
-  for (const cell of rooms[0].cells) initEverRevealed.add(cell.k);
+  // Reveal all cells of initially-purified rooms
+  for (const purifiedIdx of purified) {
+    for (const cell of rooms[purifiedIdx].cells) initEverRevealed.add(cell.k);
+  }
 
-  // Reveal adjacent cells from start
-  _revealAdjacentCells(initEverRevealed, cx, cy, disabledCells, new Set());
+  // Reveal rooms adjacent to initially-purified rooms (whole room, not just border cells)
+  for (const purifiedIdx of purified) {
+    const purifiedCellKeys = new Set(rooms[purifiedIdx].cells.map(c => c.k));
+    for (const pk of purifiedCellKeys) {
+      const { x, y } = cellFromKey(pk);
+      for (const [dx, dy] of CARDINAL_DIRECTIONS) {
+        const nk = cellKey(x + dx, y + dy);
+        if (purifiedCellKeys.has(nk)) continue;
+        const neighborRoomIdx = cellToRoom.get(nk);
+        if (neighborRoomIdx !== undefined && !purified.has(neighborRoomIdx)) {
+          for (const cell of rooms[neighborRoomIdx].cells) initEverRevealed.add(cell.k);
+        }
+      }
+    }
+  }
 
   return {
     gridSize: CONFIG.GRID_SIZE,
@@ -119,6 +135,7 @@ export function createGameState(level, playerProgress) {
     summonSphere,
     summonSphereCollected: false,
     upgradeObjs,
+    upgradeChests,
     chestObjs,
     bossSummonReady: false,
     bossDefeated: false,
@@ -159,6 +176,7 @@ export function createGameState(level, playerProgress) {
     roomAltars,
     purified,
     cellToRoom,
+    revealedRooms: new Set(), // Rooms adjacent to purified that show content without being opened
   };
 }
 
@@ -232,6 +250,54 @@ export function savePlayerProgress(state, playerProgress) {
   playerProgress.weaponSlots          = [...(state.weaponSlots || ['pistol', null])];
   playerProgress.activeSlot           = state.activeSlot || 0;
   playerProgress.maxSlots             = state.maxSlots || 1;
+}
+
+// ── Revealed rooms helpers ───────────────────────────────────
+
+/**
+ * Update revealedRooms when a room becomes purified.
+ * Adds all rooms adjacent to the newly purified room to revealedRooms.
+ */
+export function updateRevealedRoomsOnPurify(state, purifiedRoomIdx) {
+  if (!state.rooms || !state.cellToRoom) return;
+
+  const purifiedRoom = state.rooms[purifiedRoomIdx];
+  if (!purifiedRoom) return;
+
+  // Collect all cell keys from the purified room
+  const purifiedCellKeys = new Set();
+  for (const cell of purifiedRoom.cells) {
+    purifiedCellKeys.add(cell.k);
+  }
+
+  // Find adjacent rooms (rooms that share any wall with this purified room)
+  const adjacentRoomIndices = new Set();
+
+  for (const pk of purifiedCellKeys) {
+    const { x, y } = cellFromKey(pk);
+    for (const [dx, dy] of CARDINAL_DIRECTIONS) {
+      const nx = x + dx, ny = y + dy;
+      const nk = cellKey(nx, ny);
+      // Skip if it's part of the same (purified) room
+      if (purifiedCellKeys.has(nk)) continue;
+
+      // Find which room this neighbor belongs to
+      const neighborRoomIdx = state.cellToRoom.get(nk);
+      if (neighborRoomIdx !== undefined &&
+          neighborRoomIdx !== purifiedRoomIdx &&
+          !state.purified.has(neighborRoomIdx)) {
+        adjacentRoomIndices.add(neighborRoomIdx);
+      }
+    }
+  }
+
+  // Add all adjacent rooms to revealedRooms and write their cells into everRevealedCells
+  for (const roomIdx of adjacentRoomIndices) {
+    state.revealedRooms.add(roomIdx);
+    for (const cell of state.rooms[roomIdx].cells) {
+      state.everRevealedCells.add(cell.k);
+    }
+  }
 }
 
 // ── Reveal helpers ────────────────────────────────────────────
@@ -358,6 +424,7 @@ function _serializeState(s) {
     roomAltars:    s.roomAltars || [],
     purified:      [...(s.purified || [])],
     cellToRoom:    [...(s.cellToRoom || [])],
+    revealedRooms: [...(s.revealedRooms || [])],
   };
 }
 
@@ -416,5 +483,6 @@ function _deserializeState(data) {
     roomAltars:    data.roomAltars || [],
     purified:      new Set(data.purified || []),
     cellToRoom:    new Map(data.cellToRoom || []),
+    revealedRooms: new Set(data.revealedRooms || []),
   };
 }

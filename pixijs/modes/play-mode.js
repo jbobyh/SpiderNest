@@ -24,6 +24,7 @@ import {
 } from '../game/enemy-ai.js';
 import {
   updateCollectibles, checkAltarActivation, isNearAltar,
+  checkUpgradeChestActivation, isNearUpgradeChest,
 } from '../game/collectibles.js';
 import { tickUpgradePopupTimer, hideUpgradePopup } from '../game/upgrades.js';
 import {
@@ -99,8 +100,17 @@ export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}
   // ── Weapon slot switch ────────────────────────────────────
   _handleWeaponSwitch(state);
 
-  // ── Altar check (F key, priority over weapon pickup) ───────────────
+  // ── Upgrade chest check (F key, priority over altar) ───────────────
   {
+    const fDown = keys['f'] || keys['F'] || keys['а'] || keys['А'];
+    const chestActivated = checkUpgradeChestActivation(state, fDown && !_fWasPressed, (ck) => {
+      if (onEnterBattle) onEnterBattle(ck);
+    });
+    if (chestActivated) _fWasPressed = true;
+  }
+
+  // ── Altar check (F key, if not chest) ───────────────
+  if (!_fWasPressed) {
     const fDown = keys['f'] || keys['F'] || keys['а'] || keys['А'];
     const altarActivated = checkAltarActivation(state, fDown && !_fWasPressed, (ck) => {
       if (onEnterBattle) onEnterBattle(ck);
@@ -383,9 +393,9 @@ function _handleWeaponPickup(state, playerProgress, keys) {
   }
 }
 
-// ── Re-export isNearAltar for game-loop ──────────────────────
+// ── Re-export proximity checks for game-loop ──────────────────────
 
-export { isNearAltar };
+export { isNearAltar, isNearUpgradeChest };
 
 // ── Check if player is near a weapon (for HUD hint) ──────────
 

@@ -17,7 +17,7 @@
 // ============================================================
 
 import { Container, Graphics, Text, TextStyle } from 'pixi.js';
-import { applyCursedChoice } from '../game/collectibles.js';
+import { applyCursedChoice, applyUpgradeChoice } from '../game/collectibles.js';
 
 const VW = CONFIG.VIEW_W;
 const VH = CONFIG.VIEW_H;
@@ -29,6 +29,7 @@ let _panel = null;
 let _ctx   = null; // { state, playerProgress } while panel is open
 let _gameOverPanel = null;
 let _gameOverCallback = null; // onRestart callback
+let _onEnterBattle = null; // callback for upgrade chest choice
 
 // ── Text styles ───────────────────────────────────────────────
 
@@ -74,21 +75,28 @@ export function destroyOverlay() {
 
 /**
  * Call each frame from the game loop.
- * Shows the cursed-choice panel when state._cursedChoiceState.active === true.
+ * Shows choice panels when active.
  */
-export function updateOverlay(state, playerProgress) {
+export function updateOverlay(state, playerProgress, callbacks = {}) {
   if (!_hud) return;
 
-  const cc = state._cursedChoiceState;
+  // Store callback for upgrade chest
+  if (callbacks.onEnterBattle) _onEnterBattle = callbacks.onEnterBattle;
 
+  const cc = state._cursedChoiceState;
+  const uc = state._upgradeChoiceState;
+
+  // Cursed chest takes priority
   if (cc?.active && !_panel) {
     _showCursedChoice(state, playerProgress);
-  } else if (!cc?.active && _panel) {
+  } else if (uc?.active && !_panel) {
+    _showUpgradeChoice(state, playerProgress);
+  } else if (!cc?.active && !uc?.active && _panel) {
     _hidePanel();
   }
 }
 
-/** Returns true while the cursed-choice panel is visible (game logic should pause). */
+/** Returns true while any choice panel is visible (game logic should pause). */
 export function isOverlayActive() {
   return _panel !== null;
 }
@@ -293,6 +301,174 @@ function _onChoice(id) {
   const { state, playerProgress } = _ctx;
   applyCursedChoice(state, playerProgress, id);
   _hidePanel();
+}
+
+// ── Upgrade choice panel ───────────────────────────────────────
+
+const UPGRADE_BTN_W = 120;
+const UPGRADE_BTN_H = 110;
+const DECLINE_BTN_W = 180;
+const DECLINE_BTN_H = 36;
+
+function _showUpgradeChoice(state, playerProgress) {
+  const choices = _pickUpgradeChoices();
+  _ctx = { state, playerProgress, choices };
+
+  const px = (VW - PANEL_W) / 2;
+  const py = (VH - PANEL_H) / 2;
+
+  const cont = new Container({ label: 'upgrade-choice' });
+
+  // Full-screen dim
+  const dim = new Graphics();
+  dim.rect(0, 0, VW, VH).fill({ color: 0x000000, alpha: 0.6 });
+  cont.addChild(dim);
+
+  // Panel background
+  const panel = new Graphics();
+  panel.rect(px, py, PANEL_W, PANEL_H)
+       .fill({ color: 0x102020, alpha: 0.97 })
+       .stroke({ color: 0x44aaff, alpha: 0.9, width: 2 });
+  cont.addChild(panel);
+
+  // Title
+  const title = new Text({ text: '⚡ СУНДУК С БОНУСАМИ ⚡', style: ST_TITLE });
+  title.anchor.set(0.5, 0);
+  title.position.set(VW / 2, py + 14);
+  cont.addChild(title);
+
+  // Hint
+  const hint = new Text({ text: 'Выбери один из трех бонусов:', style: ST_HINT });
+  hint.anchor.set(0.5, 0);
+  hint.position.set(VW / 2, py + 42);
+  cont.addChild(hint);
+
+  // Choice buttons
+  const totalW  = choices.length * UPGRADE_BTN_W + (choices.length - 1) * BTN_GAP;
+  const startX  = (VW - totalW) / 2;
+  const btnY    = py + 75;
+
+  for (let i = 0; i < choices.length; i++) {
+    _addUpgradeChoiceBtn(cont, choices[i], startX + i * (UPGRADE_BTN_W + BTN_GAP), btnY);
+  }
+
+  // Decline button
+  const declineX = (VW - DECLINE_BTN_W) / 2;
+  const declineY = btnY + UPGRADE_BTN_H + 15;
+  _addDeclineBtn(cont, declineX, declineY);
+
+  _hud.addChild(cont);
+  _panel = cont;
+}
+
+function _addUpgradeChoiceBtn(cont, ch, bx, by) {
+  const accent = ch.color ? _hexToNum(ch.color) : 0x44aaff;
+
+  const btn = new Graphics();
+  const _drawNormal = () =>
+    btn.clear()
+       .rect(bx, by, UPGRADE_BTN_W, UPGRADE_BTN_H)
+       .fill({ color: 0x1a2a30, alpha: 0.95 })
+       .stroke({ color: accent, alpha: 0.8, width: 1.5 });
+  const _drawHover = () =>
+    btn.clear()
+       .rect(bx, by, UPGRADE_BTN_W, UPGRADE_BTN_H)
+       .fill({ color: 0x2d4050, alpha: 0.98 })
+       .stroke({ color: accent, alpha: 1, width: 2 });
+
+  _drawNormal();
+  btn.eventMode = 'static';
+  btn.cursor    = 'pointer';
+  btn.hitArea   = { contains: (x, y) => x >= bx && x <= bx + UPGRADE_BTN_W && y >= by && y <= by + UPGRADE_BTN_H };
+  btn.on('pointerover', _drawHover);
+  btn.on('pointerout',  _drawNormal);
+  btn.on('pointerdown', () => _onUpgradeChoice(ch.id));
+  cont.addChild(btn);
+
+  // Icon emoji
+  const icon = new Text({
+    text: ch.icon ?? '?',
+    style: new TextStyle({ fill: ch.color ?? '#44aaff', fontSize: 28, fontFamily: 'sans-serif' }),
+  });
+  icon.anchor.set(0.5, 0);
+  icon.position.set(bx + UPGRADE_BTN_W / 2, by + 8);
+  cont.addChild(icon);
+
+  // Label
+  const lbl = new Text({
+    text: ch.label ?? ch.id,
+    style: new TextStyle({
+      fill: '#ffffff', fontSize: 10, fontWeight: 'bold',
+      fontFamily: 'Huninn, monospace', align: 'center',
+      wordWrap: true, wordWrapWidth: UPGRADE_BTN_W - 8,
+    }),
+  });
+  lbl.anchor.set(0.5, 0);
+  lbl.position.set(bx + UPGRADE_BTN_W / 2, by + 45);
+  cont.addChild(lbl);
+
+  // Short description
+  const desc = new Text({
+    text: ch.description ?? '',
+    style: new TextStyle({
+      fill: '#aaccdd', fontSize: 8,
+      fontFamily: 'Huninn, monospace', align: 'center',
+      wordWrap: true, wordWrapWidth: UPGRADE_BTN_W - 8,
+    }),
+  });
+  desc.anchor.set(0.5, 0);
+  desc.position.set(bx + UPGRADE_BTN_W / 2, by + 68);
+  cont.addChild(desc);
+}
+
+function _addDeclineBtn(cont, bx, by) {
+  const btn = new Graphics();
+  const _drawNormal = () =>
+    btn.clear()
+       .rect(bx, by, DECLINE_BTN_W, DECLINE_BTN_H)
+       .fill({ color: 0x302020, alpha: 0.95 })
+       .stroke({ color: 0x888888, alpha: 0.6, width: 1 });
+  const _drawHover = () =>
+    btn.clear()
+       .rect(bx, by, DECLINE_BTN_W, DECLINE_BTN_H)
+       .fill({ color: 0x403030, alpha: 0.98 })
+       .stroke({ color: 0xaaaaaa, alpha: 0.8, width: 1.5 });
+
+  _drawNormal();
+  btn.eventMode = 'static';
+  btn.cursor    = 'pointer';
+  btn.hitArea   = { contains: (x, y) => x >= bx && x <= bx + DECLINE_BTN_W && y >= by && y <= by + DECLINE_BTN_H };
+  btn.on('pointerover', _drawHover);
+  btn.on('pointerout',  _drawNormal);
+  btn.on('pointerdown', () => _onUpgradeChoice(null));
+  cont.addChild(btn);
+
+  const lbl = new Text({
+    text: 'Отказаться',
+    style: new TextStyle({
+      fill: '#aaaaaa', fontSize: 12,
+      fontFamily: 'Huninn, monospace', align: 'center',
+    }),
+  });
+  lbl.anchor.set(0.5, 0.5);
+  lbl.position.set(bx + DECLINE_BTN_W / 2, by + DECLINE_BTN_H / 2);
+  cont.addChild(lbl);
+}
+
+function _onUpgradeChoice(id) {
+  if (!_ctx) return;
+  const { state, playerProgress } = _ctx;
+  applyUpgradeChoice(state, playerProgress, id);
+  _hidePanel();
+}
+
+function _pickUpgradeChoices() {
+  const pool = (typeof UPGRADE_TYPES !== 'undefined') ? [...UPGRADE_TYPES] : [];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool.slice(0, 3);
 }
 
 function _hidePanel() {

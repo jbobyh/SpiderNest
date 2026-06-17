@@ -53,7 +53,7 @@ import {
 import {
   createGameState, createDefaultProgress, saveGame, savePlayerProgress,
 } from './game/state.js';
-import { updatePlayMode, isNearWeapon, isNearAltar } from './modes/play-mode.js';
+import { updatePlayMode, isNearWeapon, isNearAltar, isNearUpgradeChest } from './modes/play-mode.js';
 import {
   createBattleState, createBossBattleState,
   updateBattleMode, exitBattleMode,
@@ -95,6 +95,10 @@ export function startGameLoop({
   // Build or restore game state
   _state = savedState ?? createGameState(_currentLevel, _playerProgress);
 
+  // Initialize lazy-rebuild tracking
+  _state._lastPurifiedSize = _state.purified?.size ?? 0;
+  _state._lastEverRevealedSize = _state.everRevealedCells?.size ?? 0;
+
   // Renderer init
   _camera = new Camera();
   initLayers(_camera);
@@ -120,6 +124,7 @@ export function startGameLoop({
     purified:           _state.purified,
     chestObjs:          _state.chestObjs,
     hearts:             _state.hearts,
+    upgradeChests:      _state.upgradeChests,
   }, _currentLevel);
 
   // Input
@@ -178,8 +183,8 @@ function _loop(dt) {
   // Tick autosave timer
   tickAutosave(safeDt);
 
-  // Update overlay (cursed-choice panel) — must run before phase dispatch
-  updateOverlay(_state, _playerProgress);
+  // Update overlay (choice panels) — must run before phase dispatch
+  updateOverlay(_state, _playerProgress, { onEnterBattle: _onEnterBattle });
 
   // If the cursed-choice or game-over overlay is open, skip game logic but still render
   if (isOverlayActive() || isGameOverActive()) {
@@ -241,17 +246,24 @@ function _render(dt) {
   updateTooltip(_state, _camera);
   const nearWeapon = _state.phase === 'play' ? isNearWeapon(_state) : false;
   const nearAltar  = _state.phase === 'play' ? isNearAltar(_state)  : false;
+  const nearChest  = _state.phase === 'play' ? isNearUpgradeChest(_state) : false;
   const bossSummonReady = _state.phase === 'play' ? _state.bossSummonReady : false;
-  updateHud(_state, _currentLevel, nearWeapon, nearAltar, bossSummonReady);
+  updateHud(_state, _currentLevel, nearWeapon, nearAltar, bossSummonReady, nearChest);
 
   // Update boss HP bar during boss battle
   if (_state.battle?.isBossBattle) {
     updateBossHpBar(_state);
   }
 
-  // Rebuild tile layer when walls change (lazy: track removedWalls size)
-  if (_state._lastRemovedWallsSize !== _state.removedWalls.size) {
+  // Rebuild tile layer when walls, purified, or revealed cells change
+  const purifiedSize      = _state.purified?.size ?? 0;
+  const everRevealedSize  = _state.everRevealedCells?.size ?? 0;
+  if (_state._lastRemovedWallsSize !== _state.removedWalls.size ||
+      _state._lastPurifiedSize     !== purifiedSize ||
+      _state._lastEverRevealedSize !== everRevealedSize) {
     _state._lastRemovedWallsSize = _state.removedWalls.size;
+    _state._lastPurifiedSize     = purifiedSize;
+    _state._lastEverRevealedSize = everRevealedSize;
     buildTileLayer(layers.tiles, {
       blobCells:          _state.blobCells,
       openCells:          _state.openCells,
@@ -264,6 +276,7 @@ function _render(dt) {
       purified:           _state.purified,
       chestObjs:          _state.chestObjs,
       hearts:             _state.hearts,
+      upgradeChests:      _state.upgradeChests,
     }, _currentLevel);
   }
 }
@@ -318,6 +331,7 @@ function _onZoomOutComplete(_tr) {
     purified:           _state.purified,
     chestObjs:          _state.chestObjs,
     hearts:             _state.hearts,
+    upgradeChests:      _state.upgradeChests,
   }, _currentLevel);
 }
 

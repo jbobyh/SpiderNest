@@ -101,6 +101,7 @@ const MANIFEST = {
         { alias: 'locked',            src: IMG + 'locked.png' },
         { alias: 'unlocked',          src: IMG + 'unlocked.png' },
         { alias: 'open-treasure-chest', src: IMG + 'open-treasure-chest.png' },
+        { alias: 'chest',                 src: IMG + 'chest.png' },
         // Weapon sprites (HUD + floor pickups)
         { alias: 'weapon-pistol',     src: IMG + 'pistol.png' },
         { alias: 'weapon-shotgun',    src: IMG + 'shotgun.png' },

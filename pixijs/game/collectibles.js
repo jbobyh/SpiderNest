@@ -231,7 +231,7 @@ export function spawnRoomRewards(state, cellKey) {
   }
 }
 
-// ── Cursed chest choice (delegates to DOM overlay) ───────────
+// ── Cursed chest choice ───────────
 
 export function openCursedChoice(state, playerProgress, chest) {
   if (!chest && !state._pendingCursedChoice) {
@@ -251,4 +251,73 @@ export function applyCursedChoice(state, playerProgress, choiceId) {
 
   if (!choiceId) return;
   applyUpgrade(state, playerProgress, choiceId);
+}
+
+// ── Upgrade chest choice (regular upgrades) ───────────
+
+export function checkUpgradeChestActivation(state, fKeyPressed, onEnterBattle) {
+  if (!fKeyPressed) return false;
+  const px = state.player.x, py = state.player.y;
+  const PICKUP_R = CONFIG.PLAYER_RADIUS + CONFIG.PICKUP_DISTANCE;
+
+  for (const chest of (state.upgradeChests || [])) {
+    if (chest.collected || chest.spawned === false) continue;
+    const dist = Math.hypot(px - chest.x, py - chest.y);
+    if (dist < PICKUP_R) {
+      // Open choice window
+      openUpgradeChoice(state, chest, onEnterBattle);
+      return true;
+    }
+  }
+  return false;
+}
+
+export function isNearUpgradeChest(state) {
+  if (state.phase !== 'play') return false;
+  const px = state.player.x, py = state.player.y;
+  const PICKUP_R = CONFIG.PLAYER_RADIUS + CONFIG.PICKUP_DISTANCE;
+
+  for (const chest of (state.upgradeChests || [])) {
+    if (chest.collected || chest.spawned === false) continue;
+    const dist = Math.hypot(px - chest.x, py - chest.y);
+    if (dist < PICKUP_R) return true;
+  }
+  return false;
+}
+
+export function openUpgradeChoice(state, chest, onEnterBattle) {
+  if (!chest) return;
+  if (chest.collected) return;
+  // Store pending choice state with callback to enter battle after selection
+  state._upgradeChoiceState = {
+    chest,
+    active: true,
+    onEnterBattle,
+    selected: false,
+  };
+}
+
+export function applyUpgradeChoice(state, playerProgress, choiceId) {
+  if (!state._upgradeChoiceState) return;
+  const { chest, onEnterBattle } = state._upgradeChoiceState;
+
+  // Mark chest as collected regardless of choice
+  if (chest) {
+    chest.collected = true;
+    // Also mark corresponding upgrade as collected so it doesn't spawn
+    const upg = state.upgradeObjs?.find(u => u.cellKey === chest.cellKey);
+    if (upg) upg.collected = true;
+  }
+
+  // Clear state
+  const cb = state._upgradeChoiceState.onEnterBattle;
+  state._upgradeChoiceState = null;
+
+  // Apply upgrade if selected
+  if (choiceId) {
+    applyUpgrade(state, playerProgress, choiceId);
+  }
+
+  // Enter battle mode
+  if (cb) cb(chest?.cellKey);
 }

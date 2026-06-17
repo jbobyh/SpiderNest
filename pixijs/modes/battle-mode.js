@@ -32,6 +32,7 @@ import { updateBoss }                      from '../game/boss.js';
 import { updateCollectibles, spawnRoomRewards } from '../game/collectibles.js';
 import { tickUpgradePopupTimer, hideUpgradePopup } from '../game/upgrades.js';
 import { spawnParticles } from '../render/particles.js';
+import { updateRevealedRoomsOnPurify } from '../game/state.js';
 
 // ── Battle state creation ─────────────────────────────────────
 
@@ -331,13 +332,20 @@ export function exitBattleMode(state) {
   }
 
   // Mark room as purified after battle victory
+  let purifiedRoomIdx = null;
   if (b.roomCellKey && state.rooms && state.purified) {
     for (let i = 0; i < state.rooms.length; i++) {
       if (state.rooms[i].cells.some(c => c.k === b.roomCellKey)) {
         state.purified.add(i);
+        purifiedRoomIdx = i;
         break;
       }
     }
+  }
+
+  // Reveal adjacent rooms when a room becomes purified
+  if (purifiedRoomIdx !== null) {
+    updateRevealedRoomsOnPurify(state, purifiedRoomIdx);
   }
 
   // If boss was defeated, open exit cell
