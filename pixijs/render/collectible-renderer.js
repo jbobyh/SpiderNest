@@ -17,7 +17,6 @@ import { cellOf, cellKey } from '../world/constants.js';
 let _layer = null;
 
 const _hearts        = new Map(); // key → Sprite
-const _upgrades      = new Map(); // key → Text
 const _chests        = new Map(); // key → Sprite
 const _upgradeChests = new Map(); // key → Sprite
 const _weapons       = new Map(); // key → Sprite
@@ -32,14 +31,12 @@ export function initCollectibleRenderer(entitiesLayer) {
 
 export function clearCollectibles() {
   for (const s of _hearts.values())        s.destroy({ children: true });
-  for (const s of _upgrades.values())      s.destroy({ children: true });
   for (const s of _chests.values())         s.destroy({ children: true });
   for (const s of _upgradeChests.values()) s.destroy({ children: true });
   for (const s of _weapons.values())       s.destroy({ children: true });
   for (const e of _altars.values())        { e.spr.destroy(); e.label.destroy(); }
   if (_sphere) { _sphere.destroy(); _sphere = null; }
   _hearts.clear();
-  _upgrades.clear();
   _chests.clear();
   _upgradeChests.clear();
   _weapons.clear();
@@ -59,7 +56,6 @@ export function syncCollectibles(state) {
   const everRevealedCells = (!inBattle) ? state.everRevealedCells : new Set();
 
   _syncHearts       (state.hearts         || []);
-  _syncUpgrades     (state.upgradeObjs    || []);
   _syncChests       (state.chestObjs      || []);
   _syncUpgradeChests(state.upgradeChests  || [], openCells, everRevealedCells);
   _syncWeapons      (state.droppedWeapons || [], openCells, everRevealedCells);
@@ -87,32 +83,6 @@ function _syncHearts(hearts) {
   }
   for (const [k, spr] of _hearts) {
     if (!alive.has(k)) { spr.destroy(); _hearts.delete(k); }
-  }
-}
-
-// ── Upgrade orbs ──────────────────────────────────────────────
-
-const EMOJI_SIZE = 22;
-
-function _syncUpgrades(upgrades) {
-  const alive = new Set();
-  for (const u of upgrades) {
-    if (u.collected || u.spawned === false) continue;
-    const k = u.cellKey ?? u.originalCellKey ?? `u:${Math.round(u.x)},${Math.round(u.y)}`;
-    alive.add(k);
-    if (!_upgrades.has(k)) {
-      const def = (typeof UPGRADE_TYPES !== 'undefined' ? UPGRADE_TYPES : [])
-        .find(t => t.id === u.upgradeType);
-      const emoji = def ? def.icon : '⚡';
-      const text = new Text({ text: emoji, style: { fontSize: EMOJI_SIZE, fontFamily: 'Arial' } });
-      text.anchor.set(0.5);
-      _layer.addChild(text);
-      _upgrades.set(k, text);
-    }
-    _upgrades.get(k).position.set(u.x, u.y);
-  }
-  for (const [k, text] of _upgrades) {
-    if (!alive.has(k)) { text.destroy(); _upgrades.delete(k); }
   }
 }
 

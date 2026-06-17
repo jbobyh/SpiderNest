@@ -64,7 +64,6 @@ export function createGameState(level, playerProgress) {
     internalWalls: roomInternalWalls,
     cellContents,
     hearts,
-    upgradeObjs,
     upgradeChests,
     chestObjs,
     droppedWeapons,
@@ -134,7 +133,6 @@ export function createGameState(level, playerProgress) {
     heartsCollected: 0,
     summonSphere,
     summonSphereCollected: false,
-    upgradeObjs,
     upgradeChests,
     chestObjs,
     bossSummonReady: false,
@@ -360,6 +358,7 @@ export function tryPurifyRoomIfEmpty(state, k) {
     const c = state.cellContents?.get(cell.k);
     return !c || !c.enemyCount || c.enemyCount <= 0;
   });
+  console.log('tryPurifyRoomIfEmpty:', { roomIdx, isEmpty, cellKey: k });
   if (!isEmpty) return false;
   state.purified.add(roomIdx);
   updateRevealedRoomsOnPurify(state, roomIdx);
@@ -424,7 +423,6 @@ function _serializeState(s) {
     },
     cellContents:  [...s.cellContents].map(([k, v]) => [k, v]),
     hearts:        s.hearts,
-    upgradeObjs:   s.upgradeObjs,
     chestObjs:     s.chestObjs || [],
     upgrades:      { ...s.upgrades },
     spiders:       s.spiders.map(g => ({ ...g })),
@@ -470,7 +468,6 @@ function _deserializeState(data) {
     },
     cellContents:  new Map(data.cellContents),
     hearts:        (data.hearts || []).map(h => ({ ...h, spawned: h.spawned !== false })),
-    upgradeObjs:   (data.upgradeObjs || []).map(u => ({ ...u, spawned: u.spawned !== false })),
     chestObjs:     (data.chestObjs || []).map(c => ({ ...c, spawned: c.spawned !== false })),
     upgrades:      { ...data.upgrades },
     spiders:       data.spiders.map(g => ({ ...g })),

@@ -143,7 +143,7 @@ export function handleWallToggle(state, mx, my, rightHeld) {
     // Check for cursed chest in adjacent cells
     const aContent = state.cellContents.get(aKey);
     const bContent = state.cellContents.get(bKey);
-    const hasCursedChest = (aContent?.type === 'chest') || (bContent?.type === 'chest');
+    const hasCursedChest = (aContent?.type === 'cursed') || (bContent?.type === 'cursed');
     const cost = hasCursedChest ? 2 : 1;
 
     if (state.player.lives < cost) return;
@@ -194,7 +194,7 @@ export function handleWallToggle(state, mx, my, rightHeld) {
     // Check for cursed chest in adjacent cells
     const aContent = state.cellContents.get(aKey);
     const bContent = state.cellContents.get(bKey);
-    const hasCursedChest = (aContent?.type === 'chest') || (bContent?.type === 'chest');
+    const hasCursedChest = (aContent?.type === 'cursed') || (bContent?.type === 'cursed');
     const refund = hasCursedChest ? 2 : 1;
 
     const roomA = state.cellToRoom?.get(aKey);

@@ -30,7 +30,7 @@ export function updateCollectibles(state, playerProgress, onParticles, onUpgrade
   }
 
   // Summon sphere
-  if (s.summonSphere && !s.summonSphere.collected) {
+  if (s.summonSphere && !s.summonSphere.collected && s.summonSphere.spawned) {
     if (Math.hypot(px - s.summonSphere.x, py - s.summonSphere.y) < PICKUP_R) {
       s.summonSphere.collected = true;
       s.summonSphereCollected  = true;
@@ -41,20 +41,6 @@ export function updateCollectibles(state, playerProgress, onParticles, onUpgrade
   }
 
   s.bossSummonReady = s.summonSphereCollected && s.phase === 'play' && !s.bossDefeated;
-
-  // Upgrades
-  for (const upg of s.upgradeObjs) {
-    if (upg.collected || upg.spawned === false) continue;
-    if (Math.hypot(px - upg.x, py - upg.y) < PICKUP_R) {
-      upg.collected = true;
-      s.cellContents.delete(upg.cellKey);
-      applyUpgrade(state, playerProgress, upg.upgradeType);
-      Sounds.upgradecollect();
-      const def   = (UPGRADE_TYPES || []).find(u => u.id === upg.upgradeType);
-      const color = def ? def.color : '#ffcc00';
-      onParticles(upg.x, upg.y, CONFIG.PICKUP_PARTICLES_COUNT, color);
-    }
-  }
 
   // Cursed chests
   for (const chest of (s.chestObjs || [])) {
@@ -125,8 +111,6 @@ export function updateBattleCollectibles(state, playerProgress, onParticles) {
       const color = def ? def.color : '#ffcc00';
       onParticles(upg.x, upg.y, CONFIG.PICKUP_PARTICLES_COUNT, color);
       // Sync
-      const worldUpg = state.upgradeObjs.find(u => u.cellKey === upg.originalCellKey);
-      if (worldUpg) worldUpg.collected = true;
     }
   }
 
@@ -165,11 +149,6 @@ export function syncBattleCollectibles(state) {
     if (!bh.collected) continue;
     const wh = state.hearts.find(h => h.cellKey === bh.originalCellKey);
     if (wh) wh.collected = true;
-  }
-  for (const bu of (b.upgrades || [])) {
-    if (!bu.collected) continue;
-    const wu = state.upgradeObjs.find(u => u.cellKey === bu.originalCellKey);
-    if (wu) wu.collected = true;
   }
 }
 
@@ -211,9 +190,6 @@ export function isNearAltar(state) {
 export function spawnRoomRewards(state, cellKey) {
   for (const heart of state.hearts) {
     if (heart.cellKey === cellKey) heart.spawned = true;
-  }
-  for (const upg of state.upgradeObjs) {
-    if (upg.cellKey === cellKey) upg.spawned = true;
   }
   for (const chest of (state.chestObjs || [])) {
     if (chest.cellKey === cellKey) chest.spawned = true;
@@ -304,9 +280,6 @@ export function applyUpgradeChoice(state, playerProgress, choiceId) {
   // Mark chest as collected regardless of choice
   if (chest) {
     chest.collected = true;
-    // Also mark corresponding upgrade as collected so it doesn't spawn
-    const upg = state.upgradeObjs?.find(u => u.cellKey === chest.cellKey);
-    if (upg) upg.collected = true;
   }
 
   // Clear state

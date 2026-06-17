@@ -378,68 +378,31 @@ export function generateLevel(level, playerProgress) {
     hearts.push({ x: center.x, y: center.y, cellKey: getCenterCellKey(ri), collected: false, spawned: false });
   }
 
-  // ── Upgrades ──
-  const upgradeObjs     = [];
-  const targetUpgCount  = LEVEL_UPGRADE_COUNTS[level] || 4;
-  const availUpgrades   = [];
-  for (const upg of UPGRADE_TYPES) {
-    const spawnedCount = playerProgress.spawnedUpgrades[upg.id] || 0;
-    for (let i = 0; i < upg.max - spawnedCount; i++) availUpgrades.push(upg.id);
-  }
-  shuffleInPlace(availUpgrades);
-
-  const uniqueUpgrades   = [];
-  const usedInThisLevel  = new Set();
-  for (const upgId of availUpgrades) {
-    if (usedInThisLevel.has(upgId)) continue;
-    usedInThisLevel.add(upgId);
-    uniqueUpgrades.push(upgId);
-    if (uniqueUpgrades.length >= targetUpgCount) break;
-  }
-  for (const upgId of uniqueUpgrades) {
-    playerProgress.spawnedUpgrades[upgId] = (playerProgress.spawnedUpgrades[upgId] || 0) + 1;
-  }
-
-  const upgsCount = Math.min(uniqueUpgrades.length, availableRooms.length);
-  for (let i = 0; i < upgsCount; i++) {
-    const ri    = availableRooms.shift();
-    const upgId = uniqueUpgrades[i];
-    setRoomContent(ri, 'upgrade', { upgradeType: upgId }, pickRoomPreset(level, 'simpleupgrade'));
-    const center = getRoomCenter(ri);
-    upgradeObjs.push({
-      x: center.x, y: center.y,
-      cellKey:     getCenterCellKey(ri),
-      upgradeType: upgId,
-      collected:   false,
-      spawned:     true,
-    });
-  }
-
-  // ── Upgrade chests (replace altars in upgrade rooms) ──
+  // ── Upgrade chests (3 random choices) ──
   const upgradeChests = [];
-  for (const u of upgradeObjs) {
-    const ri = cellToRoom.get(u.cellKey);
-    if (ri !== undefined) {
-      const center = getRoomCenter(ri);
-      upgradeChests.push({
-        x: center.x, y: center.y,
-        cellKey: u.cellKey,
-        upgradeType: u.upgradeType,
-        collected: false,
-        spawned: true,
-      });
-    }
+  const targetChestCount = LEVEL_UPGRADE_COUNTS[level] || 4;
+  const chestCount = Math.min(targetChestCount, availableRooms.length);
+  for (let i = 0; i < chestCount; i++) {
+    const ri = availableRooms.shift();
+    setRoomContent(ri, 'chest', {}, pickRoomPreset(level, 'simpleupgrade'));
+    const center = getRoomCenter(ri);
+    upgradeChests.push({
+      x: center.x, y: center.y,
+      cellKey: getCenterCellKey(ri),
+      collected: false,
+      spawned: true,
+    });
   }
 
   // ── Cursed chests ──
   const chestObjs  = [];
-  const chestCount = Math.min(LEVEL_CHEST_COUNTS[level] || 1, availableRooms.length);
-  for (let i = 0; i < chestCount; i++) {
+  const cursedChestCount = Math.min(LEVEL_CHEST_COUNTS[level] || 1, availableRooms.length);
+  for (let i = 0; i < cursedChestCount; i++) {
     const ri = availableRooms.shift();
     if (ri === undefined) break;
-    setRoomContent(ri, 'chest', {}, pickRoomPreset(level, 'cursedupgrade'));
+    setRoomContent(ri, 'cursed', {}, pickRoomPreset(level, 'cursedupgrade'));
     const center = getRoomCenter(ri);
-    chestObjs.push({ x: center.x, y: center.y, cellKey: getCenterCellKey(ri), collected: false, spawned: true });
+    chestObjs.push({ x: center.x, y: center.y, cellKey: getCenterCellKey(ri), collected: false, spawned: false });
   }
 
   // ── Enemy rooms ──
@@ -460,17 +423,7 @@ export function generateLevel(level, playerProgress) {
   const purified = new Set([0]);
 
   // ── Hide spawned items in enemy rooms ──
-  for (const u of upgradeObjs) {
-    const ri = cellToRoom.get(u.cellKey);
-    if (ri !== undefined) {
-      const room = rooms[ri];
-      for (const cell of room.cells) {
-        const c = cellContents.get(cell.k);
-        if (c && c.enemyCount > 0) { u.spawned = false; break; }
-      }
-    }
-  }
-  // Upgrade chests are always visible (unlike regular upgrade orbs)
+  // Upgrade chests are always visible (they serve as the battle trigger)
   // They serve as the battle trigger, so player must see them to interact
   for (const c of chestObjs) {
     const ri = cellToRoom.get(c.cellKey);
@@ -530,8 +483,8 @@ export function generateLevel(level, playerProgress) {
   const altarProcessed    = new Set();
   for (const [k, content] of cellContents) {
     if (!content.enemyPreset || content.enemyCount <= 0 || content.enemiesReleased) continue;
-    // Skip rooms with upgrade or chest (they use chest interaction instead)
-    if (content.type === 'upgrade' || content.type === 'chest') continue;
+    // Skip rooms with chest (upgrade chests use F-key interaction, not altar)
+    if (content.type === 'chest') continue;
     const ri = cellToRoom.get(k);
     if (ri === undefined || altarProcessed.has(ri)) continue;
     altarProcessed.add(ri);
@@ -567,7 +520,6 @@ export function generateLevel(level, playerProgress) {
     heartsCollected:    0,
     summonSphere,
     summonSphereCollected: false,
-    upgradeObjs,
     upgradeChests,
     chestObjs,
     revealedExit:       false,

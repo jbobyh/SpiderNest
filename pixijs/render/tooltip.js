@@ -57,24 +57,6 @@ export function updateTooltip(state, camera) {
   // Convert screen mouse to world coords
   const worldMouse = camera.screenToWorld(mouse.x, mouse.y);
 
-  // Check upgrades
-  const upgrades = inBattle ? (state.battle?.upgrades || []) : (state.upgradeObjs || []);
-  for (const upg of upgrades) {
-    if (upg.collected || upg.spawned === false) continue;
-    const dist = Math.hypot(worldMouse.x - upg.x, worldMouse.y - upg.y);
-    if (dist < hoverR) {
-      const def = (typeof UPGRADE_TYPES !== 'undefined' ? UPGRADE_TYPES : [])
-        .find(u => u.id === upg.upgradeType);
-      if (def) {
-        // Convert world to screen coords: screen = (world - cam) * zoom + center
-        const screenX = (upg.x - camera.worldX) * camera.zoom + VW / 2;
-        const screenY = (upg.y - camera.worldY) * camera.zoom + VH / 2;
-        showTooltip(screenX, screenY, def.label, def.description, def.color);
-        return;
-      }
-    }
-  }
-
   // Check dropped weapons
   const weapons = inBattle ? (state.battle?.droppedWeapons || []) : (state.droppedWeapons || []);
   for (const dw of weapons) {
