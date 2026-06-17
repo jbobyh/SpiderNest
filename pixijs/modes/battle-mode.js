@@ -18,15 +18,16 @@ import { Sounds }                         from '../core/sound.js';
 import {
   cellOf, cellKey, cellFromKey,
   getConnectedCells, getCellBounds,
-  crossesWall, CELL_PX,
+  CELL_PX,
 } from '../world/constants.js';
+import { setBodyVelocity, setPlayerDashing } from '../world/physics.js';
 import {
   shoot,
   updateBullets,
   updateEnemyBullets,
 } from '../game/combat.js';
 import {
-  updateEnemyAI, resolveEnemyCollisions,
+  updateEnemyAI,
 } from '../game/enemy-ai.js';
 import { updateBoss }                      from '../game/boss.js';
 import { updateCollectibles, spawnRoomRewards } from '../game/collectibles.js';
@@ -284,7 +285,6 @@ export function updateBattleMode(state, playerProgress, camera, dt, callbacks = 
   // ── Enemy AI ──────────────────────────────────────────────
   updateEnemyAI(state, playerProgress, dt,
     _onPlayerHit.bind(null, state, playerProgress, onPlayerDead));
-  resolveEnemyCollisions(state.activeSpiders, state.openCells);
 
   // Boss entities
   for (const g of state.activeSpiders) {
@@ -433,23 +433,10 @@ function _stepBattlePlayer(state, dt) {
   if (k['d'] || k['в'] || k['arrowright']) mvx += 1;
   if (mvx && mvy) { mvx *= Math.SQRT1_2; mvy *= Math.SQRT1_2; }
 
-  const rw  = state.removedWalls;
-  const newX = state.player.x + mvx * spd * dt;
-  const newY = state.player.y + mvy * spd * dt;
-
-  const cx = cellOf(newX, state.player.y);
-  if (state.openCells.has(cellKey(cx.x, cx.y)) &&
-      !crossesWall(rw, state.player.x, state.player.y, newX, state.player.y)) {
-    state.player.x = newX;
-  }
-  const cy = cellOf(state.player.x, newY);
-  if (state.openCells.has(cellKey(cy.x, cy.y)) &&
-      !crossesWall(rw, state.player.x, state.player.y, state.player.x, newY)) {
-    state.player.y = newY;
-  }
-
   if (mvx !== 0 || mvy !== 0) Sounds.footstep(dt);
   else                         Sounds._footstepTimer = 0;
+
+  setBodyVelocity(state.player.body, mvx * spd, mvy * spd);
 }
 
 function _startDash(state) {
@@ -483,26 +470,23 @@ function _startDash(state) {
   state.player.dashProgress = 0;
   state.player.dashCooldown = CONFIG.PLAYER_DASH_COOLDOWN;
   Sounds.dash?.();
+  if (state.player.body) {
+    setPlayerDashing(state.player.body, true);
+    setBodyVelocity(state.player.body,
+      state.player.dashDirX * CONFIG.PLAYER_DASH_SPEED,
+      state.player.dashDirY * CONFIG.PLAYER_DASH_SPEED);
+  }
 }
 
 function _stepDash(state, dt) {
-  const dashMove = CONFIG.PLAYER_DASH_SPEED * dt;
-  state.player.dashProgress += dashMove;
+  state.player.dashProgress += CONFIG.PLAYER_DASH_SPEED * dt;
 
-  const newX = state.player.x + state.player.dashDirX * dashMove;
-  const newY = state.player.y + state.player.dashDirY * dashMove;
+  const body    = state.player.body;
+  const hitWall = body && Math.hypot(body.velocity.x, body.velocity.y) < CONFIG.PLAYER_DASH_SPEED * 0.3;
 
-  const c  = cellOf(newX, newY);
-  const rw = state.removedWalls;
-  if (!state.openCells.has(cellKey(c.x, c.y)) ||
-      crossesWall(rw, state.player.x, state.player.y, newX, newY)) {
+  if (state.player.dashProgress >= CONFIG.PLAYER_DASH_DISTANCE || hitWall) {
     state.player.isDashing = false;
-  } else {
-    state.player.x = newX;
-    state.player.y = newY;
-  }
-  if (state.player.dashProgress >= CONFIG.PLAYER_DASH_DISTANCE) {
-    state.player.isDashing = false;
+    if (body) { setPlayerDashing(body, false); setBodyVelocity(body, 0, 0); }
   }
 }
 

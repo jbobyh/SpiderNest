@@ -27,7 +27,7 @@ function getHudHeartCoords(state, index) {
 
 // Find a previously opened wall to auto-close when lives === 1
 function findAutoCloseWall(state, excludeWk) {
-  const pc = cellKey(Math.floor(state.player.x / 126), Math.floor(state.player.y / 126));
+  const pc = cellKey(Math.floor(state.player.x / CELL_PX), Math.floor(state.player.y / CELL_PX));
   let best = null;
   let bestDist = Infinity;
 
@@ -48,8 +48,8 @@ function findAutoCloseWall(state, excludeWk) {
     const bOpen = state.openCells.has(bKey);
     if (!aOpen && !bOpen) continue;
 
-    const midX = (ax + bx + 1) * 126 / 2;
-    const midY = (ay + by + 1) * 126 / 2;
+    const midX = (ax + bx + 1) * CELL_PX / 2;
+    const midY = (ay + by + 1) * CELL_PX / 2;
     const dist = Math.hypot(midX - state.player.x, midY - state.player.y);
 
     if (dist > bestDist) continue;
@@ -62,7 +62,7 @@ function findAutoCloseWall(state, excludeWk) {
 // Launch flying heart animation
 function launchFlyingHeart(fromX, fromY, toX, toY, onArrive, getTarget) {
   const dist = Math.hypot(toX - fromX, toY - fromY);
-  const duration = Math.max(0.18, Math.min(0.45, dist / (126 * 2.5)));
+  const duration = Math.max(0.18, Math.min(0.45, dist / (CELL_PX * 2.5)));
   flyingHeart = {
     x: fromX, y: fromY,
     startX: fromX, startY: fromY,
@@ -133,8 +133,8 @@ export function handleWallToggle(state, mx, my, rightHeld) {
   // Can only interact if at least one side is open
   if (!aOpen && !bOpen) return;
 
-  const wallMidX = (wall.ax + wall.bx + 1) * 126 / 2;
-  const wallMidY = (wall.ay + wall.by + 1) * 126 / 2;
+  const wallMidX = (wall.ax + wall.bx + 1) * CELL_PX / 2;
+  const wallMidY = (wall.ay + wall.by + 1) * CELL_PX / 2;
 
   if (!state.removedWalls.has(wall.wk)) {
     // OPEN wall: spend a life

@@ -13,14 +13,14 @@ const CONFIG = {
   // Player
   INITIAL_LIVES: 3,       // начальное кол-во жизней
   LIVES_PER_HEART: 1,     // жизней на одно сердце
-  PLAYER_SPEED: 120,      // скорость игрока (пикс/сек)
+  PLAYER_SPEED: 2.2,      // скорость игрока (пикс/сек)
   PLAYER_RADIUS: 5,       // радиус коллизии игрока
   PLAYER_SPRITE_RADIUS: 17,        // визуальный радиус спрайта (половина ширины отрисовки)
   PLAYER_INVULNERABLE_TIME: 1,    // секунд неуязвимости после урона
 
   // Player Dash
-  PLAYER_DASH_SPEED: 350,       // скорость деша (пикс/сек)
-  PLAYER_DASH_DISTANCE: 50,    // дальность деша (пикселей)
+  PLAYER_DASH_SPEED: 8,       // скорость деша (пикс/сек)
+  PLAYER_DASH_DISTANCE: 1.3,    // дальность деша (пикселей)
   PLAYER_DASH_COOLDOWN: 2.0,    // кулдаун деша (сек)
 
   // Shooting (default values, weapon-specific in WEAPON_DEFS)
@@ -78,7 +78,7 @@ const CONFIG = {
 
   // Spiders
   SPIDER_HP: 3*2,         // здоровье паука
-  SPIDER_SPEED: 60,       // скорость паука (пикс/сек)
+  SPIDER_SPEED: 1,       // скорость паука (пикс/сек)
   SPIDER_RADIUS: 7,       // радиус коллизии паука
   SPIDER_VISUAL_SCALE: 2.9,       // множитель визуального размера спрайта
   SPIDER_PHASE_SPEED: 2,          // скорость анимации парения
@@ -88,7 +88,7 @@ const CONFIG = {
 
   // Shooters
   SHOOTER_HP: 2*2,             // здоровье плеваки
-  SHOOTER_SPEED: 50,          // скорость плеваки (пикс/сек)
+  SHOOTER_SPEED: 1,          // скорость плеваки (пикс/сек)
   SHOOTER_RADIUS: 6,          // радиус коллизии плеваки
   SHOOTER_VISUAL_SCALE: 2.5,          // множитель визуального размера спрайта
   SHOOTER_BULLET_SPEED: 100,  // скорость пули плеваки
@@ -109,7 +109,7 @@ const CONFIG = {
 
   // Bull
   BULL_HP: 4*2,           // здоровье быка
-  BULL_SPEED: 70,         // скорость быка (пикс/сек)
+  BULL_SPEED: 1,         // скорость быка (пикс/сек)
   BULL_RADIUS: 6,         // радиус коллизии быка
   BULL_VISUAL_SCALE: 3.2,         // множитель визуального размера спрайта
   BULL_PREPARE_TIME: 1,         // время подготовки рывка (сек)
@@ -120,11 +120,11 @@ const CONFIG = {
 
   // Buldyga
   BULDYGA_HP: 8*2,        // здоровье булдыги
-  BULDYGA_SPEED: 60,              // начальная скорость
-  BULDYGA_SPEED_INCREMENT: 20,    // ускорение каждую секунду
+  BULDYGA_SPEED: 1,              // начальная скорость
+  BULDYGA_SPEED_INCREMENT: 0.1,    // ускорение каждую секунду
   BULDYGA_RADIUS: 6,     // радиус коллизии булдыги
   BULDYGA_VISUAL_SCALE: 4.0,     // множитель визуального размера спрайта
-  BULDYGA_ACCEL: 180,             // ускорение инерции (пикс/с²)
+  BULDYGA_ACCEL: 20,             // ускорение инерции (пикс/с²)
   BULDYGA_FRICTION: 3.5,          // коэффициент торможения (затухание скорости)
 
   // Cocoon (spawner)
@@ -136,7 +136,7 @@ const CONFIG = {
 
   // Bloated (explodes on death)
   BLOATED_HP: 4*2,        // здоровье распухшего
-  BLOATED_SPEED: 60,      // скорость распухшего (пикс/сек)
+  BLOATED_SPEED: 1,      // скорость распухшего (пикс/сек)
   BLOATED_RADIUS: 7,      // радиус коллизии распухшего
   BLOATED_VISUAL_SCALE: 3.2,      // множитель визуального размера спрайта
   BLOATED_DEATH_SHOT_SPEED: 120,  // скорость пули при смерти (как у плеваки)

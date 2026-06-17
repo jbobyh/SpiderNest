@@ -10,6 +10,10 @@ const { Engine, Bodies, Body, Composite, Events } = Matter;
 
 const WALL_THICKNESS = 6; // px — thin static wall body depth
 
+export const CAT_WALL   = 0x0001;
+export const CAT_PLAYER = 0x0002;
+export const CAT_ENEMY  = 0x0004;
+
 let _engine    = null;
 let _wallBodies = new Map(); // wallKey → Matter.Body
 let _outerWalls = [];
@@ -31,30 +35,57 @@ export function stepEngine(dtMs) {
 
 // ── Entity bodies ─────────────────────────────────────────────
 
-export function createPlayerBody(x, y) {
+export function createPlayerBody(x, y, entity) {
   const body = Bodies.circle(x, y, CONFIG.PLAYER_RADIUS, {
     label: 'player',
     frictionAir: 0,
     restitution: 0,
     friction: 0,
+    collisionFilter: { category: CAT_PLAYER, mask: CAT_WALL | CAT_ENEMY },
   });
+  body._entity = entity;
   Composite.add(_engine.world, body);
   return body;
 }
 
-export function createEnemyBody(x, y, radius, label = 'enemy') {
+export function createEnemyBody(x, y, radius, entity, label = 'enemy') {
   const body = Bodies.circle(x, y, radius, {
     label,
     frictionAir: 0,
     restitution: 0.1,
     friction: 0,
+    collisionFilter: { category: CAT_ENEMY, mask: CAT_WALL | CAT_PLAYER | CAT_ENEMY },
   });
+  body._entity = entity;
   Composite.add(_engine.world, body);
   return body;
 }
 
 export function destroyBody(body) {
   if (body && _engine) Composite.remove(_engine.world, body);
+}
+
+// Convenience wrapper — avoids importing Body into every module.
+export function setBodyVelocity(body, vx, vy) {
+  if (body) Body.setVelocity(body, { x: vx, y: vy });
+}
+
+// Switch player collision mask: during dash player passes through enemies but not walls.
+export function setPlayerDashing(body, isDashing) {
+  Body.set(body, 'collisionFilter', {
+    category: CAT_PLAYER,
+    mask: isDashing ? CAT_WALL : CAT_WALL | CAT_ENEMY,
+  });
+}
+
+// Destroy engine and free all bodies. Call on level teardown.
+export function clearEngine() {
+  if (_engine) {
+    Engine.clear(_engine);
+    _engine     = null;
+    _wallBodies = new Map();
+    _outerWalls = [];
+  }
 }
 
 // ── Wall bodies ───────────────────────────────────────────────
@@ -64,16 +95,22 @@ export function destroyBody(body) {
 // Call syncWallBodies() whenever removedWalls changes.
 
 export function syncWallBodies(blobCells, removedWalls) {
-  // Collect walls that should exist
   const neededWalls = new Set();
+
   for (const k of blobCells) {
-    const { x, y } = cellFromKey(k);
-    for (const [dx, dy] of [[1, 0], [0, 1]]) {
+    const [x, y] = k.split(',').map(Number);
+    // Check all 4 directions to find world boundaries or closed internal walls
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const nx = x + dx, ny = y + dy;
       const nk = `${nx},${ny}`;
-      if (!blobCells.has(nk)) continue;
       const wk = wallKey(x, y, nx, ny);
-      if (!removedWalls.has(wk)) neededWalls.add(wk);
+
+      const isEdge = !blobCells.has(nk);
+      const isClosedInternal = !isEdge && !removedWalls.has(wk);
+
+      if (isEdge || isClosedInternal) {
+        neededWalls.add(wk);
+      }
     }
   }
 
@@ -91,21 +128,20 @@ export function syncWallBodies(blobCells, removedWalls) {
     const [left, right] = wk.split('|');
     const [ax, ay]      = left.split(',').map(Number);
     const [bx, by]      = right.split(',').map(Number);
-    // ax===bx → horizontal boundary (same column) → horizontal wall strip
-    // ay===by → vertical boundary (same row)       → vertical wall strip
-    const isHorizBoundary = ax === bx; // boundary runs top-bottom → vertical strip
+
+    const isVertWall = ax === bx; // cells are (x,y) and (x,y+1) -> horizontal boundary -> horizontal wall strip
 
     let wx, wy, ww, wh;
-    if (!isHorizBoundary) {
-      // bx = ax+1 — wall between columns ax and bx (vertical strip at x = bx*CELL_PX)
-      wx = bx * CELL_PX;
+    if (!isVertWall) {
+      // vertical wall between column ax and bx
+      wx = Math.max(ax, bx) * CELL_PX;
       wy = ay * CELL_PX + CELL_PX / 2;
       ww = WALL_THICKNESS;
       wh = CELL_PX;
     } else {
-      // by = ay+1 — wall between rows ay and by (horizontal strip at y = by*CELL_PX)
+      // horizontal wall between row ay and by
       wx = ax * CELL_PX + CELL_PX / 2;
-      wy = by * CELL_PX;
+      wy = Math.max(ay, by) * CELL_PX;
       ww = CELL_PX;
       wh = WALL_THICKNESS;
     }
@@ -115,6 +151,7 @@ export function syncWallBodies(blobCells, removedWalls) {
       label: 'wall',
       friction: 0,
       restitution: 0,
+      collisionFilter: { category: CAT_WALL },
     });
     Composite.add(_engine.world, body);
     _wallBodies.set(wk, body);
@@ -145,7 +182,11 @@ export function syncOuterBounds(minX, minY, maxX, maxY) {
   ];
 
   for (const [rx, ry, rw, rh] of rects) {
-    const body = Bodies.rectangle(rx, ry, rw, rh, { isStatic: true, label: 'outer_wall' });
+    const body = Bodies.rectangle(rx, ry, rw, rh, {
+      isStatic: true,
+      label: 'outer_wall',
+      collisionFilter: { category: CAT_WALL },
+    });
     Composite.add(_engine.world, body);
     _outerWalls.push(body);
   }

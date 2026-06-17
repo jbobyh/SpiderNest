@@ -58,6 +58,15 @@ import {
 import {
   startZoomIn, startZoomOut, updateTransition,
 } from './modes/transitions.js';
+import {
+  createEngine, clearEngine, stepEngine,
+  createPlayerBody, destroyBody,
+  syncWallBodies, syncOuterBounds, onCollision,
+} from './world/physics.js';
+import { computeFlowField, FLOW_SUB_PX } from './game/flow-field.js';
+import { getCellBounds } from './world/constants.js';
+import { spawnCorpse } from './game/enemy-ai.js';
+import { spawnParticles } from './render/particles.js';
 
 // ── Module state ──────────────────────────────────────────────
 
@@ -109,6 +118,22 @@ export function startGameLoop({
   // Initialize lazy-rebuild tracking
   _state._lastPurifiedSize = _state.purified?.size ?? 0;
   _state._lastEverRevealedSize = _state.everRevealedCells?.size ?? 0;
+
+  // Physics engine
+  createEngine();
+  syncWallBodies(_state.blobCells, _state.removedWalls);
+  const { minX, minY, maxX, maxY } = getCellBounds(_state.blobCells);
+  syncOuterBounds(minX, minY, maxX, maxY);
+  _state.player.body = createPlayerBody(_state.player.x, _state.player.y, _state.player);
+
+  // Register collision handler
+  onCollision((pairs) => _handlePhysicsCollision(pairs));
+
+  // Flow field state
+  _state.flowField       = null;
+  _state._ff_scx         = -1;
+  _state._ff_scy         = -1;
+  _state.blockedSubNodes = new Set();
 
   // Renderer init
   _camera = new Camera();
@@ -176,10 +201,78 @@ export function stopGameLoop() {
   destroyHud();
   destroyTooltip();
   clearWorldLayers();
+
+  // Physics cleanup
+  if (_state) {
+    if (_state.player?.body) destroyBody(_state.player.body);
+    for (const g of (_state.activeSpiders || [])) if (g.body) destroyBody(g.body);
+  }
+  clearEngine();
+
   _running = false;
 }
 
-// ── Main loop ─────────────────────────────────────────────────
+// ── Physics Collisions ────────────────────────────────────────
+
+function _handlePhysicsCollision(pairs) {
+  if (!_state || _state.phase !== 'play' && _state.phase !== 'battle') return;
+
+  for (const pair of pairs) {
+    const { bodyA, bodyB } = pair;
+    const entA = bodyA._entity;
+    const entB = bodyB._entity;
+
+    if (!entA || !entB) continue;
+
+    // Player <-> Enemy
+    const player = (entA.lives !== undefined) ? entA : (entB.lives !== undefined ? entB : null);
+    const enemy  = (entA.hp !== undefined && entA !== player) ? entA : (entB.hp !== undefined && entB !== player ? entB : null);
+
+    if (player && enemy) {
+      _handlePlayerEnemyContact(player, enemy);
+    }
+  }
+}
+
+function _handlePlayerEnemyContact(player, enemy) {
+  if (player.invulnerable > 0 || player.isDashing) return;
+
+  // Damage player
+  const onPlayerDead = _onPlayerDead;
+  
+  if (enemy.isBoss) {
+    // Boss contact damage
+    player.lives--;
+    player.invulnerable = CONFIG.PLAYER_INVULNERABLE_TIME;
+    Sounds.playerhit?.();
+    spawnParticles(_state.particles, player.x, player.y, 12, 0, Math.PI*2, 20, 60, 0.5, '#ff4444');
+    if (player.lives <= 0) onPlayerDead(_state, _playerProgress);
+    return;
+  }
+
+  // Regular enemy contact damage
+  if (player.lives > 0) {
+    const idx = _state.activeSpiders.indexOf(enemy);
+    if (idx !== -1) {
+      // Shooter/Plevaka don't die on contact or deal contact damage usually? 
+      // Actually, in the old code plevaka/shooter didn't have contact damage block.
+      // But they are ranged. Let's keep it consistent with old logic.
+      if (enemy.type !== 'shooter' && enemy.type !== 'plevaka') {
+        spawnCorpse(_state.deathCorpses, enemy, enemy.radius || CONFIG.SPIDER_RADIUS);
+        destroyBody(enemy.body);
+        _state.activeSpiders.splice(idx, 1);
+        
+        spawnParticles(_state.particles, player.x, player.y, 8, 0, Math.PI*2, 20, 40, 0.5, '#ff4444');
+        
+        player.lives--;
+        player.invulnerable = CONFIG.PLAYER_INVULNERABLE_TIME;
+        Sounds.playerhit?.();
+        
+        if (player.lives <= 0) onPlayerDead(_state, _playerProgress);
+      }
+    }
+  }
+}
 
 function _loop(dt) {
   if (!_state || !_camera) return;
@@ -187,6 +280,33 @@ function _loop(dt) {
   // Clamp dt to avoid spiral-of-death on tab-switch
   const safeDt = Math.min(dt, 0.1);
   const phase  = _state.phase;
+
+  // Step physics engine (wall + dynamic bodies)
+  stepEngine(safeDt * 1000);
+
+  // Sync entity positions from physics bodies
+  if (_state.player?.body) {
+    _state.player.x = _state.player.body.position.x;
+    _state.player.y = _state.player.body.position.y;
+  }
+  for (const g of _state.activeSpiders) {
+    if (g.body) { g.x = g.body.position.x; g.y = g.body.position.y; }
+  }
+
+  // Flow field: recompute when player moves to a different sub-cell
+  if (phase === 'play' || phase === 'battle') {
+    const pSubCX = Math.floor(_state.player.x / FLOW_SUB_PX);
+    const pSubCY = Math.floor(_state.player.y / FLOW_SUB_PX);
+    if (pSubCX !== _state._ff_scx || pSubCY !== _state._ff_scy) {
+      _state._ff_scx = pSubCX;
+      _state._ff_scy = pSubCY;
+      _state.flowField = computeFlowField(
+        _state.openCells, _state.removedWalls,
+        _state.player.x, _state.player.y,
+        _state.blockedSubNodes,
+      );
+    }
+  }
 
   // Update overlay (choice panels) — must run before phase dispatch
   updateOverlay(_state, _playerProgress, { onEnterBattle: _onEnterBattle });
@@ -261,12 +381,18 @@ function _render(dt) {
     updateBossHpBar(_state);
   }
 
-  // Rebuild tile layer when walls, purified, or revealed cells change
+  // Rebuild tile layer and sync physics walls when walls, purified, or revealed cells change
   const purifiedSize      = _state.purified?.size ?? 0;
   const everRevealedSize  = _state.everRevealedCells?.size ?? 0;
   if (_state._lastRemovedWallsSize !== _state.removedWalls.size ||
       _state._lastPurifiedSize     !== purifiedSize ||
       _state._lastEverRevealedSize !== everRevealedSize) {
+    
+    // Sync physics walls if walls changed
+    if (_state._lastRemovedWallsSize !== _state.removedWalls.size) {
+      syncWallBodies(_state.blobCells, _state.removedWalls);
+    }
+
     _state._lastRemovedWallsSize = _state.removedWalls.size;
     _state._lastPurifiedSize     = purifiedSize;
     _state._lastEverRevealedSize = everRevealedSize;

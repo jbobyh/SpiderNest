@@ -4,7 +4,9 @@
 // BOSS_DEFS / CONFIG are globals from config.js.
 // ============================================================
 
-import { cellKey, cellOf, CELL_PX, crossesWall, inRoom } from '../world/constants.js';
+import { cellKey, cellOf, CELL_PX } from '../world/constants.js';
+import { createEnemyBody, destroyBody, setBodyVelocity } from '../world/physics.js';
+import { getEnemyMoveDir } from './flow-field.js';
 import { Sounds } from '../core/sound.js';
 import { dealPlayerDamage, showUpgradePopup } from './upgrades.js';
 
@@ -18,6 +20,10 @@ export function updateBoss(g, b, state, playerProgress, dt, currentLevel) {
   // Hit flash / stun
   if (g.hitFlash  > 0) g.hitFlash  -= dt;
   if (g.stunTimer > 0) g.stunTimer -= dt;
+
+  if (!g.body) {
+    g.body = createEnemyBody(g.x, g.y, g.radius || CONFIG.SPIDER_RADIUS, g, 'boss');
+  }
 
   const freezeTimer = b?.freezeTimer ?? 0;
 
@@ -40,40 +46,29 @@ export function updateBoss(g, b, state, playerProgress, dt, currentLevel) {
 
   // ── Phase behaviour ──────────────────────────────────────────
   if (phase.id === 'pause') {
-    // do nothing
+    setBodyVelocity(g.body, 0, 0);
 
   } else if (phase.id === 'soldier') {
     if (g.stunTimer <= 0 && freezeTimer <= 0 && dist > 0) {
-      newX += (dx / dist) * bossSpd * dt;
-      newY += (dy / dist) * bossSpd * dt;
+      const dir = getEnemyMoveDir(g.x, g.y, state.player.x, state.player.y, state.flowField, state.openCells, state.removedWalls);
+      setBodyVelocity(g.body, dir.dx * bossSpd, dir.dy * bossSpd);
+    } else {
+      setBodyVelocity(g.body, 0, 0);
     }
 
   } else if (phase.id === 'buldyga') {
     _updateBossInertia(g, state, phase, dx, dy, dist, dt, freezeTimer);
-    newX = g.x; newY = g.y;
 
   } else if (phase.id === 'bull_limited') {
     _updateBossBullLimited(g, state, playerProgress, phase, dx, dy, dist, dt, freezeTimer);
-    newX = g.x; newY = g.y;
 
   } else if (phase.id === 'shooter') {
     _updateBossShooter(g, state, phase, dx, dy, dist, dt, freezeTimer);
-    newX = g.x; newY = g.y;
-  }
-
-  // ── Move with wall check ──────────────────────────────────────
-  if (phase.id !== 'bull_limited' && phase.id !== 'shooter' && phase.id !== 'buldyga') {
-    const nc = cellOf(newX, newY);
-    if (state.openCells.has(cellKey(nc.x, nc.y)) &&
-        !crossesWall(state.removedWalls, g.x, g.y, newX, newY)) {
-      g.x = newX; g.y = newY;
-    }
   }
 
   // ── Touch player ─────────────────────────────────────────────
   if (dist < (g.radius || CONFIG.SPIDER_RADIUS) + CONFIG.PLAYER_RADIUS) {
-    dealPlayerDamage(state, playerProgress, true);
-    _playerHitParticles(state.particles, state.player.x, state.player.y);
+    // Contact damage handled by onCollision in physics.js
   }
 }
 
@@ -139,21 +134,41 @@ function _updateBossInertia(g, state, phase, dx, dy, dist, dt, freezeTimer) {
 
   const stunned = g.stunTimer > 0;
   if (!stunned && freezeTimer <= 0 && dist > 0) {
-    const tvx = (dx / dist) * g.currentSpeed, tvy = (dy / dist) * g.currentSpeed;
+    // Use pathfinding for direction
+    const dir = getEnemyMoveDir(g.x, g.y, state.player.x, state.player.y, state.flowField, state.openCells, state.removedWalls);
+    
+    // Target velocity
+    const tvx = dir.dx * g.currentSpeed;
+    const tvy = dir.dy * g.currentSpeed;
+    
+    // Apply acceleration (inertia)
     const acc = CONFIG.BULDYGA_ACCEL * accelMult * dt;
-    g.vx += (tvx - g.vx) * Math.min(1, acc / g.currentSpeed);
-    g.vy += (tvy - g.vy) * Math.min(1, acc / g.currentSpeed);
-  } else if (freezeTimer > 0) {
-    g.vx *= Math.max(0, 1 - CONFIG.BULDYGA_FRICTION * frictionMult * dt);
-    g.vy *= Math.max(0, 1 - CONFIG.BULDYGA_FRICTION * frictionMult * dt);
+    const dvx = tvx - g.vx;
+    const dvy = tvy - g.vy;
+    const dLen = Math.hypot(dvx, dvy);
+    
+    if (dLen > 0) {
+      const step = Math.min(dLen, acc);
+      g.vx += (dvx / dLen) * step;
+      g.vy += (dvy / dLen) * step;
+    }
+  } else if (freezeTimer > 0 || stunned) {
+    const friction = 1 - CONFIG.BULDYGA_FRICTION * frictionMult * dt;
+    g.vx *= Math.max(0, friction);
+    g.vy *= Math.max(0, friction);
   }
 
-  const nx = g.x + g.vx * dt, ny = g.y + g.vy * dt;
-  const nc = cellOf(nx, ny);
-  if (state.openCells.has(cellKey(nc.x, nc.y)) &&
-      !crossesWall(state.removedWalls, g.x, g.y, nx, ny)) {
-    g.x = nx; g.y = ny;
-  } else { g.vx *= -0.3; g.vy *= -0.3; }
+  if (g.body) {
+    const bv = g.body.velocity;
+    const bSpd = Math.hypot(bv.x, bv.y);
+    const vSpd = Math.hypot(g.vx, g.vy);
+    
+    if (vSpd > 1 && bSpd < vSpd * 0.3) {
+      g.vx = bv.x;
+      g.vy = bv.y;
+    }
+  }
+  setBodyVelocity(g.body, g.vx, g.vy);
 }
 
 function _updateBossShooter(g, state, phase, dx, dy, dist, dt, freezeTimer) {
@@ -169,18 +184,19 @@ function _updateBossShooter(g, state, phase, dx, dy, dist, dt, freezeTimer) {
     }
     if (dist > 0) {
       const strafeSpd = CONFIG.BOSS_STRAFE_SPEED ?? 60;
-      const sx = (-dy / dist) * strafeSpd * g.strafeDir * dt;
-      const sy = ( dx / dist) * strafeSpd * g.strafeDir * dt;
-      const nx = g.x + sx, ny = g.y + sy;
-      const nc = cellOf(nx, ny);
-      if (state.openCells.has(cellKey(nc.x, nc.y)) &&
-          !crossesWall(state.removedWalls, g.x, g.y, nx, ny)) {
-        g.x = nx; g.y = ny;
-      } else {
+      const bvx = (-dy / dist) * strafeSpd * g.strafeDir;
+      const bvy = ( dx / dist) * strafeSpd * g.strafeDir;
+      
+      const body    = g.body;
+      const hitWall = body && Math.hypot(body.velocity.x, body.velocity.y) < strafeSpd * 0.3;
+      if (hitWall) {
         g.strafeDir *= -1;
         g.strafeSwitchTimer = CONFIG.BOSS_STRAFE_SWITCH_TIME ?? 2;
       }
+      setBodyVelocity(body, bvx, bvy);
     }
+  } else {
+    setBodyVelocity(g.body, 0, 0);
   }
 
   if (g.shootCd > 0) g.shootCd -= dt;
@@ -209,15 +225,11 @@ function _updateBossBullLimited(g, state, playerProgress, phase, dx, dy, dist, d
   switch (g.state) {
     case 'chase':
       if (g.stunTimer <= 0 && freezeTimer <= 0 && dist > chargeDist && dist > 0) {
-        let nx = g.x + (dx / dist) * CONFIG.BULL_SPEED * dt;
-        let ny = g.y + (dy / dist) * CONFIG.BULL_SPEED * dt;
-        const nc = cellOf(nx, ny);
-        if (state.openCells.has(cellKey(nc.x, nc.y)) &&
-            !crossesWall(state.removedWalls, g.x, g.y, nx, ny)) {
-          g.x = nx; g.y = ny;
-        }
+        const dir = getEnemyMoveDir(g.x, g.y, state.player.x, state.player.y, state.flowField, state.openCells, state.removedWalls);
+        setBodyVelocity(g.body, dir.dx * CONFIG.BULL_SPEED, dir.dy * CONFIG.BULL_SPEED);
       } else if (dist <= chargeDist) {
         g.state = 'prepare'; g.stateTimer = CONFIG.BULL_PREPARE_TIME;
+        setBodyVelocity(g.body, 0, 0);
       }
       break;
     case 'prepare':
@@ -230,21 +242,20 @@ function _updateBossBullLimited(g, state, playerProgress, phase, dx, dy, dist, d
       }
       break;
     case 'dash': {
-      const spd = CONFIG.BULL_SPEED * 3 * dt;
-      let nx = g.x + g.dashDirX * spd, ny = g.y + g.dashDirY * spd;
-      const nc = cellOf(nx, ny);
-      const wall = !state.openCells.has(cellKey(nc.x, nc.y)) ||
-                   crossesWall(state.removedWalls, g.x, g.y, nx, ny);
-      g.stateTimer += Math.hypot(nx - g.x, ny - g.y);
-      if (wall || g.stateTimer >= g.dashDistance) {
+      const BULL_DASH_SPD = CONFIG.BULL_SPEED * 3;
+      setBodyVelocity(g.body, g.dashDirX * BULL_DASH_SPD, g.dashDirY * BULL_DASH_SPD);
+      g.stateTimer += BULL_DASH_SPD * dt;
+      const hitWall = g.body && Math.hypot(g.body.velocity.x, g.body.velocity.y) < BULL_DASH_SPD * 0.3;
+      if (hitWall || g.stateTimer >= g.dashDistance) {
         g.state = 'rest'; g.stateTimer = CONFIG.BULL_REST_TIME;
+        setBodyVelocity(g.body, 0, 0);
         g.dashCount = (g.dashCount || 0) + 1;
         if (g.dashCount >= (phase.maxDashes || 3)) _advancePhase(g, _bossDefForCurrentLevel());
-      } else { g.x = nx; g.y = ny; }
+      }
       if (Math.hypot(state.player.x - g.x, state.player.y - g.y) < hitDist) {
-        dealPlayerDamage(state, playerProgress, true);
-        _playerHitParticles(state.particles, state.player.x, state.player.y);
+        // Damage handled by onCollision in physics.js
         g.state = 'rest'; g.stateTimer = CONFIG.BULL_REST_TIME;
+        setBodyVelocity(g.body, 0, 0);
         g.dashCount = (g.dashCount || 0) + 1;
         if (g.dashCount >= (phase.maxDashes || 3)) _advancePhase(g, _bossDefForCurrentLevel());
       }
@@ -252,6 +263,7 @@ function _updateBossBullLimited(g, state, playerProgress, phase, dx, dy, dist, d
     }
     case 'rest':
       g.stateTimer -= dt;
+      setBodyVelocity(g.body, 0, 0);
       if (g.stateTimer <= 0) g.state = 'chase';
       break;
   }
@@ -261,6 +273,7 @@ function _updateBossBullLimited(g, state, playerProgress, phase, dx, dy, dist, d
 
 export function handleBossKilled(g, state, playerProgress) {
   state.bossDefeated = true;
+  destroyBody(g.body);
   const bossCellX = Math.floor(g.x / CELL_PX);
   const bossCellY = Math.floor(g.y / CELL_PX);
   state.exitCell = { x: bossCellX, y: bossCellY };
