@@ -48,10 +48,7 @@ import {
 import { initInput, destroyInput } from './core/input.js';
 import { Sounds }               from './core/sound.js';
 import {
-  startAutosave, stopAutosave, tickAutosave,
-} from './core/save.js';
-import {
-  createGameState, createDefaultProgress, saveGame, savePlayerProgress,
+  createGameState, createDefaultProgress, saveGame, savePlayerProgress, deleteSave,
 } from './game/state.js';
 import { updatePlayMode, isNearWeapon, isNearAltar, isNearUpgradeChest, isNearCursedChest } from './modes/play-mode.js';
 import {
@@ -64,12 +61,13 @@ import {
 
 // ── Module state ──────────────────────────────────────────────
 
-let _camera         = null;
-let _state          = null;
-let _playerProgress = null;
-let _currentLevel   = 1;
-let _tickerFn       = null;
-let _running        = false;
+let _camera            = null;
+let _state             = null;
+let _playerProgress    = null;
+let _levelStartProgress = null;  // Snapshot of progress at level start (for restart)
+let _currentLevel      = 1;
+let _tickerFn          = null;
+let _running           = false;
 
 // ── Public API ────────────────────────────────────────────────
 
@@ -91,6 +89,19 @@ export function startGameLoop({
 
   _currentLevel   = level;
   _playerProgress = playerProgress ?? createDefaultProgress();
+
+  // Save snapshot of progress at level start (for restart after death)
+  const defaults = createDefaultProgress();
+  _levelStartProgress = {
+    totalLives: _playerProgress.totalLives,
+    totalHeartsCollected: _playerProgress.totalHeartsCollected,
+    upgrades: { ..._playerProgress.upgrades },
+    spawnedUpgrades: { ..._playerProgress.spawnedUpgrades },
+    spawnedWeapons: [...(_playerProgress.spawnedWeapons || [])],
+    weaponSlots: [...(_playerProgress.weaponSlots || defaults.weaponSlots)],
+    activeSlot: _playerProgress.activeSlot ?? 0,
+    maxSlots: _playerProgress.maxSlots ?? 1,
+  };
 
   // Build or restore game state
   _state = savedState ?? createGameState(_currentLevel, _playerProgress);
@@ -130,17 +141,13 @@ export function startGameLoop({
   // Input
   initInput(app.canvas);
 
+  // Save once at level start
+  saveGame(_state, _currentLevel, _playerProgress);
+
   // Music — load bundle first (large files), then start playback
   loadMusicBundle()
     .then(() => { if (_running) Sounds.playLevelMusic(_currentLevel); })
     .catch(() => {});
-
-  // Autosave every 30 s during play
-  startAutosave({
-    getState:    () => _state,
-    getLevel:    () => _currentLevel,
-    getProgress: () => _playerProgress,
-  });
 
   // Ticker
   _tickerFn = (ticker) => _loop(ticker.deltaMS / 1000);
@@ -157,7 +164,6 @@ export function stopGameLoop() {
     app.ticker.remove(_tickerFn);
     _tickerFn = null;
   }
-  stopAutosave();
   destroyInput();
   destroyPlayerRenderer();
   clearEnemySprites();
@@ -179,9 +185,6 @@ function _loop(dt) {
   // Clamp dt to avoid spiral-of-death on tab-switch
   const safeDt = Math.min(dt, 0.1);
   const phase  = _state.phase;
-
-  // Tick autosave timer
-  tickAutosave(safeDt);
 
   // Update overlay (choice panels) — must run before phase dispatch
   updateOverlay(_state, _playerProgress, { onEnterBattle: _onEnterBattle });
@@ -339,8 +342,7 @@ function _onZoomOutComplete(_tr) {
 function _onPlayerDead(state, playerProgress) {
   state.phase = 'dead';
   Sounds.stopGameMusic();
-  savePlayerProgress(state, playerProgress);
-  // Show canvas game-over overlay
+  // Show canvas game-over overlay (don't save progress - restart uses level-start state)
   showGameOver(state, playerProgress, () => {
     hideGameOver();
     restartLevel();
@@ -351,7 +353,7 @@ function _onLevelComplete(state, playerProgress) {
   state.phase = 'win';
   Sounds.stopGameMusic();
   savePlayerProgress(state, playerProgress);
-  saveGame(state, _currentLevel, playerProgress);
+  deleteSave();
   showLevelComplete(() => {
     hideLevelComplete();
     nextLevel();
@@ -365,8 +367,10 @@ function _onLevelComplete(state, playerProgress) {
  */
 export function restartLevel() {
   stopGameLoop();
-  _playerProgress.totalLives = Math.max(1, _playerProgress.totalLives);
-  startGameLoop({ level: _currentLevel, playerProgress: _playerProgress });
+  // Use level-start progress snapshot (resets upgrades/weapons collected during level)
+  const restartProgress = _levelStartProgress ?? createDefaultProgress();
+  restartProgress.totalLives = Math.max(1, restartProgress.totalLives);
+  startGameLoop({ level: _currentLevel, playerProgress: restartProgress });
 }
 
 /**

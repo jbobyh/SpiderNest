@@ -47,7 +47,6 @@ async function boot() {
         startGameLoop({
           level:          save.currentLevel,
           playerProgress: save.playerProgress,
-          savedState:     save.state,
         });
       } else {
         startGameLoop({ level: 1 });

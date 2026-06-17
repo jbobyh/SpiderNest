@@ -69,7 +69,7 @@ export function initOverlay(hudLayer) {
 
 export function destroyOverlay() {
   _hidePanel();
-  _hideGameOver();
+  hideGameOver();
   _hud = null;
 }
 

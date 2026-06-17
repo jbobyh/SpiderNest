@@ -193,7 +193,7 @@ export function saveGame(state, currentLevel, playerProgress) {
         upgrades: { ...playerProgress.upgrades },
         spawnedUpgrades: { ...playerProgress.spawnedUpgrades },
       },
-      state: _serializeState(state),
+      state: state ? _serializeState(state) : null,
     };
     localStorage.setItem(SAVE_KEY, JSON.stringify(save));
   } catch (e) {
@@ -222,7 +222,7 @@ export function loadGame() {
     return {
       currentLevel: save.currentLevel,
       playerProgress: progress,
-      state: _deserializeState(save.state),
+      state: save.state ? _deserializeState(save.state) : null,
     };
   } catch (e) {
     console.warn('Load failed:', e);
@@ -244,7 +244,10 @@ export function deleteSave() {
 }
 
 export function savePlayerProgress(state, playerProgress) {
-  playerProgress.totalLives           = state.player.lives;
+  // Only save lives if player is alive; on death, totalLives stays as is
+  if (state.player.lives > 0) {
+    playerProgress.totalLives = state.player.lives;
+  }
   playerProgress.weaponSlots          = [...(state.weaponSlots || ['pistol', null])];
   playerProgress.activeSlot           = state.activeSlot || 0;
   playerProgress.maxSlots             = state.maxSlots || 1;
