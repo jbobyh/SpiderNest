@@ -619,3 +619,21 @@ export function hideLevelComplete() {
   dom.levelComplete.visible = false;
   _nextLevelCallback = null;
 }
+
+export function destroyHud() {
+  if (_parent) {
+    _parent.removeChildren().forEach(c => c.destroy({ children: true }));
+    _parent = null;
+  }
+  // Clear dom references
+  dom.levelLabel = null;
+  dom.heartsRow = null;
+  dom.shieldsRow = null;
+  dom.upgradePanel = null;
+  dom.weaponPanel = null;
+  dom.hintsPanel = null;
+  dom.pickupHint = null;
+  dom.bossSummonHint = null;
+  dom.bossHpBar = null;
+  dom.levelComplete = null;
+}

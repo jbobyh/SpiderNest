@@ -31,7 +31,7 @@ import {
 import {
   initParticles, syncParticles, clearParticles,
 } from './render/particles.js';
-import { initHud, updateHud, updateBossHpBar, showLevelComplete, hideLevelComplete }   from './render/hud.js';
+import { initHud, updateHud, updateBossHpBar, showLevelComplete, hideLevelComplete, destroyHud }   from './render/hud.js';
 import {
   initCollectibleRenderer, syncCollectibles, clearCollectibles,
 } from './render/collectible-renderer.js';
@@ -173,6 +173,7 @@ export function stopGameLoop() {
   clearCollectibles();
   destroyFlyingHeartRenderer();
   destroyOverlay();
+  destroyHud();
   destroyTooltip();
   clearWorldLayers();
   _running = false;
