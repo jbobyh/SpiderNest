@@ -181,17 +181,19 @@ function _syncWeapons(droppedWeapons, openCells, everRevealedCells) {
 
 const SPHERE_R = 12;
 
+const SPHERE_SIZE = 24;
+
 function _syncSphere(sphere) {
   if (!sphere || sphere.collected || sphere.spawned === false) {
     if (_sphere) _sphere.visible = false;
     return;
   }
   if (!_sphere) {
-    const g = new Graphics();
-    g.circle(0, 0, SPHERE_R).fill({ color: 0xff6600, alpha: 0.95 });
-    g.circle(0, 0, SPHERE_R).stroke({ color: 0xffcc00, alpha: 0.7, width: 2 });
-    _layer.addChild(g);
-    _sphere = g;
+    const spr = new Sprite(Texture.from('sphere'));
+    spr.anchor.set(0.5);
+    spr.width = spr.height = SPHERE_SIZE;
+    _layer.addChild(spr);
+    _sphere = spr;
   }
   _sphere.visible = true;
   _sphere.position.set(sphere.x, sphere.y);

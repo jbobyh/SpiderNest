@@ -103,6 +103,7 @@ const MANIFEST = {
         { alias: 'open-treasure-chest', src: IMG + 'open-treasure-chest.png' },
         { alias: 'chest',                 src: IMG + 'chest.png' },
         { alias: 'cursed-chest',          src: IMG + 'chest_cursed.png' },
+        { alias: 'sphere',                src: IMG + 'sphere.png' },
         // Weapon sprites (HUD + floor pickups)
         { alias: 'weapon-pistol',     src: IMG + 'pistol.png' },
         { alias: 'weapon-shotgun',    src: IMG + 'shotgun.png' },

@@ -5,7 +5,8 @@
 import { Sounds } from '../core/sound.js';
 import { doOpenWall, doCloseWall } from './state.js';
 import { spawnRoomRewards } from './collectibles.js';
-import { getWallAtPoint, cellKey } from '../world/constants.js';
+import { spawnPurifyWave } from '../render/particles.js';
+import { CELL_PX, getWallAtPoint, cellKey } from '../world/constants.js';
 
 // Flying heart state (module-local)
 let flyingHeart = null;
@@ -215,10 +216,17 @@ export function handleWallToggle(state, mx, my, rightHeld) {
 }
 
 function _spawnRewardsForNewlyPurified(state, wall) {
+  const wallMidX = (wall.ax + wall.bx + 1) * CELL_PX / 2;
+  const wallMidY = (wall.ay + wall.by + 1) * CELL_PX / 2;
   for (const k of [cellKey(wall.ax, wall.ay), cellKey(wall.bx, wall.by)]) {
     const roomIdx = state.cellToRoom?.get(k);
     if (roomIdx !== undefined && state.purified?.has(roomIdx)) {
       spawnRoomRewards(state, k);
+      const room = state.rooms?.[roomIdx];
+      if (room && !state.purifyWaveFired?.has(roomIdx)) {
+        state.purifyWaveFired.add(roomIdx);
+        spawnPurifyWave(state.particles, wallMidX, wallMidY, room.cells, CELL_PX);
+      }
     }
   }
 }

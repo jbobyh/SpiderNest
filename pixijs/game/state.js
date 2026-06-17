@@ -175,6 +175,7 @@ export function createGameState(level, playerProgress) {
     purified,
     cellToRoom,
     revealedRooms: new Set(), // Rooms adjacent to purified that show content without being opened
+    purifyWaveFired: new Set(purified),
   };
 }
 
@@ -494,8 +495,9 @@ function _deserializeState(data) {
     phase:         'play',
     battle:        null,
     roomAltars:    data.roomAltars || [],
-    purified:      new Set(data.purified || []),
-    cellToRoom:    new Map(data.cellToRoom || []),
-    revealedRooms: new Set(data.revealedRooms || []),
+    purified:         new Set(data.purified || []),
+    cellToRoom:        new Map(data.cellToRoom || []),
+    revealedRooms:     new Set(data.revealedRooms || []),
+    purifyWaveFired:   new Set(),
   };
 }

@@ -31,7 +31,7 @@ import {
 import { updateBoss }                      from '../game/boss.js';
 import { updateCollectibles, spawnRoomRewards } from '../game/collectibles.js';
 import { tickUpgradePopupTimer, hideUpgradePopup } from '../game/upgrades.js';
-import { spawnParticles } from '../render/particles.js';
+import { spawnParticles, spawnPurifyWave } from '../render/particles.js';
 import { updateRevealedRoomsOnPurify } from '../game/state.js';
 
 // ── Battle state creation ─────────────────────────────────────
@@ -346,6 +346,25 @@ export function exitBattleMode(state) {
   // Reveal adjacent rooms when a room becomes purified
   if (purifiedRoomIdx !== null) {
     updateRevealedRoomsOnPurify(state, purifiedRoomIdx);
+
+    // Purify wave from altar position or room geometric center
+    const room = state.rooms[purifiedRoomIdx];
+    if (!state.purifyWaveFired?.has(purifiedRoomIdx)) {
+      state.purifyWaveFired?.add(purifiedRoomIdx);
+      const altar = state.roomAltars?.find(a => a.roomIdx === purifiedRoomIdx);
+      let ox, oy;
+      if (altar) {
+        ox = altar.x;
+        oy = altar.y;
+      } else {
+        // Geometric center of room cells
+        let sx = 0, sy = 0;
+        for (const c of room.cells) { sx += (c.x + 0.5) * CELL_PX; sy += (c.y + 0.5) * CELL_PX; }
+        ox = sx / room.cells.length;
+        oy = sy / room.cells.length;
+      }
+      spawnPurifyWave(state.particles, ox, oy, room.cells, CELL_PX);
+    }
   }
 
   // If boss was defeated, open exit cell
@@ -508,8 +527,17 @@ function _updateDashTrails(state, dt) {
 function _stepParticles(particles, dt) {
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
-    p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt;
-    if (p.life <= 0) particles.splice(i, 1);
+    if (p.delay > 0) {
+      p.delay -= dt;
+    } else {
+      p.x += p.vx * dt; p.y += p.vy * dt;
+    }
+    p.life -= dt;
+    if (p.life <= 0) { particles.splice(i, 1); continue; }
+    if (p.roomMask) {
+      const ck = `${Math.floor(p.x / 126)},${Math.floor(p.y / 126)}`;
+      if (!p.roomMask.has(ck)) { particles.splice(i, 1); continue; }
+    }
   }
 }
 

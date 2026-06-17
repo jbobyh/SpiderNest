@@ -325,7 +325,7 @@ export function generateLevel(level, playerProgress) {
   if (availableRooms.length > 0) {
     const si     = Math.floor(Math.random() * availableRooms.length);
     const ri     = availableRooms.splice(si, 1)[0];
-    setRoomContent(ri, 'summonSphere', {}, pickRoomPreset(level, 'key'));
+    setRoomContent(ri, 'summonSphere', {}, pickRoomPreset(level, tierForRoom(ri)));
     const center = getRoomCenter(ri);
     summonSphere = { x: center.x, y: center.y, cellKey: getCenterCellKey(ri), collected: false, spawned: false };
   }
@@ -339,12 +339,13 @@ export function generateLevel(level, playerProgress) {
   const weaponCount       = Math.min(targetWeaponCount, availableRooms.length, weaponPool.length);
 
   let weaponRoomIndices = [];
+  const summonSphereRoomIdx = summonSphere ? cellToRoom.get(summonSphere.cellKey) : null;
   if (level === 1) {
     const diagonalOffsets = [[-1, -1], [1, -1], [-1, 1], [1, 1]];
     for (const [dx, dy] of diagonalOffsets) {
       const k  = cellKey(cx + dx, cy + dy);
       const ri = cellToRoom.get(k);
-      if (ri !== undefined && !rooms[ri].contentSet) weaponRoomIndices.push(ri);
+      if (ri !== undefined && ri !== summonSphereRoomIdx && !rooms[ri].contentSet) weaponRoomIndices.push(ri);
     }
     shuffleInPlace(weaponRoomIndices);
     weaponRoomIndices = weaponRoomIndices.slice(0, weaponCount);
@@ -361,6 +362,8 @@ export function generateLevel(level, playerProgress) {
       ri = availableRooms.shift();
     }
     if (ri === undefined) continue;
+    // Skip if this room has summonSphere (already has enemy content)
+    if (ri === summonSphereRoomIdx) continue;
     const weaponId = weaponPool[i];
     const center   = getRoomCenter(ri);
     droppedWeapons.push({ x: center.x, y: center.y, weaponId, cellKey: getCenterCellKey(ri) });
@@ -421,20 +424,6 @@ export function generateLevel(level, playerProgress) {
   // ── Only the start room is purified initially ──
   // Empty rooms become purified when the player opens a wall into them.
   const purified = new Set([0]);
-
-  // ── Hide spawned items in enemy rooms ──
-  // Note: cursed chests are now battle triggers like upgrade chests,
-  // so they remain visible (spawned = true) even in enemy rooms
-  if (summonSphere) {
-    const ri = cellToRoom.get(summonSphere.cellKey);
-    if (ri !== undefined) {
-      const room = rooms[ri];
-      for (const cell of room.cells) {
-        const c = cellContents.get(cell.k);
-        if (c && c.enemyCount > 0) { summonSphere.spawned = false; break; }
-      }
-    }
-  }
 
   // ── Spawn trapped enemies ──
   const trappedSpiders   = [];

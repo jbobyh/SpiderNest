@@ -111,6 +111,50 @@ export function spawnParticles(particles, x, y, count, baseAngle, spread, speedM
   }
 }
 
+/**
+ * Spawn a radial purification wave that fills the room in ~0.5 s.
+ * All particles burst from the origin and fly outward; wave speed is set
+ * so the front reaches the farthest room cell in WAVE_DURATION seconds.
+ *
+ * @param {object[]} particles  - state.particles array to push into
+ * @param {number}   ox         - wave origin world X
+ * @param {number}   oy         - wave origin world Y
+ * @param {object[]} roomCells  - array of { k, x, y } (cell grid coords)
+ * @param {number}   CELL_PX    - pixels per cell (126)
+ * @param {number}   [count=80]
+ */
+export function spawnPurifyWave(particles, ox, oy, roomCells, CELL_PX, count = 80) {
+  if (!roomCells || roomCells.length === 0) return;
+
+  const WAVE_DURATION = 0.3;
+
+  // Max distance from origin to farthest cell center → drives wave speed
+  let maxDist = 1;
+  for (const cell of roomCells) {
+    const d = Math.hypot((cell.x + 0.5) * CELL_PX - ox, (cell.y + 0.5) * CELL_PX - oy);
+    if (d > maxDist) maxDist = d;
+  }
+
+  const waveSpeed = WAVE_DURATION * 1000;
+  const life = WAVE_DURATION * 5;
+
+  // Build a Set of valid cell keys for out-of-room culling
+  const roomMask = new Set(roomCells.map(c => `${c.x},${c.y}`));
+
+  for (let i = 0; i < count; i++) {
+    const a   = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * (Math.PI * 2 / count);
+    const spd = waveSpeed * (0.85 + Math.random() * 0.3);
+    particles.push({
+      x: ox, y: oy,
+      vx: Math.cos(a) * spd,
+      vy: Math.sin(a) * spd,
+      life, maxLife: life,
+      color: '#ffffff',
+      roomMask,
+    });
+  }
+}
+
 // ── Helpers ───────────────────────────────────────────────────
 
 function _makeParticle() {

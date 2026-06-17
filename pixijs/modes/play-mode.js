@@ -298,10 +298,18 @@ function _handleWeaponSwitch(state) {
 function _stepParticles(particles, dt) {
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
-    p.x    += p.vx * dt;
-    p.y    += p.vy * dt;
+    if (p.delay > 0) {
+      p.delay -= dt;
+    } else {
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+    }
     p.life -= dt;
-    if (p.life <= 0) particles.splice(i, 1);
+    if (p.life <= 0) { particles.splice(i, 1); continue; }
+    if (p.roomMask) {
+      const ck = `${Math.floor(p.x / 126)},${Math.floor(p.y / 126)}`;
+      if (!p.roomMask.has(ck)) { particles.splice(i, 1); continue; }
+    }
   }
 }
 
