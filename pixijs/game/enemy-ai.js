@@ -6,7 +6,7 @@
 
 import { cellOf, cellKey, CELL_PX } from '../world/constants.js';
 import { createEnemyBody, destroyBody, setBodyVelocity } from '../world/physics.js';
-import { getEnemyMoveDir } from './flow-field.js';
+import { getEnemyMoveDir, hasLineOfSight } from './flow-field.js';
 import { Sounds } from '../core/sound.js';
 import { dealPlayerDamage } from './upgrades.js';
 
@@ -80,16 +80,12 @@ export function updateEnemyAI(state, playerProgress, dt, onPlayerDamaged) {
 
     if (g.type === 'plevaka' || g.type === 'shooter') {
       _tickPlevakaAnim(g, dt);
-      if (dist > STOP_DIST && dist > 0) {
-        const dir = getEnemyMoveDir(g.x, g.y, s.player.x, s.player.y, s.flowField, s.openCells, s.removedWalls);
-        setBodyVelocity(g.body, dir.dx * CONFIG.SHOOTER_SPEED, dir.dy * CONFIG.SHOOTER_SPEED);
-        if (g.animState !== null && g.animState !== 'shoot') g.animState = 'run';
-      } else {
-        setBodyVelocity(g.body, 0, 0);
-        if (g.animState !== null && g.animState !== 'shoot') g.animState = 'idle';
-      }
+      const hasLos = hasLineOfSight(s.openCells, s.removedWalls, g.x, g.y, s.player.x, s.player.y);
+      
       if (g.shootCd > 0) g.shootCd -= dt;
-      if (dist <= SHOOT_RANGE && g.shootCd <= 0 && dist > 0) {
+      
+      // Shoot only if has line of sight and in range
+      if (hasLos && dist <= SHOOT_RANGE && g.shootCd <= 0 && dist > 0) {
         g.shootCd = CONFIG.SHOOTER_SHOOT_CD;
         if (g.animState !== null) { g.animState = 'shoot'; g.animFrame = 0; g.animTimer = 0; }
         s.enemyBullets.push({
@@ -98,6 +94,18 @@ export function updateEnemyAI(state, playerProgress, dt, onPlayerDamaged) {
           vy: (dy / dist) * CONFIG.SHOOTER_BULLET_SPEED,
           life: 6,
         });
+      }
+      
+      // Move if no line of sight, or if too far (even with line of sight)
+      if (!hasLos || dist > STOP_DIST) {
+        if (dist > 0) {
+          const dir = getEnemyMoveDir(g.x, g.y, s.player.x, s.player.y, s.flowField, s.openCells, s.removedWalls);
+          setBodyVelocity(g.body, dir.dx * CONFIG.SHOOTER_SPEED, dir.dy * CONFIG.SHOOTER_SPEED);
+          if (g.animState !== null && g.animState !== 'shoot') g.animState = 'run';
+        }
+      } else {
+        setBodyVelocity(g.body, 0, 0);
+        if (g.animState !== null && g.animState !== 'shoot') g.animState = 'idle';
       }
 
     } else if (g.type === 'bull') {
