@@ -261,20 +261,21 @@ function makeClosedCellSprites(blobCells, openCells, everRevealedCells, everOpen
 
 // ── Partition walls (Graphics) ────────────────────────────────
 // Drawn for every boundary between two blobCells that is NOT in removedWalls
-// and where both cells have been revealed at least once.
+// and where at least one of the two cells is visible (open or ever-revealed).
 
-function buildPartitions(blobCells, removedWalls, everRevealedCells, purified, cellToRoom) {
+function buildPartitions(blobCells, openCells, removedWalls, everRevealedCells, purified, cellToRoom) {
   const g  = new Graphics();
   const HT = PART_T / 2;
+  const allVisible = openCells ? new Set([...openCells, ...everRevealedCells]) : everRevealedCells;
 
-  for (const k of everRevealedCells) {
-    if (!blobCells.has(k)) continue;
+  for (const k of blobCells) {
     const { x, y } = cellFromKey(k);
 
     for (const [dx, dy] of [[1, 0], [0, 1]]) {
       const nx = x + dx, ny = y + dy;
       const nk = cellKey(nx, ny);
-      if (!blobCells.has(nk) || !everRevealedCells.has(nk)) continue;
+      if (!blobCells.has(nk)) continue;
+      if (!allVisible.has(k) && !allVisible.has(nk)) continue;
       if (removedWalls.has(wallKey(x, y, nx, ny))) continue;
 
       // Check if at least one adjacent room is purified
@@ -328,11 +329,12 @@ function buildPartitions(blobCells, removedWalls, everRevealedCells, purified, c
 // Drawn for blobCell boundaries where adjacent cell is NOT in blobCells
 // These are always dark (0x14081e) and cannot be opened.
 
-function buildExternalWalls(blobCells, everRevealedCells) {
+function buildExternalWalls(blobCells, openCells, everRevealedCells) {
   const g  = new Graphics();
   const HT = PART_T / 2;
+  const allVisible = openCells ? new Set([...openCells, ...everRevealedCells]) : everRevealedCells;
 
-  for (const k of everRevealedCells) {
+  for (const k of allVisible) {
     if (!blobCells.has(k)) continue;
     const { x, y } = cellFromKey(k);
 
@@ -483,11 +485,11 @@ export function buildTileLayer(targetContainer, worldData, level) {
   const cornerContainer = new Container({ label: 'corners' });
 
   // ── 5. Partition walls between blob cells ──
-  const partitions = buildPartitions(blobCells, removedWalls, everRevealedCells, purified, cellToRoom);
+  const partitions = buildPartitions(blobCells, openCells, removedWalls, everRevealedCells, purified, cellToRoom);
   partitions.label = 'partitions';
 
   // ── 6. External walls (blobCell boundaries) ──
-  const externalWalls = buildExternalWalls(blobCells, everRevealedCells);
+  const externalWalls = buildExternalWalls(blobCells, openCells, everRevealedCells);
   externalWalls.label = 'external-walls';
 
   targetContainer.addChild(closedContainer, floorContainer, wallContainer, cornerContainer, partitions, externalWalls);

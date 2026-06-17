@@ -455,15 +455,9 @@ export function generateLevel(level, playerProgress) {
     for (const cell of rooms[ri].cells) cellContents.set(cell.k, { type: 'empty' });
   }
 
-  // ── All rooms without enemies are immediately purified ──
+  // ── Only the start room is purified initially ──
+  // Empty rooms become purified when the player opens a wall into them.
   const purified = new Set([0]);
-  for (let ri = 0; ri < rooms.length; ri++) {
-    const centerKey = getCenterCellKey(ri);
-    const content = cellContents.get(centerKey);
-    if (!content || !content.enemyPreset || content.enemyCount <= 0) {
-      purified.add(ri);
-    }
-  }
 
   // ── Hide spawned items in enemy rooms ──
   for (const u of upgradeObjs) {

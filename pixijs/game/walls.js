@@ -4,6 +4,7 @@
 
 import { Sounds } from '../core/sound.js';
 import { doOpenWall, doCloseWall } from './state.js';
+import { spawnRoomRewards } from './collectibles.js';
 import { getWallAtPoint, cellKey } from '../world/constants.js';
 
 // Flying heart state (module-local)
@@ -167,6 +168,7 @@ export function handleWallToggle(state, mx, my, rightHeld) {
         pendingOpenHeart = false;
         state.player.lives--;
         doOpenWall(state, wall.wk);
+        _spawnRewardsForNewlyPurified(state, wall);
       });
       return;
     }
@@ -179,6 +181,7 @@ export function handleWallToggle(state, mx, my, rightHeld) {
     launchFlyingHeart(hudCoords.x, hudCoords.y, wallMidX, wallMidY, () => {
       pendingOpenHeart = false;
       doOpenWall(state, wall.wk);
+      _spawnRewardsForNewlyPurified(state, wall);
     });
   } else {
     // CLOSE wall: recover lives
@@ -208,6 +211,15 @@ export function handleWallToggle(state, mx, my, rightHeld) {
       doCloseWall(state, wall.wk);
       state.player.lives += refund;
     }, () => getHudHeartCoords(state, heartIndex));
+  }
+}
+
+function _spawnRewardsForNewlyPurified(state, wall) {
+  for (const k of [cellKey(wall.ax, wall.ay), cellKey(wall.bx, wall.by)]) {
+    const roomIdx = state.cellToRoom?.get(k);
+    if (roomIdx !== undefined && state.purified?.has(roomIdx)) {
+      spawnRoomRewards(state, k);
+    }
   }
 }
 

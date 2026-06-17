@@ -350,6 +350,22 @@ function _playerSeedKey(state) {
   return state.blobCells.has(pk) ? pk : cellKey(state.startCell.x, state.startCell.y);
 }
 
+export function tryPurifyRoomIfEmpty(state, k) {
+  if (!state.cellToRoom || !state.rooms || !state.purified) return false;
+  const roomIdx = state.cellToRoom.get(k);
+  if (roomIdx === undefined || state.purified.has(roomIdx)) return false;
+  const room = state.rooms[roomIdx];
+  if (!room) return false;
+  const isEmpty = room.cells.every(cell => {
+    const c = state.cellContents?.get(cell.k);
+    return !c || !c.enemyCount || c.enemyCount <= 0;
+  });
+  if (!isEmpty) return false;
+  state.purified.add(roomIdx);
+  updateRevealedRoomsOnPurify(state, roomIdx);
+  return true;
+}
+
 export function doOpenWall(state, wk) {
   const { ax, ay, bx, by } = wallKeyFromStr(wk);
   const aKey = cellKey(ax, ay);
@@ -359,12 +375,9 @@ export function doOpenWall(state, wk) {
   state.playerRemovedWalls++;
   state.openCells = recomputeOpenCells(state.blobCells, state.removedWalls, _playerSeedKey(state));
 
-  for (const { k, x, y } of [{ k: aKey, x: ax, y: ay }, { k: bKey, x: bx, y: by }]) {
-    if (!state.everRevealedCells.has(k)) state.everRevealedCells.add(k);
-    if (!state.everOpenedCells.has(k))   state.everOpenedCells.add(k);
-    revealRoom(state, k);
-    _revealAdjacentCells(state.everRevealedCells, x, y, state.disabledCells, state.permanentlyClosed);
-    if (state.upgrades.farSight) _revealDiagonalCells(state.everRevealedCells, x, y, state.disabledCells, state.permanentlyClosed);
+  for (const { k } of [{ k: aKey }, { k: bKey }]) {
+    if (!state.everOpenedCells.has(k)) state.everOpenedCells.add(k);
+    tryPurifyRoomIfEmpty(state, k);
   }
 }
 
