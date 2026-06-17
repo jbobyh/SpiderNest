@@ -25,6 +25,7 @@ import {
 import {
   updateCollectibles, checkAltarActivation, isNearAltar,
   checkUpgradeChestActivation, isNearUpgradeChest,
+  checkCursedChestActivation, isNearCursedChest,
 } from '../game/collectibles.js';
 import { tickUpgradePopupTimer, hideUpgradePopup } from '../game/upgrades.js';
 import {
@@ -107,6 +108,15 @@ export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}
       if (onEnterBattle) onEnterBattle(ck);
     });
     if (chestActivated) _fWasPressed = true;
+  }
+
+  // ── Cursed chest check (F key, priority over altar) ───────────────
+  if (!_fWasPressed) {
+    const fDown = keys['f'] || keys['F'] || keys['а'] || keys['А'];
+    const cursedActivated = checkCursedChestActivation(state, fDown && !_fWasPressed, (ck) => {
+      if (onEnterBattle) onEnterBattle(ck);
+    });
+    if (cursedActivated) _fWasPressed = true;
   }
 
   // ── Altar check (F key, if not chest) ───────────────
@@ -395,7 +405,7 @@ function _handleWeaponPickup(state, playerProgress, keys) {
 
 // ── Re-export proximity checks for game-loop ──────────────────────
 
-export { isNearAltar, isNearUpgradeChest };
+export { isNearAltar, isNearUpgradeChest, isNearCursedChest };
 
 // ── Check if player is near a weapon (for HUD hint) ──────────
 

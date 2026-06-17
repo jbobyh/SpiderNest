@@ -402,7 +402,7 @@ export function generateLevel(level, playerProgress) {
     if (ri === undefined) break;
     setRoomContent(ri, 'cursed', {}, pickRoomPreset(level, 'cursedupgrade'));
     const center = getRoomCenter(ri);
-    chestObjs.push({ x: center.x, y: center.y, cellKey: getCenterCellKey(ri), collected: false, spawned: false });
+    chestObjs.push({ x: center.x, y: center.y, cellKey: getCenterCellKey(ri), collected: false, spawned: true });
   }
 
   // ── Enemy rooms ──
@@ -423,18 +423,8 @@ export function generateLevel(level, playerProgress) {
   const purified = new Set([0]);
 
   // ── Hide spawned items in enemy rooms ──
-  // Upgrade chests are always visible (they serve as the battle trigger)
-  // They serve as the battle trigger, so player must see them to interact
-  for (const c of chestObjs) {
-    const ri = cellToRoom.get(c.cellKey);
-    if (ri !== undefined) {
-      const room = rooms[ri];
-      for (const cell of room.cells) {
-        const cont = cellContents.get(cell.k);
-        if (cont && cont.enemyCount > 0) { c.spawned = false; break; }
-      }
-    }
-  }
+  // Note: cursed chests are now battle triggers like upgrade chests,
+  // so they remain visible (spawned = true) even in enemy rooms
   if (summonSphere) {
     const ri = cellToRoom.get(summonSphere.cellKey);
     if (ri !== undefined) {
@@ -483,8 +473,8 @@ export function generateLevel(level, playerProgress) {
   const altarProcessed    = new Set();
   for (const [k, content] of cellContents) {
     if (!content.enemyPreset || content.enemyCount <= 0 || content.enemiesReleased) continue;
-    // Skip rooms with chest (upgrade chests use F-key interaction, not altar)
-    if (content.type === 'chest') continue;
+    // Skip rooms with chest or cursed (they use F-key chest interaction instead)
+    if (content.type === 'chest' || content.type === 'cursed') continue;
     const ri = cellToRoom.get(k);
     if (ri === undefined || altarProcessed.has(ri)) continue;
     altarProcessed.add(ri);

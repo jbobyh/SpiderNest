@@ -42,15 +42,6 @@ export function updateCollectibles(state, playerProgress, onParticles, onUpgrade
 
   s.bossSummonReady = s.summonSphereCollected && s.phase === 'play' && !s.bossDefeated;
 
-  // Cursed chests
-  for (const chest of (s.chestObjs || [])) {
-    if (chest.collected || chest.spawned === false) continue;
-    if (Math.hypot(px - chest.x, py - chest.y) < PICKUP_R) {
-      openCursedChoice(state, playerProgress, chest);
-      break;
-    }
-  }
-
   // Dropped weapons — pickup manually via F key (handled in play-mode.js)
   // for (const dw of (s.droppedWeapons || [])) {
   //   if (dw.picked) continue;
@@ -209,24 +200,27 @@ export function spawnRoomRewards(state, cellKey) {
 
 // ── Cursed chest choice ───────────
 
-export function openCursedChoice(state, playerProgress, chest) {
+export function openCursedChoice(state, chest, onEnterBattle) {
   if (!chest && !state._pendingCursedChoice) {
     state._pendingCursedChoice = { chest: null, callback: null };
   }
   if (!chest) return;
   if (chest.collected) return;
   // Pause game, show choice overlay — actual rendering is in HUD layer
-  state._cursedChoiceState = { chest, active: true };
+  state._cursedChoiceState = { chest, active: true, onEnterBattle };
 }
 
 export function applyCursedChoice(state, playerProgress, choiceId) {
   if (!state._cursedChoiceState) return;
-  const chest = state._cursedChoiceState.chest;
+  const { chest, onEnterBattle } = state._cursedChoiceState;
   if (chest) chest.collected = true;
   state._cursedChoiceState = null;
 
   if (!choiceId) return;
   applyUpgrade(state, playerProgress, choiceId);
+
+  // Enter battle mode after choice
+  if (onEnterBattle) onEnterBattle(chest?.cellKey);
 }
 
 // ── Upgrade chest choice (regular upgrades) ───────────
@@ -293,4 +287,35 @@ export function applyUpgradeChoice(state, playerProgress, choiceId) {
 
   // Enter battle mode
   if (cb) cb(chest?.cellKey);
+}
+
+// ── Cursed chest F-key activation ───────────
+
+export function checkCursedChestActivation(state, fKeyPressed, onEnterBattle) {
+  if (!fKeyPressed) return false;
+  const px = state.player.x, py = state.player.y;
+  const PICKUP_R = CONFIG.PLAYER_RADIUS + CONFIG.PICKUP_DISTANCE;
+
+  for (const chest of (state.chestObjs || [])) {
+    if (chest.collected || chest.spawned === false) continue;
+    const dist = Math.hypot(px - chest.x, py - chest.y);
+    if (dist < PICKUP_R) {
+      openCursedChoice(state, chest, onEnterBattle);
+      return true;
+    }
+  }
+  return false;
+}
+
+export function isNearCursedChest(state) {
+  if (state.phase !== 'play') return false;
+  const px = state.player.x, py = state.player.y;
+  const PICKUP_R = CONFIG.PLAYER_RADIUS + CONFIG.PICKUP_DISTANCE;
+
+  for (const chest of (state.chestObjs || [])) {
+    if (chest.collected || chest.spawned === false) continue;
+    const dist = Math.hypot(px - chest.x, py - chest.y);
+    if (dist < PICKUP_R) return true;
+  }
+  return false;
 }

@@ -53,7 +53,7 @@ import {
 import {
   createGameState, createDefaultProgress, saveGame, savePlayerProgress,
 } from './game/state.js';
-import { updatePlayMode, isNearWeapon, isNearAltar, isNearUpgradeChest } from './modes/play-mode.js';
+import { updatePlayMode, isNearWeapon, isNearAltar, isNearUpgradeChest, isNearCursedChest } from './modes/play-mode.js';
 import {
   createBattleState, createBossBattleState,
   updateBattleMode, exitBattleMode,
@@ -247,8 +247,9 @@ function _render(dt) {
   const nearWeapon = _state.phase === 'play' ? isNearWeapon(_state) : false;
   const nearAltar  = _state.phase === 'play' ? isNearAltar(_state)  : false;
   const nearChest  = _state.phase === 'play' ? isNearUpgradeChest(_state) : false;
+  const nearCursedChest = _state.phase === 'play' ? isNearCursedChest(_state) : false;
   const bossSummonReady = _state.phase === 'play' ? _state.bossSummonReady : false;
-  updateHud(_state, _currentLevel, nearWeapon, nearAltar, bossSummonReady, nearChest);
+  updateHud(_state, _currentLevel, nearWeapon, nearAltar, bossSummonReady, nearChest, nearCursedChest);
 
   // Update boss HP bar during boss battle
   if (_state.battle?.isBossBattle) {

@@ -97,12 +97,11 @@ function _syncChests(chests) {
     const k = c.cellKey ?? c.originalCellKey ?? `c:${Math.round(c.x)},${Math.round(c.y)}`;
     alive.add(k);
     if (!_chests.has(k)) {
-      let spr;
-      try { spr = new Sprite(Texture.from('open-treasure-chest')); }
-      catch { spr = new Sprite(Texture.WHITE); }
+      const tex = Assets.get('cursed-chest');
+      const spr = new Sprite(tex ?? Texture.WHITE);
       spr.anchor.set(0.5);
       spr.width = spr.height = CHEST_SIZE;
-      spr.tint  = 0xaa44ff; // Purple tint for cursed chests
+      // No tint - use natural cursed chest texture
       _layer.addChild(spr);
       _chests.set(k, spr);
     }
