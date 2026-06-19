@@ -5,6 +5,9 @@
     const BATTLE_CELL_PX = CP * BATTLE_SCALE;
     const RANGE_SCALE = CP / 10;
 
+    // Import weapon update function from pixijs/game/state.js
+    // Note: This is accessed via global state object in the actual implementation
+
     // Find room containing cellKey and return its center cell coordinates
     function getRoomCenterCell(s, cellKey) {
       if (!s.rooms || s.rooms.length === 0) return cellFromKey(cellKey);
@@ -311,6 +314,23 @@
       s.mouse.y = playerBattleY;
 
       s.phase = 'battle';
+
+      // Update weapon based on battle cell count
+      if (typeof updateWeaponByOpenCells === 'function') {
+        updateWeaponByOpenCells(s, battleCells.size);
+      } else {
+        // Fallback: update weapon directly if function not available
+        const cellCount = battleCells.size;
+        let newWeapon;
+        if (cellCount === 1) newWeapon = 'shotgun';
+        else if (cellCount === 2) newWeapon = 'pistol';
+        else if (cellCount === 3) newWeapon = 'revolver';
+        else if (cellCount === 4) newWeapon = 'smg';
+        else if (cellCount === 5) newWeapon = 'carbine';
+        else newWeapon = 'rifle';
+        s.weaponSlots[0] = newWeapon;
+        s.activeSlot = 0;
+      }
 
       // Вычисляем статичную камеру battle: умещаем все открытые клетки + стены на экране
       const bCols = maxX - minX + 1;
@@ -745,6 +765,23 @@
 
       s.phase = 'battle';
       s.bossSummonReady = false;
+
+      // Update weapon based on battle cell count
+      if (typeof updateWeaponByOpenCells === 'function') {
+        updateWeaponByOpenCells(s, battleCells.size);
+      } else {
+        // Fallback: update weapon directly if function not available
+        const cellCount = battleCells.size;
+        let newWeapon;
+        if (cellCount === 1) newWeapon = 'shotgun';
+        else if (cellCount === 2) newWeapon = 'pistol';
+        else if (cellCount === 3) newWeapon = 'revolver';
+        else if (cellCount === 4) newWeapon = 'smg';
+        else if (cellCount === 5) newWeapon = 'carbine';
+        else newWeapon = 'rifle';
+        s.weaponSlots[0] = newWeapon;
+        s.activeSlot = 0;
+      }
 
       // Вычисляем статичную камеру battle
       const wallPad = BATTLE_CELL_PX * 0.125;

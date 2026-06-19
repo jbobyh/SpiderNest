@@ -98,12 +98,6 @@
           s.upgrades.ricochet = true;
           playerProgress.upgrades.ricochet = true;
           break;
-        case 'weaponSlot':
-          s.maxSlots++;
-          s.weaponSlots.push(null);
-          playerProgress.maxSlots = s.maxSlots;
-          playerProgress.weaponSlots = [...s.weaponSlots];
-          break;
         case 'lastLife':
           s.upgrades.lastLife = true;
           playerProgress.upgrades.lastLife = true;

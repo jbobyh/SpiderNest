@@ -63,12 +63,6 @@ export function applyUpgrade(state, playerProgress, type, showPopup = true) {
       upg.speedMult    *= 0.70; pp.speedMult = upg.speedMult;
       break;
     case 'ricochet':        upg.ricochet = true; pp.ricochet = true; break;
-    case 'weaponSlot':
-      state.maxSlots++;
-      state.weaponSlots.push(null);
-      playerProgress.maxSlots    = state.maxSlots;
-      playerProgress.weaponSlots = [...state.weaponSlots];
-      break;
     case 'lastLife':        upg.lastLife = true; pp.lastLife = true; break;
     case 'battleSpeed':     upg.battleSpeed = true; pp.battleSpeed = true; break;
     case 'freeze':          upg.freeze = true; pp.freeze = true; break;

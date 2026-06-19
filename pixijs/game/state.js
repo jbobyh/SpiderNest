@@ -45,7 +45,7 @@ export function createDefaultProgress() {
     },
     spawnedUpgrades: {},
     spawnedWeapons: [],
-    weaponSlots: ['pistol', null],
+    weaponSlots: ['pistol'],
     activeSlot: 0,
     maxSlots: 1,
   };
@@ -249,7 +249,7 @@ export function savePlayerProgress(state, playerProgress) {
   if (state.player.lives > 0) {
     playerProgress.totalLives = state.player.lives;
   }
-  playerProgress.weaponSlots          = [...(state.weaponSlots || ['pistol', null])];
+  playerProgress.weaponSlots          = [...(state.weaponSlots || ['pistol'])];
   playerProgress.activeSlot           = state.activeSlot || 0;
   playerProgress.maxSlots             = state.maxSlots || 1;
 }
@@ -344,6 +344,25 @@ function _revealDiagonalCells(revealed, cx, cy, disabled, permanentlyClosed) {
   }
 }
 
+// ── Weapon by open cells helper ───────────────────────────────
+
+export function getWeaponByCellCount(count) {
+  if (count === 1) return 'shotgun';
+  if (count === 2) return 'pistol';
+  if (count === 3) return 'revolver';
+  if (count === 4) return 'smg';
+  if (count === 5) return 'carbine';
+  return 'rifle'; // 6+ cells
+}
+
+export function updateWeaponByOpenCells(state, cellCount = null) {
+  const count = cellCount !== null ? cellCount : state.openCells.size;
+  const newWeapon = getWeaponByCellCount(count);
+  state.weaponSlots[0] = newWeapon;
+  state.activeSlot = 0;
+  // Note: playerProgress sync happens in savePlayerProgress
+}
+
 // ── Wall open/close helper (used by input layer) ──────────────
 
 function _playerSeedKey(state) {
@@ -382,6 +401,8 @@ export function doOpenWall(state, wk) {
     if (!state.everOpenedCells.has(k)) state.everOpenedCells.add(k);
     tryPurifyRoomIfEmpty(state, k);
   }
+
+  updateWeaponByOpenCells(state);
 }
 
 export function doCloseWall(state, wk) {
@@ -392,6 +413,8 @@ export function doCloseWall(state, wk) {
   state.removedWalls.delete(wk);
   state.playerRemovedWalls--;
   state.openCells = recomputeOpenCells(state.blobCells, state.removedWalls, _playerSeedKey(state));
+
+  updateWeaponByOpenCells(state);
 }
 
 // ── Internal serialization ────────────────────────────────────
