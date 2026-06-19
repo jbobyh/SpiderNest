@@ -95,22 +95,16 @@ export function clearEngine() {
 // Call syncWallBodies() whenever removedWalls changes.
 
 export function syncWallBodies(blobCells, removedWalls) {
+  // Collect walls that should exist
   const neededWalls = new Set();
-
   for (const k of blobCells) {
-    const [x, y] = k.split(',').map(Number);
-    // Check all 4 directions to find world boundaries or closed internal walls
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    const { x, y } = cellFromKey(k);
+    for (const [dx, dy] of [[1, 0], [0, 1]]) {
       const nx = x + dx, ny = y + dy;
       const nk = `${nx},${ny}`;
+      if (!blobCells.has(nk)) continue;
       const wk = wallKey(x, y, nx, ny);
-
-      const isEdge = !blobCells.has(nk);
-      const isClosedInternal = !isEdge && !removedWalls.has(wk);
-
-      if (isEdge || isClosedInternal) {
-        neededWalls.add(wk);
-      }
+      if (!removedWalls.has(wk)) neededWalls.add(wk);
     }
   }
 
@@ -128,20 +122,21 @@ export function syncWallBodies(blobCells, removedWalls) {
     const [left, right] = wk.split('|');
     const [ax, ay]      = left.split(',').map(Number);
     const [bx, by]      = right.split(',').map(Number);
-
-    const isVertWall = ax === bx; // cells are (x,y) and (x,y+1) -> horizontal boundary -> horizontal wall strip
+    // ax===bx → horizontal boundary (same column) → horizontal wall strip
+    // ay===by → vertical boundary (same row)       → vertical wall strip
+    const isHorizBoundary = ax === bx; // boundary runs top-bottom → vertical strip
 
     let wx, wy, ww, wh;
-    if (!isVertWall) {
-      // vertical wall between column ax and bx
-      wx = Math.max(ax, bx) * CELL_PX;
+    if (!isHorizBoundary) {
+      // bx = ax+1 — wall between columns ax and bx (vertical strip at x = bx*CELL_PX)
+      wx = bx * CELL_PX;
       wy = ay * CELL_PX + CELL_PX / 2;
       ww = WALL_THICKNESS;
       wh = CELL_PX;
     } else {
-      // horizontal wall between row ay and by
+      // by = ay+1 — wall between rows ay and by (horizontal strip at y = by*CELL_PX)
       wx = ax * CELL_PX + CELL_PX / 2;
-      wy = Math.max(ay, by) * CELL_PX;
+      wy = by * CELL_PX;
       ww = CELL_PX;
       wh = WALL_THICKNESS;
     }
@@ -151,7 +146,6 @@ export function syncWallBodies(blobCells, removedWalls) {
       label: 'wall',
       friction: 0,
       restitution: 0,
-      collisionFilter: { category: CAT_WALL },
     });
     Composite.add(_engine.world, body);
     _wallBodies.set(wk, body);
@@ -182,11 +176,7 @@ export function syncOuterBounds(minX, minY, maxX, maxY) {
   ];
 
   for (const [rx, ry, rw, rh] of rects) {
-    const body = Bodies.rectangle(rx, ry, rw, rh, {
-      isStatic: true,
-      label: 'outer_wall',
-      collisionFilter: { category: CAT_WALL },
-    });
+    const body = Bodies.rectangle(rx, ry, rw, rh, { isStatic: true, label: 'outer_wall' });
     Composite.add(_engine.world, body);
     _outerWalls.push(body);
   }

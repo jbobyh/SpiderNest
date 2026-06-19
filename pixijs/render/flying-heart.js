@@ -35,7 +35,8 @@ export function syncFlyingHeart() {
   _heartSprite.visible = true;
   _heartSprite.x = fh.x;
   _heartSprite.y = fh.y;
-  _heartSprite.scale.set(0.8);
+  _heartSprite.width = 20;
+  _heartSprite.height = 20;
 }
 
 /**

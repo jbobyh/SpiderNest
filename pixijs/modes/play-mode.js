@@ -90,7 +90,7 @@ export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}
 
   // ── Wall toggle (right-click) ─────────────────────────────
   if (state.phase === 'play' && !isWallInteractionPending()) {
-    handleWallToggle(state, state.mouse.x, state.mouse.y, mouse.rightHeld);
+    handleWallToggle(state, state.mouse.x, state.mouse.y, mouse.rightHeld, camera);
   }
 
   // ── Flying heart animation ─────────────────────────────────

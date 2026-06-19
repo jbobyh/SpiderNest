@@ -191,7 +191,7 @@ const CONFIG = {
   DEBUG_SPREAD_INDICATOR: false,  // дебаг: отображать индикатор угла разброса
 
   // Boss phase AI
-  BOSS_STRAFE_SPEED: 80,          // скорость стрейфа босса в фазе плеваки (пикс/сек)
+  BOSS_STRAFE_SPEED: 3,          // скорость стрейфа босса в фазе плеваки (пикс/сек)
   BOSS_STRAFE_SWITCH_TIME: 1.2,   // секунд до смены направления стрейфа
 };
 

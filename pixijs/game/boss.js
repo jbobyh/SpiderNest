@@ -63,7 +63,7 @@ export function updateBoss(g, b, state, playerProgress, dt, currentLevel) {
     _updateBossBullLimited(g, state, playerProgress, phase, dx, dy, dist, dt, freezeTimer);
 
   } else if (phase.id === 'shooter') {
-    _updateBossShooter(g, state, phase, dx, dy, dist, dt, freezeTimer);
+    _updateBossShooter(g, state, phase, dx, dy, dist, dt, freezeTimer, bossSpd);
   }
 
   // ── Touch player ─────────────────────────────────────────────
@@ -134,44 +134,24 @@ function _updateBossInertia(g, state, phase, dx, dy, dist, dt, freezeTimer) {
 
   const stunned = g.stunTimer > 0;
   if (!stunned && freezeTimer <= 0 && dist > 0) {
-    // Use pathfinding for direction
-    const dir = getEnemyMoveDir(g.x, g.y, state.player.x, state.player.y, state.flowField, state.openCells, state.removedWalls);
-    
-    // Target velocity
-    const tvx = dir.dx * g.currentSpeed;
-    const tvy = dir.dy * g.currentSpeed;
-    
-    // Apply acceleration (inertia)
+    const tvx = (dx / dist) * g.currentSpeed, tvy = (dy / dist) * g.currentSpeed;
     const acc = CONFIG.BULDYGA_ACCEL * accelMult * dt;
-    const dvx = tvx - g.vx;
-    const dvy = tvy - g.vy;
-    const dLen = Math.hypot(dvx, dvy);
-    
-    if (dLen > 0) {
-      const step = Math.min(dLen, acc);
-      g.vx += (dvx / dLen) * step;
-      g.vy += (dvy / dLen) * step;
-    }
-  } else if (freezeTimer > 0 || stunned) {
-    const friction = 1 - CONFIG.BULDYGA_FRICTION * frictionMult * dt;
-    g.vx *= Math.max(0, friction);
-    g.vy *= Math.max(0, friction);
+    g.vx += (tvx - g.vx) * Math.min(1, acc / g.currentSpeed);
+    g.vy += (tvy - g.vy) * Math.min(1, acc / g.currentSpeed);
+  } else if (freezeTimer > 0) {
+    g.vx *= Math.max(0, 1 - CONFIG.BULDYGA_FRICTION * frictionMult * dt);
+    g.vy *= Math.max(0, 1 - CONFIG.BULDYGA_FRICTION * frictionMult * dt);
   }
 
   if (g.body) {
-    const bv = g.body.velocity;
-    const bSpd = Math.hypot(bv.x, bv.y);
-    const vSpd = Math.hypot(g.vx, g.vy);
-    
-    if (vSpd > 1 && bSpd < vSpd * 0.3) {
-      g.vx = bv.x;
-      g.vy = bv.y;
-    }
+    const prevSpd = Math.hypot(g.body.velocity.x, g.body.velocity.y);
+    const targSpd = Math.hypot(g.vx, g.vy);
+    if (targSpd > 10 && prevSpd < targSpd * 0.5) { g.vx *= -0.3; g.vy *= -0.3; }
   }
   setBodyVelocity(g.body, g.vx, g.vy);
 }
 
-function _updateBossShooter(g, state, phase, dx, dy, dist, dt, freezeTimer) {
+function _updateBossShooter(g, state, phase, dx, dy, dist, dt, freezeTimer, bossSpd) {
   const shootCdMult     = phase.shootCdMult     || 0.5;
   const bulletSpeedMult = phase.bulletSpeedMult || 1.0;
 
@@ -183,12 +163,11 @@ function _updateBossShooter(g, state, phase, dx, dy, dist, dt, freezeTimer) {
       g.strafeSwitchTimer = CONFIG.BOSS_STRAFE_SWITCH_TIME ?? 2;
     }
     if (dist > 0) {
-      const strafeSpd = CONFIG.BOSS_STRAFE_SPEED ?? 60;
-      const bvx = (-dy / dist) * strafeSpd * g.strafeDir;
-      const bvy = ( dx / dist) * strafeSpd * g.strafeDir;
+      const bvx = (-dy / dist) * bossSpd * g.strafeDir;
+      const bvy = ( dx / dist) * bossSpd * g.strafeDir;
       
       const body    = g.body;
-      const hitWall = body && Math.hypot(body.velocity.x, body.velocity.y) < strafeSpd * 0.3;
+      const hitWall = body && Math.hypot(body.velocity.x, body.velocity.y) < bossSpd * 0.3;
       if (hitWall) {
         g.strafeDir *= -1;
         g.strafeSwitchTimer = CONFIG.BOSS_STRAFE_SWITCH_TIME ?? 2;

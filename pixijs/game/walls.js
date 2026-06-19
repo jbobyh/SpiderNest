@@ -107,7 +107,7 @@ export function isWallInteractionPending() {
 }
 
 // Handle right-click wall toggle
-export function handleWallToggle(state, mx, my, rightHeld) {
+export function handleWallToggle(state, mx, my, rightHeld, camera = null) {
   // Debounce: trigger only on rising edge
   if (!rightHeld) {
     _rightWasHeld = false;
@@ -179,7 +179,9 @@ export function handleWallToggle(state, mx, my, rightHeld) {
     pendingOpenHeart = 'hud';
 
     const hudCoords = getHudHeartCoords(state, heartIndex);
-    launchFlyingHeart(hudCoords.x, hudCoords.y, wallMidX, wallMidY, () => {
+    // Convert HUD screen-space coords to world-space
+    const worldFrom = camera ? camera.screenToWorld(hudCoords.x, hudCoords.y) : { x: hudCoords.x, y: hudCoords.y };
+    launchFlyingHeart(worldFrom.x, worldFrom.y, wallMidX, wallMidY, () => {
       pendingOpenHeart = false;
       doOpenWall(state, wall.wk);
       _spawnRewardsForNewlyPurified(state, wall);
@@ -211,7 +213,11 @@ export function handleWallToggle(state, mx, my, rightHeld) {
       pendingOpenHeart = false;
       doCloseWall(state, wall.wk);
       state.player.lives += refund;
-    }, () => getHudHeartCoords(state, heartIndex));
+    }, () => {
+      const hudCoords = getHudHeartCoords(state, heartIndex);
+      // Convert HUD screen-space coords to world-space
+      return camera ? camera.screenToWorld(hudCoords.x, hudCoords.y) : hudCoords;
+    });
   }
 }
 
