@@ -129,6 +129,9 @@ export function createBattleState(state, openedCellKey) {
     centerY,
   };
 
+  // External walls are already set up for full blobCells in play mode
+  // Don't re-sync them here - battleCells is a subset and would remove walls
+
   state.phase = 'battle';
 }
 
@@ -209,6 +212,9 @@ export function createBossBattleState(state, currentLevel) {
     centerX,
     centerY,
   };
+
+  // External walls are already set up for full blobCells in play mode
+  // Don't re-sync them here - battleCells is a subset and would remove walls
 
   state.bossSummonReady = false;
   state.phase = 'battle';

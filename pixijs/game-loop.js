@@ -61,7 +61,7 @@ import {
 import {
   createEngine, clearEngine, stepEngine,
   createPlayerBody, destroyBody,
-  syncWallBodies, syncOuterBounds, onCollision,
+  syncWallBodies, syncExternalWallBodies, onCollision,
 } from './world/physics.js';
 import { computeFlowField, FLOW_SUB_PX } from './game/flow-field.js';
 import { getCellBounds } from './world/constants.js';
@@ -122,8 +122,8 @@ export function startGameLoop({
   // Physics engine
   createEngine();
   syncWallBodies(_state.blobCells, _state.removedWalls);
-  const { minX, minY, maxX, maxY } = getCellBounds(_state.blobCells);
-  syncOuterBounds(minX, minY, maxX, maxY);
+  const visibleCells = new Set([..._state.openCells, ..._state.everRevealedCells]);
+  syncExternalWallBodies(_state.blobCells, visibleCells);
   _state.player.body = createPlayerBody(_state.player.x, _state.player.y, _state.player);
 
   // Register collision handler
@@ -391,6 +391,12 @@ function _render(dt) {
     // Sync physics walls if walls changed
     if (_state._lastRemovedWallsSize !== _state.removedWalls.size) {
       syncWallBodies(_state.blobCells, _state.removedWalls);
+    }
+    
+    // Sync external walls if revealed cells changed
+    if (_state._lastEverRevealedSize !== everRevealedSize) {
+      const visibleCells = new Set([..._state.openCells, ..._state.everRevealedCells]);
+      syncExternalWallBodies(_state.blobCells, visibleCells);
     }
 
     _state._lastRemovedWallsSize = _state.removedWalls.size;
