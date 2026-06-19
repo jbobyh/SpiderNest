@@ -83,7 +83,7 @@ function floorRotation(openDirs) {
 
 // ── Sprite factories ─────────────────────────────────────────
 
-function makeFloorSprite(x, y, openDirs, level, purifiedRooms, cellToRoom, cellContents, chestObjs, hearts, upgradeChests) {
+function makeFloorSprite(x, y, openDirs, level, purifiedRooms, cellToRoom, cellContents, chestObjs, hearts, upgradeChests, summonSphere) {
   const k = cellKey(x, y);
   const roomIdx = cellToRoom ? cellToRoom.get(k) : undefined;
   const isPurified = roomIdx !== undefined && purifiedRooms && purifiedRooms.has(roomIdx);
@@ -124,9 +124,20 @@ function makeFloorSprite(x, y, openDirs, level, purifiedRooms, cellToRoom, cellC
     }
   }
 
+  // Check if room has summon sphere
+  let hasSummonSphere = false;
+  if (!hasHeart && !hasCursedChest && !hasUpgradeChest && roomIdx !== undefined && summonSphere) {
+    const sphereRoomIdx = cellToRoom.get(summonSphere.cellKey);
+    if (sphereRoomIdx === roomIdx) {
+      hasSummonSphere = true;
+    }
+  }
+
   // Select texture based on content type and purified status
   let texAlias;
-  if (hasHeart) {
+  if (hasSummonSphere) {
+    texAlias = isPurified ? 'floor-ground-sand' : 'floor-ground-dirt';
+  } else if (hasHeart) {
     texAlias = isPurified ? 'floor-stone-pattern-small' : 'floor-stone-pattern-small-dark';
   } else if (hasCursedChest || hasUpgradeChest) {
     texAlias = isPurified ? 'floor-stone-pattern' : 'floor-stone-pattern-dark';
@@ -443,7 +454,7 @@ export function buildTileLayer(targetContainer, worldData, level) {
 
   const {
     blobCells, openCells, everRevealedCells, everOpenedCells,
-    removedWalls, permanentlyClosed, disabledCells, rooms, purified, chestObjs, hearts, upgradeChests,
+    removedWalls, permanentlyClosed, disabledCells, rooms, purified, chestObjs, hearts, upgradeChests, summonSphere,
   } = worldData;
 
   // Build cellToRoom map
@@ -470,7 +481,7 @@ export function buildTileLayer(targetContainer, worldData, level) {
   }
   for (const k of allFloorCells) {
     const { x, y } = cellFromKey(k);
-    floorContainer.addChild(makeFloorSprite(x, y, getOpenDirs(x, y, allFloorCells), level, purified, cellToRoom, null, chestObjs, hearts, upgradeChests));
+    floorContainer.addChild(makeFloorSprite(x, y, getOpenDirs(x, y, allFloorCells), level, purified, cellToRoom, null, chestObjs, hearts, upgradeChests, summonSphere));
   }
 
   // ── 3. Outer wall strips ──

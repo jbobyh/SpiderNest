@@ -162,6 +162,7 @@ export function startGameLoop({
     chestObjs:          _state.chestObjs,
     hearts:             _state.hearts,
     upgradeChests:      _state.upgradeChests,
+    summonSphere:       _state.summonSphere,
   }, _currentLevel);
 
   // Input
@@ -416,6 +417,7 @@ function _render(dt) {
       chestObjs:          _state.chestObjs,
       hearts:             _state.hearts,
       upgradeChests:      _state.upgradeChests,
+      summonSphere:       _state.summonSphere,
     }, _currentLevel);
   }
 }
@@ -472,6 +474,7 @@ function _onZoomOutComplete(_tr) {
     chestObjs:          _state.chestObjs,
     hearts:             _state.hearts,
     upgradeChests:      _state.upgradeChests,
+    summonSphere:       _state.summonSphere,
   }, _currentLevel);
 }
 

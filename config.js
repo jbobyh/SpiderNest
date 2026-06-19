@@ -20,7 +20,7 @@ const CONFIG = {
 
   // Player Dash
   PLAYER_DASH_SPEED: 8,       // скорость деша (пикс/сек)
-  PLAYER_DASH_DISTANCE: 1.3,    // дальность деша (пикселей)
+  PLAYER_DASH_DISTANCE: 1.1,    // дальность деша (пикселей)
   PLAYER_DASH_COOLDOWN: 2.0,    // кулдаун деша (сек)
 
   // Shooting (default values, weapon-specific in WEAPON_DEFS)
@@ -191,7 +191,7 @@ const CONFIG = {
   DEBUG_SPREAD_INDICATOR: false,  // дебаг: отображать индикатор угла разброса
 
   // Boss phase AI
-  BOSS_STRAFE_SPEED: 3,          // скорость стрейфа босса в фазе плеваки (пикс/сек)
+  BOSS_STRAFE_SPEED: 1,          // скорость стрейфа босса в фазе плеваки (пикс/сек)
   BOSS_STRAFE_SWITCH_TIME: 1.2,   // секунд до смены направления стрейфа
 };
 
