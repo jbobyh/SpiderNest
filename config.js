@@ -538,7 +538,13 @@ const UPGRADE_TYPES = [
   { id: 'reflection',    label: 'Отражение',               description: 'При получении урона выпускает 3 пули в ближайших врагов',        color: '#ff00ff', max: 1, icon: '🔄' },
   { id: 'cooldown',      label: 'Перезарядка -15%',        description: 'Уменьшает время между выстрелами на 15%',                    color: '#00ccff', max: 3, icon: '⏱️' },
   { id: 'speed',         label: 'Скорость бега +10%',      description: 'Увеличивает скорость передвижения на 10%',                    color: '#44ff88', max: 3, icon: '💨' },
-  // { id: 'spread', label: 'Разброс +10%', color: '#ff66aa', max: 2 },
+];
+
+const ROOM_BONUS_TYPES = [
+  { id: 'penetrate',     label: '+5 пробитие врага',       description: 'Пуля пролетает сквозь дополнительных врагов',          color: '#ff44ff', max: 2, icon: '🎯' },
+  { id: 'bulletSpeed',   label: '+30% скорость пули',      description: 'Пули летят быстрее на +30%',                     color: '#ffff44', max: 2, icon: '⚡' },
+  { id: 'critChance',    label: '+50% шанс крита',          description: '+50% шанс нанести двойной урон',                       color: '#ff0000', max: 3, icon: '⚔️' },
+  { id: 'speed',         label: 'Скорость бега +100%',      description: 'Увеличивает скорость передвижения на 100%',                    color: '#44ff88', max: 3, icon: '💨' },
 ];
 
 // ============================================================
