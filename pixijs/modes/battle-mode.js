@@ -85,33 +85,32 @@ export function createBattleState(state, openedCellKey) {
       }
     }
 
-    // Room corners in world-coords
-    let rMinX = Infinity, rMinY = Infinity, rMaxX = -Infinity, rMaxY = -Infinity;
+    // Collect open cells belonging to the opened room
+    const roomOpenCells = [];
     const openedRoom = state.rooms?.find(r => r.cells.some(c => c.k === openedCellKey));
     if (openedRoom) {
       for (const cell of openedRoom.cells) {
         if (battleCells.has(cell.k)) {
-          rMinX = Math.min(rMinX, cell.x); rMinY = Math.min(rMinY, cell.y);
-          rMaxX = Math.max(rMaxX, cell.x); rMaxY = Math.max(rMaxY, cell.y);
+          roomOpenCells.push(cell);
         }
       }
     }
-    if (rMinX === Infinity) { rMinX = minX; rMinY = minY; rMaxX = maxX; rMaxY = maxY; }
+    // Fallback to battleCells if room not found
+    if (roomOpenCells.length === 0) {
+      for (const k of battleCells) {
+        roomOpenCells.push({ x: cellFromKey(k).x, y: cellFromKey(k).y, k });
+      }
+    }
 
     const margin = CP * 0.15;
-    const corners = [
-      { x: rMinX * CP + margin,          y: rMinY * CP + margin },
-      { x: (rMaxX + 1) * CP - margin,    y: rMinY * CP + margin },
-      { x: rMinX * CP + margin,          y: (rMaxY + 1) * CP - margin },
-      { x: (rMaxX + 1) * CP - margin,    y: (rMaxY + 1) * CP - margin },
-    ];
-
     for (let i = 0; i < enemiesToSpawn.length; i++) {
-      const g   = enemiesToSpawn[i];
-      const cor = corners[i % 4];
+      const g = enemiesToSpawn[i];
+      const cell = roomOpenCells[Math.floor(Math.random() * roomOpenCells.length)];
       const off = CP * 0.1;
+      const spawnX = cell.x * CP + margin + Math.random() * (CP - margin * 2);
+      const spawnY = cell.y * CP + margin + Math.random() * (CP - margin * 2);
       pendingSpawns.push({
-        enemy: _enemyCopy(g, cor.x + (Math.random() - 0.5) * off, cor.y + (Math.random() - 0.5) * off),
+        enemy: _enemyCopy(g, spawnX + (Math.random() - 0.5) * off, spawnY + (Math.random() - 0.5) * off),
         spawnDelay: 1.0 + i * 0.5,
       });
     }
