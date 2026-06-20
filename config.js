@@ -113,7 +113,7 @@ const CONFIG = {
   BULL_RADIUS: 6,         // радиус коллизии быка
   BULL_VISUAL_SCALE: 3.2,         // множитель визуального размера спрайта
   BULL_PREPARE_TIME: 1,         // время подготовки рывка (сек)
-  BULL_DASH_DISTANCE_CELLS: 1.0,  // дистанция рывка быка (в клетках)
+  BULL_DASH_DISTANCE_CELLS: 0.02,  // дистанция рывка быка (в клетках)
   BULL_REST_TIME: 1.5,            // время отдыха после рывка (сек)
   BULL_CHARGE_DIST_CELLS: 0.75,    // дистанция начала атаки быка (в клетках)
   BULL_ATTACK_DIST_CELLS: 1.0,    // дистанция удара быка (в клетках)

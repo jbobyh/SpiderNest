@@ -163,6 +163,7 @@ export function handleWallToggle(state, mx, my, rightHeld, camera = null) {
 
       doCloseWall(state, wallToClose.wk);
       state.player.lives++;
+      state.playerRemovedWalls++;
       pendingOpenHeart = 'cell';
 
       launchFlyingHeart(wallToClose.midX, wallToClose.midY, wallMidX, wallMidY, () => {
@@ -176,6 +177,7 @@ export function handleWallToggle(state, mx, my, rightHeld, camera = null) {
 
     const heartIndex = state.player.lives - cost;
     state.player.lives -= cost;
+    state.playerRemovedWalls++;
     pendingOpenHeart = 'hud';
 
     const hudCoords = getHudHeartCoords(state, heartIndex);
@@ -212,6 +214,7 @@ export function handleWallToggle(state, mx, my, rightHeld, camera = null) {
     launchFlyingHeart(wallMidX, wallMidY, 0, 0, () => {
       pendingOpenHeart = false;
       doCloseWall(state, wall.wk);
+      state.playerRemovedWalls--;
       state.player.lives += refund;
     }, () => {
       const hudCoords = getHudHeartCoords(state, heartIndex);

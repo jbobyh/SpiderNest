@@ -375,7 +375,6 @@ export function doOpenWall(state, wk) {
   const bKey = cellKey(bx, by);
 
   state.removedWalls.add(wk);
-  state.playerRemovedWalls++;
   state.openCells = recomputeOpenCells(state.blobCells, state.removedWalls, _playerSeedKey(state));
 
   for (const { k } of [{ k: aKey }, { k: bKey }]) {
@@ -390,7 +389,6 @@ export function doCloseWall(state, wk) {
   const bKey = cellKey(bx, by);
 
   state.removedWalls.delete(wk);
-  state.playerRemovedWalls--;
   state.openCells = recomputeOpenCells(state.blobCells, state.removedWalls, _playerSeedKey(state));
 }
 
