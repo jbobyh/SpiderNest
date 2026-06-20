@@ -408,6 +408,26 @@ export function generateLevel(level, playerProgress) {
     chestObjs.push({ x: center.x, y: center.y, cellKey: getCenterCellKey(ri), collected: false, spawned: true });
   }
 
+  // ── Room bonus altars ──
+  const roomBonusAltars = [];
+  const roomBonuses = [];
+  const targetBonusCount = LEVEL_ROOM_BONUS_COUNTS[level] || 4;
+  const bonusCount = Math.min(targetBonusCount, availableRooms.length);
+  for (let i = 0; i < bonusCount; i++) {
+    const ri = availableRooms.shift();
+    if (ri === undefined) break;
+    setRoomContent(ri, 'roomBonus', {}, pickRoomPreset(level, 'simpleupgrade'));
+    const center = getRoomCenter(ri);
+    roomBonusAltars.push({
+      roomIdx: ri,
+      x: center.x,
+      y: center.y,
+      cellKey: getCenterCellKey(ri),
+      activated: false,
+      bonusType: null,
+    });
+  }
+
   // ── Enemy rooms ──
   const enemyRoomCount = Math.floor(availableRooms.length * CONFIG.ENEMY_SPAWN_CHANCE);
   shuffleInPlace(availableRooms);
@@ -457,13 +477,13 @@ export function generateLevel(level, playerProgress) {
     for (const cell of rooms[i].cells) roomColors.set(cell.k, color);
   }
 
-  // ── Room altars (battle triggers) — skip upgrade/chest rooms ──
+  // ── Room altars (battle triggers) — skip upgrade/chest/roomBonus rooms ──
   const roomAltars        = [];
   const altarProcessed    = new Set();
   for (const [k, content] of cellContents) {
     if (!content.enemyPreset || content.enemyCount <= 0 || content.enemiesReleased) continue;
-    // Skip rooms with chest or cursed (they use F-key chest interaction instead)
-    if (content.type === 'chest' || content.type === 'cursed') continue;
+    // Skip rooms with chest, cursed, or roomBonus (they use F-key interaction instead)
+    if (content.type === 'chest' || content.type === 'cursed' || content.type === 'roomBonus') continue;
     const ri = cellToRoom.get(k);
     if (ri === undefined || altarProcessed.has(ri)) continue;
     altarProcessed.add(ri);
@@ -505,6 +525,8 @@ export function generateLevel(level, playerProgress) {
     droppedWeapons,
     trappedSpiders,
     roomAltars,
+    roomBonusAltars,
+    roomBonuses,
     purified,
   };
 }

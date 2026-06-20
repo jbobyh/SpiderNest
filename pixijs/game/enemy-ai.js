@@ -4,11 +4,12 @@
 // CONFIG / PLEVAKA_ANIMS are globals from config.js.
 // ============================================================
 
-import { cellOf, cellKey, CELL_PX } from '../world/constants.js';
+import { cellOf, cellKey, CELL_PX, getRoomBonus } from '../world/constants.js';
 import { createEnemyBody, destroyBody, setBodyVelocity } from '../world/physics.js';
 import { getEnemyMoveDir, hasLineOfSight } from './flow-field.js';
 import { Sounds } from '../core/sound.js';
 import { dealPlayerDamage } from './upgrades.js';
+import { enemyBulletRange } from './combat.js';
 
 // ── Shared constants ──────────────────────────────────────────
 
@@ -16,6 +17,22 @@ const SHOOTER_STOP_DIST_CELLS  = () => CONFIG.SHOOTER_STOP_DIST_CELLS  * CELL_PX
 const SHOOTER_SHOOT_RANGE_CELLS = () => CONFIG.SHOOTER_SHOOT_RANGE_CELLS * CELL_PX;
 const BULL_CHARGE_DIST_CELLS   = () => (CONFIG.BULL_CHARGE_DIST_CELLS ?? 1.5) * CELL_PX;
 const BULL_DASH_DIST_CELLS     = () => (CONFIG.BULL_DASH_DISTANCE_CELLS ?? 3) * CELL_PX;
+
+// Get room speed multiplier for a position
+function _getRoomSpeedMult(state, x, y) {
+  const cell = cellOf(x, y);
+  const ck = cellKey(cell.x, cell.y);
+  const roomBonus = getRoomBonus(state, ck);
+  if (roomBonus === 'speedup') {
+    const bonusDef = ROOM_BONUS_TYPES.find(bt => bt.id === 'speedup');
+    return bonusDef?.speedMult || 1.3;
+  }
+  if (roomBonus === 'speeddown') {
+    const bonusDef = ROOM_BONUS_TYPES.find(bt => bt.id === 'speeddown');
+    return bonusDef?.speedMult || 0.7;
+  }
+  return 1.0;
+}
 
 // ── Spawn corpse ──────────────────────────────────────────────
 
@@ -88,11 +105,16 @@ export function updateEnemyAI(state, playerProgress, dt, onPlayerDamaged) {
       if (hasLos && dist <= SHOOT_RANGE && g.shootCd <= 0 && dist > 0) {
         g.shootCd = CONFIG.SHOOTER_SHOOT_CD;
         if (g.animState !== null) { g.animState = 'shoot'; g.animFrame = 0; g.animTimer = 0; }
+        const ebx = (dx / dist) * CONFIG.SHOOTER_BULLET_SPEED;
+        const eby = (dy / dist) * CONFIG.SHOOTER_BULLET_SPEED;
         s.enemyBullets.push({
           x: g.x, y: g.y,
-          vx: (dx / dist) * CONFIG.SHOOTER_BULLET_SPEED,
-          vy: (dy / dist) * CONFIG.SHOOTER_BULLET_SPEED,
-          life: 6,
+          vx: ebx,
+          vy: eby,
+          _baseVx: ebx,
+          _baseVy: eby,
+          maxRange: enemyBulletRange(ebx, eby),
+          distanceTraveled: 0,
         });
       }
       
@@ -100,7 +122,8 @@ export function updateEnemyAI(state, playerProgress, dt, onPlayerDamaged) {
       if (!hasLos || dist > STOP_DIST) {
         if (dist > 0) {
           const dir = getEnemyMoveDir(g.x, g.y, s.player.x, s.player.y, s.flowField, s.openCells, s.removedWalls);
-          setBodyVelocity(g.body, dir.dx * CONFIG.SHOOTER_SPEED, dir.dy * CONFIG.SHOOTER_SPEED);
+          const speedMult = _getRoomSpeedMult(s, g.x, g.y);
+          setBodyVelocity(g.body, dir.dx * CONFIG.SHOOTER_SPEED * speedMult, dir.dy * CONFIG.SHOOTER_SPEED * speedMult);
           if (g.animState !== null && g.animState !== 'shoot') g.animState = 'run';
         }
       } else {
@@ -119,7 +142,8 @@ export function updateEnemyAI(state, playerProgress, dt, onPlayerDamaged) {
     } else if (g.type === 'bloated') {
       if (dist > 0) {
         const dir = getEnemyMoveDir(g.x, g.y, s.player.x, s.player.y, s.flowField, s.openCells, s.removedWalls);
-        setBodyVelocity(g.body, dir.dx * CONFIG.BLOATED_SPEED, dir.dy * CONFIG.BLOATED_SPEED);
+        const speedMult = _getRoomSpeedMult(s, g.x, g.y);
+        setBodyVelocity(g.body, dir.dx * CONFIG.BLOATED_SPEED * speedMult, dir.dy * CONFIG.BLOATED_SPEED * speedMult);
       }
       if (dist < (g.radius || CONFIG.BLOATED_RADIUS) + CONFIG.PLAYER_RADIUS) {
         // Contact damage handled by onCollision in physics.js
@@ -134,7 +158,8 @@ export function updateEnemyAI(state, playerProgress, dt, onPlayerDamaged) {
       // Soldier / chaser
       if (dist > 0) {
         const dir = getEnemyMoveDir(g.x, g.y, s.player.x, s.player.y, s.flowField, s.openCells, s.removedWalls);
-        setBodyVelocity(g.body, dir.dx * CONFIG.SPIDER_SPEED, dir.dy * CONFIG.SPIDER_SPEED);
+        const speedMult = _getRoomSpeedMult(s, g.x, g.y);
+        setBodyVelocity(g.body, dir.dx * CONFIG.SPIDER_SPEED * speedMult, dir.dy * CONFIG.SPIDER_SPEED * speedMult);
       }
       if (dist < (g.radius || CONFIG.SPIDER_RADIUS) + CONFIG.PLAYER_RADIUS) {
         // Contact damage handled by onCollision in physics.js
@@ -168,7 +193,8 @@ function _updateBullPlay(g, s, dx, dy, dist, dt, CHARGE_DIST, DASH_DIST, CP, pla
     case 'chase':
       if (dist > CHARGE_DIST && dist > 0) {
         const dir = getEnemyMoveDir(g.x, g.y, s.player.x, s.player.y, s.flowField, s.openCells, s.removedWalls);
-        setBodyVelocity(g.body, dir.dx * CONFIG.BULL_SPEED, dir.dy * CONFIG.BULL_SPEED);
+        const speedMult = _getRoomSpeedMult(s, g.x, g.y);
+        setBodyVelocity(g.body, dir.dx * CONFIG.BULL_SPEED * speedMult, dir.dy * CONFIG.BULL_SPEED * speedMult);
       } else if (dist <= CHARGE_DIST) {
         g.state = 'prepare'; g.stateTimer = CONFIG.BULL_PREPARE_TIME;
         setBodyVelocity(g.body, 0, 0);
@@ -186,9 +212,10 @@ function _updateBullPlay(g, s, dx, dy, dist, dt, CHARGE_DIST, DASH_DIST, CP, pla
       break;
     case 'dash': {
       const BULL_DASH_SPD = CONFIG.BULL_SPEED * 4;
-      setBodyVelocity(g.body, g.dashDirX * BULL_DASH_SPD, g.dashDirY * BULL_DASH_SPD);
-      g.stateTimer += BULL_DASH_SPD * dt;
-      const hitWall = g.body && Math.hypot(g.body.velocity.x, g.body.velocity.y) < BULL_DASH_SPD * 0.3;
+      const speedMult = _getRoomSpeedMult(s, g.x, g.y);
+      setBodyVelocity(g.body, g.dashDirX * BULL_DASH_SPD * speedMult, g.dashDirY * BULL_DASH_SPD * speedMult);
+      g.stateTimer += BULL_DASH_SPD * speedMult * dt;
+      const hitWall = g.body && Math.hypot(g.body.velocity.x, g.body.velocity.y) < BULL_DASH_SPD * speedMult * 0.3;
       if (hitWall || g.stateTimer >= g.dashDistance) {
         g.state = 'rest'; g.stateTimer = CONFIG.BULL_REST_TIME;
         setBodyVelocity(g.body, 0, 0);
@@ -225,19 +252,23 @@ function _updateBuldygaPlay(g, s, dx, dy, dist, dt, CP, playerProgress, onPlayer
     g.speedAccumulator -= secs;
   }
 
+  // Apply room speed modifier to current speed
+  const speedMult = _getRoomSpeedMult(s, g.x, g.y);
+  const effectiveSpeed = g.currentSpeed * speedMult;
+
   if (dist > 0) {
     // For Buldyga, direct vector often works better for "missing" the player
     // than flow-field which is too precise.
-    const tvx = (dx / dist) * g.currentSpeed;
-    const tvy = (dy / dist) * g.currentSpeed;
-    
+    const tvx = (dx / dist) * effectiveSpeed;
+    const tvy = (dy / dist) * effectiveSpeed;
+
     // Apply acceleration (inertia)
     // We use a much lower effective acceleration to ensure "heavy" feel
-    const acc = (CONFIG.BULDYGA_ACCEL * 0.1) * dt; 
+    const acc = (CONFIG.BULDYGA_ACCEL * 0.1) * dt;
     const dvx = tvx - g.vx;
     const dvy = tvy - g.vy;
     const dLen = Math.hypot(dvx, dvy);
-    
+
     if (dLen > 0) {
       const step = Math.min(dLen, acc);
       g.vx += (dvx / dLen) * step;

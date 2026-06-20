@@ -9,6 +9,7 @@ import { createEnemyBody, destroyBody, setBodyVelocity } from '../world/physics.
 import { getEnemyMoveDir } from './flow-field.js';
 import { Sounds } from '../core/sound.js';
 import { dealPlayerDamage, showUpgradePopup } from './upgrades.js';
+import { enemyBulletRange } from './combat.js';
 
 // ── Entry point: update single boss entity ────────────────────
 
@@ -182,11 +183,16 @@ function _updateBossShooter(g, state, phase, dx, dy, dist, dt, freezeTimer, boss
   const shootRange = CONFIG.SHOOTER_SHOOT_RANGE_CELLS * CELL_PX * 10;
   if (dist <= shootRange && g.shootCd <= 0 && freezeTimer <= 0 && dist > 0) {
     g.shootCd = CONFIG.SHOOTER_SHOOT_CD * shootCdMult;
+    const ebx = (dx / dist) * CONFIG.SHOOTER_BULLET_SPEED * bulletSpeedMult;
+    const eby = (dy / dist) * CONFIG.SHOOTER_BULLET_SPEED * bulletSpeedMult;
     state.enemyBullets.push({
       x: g.x, y: g.y,
-      vx: (dx / dist) * CONFIG.SHOOTER_BULLET_SPEED * bulletSpeedMult,
-      vy: (dy / dist) * CONFIG.SHOOTER_BULLET_SPEED * bulletSpeedMult,
-      life: 6,
+      vx: ebx,
+      vy: eby,
+      _baseVx: ebx,
+      _baseVy: eby,
+      maxRange: enemyBulletRange(ebx, eby),
+      distanceTraveled: 0,
     });
   }
 }

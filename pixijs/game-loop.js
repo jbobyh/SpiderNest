@@ -50,7 +50,7 @@ import { Sounds }               from './core/sound.js';
 import {
   createGameState, createDefaultProgress, saveGame, savePlayerProgress, deleteSave,
 } from './game/state.js';
-import { updatePlayMode, isNearWeapon, isNearAltar, isNearUpgradeChest, isNearCursedChest } from './modes/play-mode.js';
+import { updatePlayMode, isNearWeapon, isNearAltar, isNearUpgradeChest, isNearCursedChest, isNearRoomBonusAltar } from './modes/play-mode.js';
 import {
   createBattleState, createBossBattleState,
   updateBattleMode, exitBattleMode,
@@ -163,6 +163,8 @@ export function startGameLoop({
     hearts:             _state.hearts,
     upgradeChests:      _state.upgradeChests,
     summonSphere:       _state.summonSphere,
+    roomBonuses:        _state.roomBonuses,
+    roomBonusAltars:     _state.roomBonusAltars,
   }, _currentLevel);
 
   // Input
@@ -374,8 +376,9 @@ function _render(dt) {
   const nearAltar  = _state.phase === 'play' ? isNearAltar(_state)  : false;
   const nearChest  = _state.phase === 'play' ? isNearUpgradeChest(_state) : false;
   const nearCursedChest = _state.phase === 'play' ? isNearCursedChest(_state) : false;
+  const nearRoomBonusAltar = _state.phase === 'play' ? isNearRoomBonusAltar(_state) : false;
   const bossSummonReady = _state.phase === 'play' ? _state.bossSummonReady : false;
-  updateHud(_state, _currentLevel, nearWeapon, nearAltar, bossSummonReady, nearChest, nearCursedChest);
+  updateHud(_state, _currentLevel, nearWeapon, nearAltar, bossSummonReady, nearChest, nearCursedChest, nearRoomBonusAltar);
 
   // Update boss HP bar during boss battle
   if (_state.battle?.isBossBattle) {
@@ -418,6 +421,7 @@ function _render(dt) {
       hearts:             _state.hearts,
       upgradeChests:      _state.upgradeChests,
       summonSphere:       _state.summonSphere,
+      roomBonuses:        _state.roomBonuses,
     }, _currentLevel);
   }
 }
@@ -475,6 +479,7 @@ function _onZoomOutComplete(_tr) {
     hearts:             _state.hearts,
     upgradeChests:      _state.upgradeChests,
     summonSphere:       _state.summonSphere,
+    roomBonuses:        _state.roomBonuses,
   }, _currentLevel);
 }
 
@@ -519,4 +524,8 @@ export function nextLevel() {
   stopGameLoop();
   _currentLevel = Math.min(_currentLevel + 1, CONFIG.MAX_LEVELS ?? 3);
   startGameLoop({ level: _currentLevel, playerProgress: _playerProgress });
+}
+
+export function getCurrentLevel() {
+  return _currentLevel;
 }

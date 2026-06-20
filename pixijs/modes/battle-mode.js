@@ -18,13 +18,14 @@ import { Sounds }                         from '../core/sound.js';
 import {
   cellOf, cellKey, cellFromKey,
   getConnectedCells, getCellBounds,
-  CELL_PX,
+  CELL_PX, getRoomBonus,
 } from '../world/constants.js';
 import { setBodyVelocity, setPlayerDashing } from '../world/physics.js';
 import {
   shoot,
   updateBullets,
   updateEnemyBullets,
+  enemyBulletRange,
 } from '../game/combat.js';
 import {
   updateEnemyAI,
@@ -429,7 +430,20 @@ function _enemyCopy(g, bx, by) {
 
 function _stepBattlePlayer(state, dt) {
   if (state.player.isDashing) return;
-  const spd = CONFIG.PLAYER_SPEED * state.upgrades.speedMult;
+  let spd = CONFIG.PLAYER_SPEED * state.upgrades.speedMult;
+
+  // Apply room bonus speed modifier
+  const playerCell = cellOf(state.player.x, state.player.y);
+  const playerCellKey = cellKey(playerCell.x, playerCell.y);
+  const roomBonus = getRoomBonus(state, playerCellKey);
+  if (roomBonus === 'speedup') {
+    const bonusDef = ROOM_BONUS_TYPES.find(bt => bt.id === 'speedup');
+    spd *= bonusDef?.speedMult || 1.3;
+  } else if (roomBonus === 'speeddown') {
+    const bonusDef = ROOM_BONUS_TYPES.find(bt => bt.id === 'speeddown');
+    spd *= bonusDef?.speedMult || 0.7;
+  }
+
   const k   = state.keys || {};
   let mvx = 0, mvy = 0;
   if (k['w'] || k['ц'] || k['arrowup'])    mvy -= 1;
@@ -566,11 +580,16 @@ function _onEnemyKilled(state, playerProgress, g) {
     const pdy = b.player.y - g.y;
     const pdist = Math.hypot(pdx, pdy);
     if (pdist > 0) {
+      const ebx = (pdx / pdist) * CONFIG.BLOATED_DEATH_SHOT_SPEED * BS;
+      const eby = (pdy / pdist) * CONFIG.BLOATED_DEATH_SHOT_SPEED * BS;
       b.enemyBullets.push({
         x: g.x, y: g.y,
-        vx: (pdx / pdist) * CONFIG.BLOATED_DEATH_SHOT_SPEED * BS,
-        vy: (pdy / pdist) * CONFIG.BLOATED_DEATH_SHOT_SPEED * BS,
-        life: 6,
+        vx: ebx,
+        vy: eby,
+        _baseVx: ebx,
+        _baseVy: eby,
+        maxRange: enemyBulletRange(ebx, eby),
+        distanceTraveled: 0,
       });
     }
   }

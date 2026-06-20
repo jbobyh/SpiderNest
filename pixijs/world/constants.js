@@ -106,6 +106,15 @@ export function inRoom(px, py, openCells) {
   return openCells.has(cellKey(c.x, c.y));
 }
 
+// Get room bonus type for a given cell
+export function getRoomBonus(state, cellKey) {
+  if (!state.cellToRoom || !state.roomBonuses) return null;
+  const roomIdx = state.cellToRoom.get(cellKey);
+  if (roomIdx === undefined) return null;
+  const roomBonus = state.roomBonuses.find(rb => rb.roomIdx === roomIdx);
+  return roomBonus ? roomBonus.bonusType : null;
+}
+
 // Find wall at point (mx, my) within blobCells. Returns { ax, ay, bx, by, wk } or null.
 export function getWallAtPoint(blobCells, mx, my) {
   const snapR = CELL_PX * 0.30;

@@ -7,6 +7,9 @@ import { cellOf, cellKey, CELL_PX } from '../world/constants.js';
 import { Sounds } from '../core/sound.js';
 import { applyUpgrade } from './upgrades.js';
 import { pickupWeapon  } from './combat.js';
+import { buildTileLayer } from '../render/tiles.js';
+import { layers } from '../render/layers.js';
+import { getCurrentLevel } from '../game-loop.js';
 
 const PICKUP_R = CONFIG.PLAYER_RADIUS + CONFIG.PICKUP_DISTANCE;
 
@@ -318,4 +321,89 @@ export function isNearCursedChest(state) {
     if (dist < PICKUP_R) return true;
   }
   return false;
+}
+
+// ── Room bonus altar F-key activation ───────────
+
+export function checkRoomBonusAltarActivation(state, fKeyPressed, onEnterBattle) {
+  if (!fKeyPressed) return false;
+  const px = state.player.x, py = state.player.y;
+  const PICKUP_R = CONFIG.PLAYER_RADIUS + CONFIG.PICKUP_DISTANCE;
+
+  for (const altar of (state.roomBonusAltars || [])) {
+    if (altar.activated) continue;
+    if (!state.openCells.has(altar.cellKey)) continue;
+    const dist = Math.hypot(px - altar.x, py - altar.y);
+    if (dist < PICKUP_R) {
+      openRoomBonusChoice(state, altar, onEnterBattle);
+      return true;
+    }
+  }
+  return false;
+}
+
+export function isNearRoomBonusAltar(state) {
+  if (state.phase !== 'play') return false;
+  const px = state.player.x, py = state.player.y;
+  const PICKUP_R = CONFIG.PLAYER_RADIUS + CONFIG.PICKUP_DISTANCE;
+
+  for (const altar of (state.roomBonusAltars || [])) {
+    if (altar.activated) continue;
+    if (!state.openCells.has(altar.cellKey)) continue;
+    const dist = Math.hypot(px - altar.x, py - altar.y);
+    if (dist < PICKUP_R) return true;
+  }
+  return false;
+}
+
+export function openRoomBonusChoice(state, altar, onEnterBattle) {
+  if (!altar) return;
+  if (altar.activated) return;
+  state._roomBonusChoiceState = {
+    altar,
+    active: true,
+    onEnterBattle,
+    selected: false,
+  };
+}
+
+export function applyRoomBonusChoice(state, playerProgress, choiceId) {
+  if (!state._roomBonusChoiceState) return;
+  const { altar, onEnterBattle } = state._roomBonusChoiceState;
+
+  if (altar) {
+    altar.activated = true;
+    altar.bonusType = choiceId;
+    // Add to roomBonuses array
+    if (choiceId) {
+      state.roomBonuses.push({ roomIdx: altar.roomIdx, bonusType: choiceId });
+    }
+  }
+
+  const cb = state._roomBonusChoiceState.onEnterBattle;
+  state._roomBonusChoiceState = null;
+
+  // Rebuild tile layer to show bonus icon immediately
+  const currentLevel = getCurrentLevel();
+  buildTileLayer(layers.tiles, {
+    blobCells:          state.blobCells,
+    openCells:          state.openCells,
+    everRevealedCells:  state.everRevealedCells,
+    everOpenedCells:   state.everOpenedCells,
+    removedWalls:       state.removedWalls,
+    internalWalls:      state.internalWalls,
+    permanentlyClosed: state.permanentlyClosed,
+    disabledCells:      state.disabledCells,
+    rooms:              state.rooms,
+    purified:           state.purified,
+    chestObjs:          state.chestObjs,
+    hearts:             state.hearts,
+    upgradeChests:      state.upgradeChests,
+    summonSphere:       state.summonSphere,
+    roomBonuses:        state.roomBonuses,
+    roomBonusAltars:     state.roomBonusAltars,
+  }, currentLevel);
+
+  // Enter battle mode after choice
+  if (cb) cb(altar?.cellKey);
 }

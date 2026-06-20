@@ -21,6 +21,7 @@ const _chests        = new Map(); // key → Sprite
 const _upgradeChests = new Map(); // key → Sprite
 const _weapons       = new Map(); // key → Sprite
 const _altars        = new Map(); // cellKey → Sprite
+const _roomBonusAltars = new Map(); // cellKey → Sprite
 let   _sphere        = null;      // Graphics | null
 
 // ── Public API ────────────────────────────────────────────────
@@ -35,12 +36,14 @@ export function clearCollectibles() {
   for (const s of _upgradeChests.values()) s.destroy({ children: true });
   for (const s of _weapons.values())       s.destroy({ children: true });
   for (const e of _altars.values())        { e.spr.destroy(); e.label.destroy(); }
+  for (const s of _roomBonusAltars.values()) s.destroy({ children: true });
   if (_sphere) { _sphere.destroy(); _sphere = null; }
   _hearts.clear();
   _chests.clear();
   _upgradeChests.clear();
   _weapons.clear();
   _altars.clear();
+  _roomBonusAltars.clear();
 }
 
 /**
@@ -60,8 +63,13 @@ export function syncCollectibles(state) {
   _syncUpgradeChests(state.upgradeChests  || [], openCells, everRevealedCells);
   _syncWeapons      (state.droppedWeapons || [], openCells, everRevealedCells);
   _syncSphere       (state.summonSphere);
-  if (!inBattle) _syncAltars(state.roomAltars || [], state.openCells, state.cellContents, everRevealedCells);
-  else           _syncAltars([], null, null, null);
+  if (!inBattle) {
+    _syncAltars(state.roomAltars || [], state.openCells, state.cellContents, everRevealedCells);
+    _syncRoomBonusAltars(state.roomBonusAltars || [], state.openCells, everRevealedCells);
+  } else {
+    _syncAltars([], null, null, null);
+    _syncRoomBonusAltars([], null, null);
+  }
 }
 
 // ── Hearts ────────────────────────────────────────────────────
@@ -235,6 +243,38 @@ function _syncAltars(altars, openCells, cellContents, everRevealedCells) {
   }
   for (const [k, e] of _altars) {
     if (!alive.has(k)) { e.spr.destroy(); e.label.destroy(); _altars.delete(k); }
+  }
+}
+
+// ── Room Bonus Altars ───────────────────────────────────────────
+
+const ROOM_BONUS_ALTAR_SIZE = 28;
+
+function _syncRoomBonusAltars(altars, openCells, everRevealedCells) {
+  const alive = new Set();
+  const pulse = 0.7 + 0.3 * Math.sin(Date.now() * 0.005);
+  for (const altar of altars) {
+    if (altar.activated) continue;
+    // Show in open cells OR revealed rooms
+    const isVisible = openCells?.has(altar.cellKey) || everRevealedCells?.has(altar.cellKey);
+    if (!isVisible) continue;
+    const k = altar.cellKey;
+    alive.add(k);
+    if (!_roomBonusAltars.has(k)) {
+      const tex = Assets.get('room_altar');
+      const spr = new Sprite(tex ?? Texture.WHITE);
+      spr.anchor.set(0.5);
+      spr.width = spr.height = ROOM_BONUS_ALTAR_SIZE;
+      spr.tint = 0x44ff88;
+      _layer.addChild(spr);
+      _roomBonusAltars.set(k, spr);
+    }
+    const spr = _roomBonusAltars.get(k);
+    spr.position.set(altar.x, altar.y);
+    spr.alpha = pulse;
+  }
+  for (const [k, spr] of _roomBonusAltars) {
+    if (!alive.has(k)) { spr.destroy(); _roomBonusAltars.delete(k); }
   }
 }
 

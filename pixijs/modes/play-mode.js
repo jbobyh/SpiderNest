@@ -14,11 +14,11 @@ import { keys, mouse, getMovementDir } from '../core/input.js';
 import { Sounds }                       from '../core/sound.js';
 import { app }                          from '../core/app.js';
 import {
-  cellOf, cellKey, getWallAtPoint,
+  cellOf, cellKey, getWallAtPoint, getRoomBonus,
 } from '../world/constants.js';
 import { setBodyVelocity, setPlayerDashing } from '../world/physics.js';
 import {
-  shoot, updateBullets, updateEnemyBullets, pickupWeapon,
+  shoot, updateBullets, updateEnemyBullets, pickupWeapon, enemyBulletRange,
 } from '../game/combat.js';
 import {
   updateEnemyAI,
@@ -27,6 +27,7 @@ import {
   updateCollectibles, checkAltarActivation, isNearAltar,
   checkUpgradeChestActivation, isNearUpgradeChest,
   checkCursedChestActivation, isNearCursedChest,
+  checkRoomBonusAltarActivation, isNearRoomBonusAltar,
 } from '../game/collectibles.js';
 import { tickUpgradePopupTimer, hideUpgradePopup } from '../game/upgrades.js';
 import {
@@ -120,6 +121,15 @@ export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}
     if (cursedActivated) _fWasPressed = true;
   }
 
+  // ── Room bonus altar check (F key) ───────────────
+  if (!_fWasPressed) {
+    const fDown = keys['f'] || keys['F'] || keys['а'] || keys['А'];
+    const bonusActivated = checkRoomBonusAltarActivation(state, fDown && !_fWasPressed, (ck) => {
+      if (onEnterBattle) onEnterBattle(ck);
+    });
+    if (bonusActivated) _fWasPressed = true;
+  }
+
   // ── Altar check (F key, if not chest) ───────────────
   if (!_fWasPressed) {
     const fDown = keys['f'] || keys['F'] || keys['а'] || keys['А'];
@@ -195,7 +205,20 @@ function _getActiveWeapon(state) {
 }
 
 function _stepMovement(state, dt) {
-  const spd = CONFIG.PLAYER_SPEED * state.upgrades.speedMult;
+  let spd = CONFIG.PLAYER_SPEED * state.upgrades.speedMult;
+
+  // Apply room bonus speed modifier
+  const playerCell = cellOf(state.player.x, state.player.y);
+  const playerCellKey = cellKey(playerCell.x, playerCell.y);
+  const roomBonus = getRoomBonus(state, playerCellKey);
+  if (roomBonus === 'speedup') {
+    const bonusDef = ROOM_BONUS_TYPES.find(bt => bt.id === 'speedup');
+    spd *= bonusDef?.speedMult || 1.3;
+  } else if (roomBonus === 'speeddown') {
+    const bonusDef = ROOM_BONUS_TYPES.find(bt => bt.id === 'speeddown');
+    spd *= bonusDef?.speedMult || 0.7;
+  }
+
   let { mvx, mvy } = getMovementDir();
 
   if (mvx !== 0 || mvy !== 0) Sounds.footstep(dt);
@@ -306,11 +329,16 @@ function _onEnemyKilled(state, playerProgress, g) {
     const pdy = state.player.y - g.y;
     const pdist = Math.hypot(pdx, pdy);
     if (pdist > 0) {
+      const ebx = (pdx / pdist) * CONFIG.BLOATED_DEATH_SHOT_SPEED;
+      const eby = (pdy / pdist) * CONFIG.BLOATED_DEATH_SHOT_SPEED;
       state.enemyBullets.push({
         x: g.x, y: g.y,
-        vx: (pdx / pdist) * CONFIG.BLOATED_DEATH_SHOT_SPEED,
-        vy: (pdy / pdist) * CONFIG.BLOATED_DEATH_SHOT_SPEED,
-        life: 6,
+        vx: ebx,
+        vy: eby,
+        _baseVx: ebx,
+        _baseVy: eby,
+        maxRange: enemyBulletRange(ebx, eby),
+        distanceTraveled: 0,
       });
     }
   }
@@ -395,7 +423,7 @@ function _handleWeaponPickup(state, playerProgress, keys) {
 
 // ── Re-export proximity checks for game-loop ──────────────────────
 
-export { isNearAltar, isNearUpgradeChest, isNearCursedChest };
+export { isNearAltar, isNearUpgradeChest, isNearCursedChest, isNearRoomBonusAltar };
 
 // ── Check if player is near a weapon (for HUD hint) ──────────
 

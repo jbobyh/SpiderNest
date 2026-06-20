@@ -4,7 +4,7 @@
 // CONFIG / WEAPON_DEFS are globals loaded from config.js.
 // ============================================================
 
-import { inRoom, cellOf, cellKey, CELL_PX, crossesWall } from '../world/constants.js';
+import { inRoom, cellOf, cellKey, CELL_PX, crossesWall, getRoomBonus } from '../world/constants.js';
 import { Sounds } from '../core/sound.js';
 import { spawnParticles } from '../render/particles.js';
 
@@ -136,9 +136,42 @@ export function updateBullets(state, dt, onEnemyKilled, onPlayerHit) {
     const prevX = b.x, prevY = b.y;
     b.x    += b.vx * dt;
     b.y    += b.vy * dt;
-    b.life -= dt;
+    b.distanceTraveled += Math.hypot(b.x - prevX, b.y - prevY);
 
-    if (b.life <= 0) {
+    // Check room bonus for speed/penetrate
+    const bulletCell = cellOf(b.x, b.y);
+    const bulletCellKey = cellKey(bulletCell.x, bulletCell.y);
+    const roomBonus = getRoomBonus(state, bulletCellKey);
+    
+    if (roomBonus !== b._lastRoomBonus) {
+      // Speed bonus
+      if (roomBonus === 'speedup' && b._lastRoomBonus !== 'speedup') {
+        const bonusDef = ROOM_BONUS_TYPES.find(bt => bt.id === 'speedup');
+        const mult = bonusDef?.speedMult || 1.3;
+        b.vx = b._baseVx * mult;
+        b.vy = b._baseVy * mult;
+      } else if (roomBonus === 'speeddown' && b._lastRoomBonus !== 'speeddown') {
+        const bonusDef = ROOM_BONUS_TYPES.find(bt => bt.id === 'speeddown');
+        const mult = bonusDef?.speedMult || 0.7;
+        b.vx = b._baseVx * mult;
+        b.vy = b._baseVy * mult;
+      } else if (b._lastRoomBonus === 'speedup' || b._lastRoomBonus === 'speeddown') {
+        // Exiting speed bonus room
+        b.vx = b._baseVx;
+        b.vy = b._baseVy;
+      }
+      
+      // Penetrate bonus
+      if (roomBonus === 'penetrate') {
+        b.penetrate = Infinity;
+      } else if (b._lastRoomBonus === 'penetrate') {
+        b.penetrate = b._basePenetrate;
+      }
+      
+      b._lastRoomBonus = roomBonus;
+    }
+
+    if (b.distanceTraveled >= b.maxRange) {
       Sounds.wallhit();
       spawnParticles(state.particles, b.x, b.y,
         CONFIG.WALL_HIT_PARTICLES_COUNT, 0, Math.PI * 2,
@@ -246,11 +279,47 @@ export function updateBattleBullets(state, dt, onEnemyKilled) {
 
   for (let i = bullets.length - 1; i >= 0; i--) {
     const bul = bullets[i];
-    bul.x    += bul.vx * dt;
-    bul.y    += bul.vy * dt;
-    bul.life -= dt;
+    const bulDx = bul.vx * dt;
+    const bulDy = bul.vy * dt;
+    bul.x    += bulDx;
+    bul.y    += bulDy;
+    bul.distanceTraveled += Math.hypot(bulDx, bulDy);
 
-    if (bul.life <= 0) {
+    // Check room bonus for speed/penetrate (convert battle coords to world coords)
+    const bcx = Math.floor(bul.x / CPB) + b.cellOffsetX;
+    const bcy = Math.floor(bul.y / CPB) + b.cellOffsetY;
+    const bulletCellKey = cellKey(bcx, bcy);
+    const roomBonus = getRoomBonus(state, bulletCellKey);
+    
+    if (roomBonus !== bul._lastRoomBonus) {
+      // Speed bonus
+      if (roomBonus === 'speedup' && bul._lastRoomBonus !== 'speedup') {
+        const bonusDef = ROOM_BONUS_TYPES.find(bt => bt.id === 'speedup');
+        const mult = bonusDef?.speedMult || 1.3;
+        bul.vx = bul._baseVx * mult;
+        bul.vy = bul._baseVy * mult;
+      } else if (roomBonus === 'speeddown' && bul._lastRoomBonus !== 'speeddown') {
+        const bonusDef = ROOM_BONUS_TYPES.find(bt => bt.id === 'speeddown');
+        const mult = bonusDef?.speedMult || 0.7;
+        bul.vx = bul._baseVx * mult;
+        bul.vy = bul._baseVy * mult;
+      } else if (bul._lastRoomBonus === 'speedup' || bul._lastRoomBonus === 'speeddown') {
+        // Exiting speed bonus room
+        bul.vx = bul._baseVx;
+        bul.vy = bul._baseVy;
+      }
+      
+      // Penetrate bonus
+      if (roomBonus === 'penetrate') {
+        bul.penetrate = Infinity;
+      } else if (bul._lastRoomBonus === 'penetrate') {
+        bul.penetrate = bul._basePenetrate;
+      }
+      
+      bul._lastRoomBonus = roomBonus;
+    }
+
+    if (bul.distanceTraveled >= bul.maxRange) {
       _battleWallHit(b, bul);
       bullets.splice(i, 1);
       continue;
@@ -358,11 +427,34 @@ export function updateEnemyBullets(state, dt, onPlayerHit) {
   const ebs = state.enemyBullets;
   for (let i = ebs.length - 1; i >= 0; i--) {
     const eb = ebs[i];
-    eb.x    += eb.vx * dt;
-    eb.y    += eb.vy * dt;
-    eb.life -= dt;
+    const prevX = eb.x, prevY = eb.y;
+    eb.x += eb.vx * dt;
+    eb.y += eb.vy * dt;
+    eb.distanceTraveled += Math.hypot(eb.x - prevX, eb.y - prevY);
 
-    if (!inRoom(eb.x, eb.y, state.openCells) || eb.life <= 0) {
+    // Check room bonus for speed
+    const bulletCell = cellOf(eb.x, eb.y);
+    const bulletCellKey = cellKey(bulletCell.x, bulletCell.y);
+    const roomBonus = getRoomBonus(state, bulletCellKey);
+    if (roomBonus !== eb._lastRoomBonus) {
+      if (roomBonus === 'speedup' && eb._lastRoomBonus !== 'speedup') {
+        const bonusDef = ROOM_BONUS_TYPES.find(bt => bt.id === 'speedup');
+        const mult = bonusDef?.speedMult || 1.3;
+        eb.vx = eb._baseVx * mult;
+        eb.vy = eb._baseVy * mult;
+      } else if (roomBonus === 'speeddown' && eb._lastRoomBonus !== 'speeddown') {
+        const bonusDef = ROOM_BONUS_TYPES.find(bt => bt.id === 'speeddown');
+        const mult = bonusDef?.speedMult || 0.7;
+        eb.vx = eb._baseVx * mult;
+        eb.vy = eb._baseVy * mult;
+      } else if (eb._lastRoomBonus === 'speedup' || eb._lastRoomBonus === 'speeddown') {
+        eb.vx = eb._baseVx;
+        eb.vy = eb._baseVy;
+      }
+      eb._lastRoomBonus = roomBonus;
+    }
+
+    if (!inRoom(eb.x, eb.y, state.openCells) || eb.distanceTraveled >= eb.maxRange) {
       for (let j = 0; j < 4; j++) {
         const a = Math.random() * Math.PI * 2;
         state.particles.push({ x: eb.x, y: eb.y, vx: Math.cos(a) * 30, vy: Math.sin(a) * 30,
@@ -393,15 +485,37 @@ export function updateBattleEnemyBullets(state, dt, onPlayerHit) {
 
   for (let i = ebs.length - 1; i >= 0; i--) {
     const eb = ebs[i];
-    eb.x    += eb.vx * dt;
-    eb.y    += eb.vy * dt;
-    eb.life -= dt;
+    const prevX = eb.x, prevY = eb.y;
+    eb.x += eb.vx * dt;
+    eb.y += eb.vy * dt;
+    eb.distanceTraveled += Math.hypot(eb.x - prevX, eb.y - prevY);
 
+    // Check room bonus for speed (convert battle coords to world coords)
     const bcx = Math.floor(eb.x / CPB) + b.cellOffsetX;
     const bcy = Math.floor(eb.y / CPB) + b.cellOffsetY;
+    const bulletCellKey = cellKey(bcx, bcy);
+    const roomBonus = getRoomBonus(state, bulletCellKey);
+    if (roomBonus !== eb._lastRoomBonus) {
+      if (roomBonus === 'speedup' && eb._lastRoomBonus !== 'speedup') {
+        const bonusDef = ROOM_BONUS_TYPES.find(bt => bt.id === 'speedup');
+        const mult = bonusDef?.speedMult || 1.3;
+        eb.vx = eb._baseVx * mult;
+        eb.vy = eb._baseVy * mult;
+      } else if (roomBonus === 'speeddown' && eb._lastRoomBonus !== 'speeddown') {
+        const bonusDef = ROOM_BONUS_TYPES.find(bt => bt.id === 'speeddown');
+        const mult = bonusDef?.speedMult || 0.7;
+        eb.vx = eb._baseVx * mult;
+        eb.vy = eb._baseVy * mult;
+      } else if (eb._lastRoomBonus === 'speedup' || eb._lastRoomBonus === 'speeddown') {
+        eb.vx = eb._baseVx;
+        eb.vy = eb._baseVy;
+      }
+      eb._lastRoomBonus = roomBonus;
+    }
+
     const oob = eb.x < 0 || eb.x > b.width || eb.y < 0 || eb.y > b.height;
 
-    if (!b.openCells.has(cellKey(bcx, bcy)) || oob || eb.life <= 0) {
+    if (!b.openCells.has(cellKey(bcx, bcy)) || oob || eb.distanceTraveled >= eb.maxRange) {
       for (let j = 0; j < 4; j++) {
         const a = Math.random() * Math.PI * 2;
         b.particles.push({ x: eb.x, y: eb.y, vx: Math.cos(a) * 30 * BS, vy: Math.sin(a) * 30 * BS,
@@ -441,12 +555,20 @@ export function fireReflectionBullets(state) {
 
   for (const { e } of nearest) {
     const angle = Math.atan2(e.y - py, e.x - px);
+    const baseVx = Math.cos(angle) * bulletSpeed;
+    const baseVy = Math.sin(angle) * bulletSpeed;
+    const basePenetrate = state.upgrades.infinitePenetrate ? Infinity : weapon.penetrate + state.upgrades.penetrate;
     state.bullets.push({
       x: px, y: py,
-      vx: Math.cos(angle) * bulletSpeed,
-      vy: Math.sin(angle) * bulletSpeed,
-      life: _bulletLife(state, weapon, bulletSpeed, 1),
-      damage, penetrate: state.upgrades.infinitePenetrate ? Infinity : weapon.penetrate + state.upgrades.penetrate,
+      vx: baseVx,
+      vy: baseVy,
+      maxRange: _bulletRange(state, weapon, 1),
+      distanceTraveled: 0,
+      damage, penetrate: basePenetrate,
+      _baseVx: baseVx,
+      _baseVy: baseVy,
+      _basePenetrate: basePenetrate,
+      _lastRoomBonus: null,
       hitCount: 0, isCrit: false, enhancedPierceActive: false,
       ricochet: !!state.upgrades.ricochet,
     });
@@ -491,12 +613,21 @@ function _createBullet(state, weapon, angle, bulletSpeed) {
   let   damage  = weapon.damage + state.upgrades.damage;
   if (isCrit) damage *= 2;
 
+  const basePenetrate = state.upgrades.infinitePenetrate ? Infinity : weapon.penetrate + state.upgrades.penetrate;
+  const baseVx = Math.cos(angle) * bulletSpeed;
+  const baseVy = Math.sin(angle) * bulletSpeed;
+
   state.bullets.push({
     x: state.player.x, y: state.player.y,
-    vx: Math.cos(angle) * bulletSpeed,
-    vy: Math.sin(angle) * bulletSpeed,
-    life: _bulletLife(state, weapon, bulletSpeed, 1),
-    damage, penetrate: state.upgrades.infinitePenetrate ? Infinity : weapon.penetrate + state.upgrades.penetrate,
+    vx: baseVx,
+    vy: baseVy,
+    maxRange: _bulletRange(state, weapon, 1),
+    distanceTraveled: 0,
+    damage, penetrate: basePenetrate,
+    _baseVx: baseVx,
+    _baseVy: baseVy,
+    _basePenetrate: basePenetrate,
+    _lastRoomBonus: null,
     hitCount: 0, isCrit, enhancedPierceActive: false,
     ricochet: !!state.upgrades.ricochet,
   });
@@ -507,28 +638,43 @@ function _createBattleBullet(state, b, weapon, angle, bulletSpeed, BS) {
   let   damage = weapon.damage + state.upgrades.damage;
   if (isCrit) damage *= 2;
 
+  const basePenetrate = state.upgrades.infinitePenetrate ? Infinity : weapon.penetrate + state.upgrades.penetrate;
+  const baseVx = Math.cos(angle) * bulletSpeed;
+  const baseVy = Math.sin(angle) * bulletSpeed;
+
   b.bullets.push({
     x: b.player.x, y: b.player.y,
-    vx: Math.cos(angle) * bulletSpeed,
-    vy: Math.sin(angle) * bulletSpeed,
-    life: _bulletLife(state, weapon, bulletSpeed, BS),
-    damage, penetrate: state.upgrades.infinitePenetrate ? Infinity : weapon.penetrate + state.upgrades.penetrate,
+    vx: baseVx,
+    vy: baseVy,
+    maxRange: _bulletRange(state, weapon, BS),
+    distanceTraveled: 0,
+    damage, penetrate: basePenetrate,
+    _baseVx: baseVx,
+    _baseVy: baseVy,
+    _basePenetrate: basePenetrate,
+    _lastRoomBonus: null,
     hitCount: 0, isCrit, enhancedPierceActive: false,
     ricochet: !!state.upgrades.ricochet,
   });
 }
 
-function _bulletLife(state, weapon, bulletSpeed, scale) {
-  if (state.upgrades.infiniteRange) return 999999;
+function _bulletRange(state, weapon, scale) {
+  if (state.upgrades.infiniteRange) return Infinity;
   const RANGE_SCALE = CELL_PX / 10;
-  let life = (weapon.range != null
+  let range = (weapon.range != null
     ? weapon.range * RANGE_SCALE * scale
-    : CONFIG.BULLET_LIFE * weapon.bulletSpeed * scale) / bulletSpeed;
-  if (state.upgrades.ricochet) life *= 1.5;
+    : CONFIG.BULLET_LIFE * weapon.bulletSpeed * scale);
+  if (state.upgrades.ricochet) range *= 1.5;
   if (state.upgrades.longRange && state.openCells) {
-    life *= 1 + 0.20 * state.openCells.size;
+    range *= 1 + 0.20 * state.openCells.size;
   }
-  return life;
+  return range;
+}
+
+export const ENEMY_BULLET_TIME = 6;
+
+export function enemyBulletRange(vx, vy) {
+  return Math.hypot(vx, vy) * ENEMY_BULLET_TIME;
 }
 
 function _burstStepDelay(weapon, total) {

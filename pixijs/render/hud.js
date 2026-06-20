@@ -103,7 +103,7 @@ export function initHud(parentContainer) {
 
 // ── Update (call every frame or on state change) ─────────────
 
-export function updateHud(gameState, currentLevel, nearWeapon = false, nearAltar = false, bossSummonReady = false, nearChest = false, nearCursedChest = false) {
+export function updateHud(gameState, currentLevel, nearWeapon = false, nearAltar = false, bossSummonReady = false, nearChest = false, nearCursedChest = false, nearRoomBonusAltar = false) {
   if (!_parent || !gameState) return;
 
   dom.levelLabel.text = `Уровень ${currentLevel}`;
@@ -114,12 +114,13 @@ export function updateHud(gameState, currentLevel, nearWeapon = false, nearAltar
   _updateWeaponSlots(gameState);
 
   // Show/hide pickup hint (reuse panel, swap text)
-  // Priority: cursed chest > chest > altar > weapon
-  const showHint = nearWeapon || nearAltar || nearChest || nearCursedChest;
+  // Priority: room bonus altar > cursed chest > chest > altar > weapon
+  const showHint = nearWeapon || nearAltar || nearChest || nearCursedChest || nearRoomBonusAltar;
   dom.pickupHint.visible = showHint;
   if (showHint) {
     let hintText = 'подобрать';
-    if (nearCursedChest) hintText = 'Открыть проклятый сундук';
+    if (nearRoomBonusAltar) hintText = 'Активировать алтарь комнаты';
+    else if (nearCursedChest) hintText = 'Открыть проклятый сундук';
     else if (nearChest) hintText = 'Открыть сундук';
     else if (nearAltar) hintText = 'Призвать врагов';
     _setPickupHintText(hintText);

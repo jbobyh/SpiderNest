@@ -12,7 +12,7 @@
 //   3 = top    [ 0, -1]
 // ============================================================
 
-import { Container, Sprite, TilingSprite, Texture, Graphics, Assets } from 'pixi.js';
+import { Container, Sprite, TilingSprite, Texture, Graphics, Assets, Text } from 'pixi.js';
 import {
   CELL_PX, FLOOR_TILES_PER_CELL, FLOOR_TILE_PX, SUBCELL_PX, TILES_PER_CELL, CARDINAL_DIRECTIONS,
   cellKey, cellFromKey, wallKey,
@@ -83,7 +83,7 @@ function floorRotation(openDirs) {
 
 // ── Sprite factories ─────────────────────────────────────────
 
-function makeFloorSprite(x, y, openDirs, level, purifiedRooms, cellToRoom, cellContents, chestObjs, hearts, upgradeChests, summonSphere) {
+function makeFloorSprite(x, y, openDirs, level, purifiedRooms, cellToRoom, cellContents, chestObjs, hearts, upgradeChests, summonSphere, roomBonuses, roomBonusAltars) {
   const k = cellKey(x, y);
   const roomIdx = cellToRoom ? cellToRoom.get(k) : undefined;
   const isPurified = roomIdx !== undefined && purifiedRooms && purifiedRooms.has(roomIdx);
@@ -100,9 +100,20 @@ function makeFloorSprite(x, y, openDirs, level, purifiedRooms, cellToRoom, cellC
     }
   }
 
+  // Check if room has room bonus altar
+  let hasRoomBonusAltar = false;
+  if (roomIdx !== undefined && roomBonusAltars && roomBonusAltars.length > 0) {
+    for (const altar of roomBonusAltars) {
+      if (altar.roomIdx === roomIdx && !altar.activated) {
+        hasRoomBonusAltar = true;
+        break;
+      }
+    }
+  }
+
   // Check if room has cursed chest using chestObjs
   let hasCursedChest = false;
-  if (!hasHeart && roomIdx !== undefined && chestObjs && chestObjs.length > 0) {
+  if (!hasHeart && !hasRoomBonusAltar && roomIdx !== undefined && chestObjs && chestObjs.length > 0) {
     for (const chest of chestObjs) {
       const chestRoomIdx = cellToRoom.get(chest.cellKey);
       if (chestRoomIdx === roomIdx) {
@@ -114,7 +125,7 @@ function makeFloorSprite(x, y, openDirs, level, purifiedRooms, cellToRoom, cellC
 
   // Check if room has upgrade chest
   let hasUpgradeChest = false;
-  if (!hasHeart && !hasCursedChest && roomIdx !== undefined && upgradeChests && upgradeChests.length > 0) {
+  if (!hasHeart && !hasRoomBonusAltar && !hasCursedChest && roomIdx !== undefined && upgradeChests && upgradeChests.length > 0) {
     for (const chest of upgradeChests) {
       const chestRoomIdx = cellToRoom.get(chest.cellKey);
       if (chestRoomIdx === roomIdx) {
@@ -126,10 +137,33 @@ function makeFloorSprite(x, y, openDirs, level, purifiedRooms, cellToRoom, cellC
 
   // Check if room has summon sphere
   let hasSummonSphere = false;
-  if (!hasHeart && !hasCursedChest && !hasUpgradeChest && roomIdx !== undefined && summonSphere) {
+  if (!hasHeart && !hasRoomBonusAltar && !hasCursedChest && !hasUpgradeChest && roomIdx !== undefined && summonSphere) {
     const sphereRoomIdx = cellToRoom.get(summonSphere.cellKey);
     if (sphereRoomIdx === roomIdx) {
       hasSummonSphere = true;
+    }
+  }
+
+  // Check if room has bonus
+  let roomBonus = null;
+  if (roomIdx !== undefined) {
+    // Check roomBonuses array first
+    if (roomBonuses && roomBonuses.length > 0) {
+      for (const rb of roomBonuses) {
+        if (rb.roomIdx === roomIdx) {
+          roomBonus = rb.bonusType;
+          break;
+        }
+      }
+    }
+    // Also check roomBonusAltars for activated altars with bonusType
+    if (!roomBonus && roomBonusAltars && roomBonusAltars.length > 0) {
+      for (const altar of roomBonusAltars) {
+        if (altar.roomIdx === roomIdx && altar.activated && altar.bonusType) {
+          roomBonus = altar.bonusType;
+          break;
+        }
+      }
     }
   }
 
@@ -159,6 +193,21 @@ function makeFloorSprite(x, y, openDirs, level, purifiedRooms, cellToRoom, cellC
     }
   }
   container.position.set(x * CELL_PX, y * CELL_PX);
+
+  // Add room bonus icon if present
+  if (roomBonus && typeof ROOM_BONUS_TYPES !== 'undefined') {
+    const bonusType = ROOM_BONUS_TYPES.find(bt => bt.id === roomBonus);
+    if (bonusType && bonusType.icon) {
+      const icon = new Text({
+        text: bonusType.icon,
+        style: { fontSize: 16, fontFamily: 'sans-serif' },
+      });
+      icon.anchor.set(1, 0); // Top-right anchor
+      icon.position.set(CELL_PX - 4, 4);
+      container.addChild(icon);
+    }
+  }
+
   return container;
 }
 
@@ -454,7 +503,7 @@ export function buildTileLayer(targetContainer, worldData, level) {
 
   const {
     blobCells, openCells, everRevealedCells, everOpenedCells,
-    removedWalls, permanentlyClosed, disabledCells, rooms, purified, chestObjs, hearts, upgradeChests, summonSphere,
+    removedWalls, permanentlyClosed, disabledCells, rooms, purified, chestObjs, hearts, upgradeChests, summonSphere, roomBonuses, roomBonusAltars,
   } = worldData;
 
   // Build cellToRoom map
@@ -481,7 +530,7 @@ export function buildTileLayer(targetContainer, worldData, level) {
   }
   for (const k of allFloorCells) {
     const { x, y } = cellFromKey(k);
-    floorContainer.addChild(makeFloorSprite(x, y, getOpenDirs(x, y, allFloorCells), level, purified, cellToRoom, null, chestObjs, hearts, upgradeChests, summonSphere));
+    floorContainer.addChild(makeFloorSprite(x, y, getOpenDirs(x, y, allFloorCells), level, purified, cellToRoom, null, chestObjs, hearts, upgradeChests, summonSphere, roomBonuses, roomBonusAltars));
   }
 
   // ── 3. Outer wall strips ──
