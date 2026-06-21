@@ -12,12 +12,11 @@
 // ============================================================
 
 import { Graphics } from 'pixi.js';
-import { CELL_PX }  from '../world/constants.js';
 
-const H             = CELL_PX / 3;  // wall height in world-pixels
-const CAM_Z         = CELL_PX * 6;   // virtual camera altitude — higher = weaker perspective
-const CAP_DZ        = H * 0.18;      // extra Z for top-cap edge
-const CAM_THRESHOLD = 0.5;           // min camera movement (px) to trigger redraw
+const H             = CONFIG.WALL_3D_HEIGHT;  // wall height in world-pixels
+const CAM_Z         = CONFIG.WALL_3D_CAM_Z;   // virtual camera altitude — higher = weaker perspective
+const CAP_DZ        = H * 0.18;               // extra Z for top-cap edge
+const CAM_THRESHOLD = 0.5;                    // min camera movement (px) to trigger redraw
 
 // Project a 3D world point (wx, wy, wz) onto the 2D world plane.
 // Floor (wz=0) stays in place; higher points push away from the camera.
@@ -75,46 +74,58 @@ export function updateWall3D(camX, camY) {
   _gSide.clear();
   _gCap.clear();
 
-  for (const seg of _segments) {
-    const { x1, y1, x2, y2, normals } = seg;
+  // Painter's algorithm: sort far→near so closer walls draw on top
+  const sorted = _segments
+    .filter(s => !s.isRemoved)
+    .map(s => {
+      let cx = 0, cy = 0;
+      for (const v of s.verts) { cx += v.x; cy += v.y; }
+      cx /= s.verts.length; cy /= s.verts.length;
+      const dx = camX - cx, dy = camY - cy;
+      return { seg: s, dist2: dx * dx + dy * dy };
+    })
+    .sort((a, b) => b.dist2 - a.dist2);
 
-    const mx = (x1 + x2) / 2;
-    const my = (y1 + y2) / 2;
+  for (const { seg } of sorted) {
+    const { verts, edgeNormals } = seg;
+    const n = verts.length;
 
-    // Pick the normal facing the camera (positive dot product)
-    let chosen = null;
-    for (const n of normals) {
-      const dot = (camX - mx) * n.nx + (camY - my) * n.ny;
-      if (dot > 0) { chosen = n; break; }
+    // ── Side faces ───────────────────────────────────
+    for (let i = 0; i < n; i++) {
+      const en = edgeNormals[i];
+      const b1 = verts[i];
+      const b2 = verts[(i + 1) % n];
+
+      // Face midpoint for dot-product culling
+      const mx = (b1.x + b2.x) / 2;
+      const my = (b1.y + b2.y) / 2;
+      const dot = (camX - mx) * en.nx + (camY - my) * en.ny;
+      if (dot <= 0) continue; // back-face, skip
+
+      const t1 = _project(b1.x, b1.y, H, camX, camY);
+      const t2 = _project(b2.x, b2.y, H, camX, camY);
+
+      _gSide
+        .poly([
+          b1.x, b1.y,
+          b2.x, b2.y,
+          t2.x, t2.y,
+          t1.x, t1.y,
+        ])
+        .fill({ color: en.color, alpha: en.alpha })
+        .stroke({ color: en.strokeColor, alpha: en.strokeAlpha, width: 0.5 });
     }
-    if (!chosen) continue; // edge-on or behind — skip
 
-    // Project top vertices toward the camera using perspective
-    const t1 = _project(x1, y1, H, camX, camY);
-    const t2 = _project(x2, y2, H, camX, camY);
-
-    // Side face quad: floor base → projected top
-    _gSide
-      .poly([
-        x1,    y1,
-        x2,    y2,
-        t2.x,  t2.y,
-        t1.x,  t1.y,
-      ])
-      .fill({ color: chosen.color, alpha: chosen.alpha })
-      .stroke({ color: chosen.strokeColor, alpha: chosen.strokeAlpha, width: 0.5 });
-
-    // Top cap — project a slightly higher Z for the far edge
-    const t1c = _project(x1, y1, H + CAP_DZ, camX, camY);
-    const t2c = _project(x2, y2, H + CAP_DZ, camX, camY);
+    // ── Top cap: project all verts at wz=H ────────────────
+    const topPts = [];
+    for (let i = 0; i < n; i++) {
+      const t = _project(verts[i].x, verts[i].y, H, camX, camY);
+      topPts.push(t.x, t.y);
+    }
+    const en0 = edgeNormals[0];
     _gCap
-      .poly([
-        t1.x,  t1.y,
-        t2.x,  t2.y,
-        t2c.x, t2c.y,
-        t1c.x, t1c.y,
-      ])
-      .fill({ color: chosen.capColor, alpha: chosen.capAlpha });
+      .poly(topPts)
+      .fill({ color: en0.capColor, alpha: en0.capAlpha });
   }
 }
 
