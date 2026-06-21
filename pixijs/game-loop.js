@@ -374,7 +374,7 @@ function _render(dt) {
 
   syncBullets(_state.bullets, _state.enemyBullets, layers.entities);
   syncParticles(_state.particles);
-  updateAndSyncDamageNumbers(_state, dt);
+  updateAndSyncDamageNumbers(_state, dt, _camera);
   syncCollectibles(_state);
   syncFlyingHeart();
   updateTooltip(_state, _camera);

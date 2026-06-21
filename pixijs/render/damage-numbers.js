@@ -5,7 +5,7 @@ const _pool = [];
 const _active = new Map();
 
 const MAX_ACTIVE = 64;
-const FONT_SIZE = 8;
+const FONT_SIZE = 16;
 const LIFE = 0.8;
 const RISE_SPEED = 30;
 const DAMP = 0.95;
@@ -32,8 +32,8 @@ export function spawnDamageNumber(state, x, y, damage, isCrit, scale = 1) {
   });
 }
 
-export function updateAndSyncDamageNumbers(state, dt) {
-  if (!_container) return;
+export function updateAndSyncDamageNumbers(state, dt, camera) {
+  if (!_container || !camera) return;
 
   const arr = state.damageNumbers;
   for (let i = arr.length - 1; i >= 0; i--) {
@@ -63,8 +63,12 @@ export function updateAndSyncDamageNumbers(state, dt) {
     text.text = dn.text;
     text.style.fontSize = FONT_SIZE * dn.scale;
     text.style.fill = dn.color;
-    text.x = dn.x;
-    text.y = dn.y;
+    
+    // Project world coords to screen
+    const screenPos = camera.worldToScreen(dn.x, dn.y);
+    text.x = screenPos.x;
+    text.y = screenPos.y;
+    
     text.alpha = dn.life / dn.maxLife;
   }
 }

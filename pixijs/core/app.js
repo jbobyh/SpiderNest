@@ -1,6 +1,12 @@
-import { Application } from 'pixi.js';
+import { Application, Text as PixiText } from 'pixi.js';
 
 export const app = new Application();
+
+// Oversample all Text instances so they stay sharp when the stage is CSS-scaled.
+// In PixiJS v8, set defaultResolution on the Text class directly.
+// null = auto (matches devicePixelRatio); explicit number = overrides.
+PixiText.defaultResolution = (window.devicePixelRatio || 1) * 2;
+PixiText.defaultAutoResolution = false;
 
 /**
  * Initialise the PixiJS Application and mount the canvas into #canvas-container.
@@ -16,10 +22,10 @@ export async function initApp() {
     width:        VW,
     height:       VH,
     background:   0x0a0a1a,
-    antialias:    false,
+    antialias:    true,
     preference:   'webgl',
-    autoDensity:  false,
-    resolution:   1,
+    autoDensity:  true,
+    resolution:   Math.max(dpr, 2),
   });
 
   // Insert canvas before any overlays so z-order stays correct
@@ -28,9 +34,11 @@ export async function initApp() {
   app.canvas.style.top = '0';
   app.canvas.style.left = '0';
 
-  // Set container size to prevent collapse when canvas is absolute
-  container.style.width = VW + 'px';
+  // Give the container an explicit size so clientWidth/Height are non-zero
+  // and _fitCanvas can compute the correct CSS scale on first call.
+  container.style.width  = VW + 'px';
   container.style.height = VH + 'px';
+  container.style.maxWidth  = '100%';
 
   _fitCanvas(container, VW, VH);
   window.addEventListener('resize', () => _fitCanvas(container, VW, VH));
@@ -52,19 +60,15 @@ export async function initApp() {
     if (inFs) {
       // Resize renderer to native screen pixels for sharpness.
       // Scale app.stage so game logic stays in 1024x576 logical space.
-      const pw = Math.round(window.screen.width  * dpr);
-      const ph = Math.round(window.screen.height * dpr);
-      app.renderer.resize(pw, ph);
-      _applyStageScale(pw, ph, VW, VH);
+      const sw = window.screen.width;
+      const sh = window.screen.height;
+      app.renderer.resize(sw, sh);
+      _applyStageScale(sw, sh, VW, VH);
       app.canvas.style.width  = '100%';
       app.canvas.style.height = '100%';
       app.canvas.style.left   = '0';
       app.canvas.style.top    = '0';
     } else {
-      // Restore original renderer size and stage scale.
-      app.renderer.resize(VW, VH);
-      app.stage.scale.set(1);
-      app.stage.position.set(0, 0);
       _fitCanvas(container, VW, VH);
     }
     if (fsBtn) {
@@ -92,7 +96,8 @@ function _applyStageScale(pw, ph, logicalW, logicalH) {
 }
 
 /**
- * Scale the canvas CSS size to fit the container while preserving aspect ratio.
+ * Resize the renderer to exact display pixels and scale app.stage to fit.
+ * Physical canvas pixels == CSS pixels × dpr — no CSS stretching, text stays sharp.
  */
 function _fitCanvas(container, logicalW, logicalH) {
   const availW = container.clientWidth;
@@ -100,9 +105,13 @@ function _fitCanvas(container, logicalW, logicalH) {
 
   if (availW === 0 || availH === 0) return;
 
-  const scale  = Math.min(availW / logicalW, availH / logicalH);
-  const cssW   = Math.round(logicalW * scale);
-  const cssH   = Math.round(logicalH * scale);
+  const cssScale = Math.min(availW / logicalW, availH / logicalH);
+  const cssW    = Math.round(logicalW * cssScale);
+  const cssH    = Math.round(logicalH * cssScale);
+
+  // Resize using CSS pixels, autoDensity/resolution handles the rest
+  app.renderer.resize(cssW, cssH);
+  _applyStageScale(cssW, cssH, logicalW, logicalH);
 
   app.canvas.style.width  = cssW + 'px';
   app.canvas.style.height = cssH + 'px';

@@ -30,7 +30,7 @@ const _active = [];
  * @param {import('pixi.js').Container} particlesLayer
  */
 export function initParticles(particlesLayer) {
-  _dotTexture = _createDotTexture(1.5);
+  _dotTexture = _createDotTexture(2);
 
   _container = new ParticleContainer({
     texture: _dotTexture,
@@ -175,7 +175,14 @@ function _createDotTexture(radius) {
   const g = new Graphics()
     .circle(radius + 1, radius + 1, radius)
     .fill(0xffffff);
-  const tex = app.renderer.generateTexture({ target: g, frame: new Rectangle(0, 0, d, d) });
+  
+  // Use renderer's resolution for the texture
+  const tex = app.renderer.generateTexture({ 
+    target: g, 
+    frame: new Rectangle(0, 0, d, d),
+    resolution: app.renderer.resolution 
+  });
+  
   g.destroy();
   return tex;
 }

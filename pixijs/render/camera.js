@@ -57,6 +57,14 @@ export class Camera {
     this._apply();
   }
 
+  // Convert world-space (wx, wy) -> logical screen coordinates.
+  worldToScreen(wx, wy) {
+    return {
+      x: (wx - this._worldX) * this._zoom + VW / 2,
+      y: (wy - this._worldY) * this._zoom + VH / 2,
+    };
+  }
+
   // Convert screen-space (sx, sy) → world coords given current camera state.
   screenToWorld(sx, sy) {
     return {

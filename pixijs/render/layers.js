@@ -47,10 +47,9 @@ export function initLayers(camera) {
     layers.shadows,
     layers.entities,
     layers.particles,
-    layers.damageNumbers,
   );
 
-  app.stage.addChild(camera.container, layers.hud);
+  app.stage.addChild(camera.container, layers.damageNumbers, layers.hud);
 }
 
 /**
