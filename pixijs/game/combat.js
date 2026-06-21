@@ -457,7 +457,10 @@ export function updateEnemyBullets(state, dt, onPlayerHit) {
       eb._lastRoomBonus = roomBonus;
     }
 
-    if (!inRoom(eb.x, eb.y, state.openCells) || eb.distanceTraveled >= eb.maxRange) {
+    // Check partition wall crossing
+    const hitsPartition = crossesWall(state.removedWalls, prevX, prevY, eb.x, eb.y);
+
+    if (!inRoom(eb.x, eb.y, state.openCells) || hitsPartition || eb.distanceTraveled >= eb.maxRange) {
       for (let j = 0; j < 4; j++) {
         const a = Math.random() * Math.PI * 2;
         state.particles.push({ x: eb.x, y: eb.y, vx: Math.cos(a) * 30, vy: Math.sin(a) * 30,
@@ -517,8 +520,9 @@ export function updateBattleEnemyBullets(state, dt, onPlayerHit) {
     }
 
     const oob = eb.x < 0 || eb.x > b.width || eb.y < 0 || eb.y > b.height;
+    const hitsPartition = _battleCrossesWall(b, CPB, prevX, prevY, eb.x, eb.y);
 
-    if (!b.openCells.has(cellKey(bcx, bcy)) || oob || eb.distanceTraveled >= eb.maxRange) {
+    if (!b.openCells.has(cellKey(bcx, bcy)) || oob || hitsPartition || eb.distanceTraveled >= eb.maxRange) {
       for (let j = 0; j < 4; j++) {
         const a = Math.random() * Math.PI * 2;
         b.particles.push({ x: eb.x, y: eb.y, vx: Math.cos(a) * 30 * BS, vy: Math.sin(a) * 30 * BS,

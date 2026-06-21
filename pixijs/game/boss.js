@@ -4,12 +4,29 @@
 // BOSS_DEFS / CONFIG are globals from config.js.
 // ============================================================
 
-import { cellKey, cellOf, CELL_PX } from '../world/constants.js';
+import { cellKey, cellOf, CELL_PX, getRoomBonus } from '../world/constants.js';
 import { createEnemyBody, destroyBody, setBodyVelocity } from '../world/physics.js';
 import { getEnemyMoveDir } from './flow-field.js';
 import { Sounds } from '../core/sound.js';
 import { dealPlayerDamage, showUpgradePopup } from './upgrades.js';
 import { enemyBulletRange } from './combat.js';
+
+// ── Room speed multiplier ────────────────────────────────────
+
+function _getRoomSpeedMult(state, x, y) {
+  const cell = { x: Math.floor(x / CELL_PX), y: Math.floor(y / CELL_PX) };
+  const ck = cellKey(cell.x, cell.y);
+  const roomBonus = getRoomBonus(state, ck);
+  if (roomBonus === 'speedup') {
+    const bonusDef = (typeof ROOM_BONUS_TYPES !== 'undefined') && ROOM_BONUS_TYPES.find(bt => bt.id === 'speedup');
+    return bonusDef?.speedMult || 1.5;
+  }
+  if (roomBonus === 'speeddown') {
+    const bonusDef = (typeof ROOM_BONUS_TYPES !== 'undefined') && ROOM_BONUS_TYPES.find(bt => bt.id === 'speeddown');
+    return bonusDef?.speedMult || 0.5;
+  }
+  return 1.0;
+}
 
 // ── Entry point: update single boss entity ────────────────────
 
@@ -38,7 +55,8 @@ export function updateBoss(g, b, state, playerProgress, dt, currentLevel) {
   }
 
   const phase   = bossDef.phases[g.phaseIndex] || bossDef.phases[0];
-  const bossSpd = CONFIG.SPIDER_SPEED * (bossDef.speedMult || 1.0);
+  const roomMult = _getRoomSpeedMult(state, g.x, g.y);
+  const bossSpd = CONFIG.SPIDER_SPEED * (bossDef.speedMult || 1.0) * roomMult;
   const dx      = state.player.x - g.x;
   const dy      = state.player.y - g.y;
   const dist    = Math.hypot(dx, dy);
@@ -58,10 +76,10 @@ export function updateBoss(g, b, state, playerProgress, dt, currentLevel) {
     }
 
   } else if (phase.id === 'buldyga') {
-    _updateBossInertia(g, state, phase, dx, dy, dist, dt, freezeTimer);
+    _updateBossInertia(g, state, phase, dx, dy, dist, dt, freezeTimer, roomMult);
 
   } else if (phase.id === 'bull_limited') {
-    _updateBossBullLimited(g, state, playerProgress, phase, dx, dy, dist, dt, freezeTimer);
+    _updateBossBullLimited(g, state, playerProgress, phase, dx, dy, dist, dt, freezeTimer, roomMult);
 
   } else if (phase.id === 'shooter') {
     _updateBossShooter(g, state, phase, dx, dy, dist, dt, freezeTimer, bossSpd);
@@ -119,7 +137,7 @@ function _advancePhase(g, bossDef) {
   g.speedAccumulator = 0;
 }
 
-function _updateBossInertia(g, state, phase, dx, dy, dist, dt, freezeTimer) {
+function _updateBossInertia(g, state, phase, dx, dy, dist, dt, freezeTimer, roomMult = 1.0) {
   const accelMult    = phase.accelMult   || 1.0;
   const frictionMult = phase.frictionMult || 1.0;
   if (g.currentSpeed    === undefined) g.currentSpeed    = CONFIG.BULDYGA_SPEED;
@@ -135,7 +153,7 @@ function _updateBossInertia(g, state, phase, dx, dy, dist, dt, freezeTimer) {
 
   const stunned = g.stunTimer > 0;
   if (!stunned && freezeTimer <= 0 && dist > 0) {
-    const tvx = (dx / dist) * g.currentSpeed, tvy = (dy / dist) * g.currentSpeed;
+    const tvx = (dx / dist) * g.currentSpeed * roomMult, tvy = (dy / dist) * g.currentSpeed * roomMult;
     const acc = CONFIG.BULDYGA_ACCEL * accelMult * dt;
     g.vx += (tvx - g.vx) * Math.min(1, acc / g.currentSpeed);
     g.vy += (tvy - g.vy) * Math.min(1, acc / g.currentSpeed);
@@ -197,7 +215,7 @@ function _updateBossShooter(g, state, phase, dx, dy, dist, dt, freezeTimer, boss
   }
 }
 
-function _updateBossBullLimited(g, state, playerProgress, phase, dx, dy, dist, dt, freezeTimer) {
+function _updateBossBullLimited(g, state, playerProgress, phase, dx, dy, dist, dt, freezeTimer, roomMult = 1.0) {
   const dashCellsPx = (phase.dashCells || (CONFIG.BULL_DASH_DISTANCE_CELLS ?? 3)) * CELL_PX;
   const chargeDist  = (CONFIG.BULL_CHARGE_DIST_CELLS ?? 1.5) * CELL_PX * 8;
   const dashDist    = dashCellsPx;
@@ -211,7 +229,7 @@ function _updateBossBullLimited(g, state, playerProgress, phase, dx, dy, dist, d
     case 'chase':
       if (g.stunTimer <= 0 && freezeTimer <= 0 && dist > chargeDist && dist > 0) {
         const dir = getEnemyMoveDir(g.x, g.y, state.player.x, state.player.y, state.flowField, state.openCells, state.removedWalls);
-        setBodyVelocity(g.body, dir.dx * CONFIG.BULL_SPEED, dir.dy * CONFIG.BULL_SPEED);
+        setBodyVelocity(g.body, dir.dx * CONFIG.BULL_SPEED * roomMult, dir.dy * CONFIG.BULL_SPEED * roomMult);
       } else if (dist <= chargeDist) {
         g.state = 'prepare'; g.stateTimer = CONFIG.BULL_PREPARE_TIME;
         setBodyVelocity(g.body, 0, 0);
@@ -227,7 +245,7 @@ function _updateBossBullLimited(g, state, playerProgress, phase, dx, dy, dist, d
       }
       break;
     case 'dash': {
-      const BULL_DASH_SPD = CONFIG.BULL_SPEED * 3;
+      const BULL_DASH_SPD = CONFIG.BULL_SPEED * 3 * roomMult;
       setBodyVelocity(g.body, g.dashDirX * BULL_DASH_SPD, g.dashDirY * BULL_DASH_SPD);
       g.stateTimer += BULL_DASH_SPD * dt;
       const hitWall = g.body && Math.hypot(g.body.velocity.x, g.body.velocity.y) < BULL_DASH_SPD * 0.3;
