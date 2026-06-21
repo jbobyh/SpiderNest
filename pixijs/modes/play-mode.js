@@ -180,9 +180,21 @@ export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}
   if (remaining <= 0) hideUpgradePopup();
 
   // ── Camera ───────────────────────────────────────────────
-  camera.setZoom(CONFIG.PLAY_MODE_ZOOM);
-  camera.pan(state.player.x, state.player.y);
-  camera.update(dt);
+  {
+    let dx = state.mouse.x - state.player.x;
+    let dy = state.mouse.y - state.player.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist > CONFIG.CAMERA_MAX_OFFSET) {
+      dx *= CONFIG.CAMERA_MAX_OFFSET / dist;
+      dy *= CONFIG.CAMERA_MAX_OFFSET / dist;
+    }
+    camera.setZoom(CONFIG.PLAY_MODE_ZOOM);
+    camera.moveTo(
+      state.player.x + dx * CONFIG.CAMERA_CURSOR_WEIGHT,
+      state.player.y + dy * CONFIG.CAMERA_CURSOR_WEIGHT,
+    );
+    camera.update(dt);
+  }
 }
 
 // ── Private helpers ───────────────────────────────────────────

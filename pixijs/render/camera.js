@@ -24,15 +24,26 @@ export class Camera {
     this._worldX  = 0; // world X at screen centre
     this._worldY  = 0; // world Y at screen centre
 
+    this._currentX = 0; // smoothed camera X
+    this._currentY = 0; // smoothed camera Y
+
     this._shakeAmount = 0;
     this._shakeAngle  = 0;
   }
 
-  // Centre the view on world point (wx, wy) without changing zoom.
+  // Centre the view on world point (wx, wy) instantly (no damping).
   pan(wx, wy) {
+    this._worldX  = wx;
+    this._worldY  = wy;
+    this._currentX = wx;
+    this._currentY = wy;
+    this._apply();
+  }
+
+  // Set target for smooth follow — camera damps toward (wx, wy) each update().
+  moveTo(wx, wy) {
     this._worldX = wx;
     this._worldY = wy;
-    this._apply();
   }
 
   // Set zoom level and optionally re-centre on (cx, cy).
@@ -50,8 +61,11 @@ export class Camera {
     }
   }
 
-  // Call every frame (dt in seconds) to decay shake.
-  update(_dt) {
+  // Call every frame (dt in seconds) to decay shake and advance smooth follow.
+  update(dt) {
+    const t = 1 - Math.exp(-CONFIG.CAMERA_DAMPING * dt);
+    this._currentX += (this._worldX - this._currentX) * t;
+    this._currentY += (this._worldY - this._currentY) * t;
     this._shakeAmount *= CONFIG.SHAKE_DECAY;
     if (this._shakeAmount < 0.5) this._shakeAmount = 0;
     this._apply();
@@ -60,23 +74,23 @@ export class Camera {
   // Convert world-space (wx, wy) -> logical screen coordinates.
   worldToScreen(wx, wy) {
     return {
-      x: (wx - this._worldX) * this._zoom + VW / 2,
-      y: (wy - this._worldY) * this._zoom + VH / 2,
+      x: (wx - this._currentX) * this._zoom + VW / 2,
+      y: (wy - this._currentY) * this._zoom + VH / 2,
     };
   }
 
   // Convert screen-space (sx, sy) → world coords given current camera state.
   screenToWorld(sx, sy) {
     return {
-      x: (sx - VW / 2) / this._zoom + this._worldX,
-      y: (sy - VH / 2) / this._zoom + this._worldY,
+      x: (sx - VW / 2) / this._zoom + this._currentX,
+      y: (sy - VH / 2) / this._zoom + this._currentY,
     };
   }
 
   // Current zoom scale.
   get zoom()   { return this._zoom; }
-  get worldX() { return this._worldX; }
-  get worldY() { return this._worldY; }
+  get worldX() { return this._currentX; }
+  get worldY() { return this._currentY; }
 
   // ── Internal ────────────────────────────────────────────────
 
@@ -85,12 +99,12 @@ export class Camera {
     const sy = Math.sin(this._shakeAngle) * this._shakeAmount;
 
     this.container.scale.set(this._zoom);
-    // Screen-centre (VW/2, VH/2) should map to world (_worldX, _worldY).
+    // Screen-centre (VW/2, VH/2) should map to world (_currentX, _currentY).
     // container maps local→screen: local_pt * zoom + position = screen_pt
-    // → position = VW/2 - _worldX * zoom   (+ shake)
+    // → position = VW/2 - _currentX * zoom   (+ shake)
     this.container.position.set(
-      VW / 2 - this._worldX * this._zoom + sx,
-      VH / 2 - this._worldY * this._zoom + sy,
+      VW / 2 - this._currentX * this._zoom + sx,
+      VH / 2 - this._currentY * this._zoom + sy,
     );
   }
 }

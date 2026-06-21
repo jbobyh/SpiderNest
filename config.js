@@ -76,6 +76,11 @@ const CONFIG = {
   SHAKE_AMOUNT: 0,      // сила тряски камеры при выстреле
   SHAKE_DECAY: 0.9,       // затухание тряски (множитель за кадр)
 
+  // Camera smooth follow (play mode)
+  CAMERA_CURSOR_WEIGHT: 0.3,  // 0 = только игрок, 1 = только курсор
+  CAMERA_DAMPING: 2.0,         // λ экспоненциального сглаживания (выше = быстрее)
+  CAMERA_MAX_OFFSET: 160,      // макс. сдвиг камеры от игрока в сторону курсора (px)
+
   // Spiders
   SPIDER_HP: 3*2,         // здоровье паука
   SPIDER_SPEED: 1,       // скорость паука (пикс/сек)
