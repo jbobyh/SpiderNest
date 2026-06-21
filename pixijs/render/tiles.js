@@ -563,3 +563,140 @@ export function buildTileLayer(targetContainer, worldData, level) {
 
 // Alias — call whenever openCells or removedWalls change.
 export const rebuildTileLayer = buildTileLayer;
+
+// ── Wall segment extraction for 3D rendering ─────────────────
+// Returns array of { x1, y1, x2, y2, normals } for wall-3d.js.
+// Each segment has two normals (both sides); wall-3d picks the one facing the camera.
+
+const CAP_ALPHA = 0.45;
+
+function _makeNormals(nx, ny, color, alpha, strokeColor, strokeAlpha) {
+  const capColor = color + 0x080408;
+  return [
+    { nx:  nx, ny:  ny, color, alpha, strokeColor, strokeAlpha, capColor, capAlpha: CAP_ALPHA },
+    { nx: -nx, ny: -ny, color, alpha, strokeColor, strokeAlpha, capColor, capAlpha: CAP_ALPHA },
+  ];
+}
+
+/**
+ * Extract wall segments for pseudo-3D rendering.
+ * Call with the same worldData passed to buildTileLayer.
+ * @returns {Array<{x1,y1,x2,y2,normals}>}
+ */
+export function extractWallSegments(worldData) {
+  const {
+    blobCells, openCells, removedWalls, everRevealedCells, purified, internalWalls, rooms,
+  } = worldData;
+
+  const cellToRoom = new Map();
+  if (rooms) {
+    for (let i = 0; i < rooms.length; i++) {
+      for (const cell of rooms[i].cells) cellToRoom.set(cell.k, i);
+    }
+  }
+
+  const segments = [];
+  const allVisible = openCells
+    ? new Set([...openCells, ...everRevealedCells])
+    : everRevealedCells;
+
+  // ── Partition walls (between two blobCells) ──────────────────
+  for (const k of blobCells) {
+    const { x, y } = cellFromKey(k);
+
+    for (const [dx, dy] of [[1, 0], [0, 1]]) {
+      const nx = x + dx, ny = y + dy;
+      const nk = cellKey(nx, ny);
+      if (!blobCells.has(nk)) continue;
+      if (!allVisible.has(k) && !allVisible.has(nk)) continue;
+
+      const wk = wallKey(x, y, nx, ny);
+      const isRemoved = removedWalls.has(wk);
+      if (isRemoved && internalWalls && internalWalls.has(wk)) continue;
+
+      const roomA = cellToRoom?.get(k);
+      const roomB = cellToRoom?.get(nk);
+      const purifiedA = roomA !== undefined && purified?.has(roomA);
+      const purifiedB = roomB !== undefined && purified?.has(roomB);
+      const isPurifiedAdjacent = purifiedA || purifiedB;
+
+      const fillColor   = isPurifiedAdjacent ? 0x2a1a3e : 0x14081e;
+      const strokeColor = isPurifiedAdjacent ? 0x9a70b0 : 0x785090;
+      const fillAlpha   = isRemoved ? 0.29 : 0.92;
+      const strokeAlpha = isRemoved ? 0.05 : 0.5;
+
+      if (dx === 1) {
+        // Vertical wall at x-boundary: segment runs N→S
+        const bx = (x + 1) * CELL_PX;
+        const by = y * CELL_PX;
+        segments.push({
+          x1: bx, y1: by,
+          x2: bx, y2: by + CELL_PX,
+          normals: _makeNormals(1, 0, fillColor, fillAlpha, strokeColor, strokeAlpha),
+        });
+      } else {
+        // Horizontal wall at y-boundary: segment runs W→E
+        const bx = x * CELL_PX;
+        const by = (y + 1) * CELL_PX;
+        segments.push({
+          x1: bx,           y1: by,
+          x2: bx + CELL_PX, y2: by,
+          normals: _makeNormals(0, 1, fillColor, fillAlpha, strokeColor, strokeAlpha),
+        });
+      }
+    }
+  }
+
+  // ── External walls (blobCell boundary with non-blob neighbor) ─
+  for (const k of allVisible) {
+    if (!blobCells.has(k)) continue;
+    const { x, y } = cellFromKey(k);
+
+    for (const [dx, dy] of [[1, 0], [0, 1], [-1, 0], [0, -1]]) {
+      const nx = x + dx, ny = y + dy;
+      const nk = cellKey(nx, ny);
+      if (blobCells.has(nk)) continue;
+
+      const fillColor   = 0x14081e;
+      const strokeColor = 0x785090;
+      const fillAlpha   = 0.92;
+      const strokeAlpha = 0.5;
+
+      if (dx === 1) {
+        const bx = (x + 1) * CELL_PX;
+        const by = y * CELL_PX;
+        segments.push({
+          x1: bx, y1: by,
+          x2: bx, y2: by + CELL_PX,
+          normals: _makeNormals(1, 0, fillColor, fillAlpha, strokeColor, strokeAlpha),
+        });
+      } else if (dx === -1) {
+        const bx = x * CELL_PX;
+        const by = y * CELL_PX;
+        segments.push({
+          x1: bx, y1: by,
+          x2: bx, y2: by + CELL_PX,
+          normals: _makeNormals(1, 0, fillColor, fillAlpha, strokeColor, strokeAlpha),
+        });
+      } else if (dy === 1) {
+        const bx = x * CELL_PX;
+        const by = (y + 1) * CELL_PX;
+        segments.push({
+          x1: bx,           y1: by,
+          x2: bx + CELL_PX, y2: by,
+          normals: _makeNormals(0, 1, fillColor, fillAlpha, strokeColor, strokeAlpha),
+        });
+      } else {
+        const bx = x * CELL_PX;
+        const by = y * CELL_PX;
+        segments.push({
+          x1: bx,           y1: by,
+          x2: bx + CELL_PX, y2: by,
+          normals: _makeNormals(0, 1, fillColor, fillAlpha, strokeColor, strokeAlpha),
+        });
+      }
+    }
+  }
+
+  return segments;
+}

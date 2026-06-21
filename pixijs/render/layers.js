@@ -21,6 +21,7 @@ import { app }       from '../core/app.js';
 export const layers = {
   bg:            null,
   tiles:         null,
+  walls3d:       null,
   shadows:       null,
   entities:      null,
   particles:     null,
@@ -35,6 +36,7 @@ export const layers = {
 export function initLayers(camera) {
   layers.bg            = new Container({ label: 'bg' });
   layers.tiles         = new Container({ label: 'tiles' });
+  layers.walls3d       = new Container({ label: 'walls3d' });
   layers.shadows       = new Container({ label: 'shadows' });
   layers.entities      = new Container({ label: 'entities' });
   layers.particles     = new Container({ label: 'particles' });
@@ -44,6 +46,7 @@ export function initLayers(camera) {
   camera.container.addChild(
     layers.bg,
     layers.tiles,
+    layers.walls3d,
     layers.shadows,
     layers.entities,
     layers.particles,
@@ -56,7 +59,7 @@ export function initLayers(camera) {
  * Remove and destroy all layer children (call between levels or on cleanup).
  */
 export function clearWorldLayers() {
-  for (const name of ['bg', 'tiles', 'shadows', 'entities', 'particles', 'damageNumbers']) {
+  for (const name of ['bg', 'tiles', 'walls3d', 'shadows', 'entities', 'particles', 'damageNumbers']) {
     const layer = layers[name];
     if (layer) layer.removeChildren().forEach(c => c.destroy({ children: true }));
   }

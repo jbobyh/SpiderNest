@@ -17,7 +17,8 @@ import { app }           from './core/app.js';
 import { loadMusicBundle } from './core/assets.js';
 import { Camera }        from './render/camera.js';
 import { initLayers, clearWorldLayers, layers } from './render/layers.js';
-import { buildTileLayer }   from './render/tiles.js';
+import { buildTileLayer, extractWallSegments }   from './render/tiles.js';
+import { initWall3D, updateWall3D, destroyWall3D } from './render/wall-3d.js';
 import { initEntityPool }   from './render/entity-pool.js';
 import {
   initPlayerRenderer, updatePlayerSprite, destroyPlayerRenderer,
@@ -152,7 +153,7 @@ export function startGameLoop({
   initTooltip(layers.hud);
 
   // Tile layer for current level
-  buildTileLayer(layers.tiles, {
+  const _tileData0 = {
     blobCells:          _state.blobCells,
     openCells:          _state.openCells,
     everRevealedCells:  _state.everRevealedCells,
@@ -169,7 +170,9 @@ export function startGameLoop({
     summonSphere:       _state.summonSphere,
     roomBonuses:        _state.roomBonuses,
     roomBonusAltars:     _state.roomBonusAltars,
-  }, _currentLevel);
+  };
+  buildTileLayer(layers.tiles, _tileData0, _currentLevel);
+  initWall3D(layers.walls3d, extractWallSegments(_tileData0), _camera.worldX, _camera.worldY);
 
   // Input
   initInput(app.canvas);
@@ -198,6 +201,7 @@ export function stopGameLoop() {
     _tickerFn = null;
   }
   destroyInput();
+  destroyWall3D();
   destroyPlayerRenderer();
   clearEnemySprites();
   clearBullets();
@@ -385,6 +389,7 @@ function _render(dt) {
   const nearRoomBonusAltar = _state.phase === 'play' ? isNearRoomBonusAltar(_state) : false;
   const bossSummonReady = _state.phase === 'play' ? _state.bossSummonReady : false;
   updateHud(_state, _currentLevel, nearWeapon, nearAltar, bossSummonReady, nearChest, nearCursedChest, nearRoomBonusAltar);
+  updateWall3D(_camera.worldX, _camera.worldY);
 
   // Update boss HP bar during boss battle
   if (_state.battle?.isBossBattle) {
@@ -412,7 +417,7 @@ function _render(dt) {
     _state._lastRemovedWallsSize = _state.removedWalls.size;
     _state._lastPurifiedSize     = purifiedSize;
     _state._lastEverRevealedSize = everRevealedSize;
-    buildTileLayer(layers.tiles, {
+    const _tileDataR = {
       blobCells:          _state.blobCells,
       openCells:          _state.openCells,
       everRevealedCells:  _state.everRevealedCells,
@@ -428,7 +433,9 @@ function _render(dt) {
       upgradeChests:      _state.upgradeChests,
       summonSphere:       _state.summonSphere,
       roomBonuses:        _state.roomBonuses,
-    }, _currentLevel);
+    };
+    buildTileLayer(layers.tiles, _tileDataR, _currentLevel);
+    initWall3D(layers.walls3d, extractWallSegments(_tileDataR), _camera.worldX, _camera.worldY);
   }
 }
 
@@ -470,7 +477,7 @@ function _onZoomOutComplete(_tr) {
   Sounds.playLevelMusic(_currentLevel);
 
   // Rebuild tiles (walls may have changed, room purification updated)
-  buildTileLayer(layers.tiles, {
+  const _tileDataZ = {
     blobCells:          _state.blobCells,
     openCells:          _state.openCells,
     everRevealedCells:  _state.everRevealedCells,
@@ -486,7 +493,9 @@ function _onZoomOutComplete(_tr) {
     upgradeChests:      _state.upgradeChests,
     summonSphere:       _state.summonSphere,
     roomBonuses:        _state.roomBonuses,
-  }, _currentLevel);
+  };
+  buildTileLayer(layers.tiles, _tileDataZ, _currentLevel);
+  initWall3D(layers.walls3d, extractWallSegments(_tileDataZ), _camera.worldX, _camera.worldY);
 }
 
 function _onPlayerDead(state, playerProgress) {
