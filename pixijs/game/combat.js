@@ -7,6 +7,7 @@
 import { inRoom, cellOf, cellKey, CELL_PX, crossesWall, getRoomBonus } from '../world/constants.js';
 import { Sounds } from '../core/sound.js';
 import { spawnParticles } from '../render/particles.js';
+import { spawnDamageNumber } from '../render/damage-numbers.js';
 
 // ── Weapon helpers ────────────────────────────────────────────
 
@@ -236,9 +237,11 @@ export function updateBullets(state, dt, onEnemyKilled, onPlayerHit) {
         b.damage *= 2;
       }
 
-      g.hp      -= (b.damage || CONFIG.BULLET_DAMAGE);
+      const damage = b.damage || CONFIG.BULLET_DAMAGE;
+      g.hp      -= damage;
       g.hitFlash = CONFIG.ENEMY_HIT_FLASH_DURATION;
       Sounds.hit();
+      spawnDamageNumber(state, g.x, g.y - (g.radius || CONFIG.SPIDER_RADIUS), damage, b.isCrit, 1);
 
       const bAngle = Math.atan2(b.vy, b.vx);
       for (let k = 0; k < CONFIG.HIT_PARTICLES_COUNT; k++) {

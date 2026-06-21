@@ -31,6 +31,9 @@ import {
 import {
   initParticles, syncParticles, clearParticles,
 } from './render/particles.js';
+import {
+  initDamageNumbers, updateAndSyncDamageNumbers, clearDamageNumbers,
+} from './render/damage-numbers.js';
 import { initHud, updateHud, updateBossHpBar, showLevelComplete, hideLevelComplete, destroyHud }   from './render/hud.js';
 import {
   initCollectibleRenderer, syncCollectibles, clearCollectibles,
@@ -140,6 +143,7 @@ export function startGameLoop({
   initLayers(_camera);
   initEntityPool();
   initParticles(layers.particles);
+  initDamageNumbers(layers.damageNumbers);
   initPlayerRenderer(layers.entities);
   initCollectibleRenderer(layers.entities);
   initFlyingHeartRenderer(layers.particles);
@@ -198,6 +202,7 @@ export function stopGameLoop() {
   clearEnemySprites();
   clearBullets();
   clearParticles();
+  clearDamageNumbers();
   clearCollectibles();
   destroyFlyingHeartRenderer();
   destroyOverlay();
@@ -369,6 +374,7 @@ function _render(dt) {
 
   syncBullets(_state.bullets, _state.enemyBullets, layers.entities);
   syncParticles(_state.particles);
+  updateAndSyncDamageNumbers(_state, dt);
   syncCollectibles(_state);
   syncFlyingHeart();
   updateTooltip(_state, _camera);

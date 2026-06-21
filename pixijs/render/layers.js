@@ -19,12 +19,13 @@ import { app }       from '../core/app.js';
 
 // Exported layer containers — populated by initLayers().
 export const layers = {
-  bg:        null,
-  tiles:     null,
-  shadows:   null,
-  entities:  null,
-  particles: null,
-  hud:       null,
+  bg:            null,
+  tiles:         null,
+  shadows:       null,
+  entities:      null,
+  particles:     null,
+  damageNumbers: null,
+  hud:           null,
 };
 
 /**
@@ -32,12 +33,13 @@ export const layers = {
  * @param {import('./camera.js').Camera} camera
  */
 export function initLayers(camera) {
-  layers.bg        = new Container({ label: 'bg' });
-  layers.tiles     = new Container({ label: 'tiles' });
-  layers.shadows   = new Container({ label: 'shadows' });
-  layers.entities  = new Container({ label: 'entities' });
-  layers.particles = new Container({ label: 'particles' });
-  layers.hud       = new Container({ label: 'hud' });
+  layers.bg            = new Container({ label: 'bg' });
+  layers.tiles         = new Container({ label: 'tiles' });
+  layers.shadows       = new Container({ label: 'shadows' });
+  layers.entities      = new Container({ label: 'entities' });
+  layers.particles     = new Container({ label: 'particles' });
+  layers.damageNumbers = new Container({ label: 'damageNumbers' });
+  layers.hud           = new Container({ label: 'hud' });
 
   camera.container.addChild(
     layers.bg,
@@ -45,6 +47,7 @@ export function initLayers(camera) {
     layers.shadows,
     layers.entities,
     layers.particles,
+    layers.damageNumbers,
   );
 
   app.stage.addChild(camera.container, layers.hud);
@@ -54,7 +57,7 @@ export function initLayers(camera) {
  * Remove and destroy all layer children (call between levels or on cleanup).
  */
 export function clearWorldLayers() {
-  for (const name of ['bg', 'tiles', 'shadows', 'entities', 'particles']) {
+  for (const name of ['bg', 'tiles', 'shadows', 'entities', 'particles', 'damageNumbers']) {
     const layer = layers[name];
     if (layer) layer.removeChildren().forEach(c => c.destroy({ children: true }));
   }
