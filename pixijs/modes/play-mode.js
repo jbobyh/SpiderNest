@@ -140,7 +140,7 @@ export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}
   }
 
   // ── Weapon pickup (F key) ─────────────────────────────────
-  _handleWeaponPickup(state, playerProgress, keys);
+  handleWeaponPickup(state, playerProgress, keys);
 
   // ── Bullets ───────────────────────────────────────────────
   updateBullets(state, dt, _onEnemyKilled.bind(null, state, playerProgress), null);
@@ -391,7 +391,7 @@ const WEAPON_PICKUP_R = CONFIG.PLAYER_RADIUS + CONFIG.WEAPON_PICKUP_DISTANCE;
 let _fWasPressed = false;
 let _spaceWasPressed = false;
 
-function _handleWeaponPickup(state, playerProgress, keys) {
+export function handleWeaponPickup(state, playerProgress, keys) {
   const fPressed = keys['f'] || keys['F'] || keys['а'] || keys['А'];
   if (!fPressed) {
     _fWasPressed = false;

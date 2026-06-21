@@ -29,7 +29,7 @@ function getHudHeartCoords(state, index) {
 function findAutoCloseWall(state, excludeWk) {
   const pc = cellKey(Math.floor(state.player.x / CELL_PX), Math.floor(state.player.y / CELL_PX));
   let best = null;
-  let bestDist = Infinity;
+  let bestDist = -Infinity;
 
   for (const wk of state.removedWalls) {
     if (wk === excludeWk) continue;
@@ -52,7 +52,7 @@ function findAutoCloseWall(state, excludeWk) {
     const midY = (ay + by + 1) * CELL_PX / 2;
     const dist = Math.hypot(midX - state.player.x, midY - state.player.y);
 
-    if (dist > bestDist) continue;
+    if (dist < bestDist) continue;
     bestDist = dist;
     best = { wk, midX, midY };
   }
@@ -99,6 +99,11 @@ export function updateFlyingHeart(dt) {
 // Get current flying heart for rendering
 export function getFlyingHeart() {
   return flyingHeart;
+}
+
+// Get pending open heart mode ('hud' | 'cell' | false)
+export function getPendingOpenHeart() {
+  return pendingOpenHeart;
 }
 
 // Check if wall interaction is in progress
@@ -162,13 +167,10 @@ export function handleWallToggle(state, mx, my, rightHeld, camera = null) {
       if (!wallToClose) return;
 
       doCloseWall(state, wallToClose.wk);
-      state.player.lives++;
-      state.playerRemovedWalls++;
       pendingOpenHeart = 'cell';
 
       launchFlyingHeart(wallToClose.midX, wallToClose.midY, wallMidX, wallMidY, () => {
         pendingOpenHeart = false;
-        state.player.lives--;
         doOpenWall(state, wall.wk);
         _spawnRewardsForNewlyPurified(state, wall);
       });

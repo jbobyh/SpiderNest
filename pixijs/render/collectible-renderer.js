@@ -55,7 +55,7 @@ export function syncCollectibles(state) {
 
   const inBattle = state.phase === 'battle' || state.phase === 'zoom_out';
 
-  const openCells       = inBattle ? state.battle?.openCells : state.openCells;
+  const openCells       = inBattle ? state.battle?.battleCells : state.openCells;
   const everRevealedCells = (!inBattle) ? state.everRevealedCells : new Set();
 
   _syncHearts       (state.hearts         || []);

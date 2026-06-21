@@ -35,6 +35,7 @@ import { updateCollectibles, spawnRoomRewards } from '../game/collectibles.js';
 import { tickUpgradePopupTimer, hideUpgradePopup } from '../game/upgrades.js';
 import { spawnParticles, spawnPurifyWave } from '../render/particles.js';
 import { updateRevealedRoomsOnPurify } from '../game/state.js';
+import { handleWeaponPickup } from './play-mode.js';
 
 // ── Battle state creation ─────────────────────────────────────
 
@@ -302,6 +303,9 @@ export function updateBattleMode(state, playerProgress, camera, dt, callbacks = 
     state.deathCorpses[i].life -= dt;
     if (state.deathCorpses[i].life <= 0) state.deathCorpses.splice(i, 1);
   }
+
+  // ── Weapon pickup (F key) ──────────────────────────────
+  handleWeaponPickup(state, playerProgress, keys);
 
   // ── Collectibles ──────────────────────────────────────────
   updateCollectibles(state, playerProgress,
