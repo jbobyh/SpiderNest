@@ -8,10 +8,6 @@ import { spawnRoomRewards } from './collectibles.js';
 import { spawnPurifyWave } from '../render/particles.js';
 import { CELL_PX, getWallAtPoint, cellKey } from '../world/constants.js';
 
-// Wall open callback (set from game-loop.js for dissolve animation)
-let _wallOpenCallback = null;
-export function setWallOpenCallback(fn) { _wallOpenCallback = fn; }
-
 // Flying heart state (module-local)
 let flyingHeart = null;
 let pendingOpenHeart = false; // false | 'hud' | 'cell'
@@ -177,7 +173,6 @@ export function handleWallToggle(state, mx, my, rightHeld, camera = null) {
         pendingOpenHeart = false;
         doOpenWall(state, wall.wk);
         _spawnRewardsForNewlyPurified(state, wall);
-        if (_wallOpenCallback) _wallOpenCallback(wall.wk, wallMidX, wallMidY);
       });
       return;
     }
@@ -194,7 +189,6 @@ export function handleWallToggle(state, mx, my, rightHeld, camera = null) {
       pendingOpenHeart = false;
       doOpenWall(state, wall.wk);
       _spawnRewardsForNewlyPurified(state, wall);
-      if (_wallOpenCallback) _wallOpenCallback(wall.wk, wallMidX, wallMidY);
     });
   } else {
     // CLOSE wall: recover lives

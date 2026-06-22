@@ -19,7 +19,6 @@ import { Camera }        from './render/camera.js';
 import { initLayers, clearWorldLayers, layers } from './render/layers.js';
 import { buildTileLayer, extractWallSegments }   from './render/tiles.js';
 import { initWall3D, updateWall3D, destroyWall3D } from './render/wall-3d.js';
-import { initWallDissolve, startWallDissolve, updateWallDissolve, destroyWallDissolve } from './render/wall-dissolve.js';
 import { initEntityPool }   from './render/entity-pool.js';
 import {
   initPlayerRenderer, updatePlayerSprite, destroyPlayerRenderer,
@@ -72,7 +71,6 @@ import { computeFlowField, FLOW_SUB_PX } from './game/flow-field.js';
 import { getCellBounds } from './world/constants.js';
 import { spawnCorpse } from './game/enemy-ai.js';
 import { spawnParticles } from './render/particles.js';
-import { setWallOpenCallback } from './game/walls.js';
 
 // ── Module state ──────────────────────────────────────────────
 
@@ -175,8 +173,6 @@ export function startGameLoop({
   };
   buildTileLayer(layers.tiles, _tileData0, _currentLevel);
   initWall3D(layers.walls3d, extractWallSegments(_tileData0), _camera.worldX, _camera.worldY);
-  initWallDissolve(layers.walls3d);
-  setWallOpenCallback((wk) => startWallDissolve(wk, _camera.worldX, _camera.worldY));
 
   // Input
   initInput(app.canvas);
@@ -206,7 +202,6 @@ export function stopGameLoop() {
   }
   destroyInput();
   destroyWall3D();
-  destroyWallDissolve();
   destroyPlayerRenderer();
   clearEnemySprites();
   clearBullets();
@@ -395,7 +390,6 @@ function _render(dt) {
   const bossSummonReady = _state.phase === 'play' ? _state.bossSummonReady : false;
   updateHud(_state, _currentLevel, nearWeapon, nearAltar, bossSummonReady, nearChest, nearCursedChest, nearRoomBonusAltar);
   updateWall3D(_camera.worldX, _camera.worldY);
-  updateWallDissolve(dt);
 
   // Update boss HP bar during boss battle
   if (_state.battle?.isBossBattle) {
