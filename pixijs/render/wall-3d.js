@@ -34,6 +34,7 @@ let _container      = null;
 let _segments       = null;
 let _meshContainer  = null;
 let _gCap           = null;
+let _dissolveLayer  = null;
 let _wallTex        = null;
 let _wallTexDark    = null;
 let _lastCamX       = null;
@@ -49,13 +50,27 @@ let _lastCamY       = null;
  * @param {number} camY — current camera world Y
  */
 export function initWall3D(container, segments, camX, camY) {
+  // Preserve dissolve layer across reinits so in-flight animations survive
+  const prevDissolveLayer = _dissolveLayer;
+  const prevContainer     = _container;
   destroyWall3D();
 
   _container     = container;
   _segments      = segments;
   _meshContainer = new Container({ label: 'wall-meshes' });
   _gCap          = new Graphics();
-  _container.addChild(_meshContainer, _gCap);
+
+  if (prevDissolveLayer && !prevDissolveLayer.destroyed && prevContainer === container) {
+    // Reuse existing dissolve layer — keep its children (active anims)
+    _dissolveLayer = prevDissolveLayer;
+    _container.addChild(_meshContainer, _gCap);
+    // Ensure dissolve layer is last
+    if (_dissolveLayer.parent !== _container) _container.addChild(_dissolveLayer);
+    else _container.setChildIndex(_dissolveLayer, _container.children.length - 1);
+  } else {
+    _dissolveLayer = new Container({ label: 'wall-dissolve' });
+    _container.addChild(_meshContainer, _gCap, _dissolveLayer);
+  }
 
   // Get textures and enable repeat wrapping
   _wallTex = Assets.get('wall-3d-side');
@@ -161,12 +176,18 @@ export function updateWall3D(camX, camY) {
   }
 }
 
+export function getSegments()     { return _segments; }
+export function getTextures()     { return { wallTex: _wallTex, wallTexDark: _wallTexDark }; }
+export function getDissolveLayer() { return _dissolveLayer; }
+export { _project as projectPoint, H as WALL_H, CAM_Z as WALL_CAM_Z, U_TILES, V_TILES };
+
 /**
  * Destroy Graphics objects and reset module state.
  */
 export function destroyWall3D() {
   if (_meshContainer) { _meshContainer.destroy({ children: true }); _meshContainer = null; }
   if (_gCap)          { _gCap.destroy();                            _gCap          = null; }
+  // _dissolveLayer is intentionally NOT destroyed here — initWall3D preserves it across reinits
   _container = null;
   _segments  = null;
   _wallTex     = null;

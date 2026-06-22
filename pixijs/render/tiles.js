@@ -354,6 +354,9 @@ function buildPartitions(blobCells, openCells, removedWalls, everRevealedCells, 
       const fillAlpha = isRemoved ? CONFIG.WALL_REMOVED_FILL_ALPHA : CONFIG.WALL_FILL_ALPHA;
       const strokeAlpha = isRemoved ? CONFIG.WALL_REMOVED_STROKE_ALPHA : CONFIG.WALL_STROKE_ALPHA;
 
+      // Closed walls: skip floor polygon — 3D side faces and cap cover it
+      if (!isRemoved) continue;
+
       if (dx === 1) {
         // vertical strip at x-boundary — bevelled ends (45°)
         const bx = (x + 1) * CELL_PX;
@@ -669,11 +672,11 @@ export function extractWallSegments(worldData) {
       if (dx === 1) {
         // vertical partition: A=left (neg X), B=right (pos X)
         const verts = _hexVerts_V((x + 1) * CELL_PX, y * CELL_PX);
-        segments.push({ verts, edgeNormals: _edgeNormals(verts, fillColor, fillAlpha, strokeColor, strokeAlpha, purifiedA, purifiedB, 1, 0), isRemoved });
+        segments.push({ wk, verts, edgeNormals: _edgeNormals(verts, fillColor, fillAlpha, strokeColor, strokeAlpha, purifiedA, purifiedB, 1, 0), isRemoved });
       } else {
         // horizontal partition: A=top (neg Y), B=bottom (pos Y)
         const verts = _hexVerts_H(x * CELL_PX, (y + 1) * CELL_PX);
-        segments.push({ verts, edgeNormals: _edgeNormals(verts, fillColor, fillAlpha, strokeColor, strokeAlpha, purifiedA, purifiedB, 0, 1), isRemoved });
+        segments.push({ wk, verts, edgeNormals: _edgeNormals(verts, fillColor, fillAlpha, strokeColor, strokeAlpha, purifiedA, purifiedB, 0, 1), isRemoved });
       }
     }
   }

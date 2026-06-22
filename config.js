@@ -10,6 +10,12 @@ const CONFIG = {
   WALL_REMOVED_FILL_ALPHA:   0.29,  // залитые стены-проходы (удалённые)
   WALL_REMOVED_STROKE_ALPHA: 0.05,  // обводка стен-проходов
   WALL_3D_CAP_ALPHA:      0.92,  // верхняя грань 3д стен
+  WALL_DISSOLVE_DURATION:   0.2,   // длительность dissolve-анимации открытия стены (сек)
+  WALL_DISSOLVE_NOISE_SCALE: 24.0,  // масштаб шума (крупность зерна)
+  WALL_DISSOLVE_DIST_SCALE:  5.2,  // масштаб расстояния от центра (1.0 = до края, >1 = быстрее к краям)
+  WALL_DISSOLVE_DIST_WEIGHT: 0.5,  // сила влияния расстояния от центра на скорость
+  WALL_DISSOLVE_FADE_START:  0.7,  // порог начала общего fade-out (0..1.5)
+  WALL_DISSOLVE_FADE_END:    2.4,  // порог конца fade-out
   WALL_3D_HEIGHT:         96 * 1.3 / 5,   // высота 3д стены (мировые пиксели) = CELL_PX / 3
   WALL_3D_CAM_Z:          96 * 1.3 * 2,   // виртуальная высота камеры для перспективы
 
