@@ -351,8 +351,8 @@ function buildPartitions(blobCells, openCells, removedWalls, everRevealedCells, 
       // Lighter color for purified-adjacent walls
       const fillColor = isPurifiedAdjacent ? 0x2a1a3e : 0x14081e;
       const strokeColor = isPurifiedAdjacent ? 0x9a70b0 : 0x785090;
-      const fillAlpha = isRemoved ? CONFIG.WALL_REMOVED_FILL_ALPHA : CONFIG.WALL_FILL_ALPHA;
-      const strokeAlpha = isRemoved ? CONFIG.WALL_REMOVED_STROKE_ALPHA : CONFIG.WALL_STROKE_ALPHA;
+      const fillAlpha = isRemoved ? 0.29 : 0.92;
+      const strokeAlpha = isRemoved ? 0.05 : 0.5;
 
       if (dx === 1) {
         // vertical strip at x-boundary — bevelled ends (45°)
@@ -422,8 +422,8 @@ function buildExternalWalls(blobCells, openCells, everRevealedCells) {
           bx,      by + H,
           bx - HT, by + H - HT,
         ])
-          .fill({ color: 0x14081e, alpha: CONFIG.WALL_FILL_ALPHA })
-          .stroke({ color: 0x785090, alpha: CONFIG.WALL_STROKE_ALPHA, width: 0.5 });
+          .fill({ color: 0x14081e, alpha: 0.92 })
+          .stroke({ color: 0x785090, alpha: 0.5, width: 0.5 });
       } else if (dx === -1) {
         // Left boundary - vertical strip
         const bx = x * CELL_PX;
@@ -437,8 +437,8 @@ function buildExternalWalls(blobCells, openCells, everRevealedCells) {
           bx,      by + H,
           bx + HT, by + H - HT,
         ])
-          .fill({ color: 0x14081e, alpha: CONFIG.WALL_FILL_ALPHA })
-          .stroke({ color: 0x785090, alpha: CONFIG.WALL_STROKE_ALPHA, width: 0.5 });
+          .fill({ color: 0x14081e, alpha: 0.92 })
+          .stroke({ color: 0x785090, alpha: 0.5, width: 0.5 });
       } else if (dy === 1) {
         // Bottom boundary - horizontal strip
         const bx = x * CELL_PX;
@@ -452,8 +452,8 @@ function buildExternalWalls(blobCells, openCells, everRevealedCells) {
           bx + HT,     by + HT,
           bx,          by,
         ])
-          .fill({ color: 0x14081e, alpha: CONFIG.WALL_FILL_ALPHA })
-          .stroke({ color: 0x785090, alpha: CONFIG.WALL_STROKE_ALPHA, width: 0.5 });
+          .fill({ color: 0x14081e, alpha: 0.92 })
+          .stroke({ color: 0x785090, alpha: 0.5, width: 0.5 });
       } else {
         // Top boundary - horizontal strip
         const bx = x * CELL_PX;
@@ -467,8 +467,8 @@ function buildExternalWalls(blobCells, openCells, everRevealedCells) {
           bx + HT,     by - HT,
           bx,          by,
         ])
-          .fill({ color: 0x14081e, alpha: CONFIG.WALL_FILL_ALPHA })
-          .stroke({ color: 0x785090, alpha: CONFIG.WALL_STROKE_ALPHA, width: 0.5 });
+          .fill({ color: 0x14081e, alpha: 0.92 })
+          .stroke({ color: 0x785090, alpha: 0.5, width: 0.5 });
       }
     }
   }
@@ -565,59 +565,23 @@ export function buildTileLayer(targetContainer, worldData, level) {
 export const rebuildTileLayer = buildTileLayer;
 
 // ── Wall segment extraction for 3D rendering ─────────────────
-// Returns array of { verts, edgeNormals } for wall-3d.js.
-// verts: 6 floor-plane points of the hexagonal wall shape.
-// edgeNormals: per-edge outward normal + color data (6 entries).
+// Returns array of { x1, y1, x2, y2, normals } for wall-3d.js.
+// Each segment has two normals (both sides); wall-3d picks the one facing the camera.
 
-const CAP_ALPHA = CONFIG.WALL_3D_CAP_ALPHA;
+const CAP_ALPHA = 0.45;
 
-function _hexVerts_V(bx, by) {
-  const HT = PART_T / 2;
-  const L  = CELL_PX;
-  return [
-    { x: bx - HT, y: by + HT      },  // 0: top-left
-    { x: bx,      y: by            },  // 1: top tip
-    { x: bx + HT, y: by + HT      },  // 2: top-right
-    { x: bx + HT, y: by + L - HT  },  // 3: bottom-right
-    { x: bx,      y: by + L        },  // 4: bottom tip
-    { x: bx - HT, y: by + L - HT  },  // 5: bottom-left
-  ];
-}
-
-function _hexVerts_H(bx, by) {
-  const HT = PART_T / 2;
-  const W  = CELL_PX;
-  return [
-    { x: bx + HT,     y: by - HT  },  // 0: top-left
-    { x: bx + W - HT, y: by - HT  },  // 1: top-right
-    { x: bx + W,      y: by        },  // 2: right tip
-    { x: bx + W - HT, y: by + HT  },  // 3: bottom-right
-    { x: bx + HT,     y: by + HT  },  // 4: bottom-left
-    { x: bx,          y: by        },  // 5: left tip
-  ];
-}
-
-function _edgeNormals(verts, color, alpha, strokeColor, strokeAlpha) {
+function _makeNormals(nx, ny, color, alpha, strokeColor, strokeAlpha) {
   const capColor = color + 0x080408;
-  const n = verts.length;
-  return verts.map((v, i) => {
-    const v2 = verts[(i + 1) % n];
-    const ex = v2.x - v.x;
-    const ey = v2.y - v.y;
-    const len = Math.hypot(ex, ey);
-    return {
-      nx: ey / len,
-      ny: -ex / len,
-      color, alpha, strokeColor, strokeAlpha,
-      capColor, capAlpha: CAP_ALPHA,
-    };
-  });
+  return [
+    { nx:  nx, ny:  ny, color, alpha, strokeColor, strokeAlpha, capColor, capAlpha: CAP_ALPHA },
+    { nx: -nx, ny: -ny, color, alpha, strokeColor, strokeAlpha, capColor, capAlpha: CAP_ALPHA },
+  ];
 }
 
 /**
- * Extract wall polygons for pseudo-3D rendering.
+ * Extract wall segments for pseudo-3D rendering.
  * Call with the same worldData passed to buildTileLayer.
- * @returns {Array<{verts, edgeNormals}>}
+ * @returns {Array<{x1,y1,x2,y2,normals}>}
  */
 export function extractWallSegments(worldData) {
   const {
@@ -658,15 +622,27 @@ export function extractWallSegments(worldData) {
 
       const fillColor   = isPurifiedAdjacent ? 0x2a1a3e : 0x14081e;
       const strokeColor = isPurifiedAdjacent ? 0x9a70b0 : 0x785090;
-      const fillAlpha   = isRemoved ? CONFIG.WALL_REMOVED_FILL_ALPHA : CONFIG.WALL_FILL_ALPHA;
-      const strokeAlpha = isRemoved ? CONFIG.WALL_REMOVED_STROKE_ALPHA : CONFIG.WALL_STROKE_ALPHA;
+      const fillAlpha   = isRemoved ? 0.29 : 0.92;
+      const strokeAlpha = isRemoved ? 0.05 : 0.5;
 
       if (dx === 1) {
-        const verts = _hexVerts_V((x + 1) * CELL_PX, y * CELL_PX);
-        segments.push({ verts, edgeNormals: _edgeNormals(verts, fillColor, fillAlpha, strokeColor, strokeAlpha), isRemoved });
+        // Vertical wall at x-boundary: segment runs N→S
+        const bx = (x + 1) * CELL_PX;
+        const by = y * CELL_PX;
+        segments.push({
+          x1: bx, y1: by,
+          x2: bx, y2: by + CELL_PX,
+          normals: _makeNormals(1, 0, fillColor, fillAlpha, strokeColor, strokeAlpha),
+        });
       } else {
-        const verts = _hexVerts_H(x * CELL_PX, (y + 1) * CELL_PX);
-        segments.push({ verts, edgeNormals: _edgeNormals(verts, fillColor, fillAlpha, strokeColor, strokeAlpha), isRemoved });
+        // Horizontal wall at y-boundary: segment runs W→E
+        const bx = x * CELL_PX;
+        const by = (y + 1) * CELL_PX;
+        segments.push({
+          x1: bx,           y1: by,
+          x2: bx + CELL_PX, y2: by,
+          normals: _makeNormals(0, 1, fillColor, fillAlpha, strokeColor, strokeAlpha),
+        });
       }
     }
   }
@@ -683,20 +659,42 @@ export function extractWallSegments(worldData) {
 
       const fillColor   = 0x14081e;
       const strokeColor = 0x785090;
-      const fillAlpha   = CONFIG.WALL_FILL_ALPHA;
-      const strokeAlpha = CONFIG.WALL_STROKE_ALPHA;
+      const fillAlpha   = 0.92;
+      const strokeAlpha = 0.5;
 
-      let verts;
       if (dx === 1) {
-        verts = _hexVerts_V((x + 1) * CELL_PX, y * CELL_PX);
+        const bx = (x + 1) * CELL_PX;
+        const by = y * CELL_PX;
+        segments.push({
+          x1: bx, y1: by,
+          x2: bx, y2: by + CELL_PX,
+          normals: _makeNormals(1, 0, fillColor, fillAlpha, strokeColor, strokeAlpha),
+        });
       } else if (dx === -1) {
-        verts = _hexVerts_V(x * CELL_PX, y * CELL_PX);
+        const bx = x * CELL_PX;
+        const by = y * CELL_PX;
+        segments.push({
+          x1: bx, y1: by,
+          x2: bx, y2: by + CELL_PX,
+          normals: _makeNormals(1, 0, fillColor, fillAlpha, strokeColor, strokeAlpha),
+        });
       } else if (dy === 1) {
-        verts = _hexVerts_H(x * CELL_PX, (y + 1) * CELL_PX);
+        const bx = x * CELL_PX;
+        const by = (y + 1) * CELL_PX;
+        segments.push({
+          x1: bx,           y1: by,
+          x2: bx + CELL_PX, y2: by,
+          normals: _makeNormals(0, 1, fillColor, fillAlpha, strokeColor, strokeAlpha),
+        });
       } else {
-        verts = _hexVerts_H(x * CELL_PX, y * CELL_PX);
+        const bx = x * CELL_PX;
+        const by = y * CELL_PX;
+        segments.push({
+          x1: bx,           y1: by,
+          x2: bx + CELL_PX, y2: by,
+          normals: _makeNormals(0, 1, fillColor, fillAlpha, strokeColor, strokeAlpha),
+        });
       }
-      segments.push({ verts, edgeNormals: _edgeNormals(verts, fillColor, fillAlpha, strokeColor, strokeAlpha), isRemoved: false });
     }
   }
 
