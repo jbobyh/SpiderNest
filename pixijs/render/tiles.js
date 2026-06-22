@@ -597,7 +597,7 @@ function _hexVerts_H(bx, by) {
   ];
 }
 
-function _edgeNormals(verts, color, alpha, strokeColor, strokeAlpha) {
+function _edgeNormals(verts, color, alpha, strokeColor, strokeAlpha, purifiedNegSide = false, purifiedPosSide = false, mainDirX = 1, mainDirY = 0) {
   const capColor = color + 0x080408;
   const n = verts.length;
   return verts.map((v, i) => {
@@ -605,11 +605,16 @@ function _edgeNormals(verts, color, alpha, strokeColor, strokeAlpha) {
     const ex = v2.x - v.x;
     const ey = v2.y - v.y;
     const len = Math.hypot(ex, ey);
+    const nx = ey / len;
+    const ny = -ex / len;
+    // dot of face normal with main wall direction tells which room this face looks toward
+    const dot = nx * mainDirX + ny * mainDirY;
+    const isPurifiedSide = dot >= 0 ? purifiedPosSide : purifiedNegSide;
     return {
-      nx: ey / len,
-      ny: -ex / len,
+      nx, ny,
       color, alpha, strokeColor, strokeAlpha,
       capColor, capAlpha: CAP_ALPHA,
+      isPurifiedSide,
     };
   });
 }
@@ -662,11 +667,13 @@ export function extractWallSegments(worldData) {
       const strokeAlpha = isRemoved ? CONFIG.WALL_REMOVED_STROKE_ALPHA : CONFIG.WALL_STROKE_ALPHA;
 
       if (dx === 1) {
+        // vertical partition: A=left (neg X), B=right (pos X)
         const verts = _hexVerts_V((x + 1) * CELL_PX, y * CELL_PX);
-        segments.push({ verts, edgeNormals: _edgeNormals(verts, fillColor, fillAlpha, strokeColor, strokeAlpha), isRemoved });
+        segments.push({ verts, edgeNormals: _edgeNormals(verts, fillColor, fillAlpha, strokeColor, strokeAlpha, purifiedA, purifiedB, 1, 0), isRemoved });
       } else {
+        // horizontal partition: A=top (neg Y), B=bottom (pos Y)
         const verts = _hexVerts_H(x * CELL_PX, (y + 1) * CELL_PX);
-        segments.push({ verts, edgeNormals: _edgeNormals(verts, fillColor, fillAlpha, strokeColor, strokeAlpha), isRemoved });
+        segments.push({ verts, edgeNormals: _edgeNormals(verts, fillColor, fillAlpha, strokeColor, strokeAlpha, purifiedA, purifiedB, 0, 1), isRemoved });
       }
     }
   }
@@ -686,17 +693,32 @@ export function extractWallSegments(worldData) {
       const fillAlpha   = CONFIG.WALL_FILL_ALPHA;
       const strokeAlpha = CONFIG.WALL_STROKE_ALPHA;
 
-      let verts;
+      // For external walls: inner face (toward blob cell) may be purified; outer face is always dark
+      const roomA = cellToRoom?.get(k);
+      const purifiedInner = roomA !== undefined && purified?.has(roomA);
+
+      let verts, mainDirX, mainDirY;
       if (dx === 1) {
         verts = _hexVerts_V((x + 1) * CELL_PX, y * CELL_PX);
+        // inner side is -X (neg), outer is +X (pos=outside=dark)
+        mainDirX = 1; mainDirY = 0;
+        segments.push({ verts, edgeNormals: _edgeNormals(verts, fillColor, fillAlpha, strokeColor, strokeAlpha, purifiedInner, false, mainDirX, mainDirY), isRemoved: false });
       } else if (dx === -1) {
         verts = _hexVerts_V(x * CELL_PX, y * CELL_PX);
+        // inner side is +X (pos), outer is -X (neg=outside=dark)
+        mainDirX = 1; mainDirY = 0;
+        segments.push({ verts, edgeNormals: _edgeNormals(verts, fillColor, fillAlpha, strokeColor, strokeAlpha, false, purifiedInner, mainDirX, mainDirY), isRemoved: false });
       } else if (dy === 1) {
         verts = _hexVerts_H(x * CELL_PX, (y + 1) * CELL_PX);
+        // inner side is -Y (neg), outer is +Y (pos=outside=dark)
+        mainDirX = 0; mainDirY = 1;
+        segments.push({ verts, edgeNormals: _edgeNormals(verts, fillColor, fillAlpha, strokeColor, strokeAlpha, purifiedInner, false, mainDirX, mainDirY), isRemoved: false });
       } else {
         verts = _hexVerts_H(x * CELL_PX, y * CELL_PX);
+        // inner side is +Y (pos), outer is -Y (neg=outside=dark)
+        mainDirX = 0; mainDirY = 1;
+        segments.push({ verts, edgeNormals: _edgeNormals(verts, fillColor, fillAlpha, strokeColor, strokeAlpha, false, purifiedInner, mainDirX, mainDirY), isRemoved: false });
       }
-      segments.push({ verts, edgeNormals: _edgeNormals(verts, fillColor, fillAlpha, strokeColor, strokeAlpha), isRemoved: false });
     }
   }
 
