@@ -1,8 +1,8 @@
 import { Assets } from 'pixi.js';
 import '@pixi/sound';  // registers audio parsers with PixiJS Assets
 
-const IMG = '/img/';
-const SND = '/sounds/';
+const IMG = '../img/';
+const SND = '../sounds/';
 
 // ============================================================
 // ASSET MANIFEST
@@ -61,8 +61,6 @@ const MANIFEST = {
         { alias: 'floor-stone-pattern-small-dark',   src: IMG + 'kenney_textures/floor_stone_pattern_small_dark.png' },
         { alias: 'floor-ground-sand',                 src: IMG + 'kenney_textures/floor_ground_sand.png' },
         { alias: 'floor-ground-dirt',                 src: IMG + 'kenney_textures/floor_ground_dirt.png' },
-        { alias: 'wall-3d-side',                      src: IMG + 'kenney_textures/wall_brick_stone_center.png' },
-        { alias: 'wall-3d-side-dark',                 src: IMG + 'kenney_textures/wall_brick_stone_center_dark.png' },
       ],
     },
 
