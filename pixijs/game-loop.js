@@ -69,7 +69,7 @@ import {
 import {
   createEngine, clearEngine, stepEngine,
   createPlayerBody, destroyBody, syncEntitiesToBodies,
-  syncWallBodies, syncExternalWallBodies, onCollision,
+  syncWallBodies, syncExternalWallBodies, onCollision, setBodyVelocity,
 } from './world/physics.js';
 import { computeFlowField, FLOW_SUB_PX } from './game/flow-field.js';
 import { spawnCorpse } from './game/enemy-ai.js';
@@ -332,6 +332,9 @@ function _loop(dt) {
 
   // If the cursed-choice or game-over overlay is open, skip game logic but still render
   if (isOverlayActive() || isGameOverActive()) {
+    if (_state.player?.body) {
+      setBodyVelocity(_state.player.body, 0, 0);
+    }
     _render(safeDt);
     return;
   }
@@ -351,9 +354,15 @@ function _loop(dt) {
     });
 
   } else if (phase === 'zoom_in') {
+    if (_state.player?.body) {
+      setBodyVelocity(_state.player.body, 0, 0);
+    }
     updateTransition(safeDt, _camera, _onZoomInComplete);
 
   } else if (phase === 'zoom_out') {
+    if (_state.player?.body) {
+      setBodyVelocity(_state.player.body, 0, 0);
+    }
     updateTransition(safeDt, _camera, _onZoomOutComplete);
 
   } else if (phase === 'dead') {
