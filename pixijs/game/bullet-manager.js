@@ -175,6 +175,7 @@ class BulletManager {
       if (xOk)      { b.vy = -b.vy; b.y = py; }
       else if (yOk) { b.vx = -b.vx; b.x = px; }
       else          { b.vx = -b.vx; b.vy = -b.vy; b.x = px; b.y = py; }
+      this._syncBaseVelocity(b);
     } else {
       const c0x = Math.floor(prevX / CELL_PX);
       const c0y = Math.floor(prevY / CELL_PX);
@@ -188,6 +189,7 @@ class BulletManager {
       } else {
         b.vy = -b.vy; b.y = py;
       }
+      this._syncBaseVelocity(b);
     }
 
     b.hitEntities.clear();
@@ -201,6 +203,7 @@ class BulletManager {
     b._ricocheted = true;
     if (b.x < 0 || b.x > activeState.width)   { b.vx = -b.vx; b.x = b.x < 0 ? 0.1 : activeState.width - 0.1; }
     if (b.y < 0 || b.y > activeState.height)  { b.vy = -b.vy; b.y = b.y < 0 ? 0.1 : activeState.height - 0.1; }
+    this._syncBaseVelocity(b);
     b.hitEntities.clear();
     
     const BS = CONFIG.BATTLE_SCALE || 1;
@@ -281,6 +284,19 @@ class BulletManager {
       }
     }
     return false;
+  }
+
+  _syncBaseVelocity(b) {
+    const rb = b._lastRoomBonus;
+    if (rb === 'speedup' || rb === 'speeddown') {
+      const bonusDef = ROOM_BONUS_TYPES.find(bt => bt.id === rb);
+      const mult = bonusDef?.speedMult || (rb === 'speedup' ? 1.3 : 0.7);
+      b._baseVx = b.vx / mult;
+      b._baseVy = b.vy / mult;
+    } else {
+      b._baseVx = b.vx;
+      b._baseVy = b.vy;
+    }
   }
 
   _battleCrossesWall(b, CPB, x0, y0, x1, y1) {
