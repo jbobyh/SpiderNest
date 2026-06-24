@@ -35,53 +35,50 @@ export function applyUpgrade(state, playerProgress, type, showPopup = true) {
   const upg = state.upgrades;
   const pp  = playerProgress.upgrades;
 
-  switch (type) {
-    case 'pellets':         upg.pellets++; pp.pellets++; break;
-    case 'damage':          upg.damage = upg.damage + 2; pp.damage = pp.damage + 2; break;
-    case 'penetrate':       upg.penetrate++; pp.penetrate++; break;
-    case 'cooldown':
-      upg.cooldownMult = Math.max(0.1, upg.cooldownMult - 0.15);
-      pp.cooldownMult  = upg.cooldownMult;
-      break;
-    case 'speed':           upg.speedMult += 0.10; pp.speedMult = upg.speedMult; break;
-    case 'spread':          upg.spreadMult += 0.10; pp.spreadMult = upg.spreadMult; break;
-    case 'bulletSpeed':     upg.bulletSpeedMult += 0.30; pp.bulletSpeedMult = upg.bulletSpeedMult; break;
-    case 'critChance':      upg.critChance += 0.05; pp.critChance = upg.critChance; break;
-    case 'killAccel':       upg.killAccel = true; pp.killAccel = true; break;
-    case 'enhancedPierce':  upg.enhancedPierce = true; pp.enhancedPierce = true; break;
-    case 'shield':          upg.shield++; pp.shield++; break;
-    case 'retreat':         upg.retreat++; pp.retreat++; break;
-    case 'reflection':      upg.reflection = true; pp.reflection = true; break;
-    case 'infinitePenetrate':
-      upg.infinitePenetrate = true; pp.infinitePenetrate = true;
-      upg.cooldownMult     *= 1.20; pp.cooldownMult = upg.cooldownMult;
-      break;
-    case 'infiniteRange':
-      upg.infiniteRange = true; pp.infiniteRange = true;
-      upg.speedMult    *= 0.70; pp.speedMult = upg.speedMult;
-      break;
-    case 'ricochet':        upg.ricochet = true; pp.ricochet = true; break;
-    case 'weaponSlot':
-      state.maxSlots++;
-      state.weaponSlots.push(null);
-      playerProgress.maxSlots    = state.maxSlots;
-      playerProgress.weaponSlots = [...state.weaponSlots];
-      break;
-    case 'lastLife':        upg.lastLife = true; pp.lastLife = true; break;
-    case 'battleSpeed':     upg.battleSpeed = true; pp.battleSpeed = true; break;
-    case 'freeze':          upg.freeze = true; pp.freeze = true; break;
-    case 'farSight':        upg.farSight = true; pp.farSight = true; break;
-    case 'longRange':       upg.longRange = true; pp.longRange = true; break;
-    case 'sniper':          upg.sniper = true; pp.sniper = true; break;
-    case 'randomBonus':     _applyRandomBonus(state, playerProgress, showPopup); return;
-    default: break;
+  const def = (typeof UPGRADE_TYPES !== 'undefined' ? UPGRADE_TYPES : [])
+    .concat(typeof CURSED_UPGRADE_TYPES !== 'undefined' ? CURSED_UPGRADE_TYPES : [])
+    .find(u => u.id === type);
+
+  if (!def) return;
+
+  // Apply declarative effects
+  if (def.effects) {
+    for (const [key, value] of Object.entries(def.effects)) {
+      if (typeof value === 'number') {
+        // Multipliers/Additions
+        if (key.toLowerCase().endsWith('mult')) {
+          upg[key] += value;
+        } else {
+          upg[key] += value;
+        }
+        pp[key] = upg[key];
+      } else {
+        // Flags
+        upg[key] = value;
+        pp[key]  = value;
+      }
+    }
+  }
+
+  // Special logic for cooldown mult to keep it within bounds if it was a direct decrement before
+  if (type === 'cooldown') {
+    upg.cooldownMult = Math.max(0.1, upg.cooldownMult);
+    pp.cooldownMult = upg.cooldownMult;
+  }
+
+  // Apply custom logic
+  if (def.onApply) {
+    def.onApply(state, playerProgress);
+  }
+
+  // Special case for randomBonus (it doesn't have effects/onApply in config to avoid recursion)
+  if (type === 'randomBonus') {
+    _applyRandomBonus(state, playerProgress, showPopup);
+    return;
   }
 
   if (showPopup) {
-    const def = (typeof UPGRADE_TYPES !== 'undefined' ? UPGRADE_TYPES : [])
-      .concat(typeof CURSED_UPGRADE_TYPES !== 'undefined' ? CURSED_UPGRADE_TYPES : [])
-      .find(u => u.id === type);
-    if (def) showUpgradePopup(def.label, def.color, def.icon);
+    showUpgradePopup(def.label, def.color, def.icon);
   }
 }
 

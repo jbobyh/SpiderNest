@@ -14,7 +14,7 @@ import { keys, mouse, getMovementDir, isInteractPressed } from '../core/input.js
 import { Sounds }                       from '../core/sound.js';
 import { app }                          from '../core/app.js';
 import {
-  cellOf, cellKey, getWallAtPoint, getRoomBonus,
+  cellOf, cellKey, getWallAtPoint, getRoomBonus, getRoomSpeedMultiplier,
 } from '../world/constants.js';
 import { setBodyVelocity, setPlayerDashing } from '../world/physics.js';
 import { bulletManager } from '../game/bullet-manager.js';
@@ -226,14 +226,7 @@ function _stepMovement(state, dt) {
   // Apply room bonus speed modifier
   const playerCell = cellOf(state.player.x, state.player.y);
   const playerCellKey = cellKey(playerCell.x, playerCell.y);
-  const roomBonus = getRoomBonus(state, playerCellKey);
-  if (roomBonus === 'speedup') {
-    const bonusDef = ROOM_BONUS_TYPES.find(bt => bt.id === 'speedup');
-    spd *= bonusDef?.speedMult || 1.3;
-  } else if (roomBonus === 'speeddown') {
-    const bonusDef = ROOM_BONUS_TYPES.find(bt => bt.id === 'speeddown');
-    spd *= bonusDef?.speedMult || 0.7;
-  }
+  spd *= getRoomSpeedMultiplier(state, playerCellKey);
 
   let { mvx, mvy } = getMovementDir();
 

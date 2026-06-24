@@ -1,5 +1,5 @@
 import { acquireBullet, releaseBullet } from './bullet.js';
-import { cellOf, cellKey, CELL_PX, getRoomBonus, crossesWall, inRoom } from '../world/constants.js';
+import { cellOf, cellKey, CELL_PX, getRoomBonus, getRoomSpeedMultiplier, crossesWall, inRoom } from '../world/constants.js';
 import { Sounds } from '../core/sound.js';
 import { spawnParticles } from '../render/particles.js';
 import { spawnDamageNumber } from '../render/damage-numbers.js';
@@ -118,8 +118,7 @@ class BulletManager {
     
     if (roomBonus !== b._lastRoomBonus) {
       if (roomBonus === 'speedup' || roomBonus === 'speeddown') {
-        const bonusDef = ROOM_BONUS_TYPES.find(bt => bt.id === roomBonus);
-        const mult = bonusDef?.speedMult || (roomBonus === 'speedup' ? 1.3 : 0.7);
+        const mult = getRoomSpeedMultiplier(state, bulletCellKey);
         b.vx = b._baseVx * mult;
         b.vy = b._baseVy * mult;
       } else if (b._lastRoomBonus === 'speedup' || b._lastRoomBonus === 'speeddown') {

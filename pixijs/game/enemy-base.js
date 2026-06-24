@@ -1,5 +1,5 @@
 import { createEnemyBody, destroyBody, setBodyVelocity } from '../world/physics.js';
-import { cellOf, cellKey, CELL_PX, getRoomBonus } from '../world/constants.js';
+import { cellOf, cellKey, CELL_PX, getRoomBonus, getRoomSpeedMultiplier } from '../world/constants.js';
 import { Sounds } from '../core/sound.js';
 
 export class Enemy {
@@ -75,16 +75,7 @@ export class Enemy {
   getRoomSpeedMult(state) {
     const cell = cellOf(this.x, this.y);
     const ck = cellKey(cell.x, cell.y);
-    const roomBonus = getRoomBonus(state, ck);
-    if (roomBonus === 'speedup') {
-      const bonusDef = (typeof ROOM_BONUS_TYPES !== 'undefined') && ROOM_BONUS_TYPES.find(bt => bt.id === 'speedup');
-      return bonusDef?.speedMult || 1.3;
-    }
-    if (roomBonus === 'speeddown') {
-      const bonusDef = (typeof ROOM_BONUS_TYPES !== 'undefined') && ROOM_BONUS_TYPES.find(bt => bt.id === 'speeddown');
-      return bonusDef?.speedMult || 0.7;
-    }
-    return 1.0;
+    return getRoomSpeedMultiplier(state, ck);
   }
 
   takeDamage(damage, isCrit = false) {
