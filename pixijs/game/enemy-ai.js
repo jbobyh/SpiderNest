@@ -20,10 +20,8 @@ export function updateEnemyAI(state, playerProgress, dt, onPlayerDamaged) {
   for (let i = s.activeSpiders.length - 1; i >= 0; i--) {
     const g = s.activeSpiders[i];
 
-    if (g.isBoss) continue; // handled by boss.js updateBoss
-
     // If for some reason it's not a class instance yet (e.g. newly spawned in a way that missed factory)
-    if (!(g.update instanceof Function)) {
+    if (typeof g.update !== 'function') {
       s.activeSpiders[i] = EnemyFactory.fromObject(g);
       continue;
     }

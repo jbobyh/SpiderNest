@@ -20,10 +20,8 @@ import { setBodyVelocity, setPlayerDashing } from '../world/physics.js';
 import {
   shoot, updateBullets, updateEnemyBullets, pickupWeapon, enemyBulletRange,
 } from '../game/combat.js';
-import {
-  updateEnemyAI,
-} from '../game/enemy-ai.js';
-import { updateBoss }                      from '../game/boss.js';
+import { updateEnemyAI } from '../game/enemy-ai.js';
+import { handleBossKilled, applyFreezeUpgrade } from '../game/boss.js';
 import {
   updateCollectibles, checkAltarActivation, isNearAltar,
   checkUpgradeChestActivation, isNearUpgradeChest,
@@ -174,15 +172,8 @@ export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}
   // ── Particles ─────────────────────────────────────────────
   _stepParticles(state.particles, dt);
 
-  // ── Enemy AI ──────────────────────────────────────────────
+  // ── Enemy AI (includes Bosses) ──────────────────────────
   updateEnemyAI(state, playerProgress, dt, _onPlayerHit.bind(null, state, playerProgress, onPlayerDead));
-
-  // ── Boss updates (Battle only) ────────────────────────────
-  if (isBattle) {
-    for (const g of state.activeSpiders) {
-      if (g.isBoss) updateBoss(g, b, state, playerProgress, dt, currentLevel);
-    }
-  }
 
   // ── Corpse decay ──────────────────────────────────────────
   for (let i = state.deathCorpses.length - 1; i >= 0; i--) {
@@ -380,7 +371,7 @@ function _onEnemyKilled(state, playerProgress, g) {
       Math.min(80, (state.upgrades.killAccelPercent || 0) + 5);
   }
   if (g.isBoss) {
-    state.bossDefeated = true;
+    handleBossKilled(g, state, playerProgress);
     Sounds.bossdeath?.();
   }
   // Bloated death shot
