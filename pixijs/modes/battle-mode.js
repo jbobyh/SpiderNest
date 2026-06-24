@@ -158,13 +158,10 @@ export function createBossBattleState(state, currentLevel) {
   const margin = CONFIG.SPIDER_RADIUS + 20;
   let bossX = centerX, bossY = centerY;
   if (farthestCell) {
-    const fcx = (farthestCell.x + 0.5) * CP;
-    const fcy = (farthestCell.y + 0.5) * CP;
     const relX = state.player.x - farthestCell.x * CP;
     const relY = state.player.y - farthestCell.y * CP;
     bossX = farthestCell.x * CP + (relX < CP / 2 ? CP - margin : margin);
     bossY = farthestCell.y * CP + (relY < CP / 2 ? CP - margin : margin);
-    void fcx; void fcy;
   }
 
   const bossHp = bossDef.hp !== undefined

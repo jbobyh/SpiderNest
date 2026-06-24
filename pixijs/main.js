@@ -60,19 +60,8 @@ async function boot() {
     document.getElementById('overlay').style.display = 'none';
     startGameLoop({ level: 1 });
   });
-
-  // Game-over / level-complete buttons
-  _wireEndScreens();
 }
 
-function _wireEndScreens() {
-  // DOM handler for level-complete-screen is now handled by HUD overlay
-  // const nextBtn = document.getElementById('next-level-btn');
-  // if (nextBtn) nextBtn.addEventListener('click', () => {
-  //   document.getElementById('level-complete-screen')?.classList.add('hidden');
-  //   nextLevel();
-  // });
-}
 
 // ──────────────────────────────────────────────────────────
 boot().catch((err) => {
