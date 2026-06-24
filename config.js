@@ -543,18 +543,18 @@ const BOSS_DEFS = {
 // UPGRADE TYPES
 // ============================================================
 const UPGRADE_TYPES = [
-  { id: 'pellets',       label: '+1 пуля к выстрелу',     description: 'Каждый выстрел выпускает на 1 пулю больше',                   color: '#ffaa00', max: 2, icon: '🔫' },
-  { id: 'damage',        label: '+2 урона от пули',        description: 'Каждая пуля наносит на 2 урона больше',                        color: '#ff4444', max: 2, icon: '💥' },
-  { id: 'penetrate',     label: '+1 пробитие врага',       description: 'Пуля пролетает сквозь одного дополнительного врага',          color: '#ff44ff', max: 2, icon: '🎯' },
-  { id: 'bulletSpeed',   label: '+30% скорость пули',      description: 'Пули летят быстрее на +30%',                     color: '#ffff44', max: 2, icon: '⚡' },
-  { id: 'critChance',    label: '+5% шанс крита',          description: '+5% шанс нанести двойной урон',                       color: '#ff0000', max: 3, icon: '⚔️' },
-  { id: 'killAccel',     label: 'Убийственный разгон',     description: 'Каждое убийство ускоряет перезарядку на 0.1%',                  color: '#ff8800', max: 1, icon: '🏃' },
-  { id: 'enhancedPierce',label: 'Усиленное пробитие',      description: 'Пуля, пробившая врага, имеет шанс 50% нанести повышенный урон',               color: '#aa44ff', max: 1, icon: '🗡️' },
-  { id: 'shield',        label: 'Щит',                     description: 'Поглощает один удар без потери жизни. Тратится.',                        color: '#00aaff', max: 2, icon: '🛡️' },
-  { id: 'retreat',       label: 'Отступление',             description: 'После получения урона получи неуязвимость на 1.5 секунды',                  color: '#00ffaa', max: 2, icon: '🏃‍♂️' },
-  { id: 'reflection',    label: 'Отражение',               description: 'При получении урона выпускает 3 пули в ближайших врагов',        color: '#ff00ff', max: 1, icon: '🔄' },
-  { id: 'cooldown',      label: 'Перезарядка -15%',        description: 'Уменьшает время между выстрелами на 15%',                    color: '#00ccff', max: 3, icon: '⏱️' },
-  { id: 'speed',         label: 'Скорость бега +10%',      description: 'Увеличивает скорость передвижения на 10%',                    color: '#44ff88', max: 3, icon: '💨' },
+  { id: 'pellets',       label: '+1 пуля к выстрелу',     description: 'Каждый выстрел выпускает на 1 пулю больше',                   color: '#ffaa00', max: 2, icon: '🔫', effects: { pellets: 1 } },
+  { id: 'damage',        label: '+2 урона от пули',        description: 'Каждая пуля наносит на 2 урона больше',                        color: '#ff4444', max: 2, icon: '💥', effects: { damage: 2 } },
+  { id: 'penetrate',     label: '+1 пробитие врага',       description: 'Пуля пролетает сквозь одного дополнительного врага',          color: '#ff44ff', max: 2, icon: '🎯', effects: { penetrate: 1 } },
+  { id: 'bulletSpeed',   label: '+30% скорость пули',      description: 'Пули летят быстрее на +30%',                     color: '#ffff44', max: 2, icon: '⚡', effects: { bulletSpeedMult: 0.30 } },
+  { id: 'critChance',    label: '+5% шанс крита',          description: '+5% шанс нанести двойной урон',                       color: '#ff0000', max: 3, icon: '⚔️', effects: { critChance: 0.05 } },
+  { id: 'killAccel',     label: 'Убийственный разгон',     description: 'Каждое убийство ускоряет перезарядку на 0.1%',                  color: '#ff8800', max: 1, icon: '🏃', effects: { killAccel: true } },
+  { id: 'enhancedPierce',label: 'Усиленное пробитие',      description: 'Пуля, пробившая врага, имеет шанс 50% нанести повышенный урон',               color: '#aa44ff', max: 1, icon: '🗡️', effects: { enhancedPierce: true } },
+  { id: 'shield',        label: 'Щит',                     description: 'Поглощает один удар без потери жизни. Тратится.',                        color: '#00aaff', max: 2, icon: '🛡️', effects: { shield: 1 } },
+  { id: 'retreat',       label: 'Отступление',             description: 'После получения урона получи неуязвимость на 1.5 секунды',                  color: '#00ffaa', max: 2, icon: '🏃‍♂️', effects: { retreat: 1 } },
+  { id: 'reflection',    label: 'Отражение',               description: 'При получении урона выпускает 3 пули в ближайших врагов',        color: '#ff00ff', max: 1, icon: '🔄', effects: { reflection: true } },
+  { id: 'cooldown',      label: 'Перезарядка -15%',        description: 'Уменьшает время между выстрелами на 15%',                    color: '#00ccff', max: 3, icon: '⏱️', effects: { cooldownMult: -0.15 } },
+  { id: 'speed',         label: 'Скорость бега +10%',      description: 'Увеличивает скорость передвижения на 10%',                    color: '#44ff88', max: 3, icon: '💨', effects: { speedMult: 0.10 } },
 ];
 
 const ROOM_BONUS_TYPES = [
@@ -574,6 +574,7 @@ const CURSED_UPGRADE_TYPES = [
     color: '#7fff44',
     max: 1,
     icon: '🔮',
+    effects: { infinitePenetrate: true, cooldownMult: 0.20 }
   },
   {
     id: 'infiniteRange',
@@ -582,6 +583,7 @@ const CURSED_UPGRADE_TYPES = [
     color: '#2238ff',
     max: 1,
     icon: '🌀',
+    effects: { infiniteRange: true, speedMult: -0.30 }
   },
   {
     id: 'ricochet',
@@ -590,6 +592,7 @@ const CURSED_UPGRADE_TYPES = [
     color: '#ff8922',
     max: 1,
     icon: '↩️',
+    effects: { ricochet: true }
   },
   {
     id: 'weaponSlot',
@@ -598,6 +601,12 @@ const CURSED_UPGRADE_TYPES = [
     color: '#ffaa00',
     max: 3,
     icon: '🗃️',
+    onApply: (state, playerProgress) => {
+      state.maxSlots++;
+      state.weaponSlots.push(null);
+      playerProgress.maxSlots = state.maxSlots;
+      playerProgress.weaponSlots = [...state.weaponSlots];
+    }
   },
   {
     id: 'lastLife',
@@ -606,6 +615,7 @@ const CURSED_UPGRADE_TYPES = [
     color: '#ff0000',
     max: 1,
     icon: '💀',
+    effects: { lastLife: true }
   },
   {
     id: 'battleSpeed',
@@ -614,6 +624,7 @@ const CURSED_UPGRADE_TYPES = [
     color: '#00ff88',
     max: 1,
     icon: '⚡',
+    effects: { battleSpeed: true }
   },
   {
     id: 'freeze',
@@ -622,6 +633,7 @@ const CURSED_UPGRADE_TYPES = [
     color: '#ffa200',
     max: 1,
     icon: '❄️',
+    effects: { freeze: true }
   },
   {
     id: 'randomBonus',
@@ -629,7 +641,7 @@ const CURSED_UPGRADE_TYPES = [
     description: 'Получить 3 случайных обычных бонуса',
     color: '#e5ff00',
     max: 1,
-    icon: '🎲',
+    icon: '🎲'
   },
   {
     id: 'farSight',
@@ -638,6 +650,7 @@ const CURSED_UPGRADE_TYPES = [
     color: '#00e5ff',
     max: 1,
     icon: '👁️',
+    effects: { farSight: true }
   },
   {
     id: 'longRange',
@@ -646,6 +659,7 @@ const CURSED_UPGRADE_TYPES = [
     color: '#0066ff',
     max: 1,
     icon: '🏹',
+    effects: { longRange: true }
   },
   {
     id: 'sniper',
@@ -654,6 +668,7 @@ const CURSED_UPGRADE_TYPES = [
     color: '#00ff00',
     max: 1,
     icon: '🎯',
+    effects: { sniper: true }
   },
 ];
 

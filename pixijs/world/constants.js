@@ -115,6 +115,18 @@ export function getRoomBonus(state, cellKey) {
   return roomBonus ? roomBonus.bonusType : null;
 }
 
+// Get combined speed multiplier from room bonuses for a given cell
+export function getRoomSpeedMultiplier(state, cellKey) {
+  const bonus = getRoomBonus(state, cellKey);
+  if (!bonus || (bonus !== 'speedup' && bonus !== 'speeddown')) return 1.0;
+  
+  const def = (typeof ROOM_BONUS_TYPES !== 'undefined') && ROOM_BONUS_TYPES.find(bt => bt.id === bonus);
+  if (def && def.speedMult !== undefined) return def.speedMult;
+  
+  // Fallbacks if def not found or missing property
+  return bonus === 'speedup' ? 1.5 : 0.5;
+}
+
 // Find wall at point (mx, my) within blobCells. Returns { ax, ay, bx, by, wk } or null.
 export function getWallAtPoint(blobCells, mx, my) {
   const snapR = CELL_PX * 0.30;
