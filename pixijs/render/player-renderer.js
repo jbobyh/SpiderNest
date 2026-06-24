@@ -10,6 +10,7 @@
 
 import { Sprite } from 'pixi.js';
 import { heroFrames, weaponTextures } from './entity-pool.js';
+import { getMovementDir } from '../core/input.js';
 
 let _heroSprite   = null;
 let _weaponSprite = null;
@@ -47,13 +48,8 @@ export function updatePlayerSprite(state, dt) {
   if (!_heroSprite) return;
   const p = state.player;
 
-  // ── Determine movement direction from keys ────────────────
-  const k = state.keys || {};
-  let mvx = 0, mvy = 0;
-  if (k['w'] || k['W'] || k['ц'] || k['Ц'] || k['ArrowUp'])    mvy = -1;
-  if (k['s'] || k['S'] || k['ы'] || k['Ы'] || k['ArrowDown'])  mvy =  1;
-  if (k['a'] || k['A'] || k['ф'] || k['Ф'] || k['ArrowLeft'])  mvx = -1;
-  if (k['d'] || k['D'] || k['в'] || k['В'] || k['ArrowRight']) mvx =  1;
+  // ── Determine movement direction ────────────────────────
+  let { mvx, mvy } = getMovementDir();
 
   if (p.isDashing) {
     mvx = p.dashDirX;

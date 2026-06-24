@@ -83,6 +83,10 @@ function _clearAll() {
   mouse.rightHeld = false;
 }
 
+export function isInteractPressed() {
+  return keys['f'] || keys['а'];
+}
+
 // ── Movement direction from current key state ─────────────────
 // Returns { mvx, mvy } normalised (diagonal ≈ 0.707).
 

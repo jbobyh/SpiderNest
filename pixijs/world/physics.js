@@ -89,6 +89,19 @@ export function clearEngine() {
   }
 }
 
+export function syncEntitiesToBodies(player, enemies) {
+  if (player?.body) {
+    player.x = player.body.position.x;
+    player.y = player.body.position.y;
+  }
+  for (const g of enemies) {
+    if (g.body) {
+      g.x = g.body.position.x;
+      g.y = g.body.position.y;
+    }
+  }
+}
+
 // ── Wall bodies ───────────────────────────────────────────────
 //
 // For every boundary between two adjacent blobCells that is NOT in
