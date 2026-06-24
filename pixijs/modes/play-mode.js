@@ -10,7 +10,7 @@
 // Globals: CONFIG (from config.js)
 // ============================================================
 
-import { keys, mouse, getMovementDir } from '../core/input.js';
+import { keys, mouse, getMovementDir, isInteractPressed } from '../core/input.js';
 import { Sounds }                       from '../core/sound.js';
 import { app }                          from '../core/app.js';
 import {
@@ -100,6 +100,11 @@ export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}
     shoot(state);
   }
 
+  // Interaction check (F key)
+  const interactTriggered = isInteractPressed() && !_fWasPressed;
+  if (isInteractPressed()) _fWasPressed = true;
+  else _fWasPressed = false;
+
   // ── Play-only interactions ────────────────────────────────
   if (!isBattle) {
     // Wall toggle (right-click)
@@ -111,40 +116,24 @@ export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}
     _updateCursor(state, camera);
 
     // Upgrade chest check
-    {
-      const fDown = keys['f'] || keys['F'] || keys['а'] || keys['А'];
-      const chestActivated = checkUpgradeChestActivation(state, fDown && !_fWasPressed, (ck) => {
-        if (onEnterBattle) onEnterBattle(ck);
-      });
-      if (chestActivated) _fWasPressed = true;
-    }
+    checkUpgradeChestActivation(state, interactTriggered, (ck) => {
+      if (onEnterBattle) onEnterBattle(ck);
+    });
 
     // Cursed chest check
-    if (!_fWasPressed) {
-      const fDown = keys['f'] || keys['F'] || keys['а'] || keys['А'];
-      const cursedActivated = checkCursedChestActivation(state, fDown && !_fWasPressed, (ck) => {
-        if (onEnterBattle) onEnterBattle(ck);
-      });
-      if (cursedActivated) _fWasPressed = true;
-    }
+    checkCursedChestActivation(state, interactTriggered, (ck) => {
+      if (onEnterBattle) onEnterBattle(ck);
+    });
 
     // Room bonus altar check
-    if (!_fWasPressed) {
-      const fDown = keys['f'] || keys['F'] || keys['а'] || keys['А'];
-      const bonusActivated = checkRoomBonusAltarActivation(state, fDown && !_fWasPressed, (ck) => {
-        if (onEnterBattle) onEnterBattle(ck);
-      });
-      if (bonusActivated) _fWasPressed = true;
-    }
+    checkRoomBonusAltarActivation(state, interactTriggered, (ck) => {
+      if (onEnterBattle) onEnterBattle(ck);
+    });
 
     // Altar check
-    if (!_fWasPressed) {
-      const fDown = keys['f'] || keys['F'] || keys['а'] || keys['А'];
-      const altarActivated = checkAltarActivation(state, fDown && !_fWasPressed, (ck) => {
-        if (onEnterBattle) onEnterBattle(ck);
-      });
-      if (altarActivated) _fWasPressed = true;
-    }
+    checkAltarActivation(state, interactTriggered, (ck) => {
+      if (onEnterBattle) onEnterBattle(ck);
+    });
 
     // Boss summon readiness
     state.bossSummonReady =
@@ -165,7 +154,7 @@ export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}
   _handleWeaponSwitch(state);
 
   // ── Weapon pickup (F key) ─────────────────────────────────
-  handleWeaponPickup(state, playerProgress, keys);
+  handleWeaponPickup(state, playerProgress, interactTriggered);
 
   // ── Bullets ───────────────────────────────────────────────
   bulletManager.update(state, dt, _onEnemyKilled.bind(null, state, playerProgress), _onPlayerHit.bind(null, state, playerProgress, onPlayerDead));
@@ -441,14 +430,8 @@ const WEAPON_PICKUP_R = CONFIG.PLAYER_RADIUS + CONFIG.WEAPON_PICKUP_DISTANCE;
 let _fWasPressed = false;
 let _spaceWasPressed = false;
 
-export function handleWeaponPickup(state, playerProgress, keys) {
-  const fPressed = keys['f'] || keys['F'] || keys['а'] || keys['А'];
-  if (!fPressed) {
-    _fWasPressed = false;
-    return;
-  }
-  if (_fWasPressed) return; // debounce
-  _fWasPressed = true;
+export function handleWeaponPickup(state, playerProgress, triggered) {
+  if (!triggered) return;
 
   const px = state.player.x, py = state.player.y;
 

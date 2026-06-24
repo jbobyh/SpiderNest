@@ -1,5 +1,5 @@
 // ============================================================
-// COMBAT — shoot(), updateBullets(), updateEnemyBullets()
+// COMBAT — shoot()
 // Works for both play-mode (scale=1) and battle-mode (scale=BATTLE_SCALE).
 // CONFIG / WEAPON_DEFS are globals loaded from config.js.
 // ============================================================
@@ -72,79 +72,6 @@ export function shoot(state) {
   _applyBurstCooldown(state, weapon, isBurstWeapon, burstTotal, burstDelay, cooldown);
 }
 
-// ── shootBattle (battle-mode) ─────────────────────────────────
-
-export function shootBattle(state) {
-  const b = state.battle;
-  if (!b || state.shootCooldown > 0) return;
-
-  const weapon = getActiveWeapon(state);
-  if (!weapon) return;
-
-  const BS = CONFIG.BATTLE_SCALE;
-
-  if (state.burstRemaining > 0 && state.burstWeaponId === weapon.id) {
-    if (state.burstCooldown > 0) return;
-  } else if (state.burstRemaining > 0) {
-    state.burstRemaining = 0;
-    state.burstWeaponId  = null;
-    state.burstCooldown  = 0;
-  }
-
-  const killAccelMult = state.upgrades.killAccel
-    ? Math.max(0.1, 1 - state.upgrades.killAccelPercent / 100)
-    : 1.0;
-  const cooldown    = weapon.cooldown * state.upgrades.cooldownMult * killAccelMult;
-  const isBurstWeapon = weapon.burstSize && weapon.burstSize > 1;
-  const pellets       = isBurstWeapon ? weapon.pellets : weapon.pellets + state.upgrades.pellets;
-  const burstTotal    = isBurstWeapon ? weapon.burstSize + state.upgrades.pellets : weapon.burstSize;
-  const burstDelay    = _burstStepDelay(weapon, burstTotal);
-  let   totalSpread   = weapon.spread * state.upgrades.spreadMult;
-  const bulletSpeed   = weapon.bulletSpeed * state.upgrades.bulletSpeedMult * BS;
-
-  if (state.upgrades.sniper && b?.openCells) {
-    const roomCount = b.openCells.size;
-    if (roomCount <= 2)  totalSpread = 0;
-    else                 totalSpread *= 1 + 0.10 * (roomCount - 2);
-  }
-
-  const dx = state.mouse.x - b.player.x;
-  const dy = state.mouse.y - b.player.y;
-  const baseAngle = Math.atan2(dy, dx);
-
-  Sounds.shot(weapon.id);
-
-  for (let i = 0; i < pellets; i++) {
-    const spread = (Math.random() - 0.5) * totalSpread;
-    _spawnPlayerBullet(state, weapon, baseAngle + spread, bulletSpeed, BS, b);
-  }
-
-  spawnParticles(b.particles, b.player.x, b.player.y,
-    CONFIG.MUZZLE_PARTICLES_COUNT, baseAngle, CONFIG.MUZZLE_PARTICLES_SPREAD,
-    CONFIG.MUZZLE_PARTICLES_SPEED_MIN * BS, CONFIG.MUZZLE_PARTICLES_SPEED_MAX * BS,
-    CONFIG.MUZZLE_PARTICLES_LIFE, '#ffff00');
-
-  _applyBurstCooldown(state, weapon, isBurstWeapon, burstTotal, burstDelay, cooldown);
-}
-
-// ── Update bullets (play-mode) ────────────────────────────────
-
-export function updateBullets(state, dt, onEnemyKilled, onPlayerHit) {
-  bulletManager.update(state, dt, onEnemyKilled, onPlayerHit, false);
-}
-
-export function updateBattleBullets(state, dt, onEnemyKilled) {
-  bulletManager.update(state, dt, onEnemyKilled, null, true);
-}
-
-export function updateEnemyBullets(state, dt, onPlayerHit) {
-  // bulletManager.update handles both owners if called, but keeping these for legacy compatibility if needed
-  bulletManager.update(state, dt, null, onPlayerHit, false);
-}
-
-export function updateBattleEnemyBullets(state, dt, onPlayerHit) {
-  bulletManager.update(state, dt, null, onPlayerHit, true);
-}
 
 // ── Reflection bullets ────────────────────────────────────────
 

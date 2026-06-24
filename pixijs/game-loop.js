@@ -68,7 +68,7 @@ import {
 } from './modes/transitions.js';
 import {
   createEngine, clearEngine, stepEngine,
-  createPlayerBody, destroyBody,
+  createPlayerBody, destroyBody, syncEntitiesToBodies,
   syncWallBodies, syncExternalWallBodies, onCollision,
 } from './world/physics.js';
 import { computeFlowField, FLOW_SUB_PX } from './game/flow-field.js';
@@ -311,13 +311,7 @@ function _loop(dt) {
   stepEngine(safeDt * 1000);
 
   // Sync entity positions from physics bodies
-  if (_state.player?.body) {
-    _state.player.x = _state.player.body.position.x;
-    _state.player.y = _state.player.body.position.y;
-  }
-  for (const g of _state.activeSpiders) {
-    if (g.body) { g.x = g.body.position.x; g.y = g.body.position.y; }
-  }
+  syncEntitiesToBodies(_state.player, _state.activeSpiders);
 
   // Flow field: recompute when player moves to a different sub-cell
   if (phase === 'play' || phase === 'battle') {
