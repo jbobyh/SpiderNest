@@ -257,7 +257,6 @@ export function updateBullets(state, dt, onEnemyKilled, onPlayerHit) {
       }
 
       if (g.hp <= 0) {
-        state.activeSpiders.splice(j, 1);
         if (onEnemyKilled) onEnemyKilled(g, state);
       }
 
@@ -413,7 +412,6 @@ export function updateBattleBullets(state, dt, onEnemyKilled) {
       }
 
       if (g.hp <= 0) {
-        b.activeSpiders.splice(j, 1);
         if (onEnemyKilled) onEnemyKilled(g, state, b, j);
       }
 

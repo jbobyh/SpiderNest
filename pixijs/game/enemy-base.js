@@ -86,6 +86,18 @@ export class Enemy {
     return 1.0;
   }
 
+  takeDamage(damage, isCrit = false) {
+    this.hp -= damage;
+    this.hitFlash = (typeof CONFIG !== 'undefined') ? CONFIG.ENEMY_HIT_FLASH_DURATION : 0.1;
+    if (!this.isBoss) {
+      this.stunTimer = (typeof CONFIG !== 'undefined') ? CONFIG.ENEMY_STUN_DURATION : 0.2;
+    }
+    Sounds.hit();
+    if (this.hp <= 0) {
+      this.die();
+    }
+  }
+
   die(state, silent = false) {
     this.isDead = true;
     if (this.body) {

@@ -169,24 +169,15 @@ export function createBossBattleState(state, currentLevel) {
     ? bossDef.hp
     : (bossDef.hpBase === 'buldyga' ? CONFIG.BULDYGA_HP : CONFIG.SPIDER_HP) * (bossDef.hpMult || 1);
 
-  state.activeSpiders.push({
-    x: bossX, y: bossY, vx: 0, vy: 0,
+  state.activeSpiders.push(EnemyFactory.create(bossDef.type || 'boss_phase', bossX, bossY, {
+    level: currentLevel,
+    hp: bossHp,
+    maxHp: bossHp,
     radius: CONFIG.SPIDER_RADIUS * (bossDef.radiusMult || 1),
-    hp: bossHp, maxHp: bossHp,
-    type: bossDef.type || 'boss_phase', isBoss: true,
-    shootCd: 0, state: 'chase', stateTimer: 0,
-    dashTargetX: 0, dashTargetY: 0,
-    dashDirX: 0, dashDirY: 0, dashDistance: 0,
-    currentSpeed: undefined, speedAccumulator: 0,
-    stunTimer: 0, hitFlash: 0,
+    isBoss: true,
     phaseIndex: 0,
     phaseTimer: bossDef.phases?.[0]?.duration ?? 0,
-    strafeDir: 1,
-    strafeSwitchTimer: CONFIG.BOSS_STRAFE_SWITCH_TIME,
-    dashCount: 0,
-    bullState: 'chase', bullStateTimer: 0,
-    bullDashDirX: 0, bullDashDirY: 0, bullDashDistance: 0,
-  });
+  }));
 
   state.battle = {
     battleCells,

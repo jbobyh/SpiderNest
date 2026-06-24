@@ -339,3 +339,239 @@ export class CocoonEnemy extends Enemy {
     };
   }
 }
+
+// ── Phase Boss ────────────────────────────────────────────────
+export class PhaseBoss extends Enemy {
+  constructor(data) {
+    super(data);
+    this.isBoss = true;
+    this.phaseIndex = data.phaseIndex || 0;
+    this.phaseTimer = data.phaseTimer || 0;
+    this.dashCount = data.dashCount || 0;
+    this.strafeDir = data.strafeDir || 1;
+    this.strafeSwitchTimer = data.strafeSwitchTimer || (CONFIG.BOSS_STRAFE_SWITCH_TIME ?? 1.2);
+    this.level = data.level || 1;
+  }
+
+  updateBehavior(dt, state) {
+    const bossDef = (typeof BOSS_DEFS !== 'undefined' && BOSS_DEFS[this.level]) || this._fallbackDef();
+    const b = state.battle;
+    const freezeTimer = b?.freezeTimer ?? 0;
+
+    // Phase timer advance
+    if (freezeTimer <= 0) {
+      const cp = bossDef.phases[this.phaseIndex];
+      if (cp && cp.id !== 'bull_limited' && cp.duration !== undefined) {
+        this.phaseTimer -= dt;
+        if (this.phaseTimer <= 0) this._advancePhase(bossDef);
+      }
+    }
+
+    const phase = bossDef.phases[this.phaseIndex] || bossDef.phases[0];
+    const roomMult = this.getRoomSpeedMult(state);
+    const bossSpd = CONFIG.SPIDER_SPEED * (bossDef.speedMult || 1.0) * roomMult;
+    const dx = state.player.x - this.x;
+    const dy = state.player.y - this.y;
+    const dist = Math.hypot(dx, dy);
+
+    switch (phase.id) {
+      case 'pause':
+        setBodyVelocity(this.body, 0, 0);
+        break;
+
+      case 'soldier':
+        if (this.stunTimer <= 0 && freezeTimer <= 0 && dist > 0) {
+          const dir = getEnemyMoveDir(this.x, this.y, state.player.x, state.player.y, state.flowField, state.openCells, state.removedWalls);
+          setBodyVelocity(this.body, dir.dx * bossSpd, dir.dy * bossSpd);
+        } else {
+          setBodyVelocity(this.body, 0, 0);
+        }
+        break;
+
+      case 'buldyga':
+        this._updateBuldygaPhase(dt, state, phase, dx, dy, dist, freezeTimer, roomMult);
+        break;
+
+      case 'bull_limited':
+        this._updateBullLimitedPhase(dt, state, phase, dx, dy, dist, freezeTimer, roomMult);
+        break;
+
+      case 'shooter':
+        this._updateShooterPhase(dt, state, phase, dx, dy, dist, freezeTimer, bossSpd);
+        break;
+    }
+  }
+
+  _advancePhase(bossDef) {
+    this.phaseIndex = (this.phaseIndex + 1) % bossDef.phases.length;
+    const next = bossDef.phases[this.phaseIndex];
+    this.phaseTimer = next.duration ?? Infinity;
+    this.dashCount = 0;
+    this.state = 'chase';
+    this.stateTimer = 0;
+    // Reset inertia
+    this.vx = 0; this.vy = 0;
+    this.currentSpeed = undefined;
+    this.speedAccumulator = 0;
+  }
+
+  _updateBuldygaPhase(dt, state, phase, dx, dy, dist, freezeTimer, roomMult) {
+    const accelMult = phase.accelMult || 1.0;
+    const frictionMult = phase.frictionMult || 1.0;
+    if (this.currentSpeed === undefined) this.currentSpeed = CONFIG.BULDYGA_SPEED;
+    if (this.speedAccumulator === undefined) this.speedAccumulator = 0;
+    if (this.vx === undefined) { this.vx = 0; this.vy = 0; }
+
+    this.speedAccumulator += dt;
+    if (this.speedAccumulator >= 1.0) {
+      const s = Math.floor(this.speedAccumulator);
+      this.currentSpeed += CONFIG.BULDYGA_SPEED_INCREMENT * s;
+      this.speedAccumulator -= s;
+    }
+
+    const stunned = this.stunTimer > 0;
+    if (!stunned && freezeTimer <= 0 && dist > 0) {
+      const tvx = (dx / dist) * this.currentSpeed * roomMult;
+      const tvy = (dy / dist) * this.currentSpeed * roomMult;
+      const acc = CONFIG.BULDYGA_ACCEL * accelMult * dt;
+      this.vx += (tvx - this.vx) * Math.min(1, acc / (this.currentSpeed || 1));
+      this.vy += (tvy - this.vy) * Math.min(1, acc / (this.currentSpeed || 1));
+    } else if (freezeTimer > 0) {
+      this.vx *= Math.max(0, 1 - CONFIG.BULDYGA_FRICTION * frictionMult * dt);
+      this.vy *= Math.max(0, 1 - CONFIG.BULDYGA_FRICTION * frictionMult * dt);
+    }
+
+    if (this.body) {
+      const prevSpd = Math.hypot(this.body.velocity.x, this.body.velocity.y);
+      const targSpd = Math.hypot(this.vx, this.vy);
+      if (targSpd > 10 && prevSpd < targSpd * 0.5) { this.vx *= -0.3; this.vy *= -0.3; }
+    }
+    setBodyVelocity(this.body, this.vx, this.vy);
+  }
+
+  _updateShooterPhase(dt, state, phase, dx, dy, dist, freezeTimer, bossSpd) {
+    const shootCdMult = phase.shootCdMult || 0.5;
+    const bulletSpeedMult = phase.bulletSpeedMult || 1.0;
+
+    if (this.stunTimer <= 0 && freezeTimer <= 0) {
+      this.strafeSwitchTimer -= dt;
+      if (this.strafeSwitchTimer <= 0) {
+        this.strafeDir *= -1;
+        this.strafeSwitchTimer = CONFIG.BOSS_STRAFE_SWITCH_TIME ?? 1.2;
+      }
+      if (dist > 0) {
+        const bvx = (-dy / dist) * bossSpd * this.strafeDir;
+        const bvy = (dx / dist) * bossSpd * this.strafeDir;
+        
+        const body = this.body;
+        const hitWall = body && Math.hypot(body.velocity.x, body.velocity.y) < bossSpd * 0.3;
+        if (hitWall) {
+          this.strafeDir *= -1;
+          this.strafeSwitchTimer = CONFIG.BOSS_STRAFE_SWITCH_TIME ?? 1.2;
+        }
+        setBodyVelocity(body, bvx, bvy);
+      }
+    } else {
+      setBodyVelocity(this.body, 0, 0);
+    }
+
+    if (this.shootCd === undefined) this.shootCd = 0;
+    if (this.shootCd > 0) this.shootCd -= dt;
+    
+    const shootRange = CONFIG.SHOOTER_SHOOT_RANGE_CELLS * CELL_PX * 10;
+    if (dist <= shootRange && this.shootCd <= 0 && freezeTimer <= 0 && dist > 0) {
+      this.shootCd = CONFIG.SHOOTER_SHOOT_CD * shootCdMult;
+      const ebx = (dx / dist) * CONFIG.SHOOTER_BULLET_SPEED * bulletSpeedMult;
+      const eby = (dy / dist) * CONFIG.SHOOTER_BULLET_SPEED * bulletSpeedMult;
+      state.enemyBullets.push({
+        x: this.x, y: this.y,
+        vx: ebx, vy: eby,
+        _baseVx: ebx, _baseVy: eby,
+        maxRange: enemyBulletRange(ebx, eby),
+        distanceTraveled: 0,
+      });
+    }
+  }
+
+  _updateBullLimitedPhase(dt, state, phase, dx, dy, dist, freezeTimer, roomMult) {
+    const dashDistMax = (phase.dashCells || (CONFIG.BULL_DASH_DISTANCE_CELLS ?? 3)) * CELL_PX;
+    const chargeDist = (CONFIG.BULL_CHARGE_DIST_CELLS ?? 1.5) * CELL_PX * 8;
+    const hitDist = this.radius + CONFIG.PLAYER_RADIUS;
+
+    if (!this.state) this.state = 'chase';
+    if (this.stateTimer === undefined) this.stateTimer = 0;
+
+    switch (this.state) {
+      case 'chase':
+        if (this.stunTimer <= 0 && freezeTimer <= 0 && dist > chargeDist && dist > 0) {
+          const dir = getEnemyMoveDir(this.x, this.y, state.player.x, state.player.y, state.flowField, state.openCells, state.removedWalls);
+          setBodyVelocity(this.body, dir.dx * CONFIG.BULL_SPEED * roomMult, dir.dy * CONFIG.BULL_SPEED * roomMult);
+        } else if (dist <= chargeDist) {
+          this.state = 'prepare';
+          this.stateTimer = CONFIG.BULL_PREPARE_TIME;
+          setBodyVelocity(this.body, 0, 0);
+        }
+        break;
+      case 'prepare':
+        this.stateTimer -= dt;
+        if (this.stateTimer <= 0) {
+          this.state = 'dash';
+          if (dist > 0) { this.dashDirX = dx / dist; this.dashDirY = dy / dist; }
+          else { this.dashDirX = 1; this.dashDirY = 0; }
+          this.dashDistance = dashDistMax;
+          this.stateTimer = 0;
+        }
+        break;
+      case 'dash': {
+        const dashSpeed = CONFIG.BULL_SPEED * 3 * roomMult;
+        setBodyVelocity(this.body, this.dashDirX * dashSpeed, this.dashDirY * dashSpeed);
+        this.stateTimer += dashSpeed * dt;
+        const hitWall = this.body && Math.hypot(this.body.velocity.x, this.body.velocity.y) < dashSpeed * 0.3;
+        if (hitWall || this.stateTimer >= this.dashDistance) {
+          this._onDashFinished(phase);
+        }
+        if (Math.hypot(state.player.x - this.x, state.player.y - this.y) < hitDist) {
+          this._onDashFinished(phase);
+        }
+        break;
+      }
+      case 'rest':
+        this.stateTimer -= dt;
+        setBodyVelocity(this.body, 0, 0);
+        if (this.stateTimer <= 0) this.state = 'chase';
+        break;
+    }
+  }
+
+  _onDashFinished(phase) {
+    this.state = 'rest';
+    this.stateTimer = CONFIG.BULL_REST_TIME;
+    setBodyVelocity(this.body, 0, 0);
+    this.dashCount++;
+    if (this.dashCount >= (phase.maxDashes || 3)) {
+      const bossDef = BOSS_DEFS[this.level] || this._fallbackDef();
+      this._advancePhase(bossDef);
+    }
+  }
+
+  _fallbackDef() {
+    return {
+      hp: 30, speedMult: 1.2, radius: CONFIG.SPIDER_RADIUS * 2,
+      visualScale: 4.0,
+      phases: [{ id: 'soldier', duration: 6 }, { id: 'pause', duration: 1 }],
+    };
+  }
+
+  serialize() {
+    return {
+      ...super.serialize(),
+      phaseIndex: this.phaseIndex,
+      phaseTimer: this.phaseTimer,
+      dashCount: this.dashCount,
+      strafeDir: this.strafeDir,
+      strafeSwitchTimer: this.strafeSwitchTimer,
+      level: this.level,
+    };
+  }
+}
+
