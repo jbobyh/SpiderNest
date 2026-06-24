@@ -72,7 +72,6 @@ import {
   syncWallBodies, syncExternalWallBodies, onCollision,
 } from './world/physics.js';
 import { computeFlowField, FLOW_SUB_PX } from './game/flow-field.js';
-import { getCellBounds } from './world/constants.js';
 import { spawnCorpse } from './game/enemy-ai.js';
 import { spawnParticles } from './render/particles.js';
 import { setWallOpenCallback } from './game/walls.js';
