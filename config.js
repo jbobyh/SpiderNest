@@ -226,6 +226,8 @@ const CONFIG = {
   // Debug
   DEBUG_INVULNERABLE: false,      // дебаг: неуязвимость игрока от врагов
   DEBUG_SPREAD_INDICATOR: false,  // дебаг: отображать индикатор угла разброса
+  DEBUG_COLLISIONS: false,        // дебаг: отображать коллайдеры
+  SHOW_FPS: true,                 // дебаг: отображать счетчик FPS
 
   // Boss phase AI
   BOSS_STRAFE_SPEED: 1,          // скорость стрейфа босса в фазе плеваки (пикс/сек)

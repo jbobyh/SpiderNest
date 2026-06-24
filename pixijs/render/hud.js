@@ -41,6 +41,7 @@ const dom = {
   bossSummonHint: null, // hint for boss summon (space key)
   bossHpBar:    null, // boss HP bar (top center)
   levelComplete: null, // level complete screen overlay
+  fpsCounter:   null, // FPS counter (bottom right)
 };
 
 // ── Init ──────────────────────────────────────────────────────
@@ -96,6 +97,14 @@ export function initHud(parentContainer) {
   dom.levelComplete = new Container({ label: 'level-complete' });
   dom.levelComplete.visible = false;
   _parent.addChild(dom.levelComplete);
+
+  // FPS Counter (bottom right)
+  dom.fpsCounter = new Text({ text: 'FPS: 60', style: STYLE_HINT });
+  dom.fpsCounter.anchor.set(1, 1);
+  dom.fpsCounter.position.set(VW - 8, VH - 8);
+  dom.fpsCounter.visible = CONFIG.SHOW_FPS === true;
+  _parent.addChild(dom.fpsCounter);
+
   _buildLevelComplete();
 
   _buildHintsPanel();
@@ -538,6 +547,14 @@ export function updateBossHpBar(gameState) {
   }
 }
 
+export function updateFps(fps) {
+  if (!dom.fpsCounter) return;
+  dom.fpsCounter.visible = CONFIG.SHOW_FPS === true;
+  if (dom.fpsCounter.visible) {
+    dom.fpsCounter.text = `FPS: ${Math.round(fps)}`;
+  }
+}
+
 // ── Level complete screen overlay ─────────────────────────────
 
 let _nextLevelCallback = null;
@@ -637,4 +654,5 @@ export function destroyHud() {
   dom.bossSummonHint = null;
   dom.bossHpBar = null;
   dom.levelComplete = null;
+  dom.fpsCounter = null;
 }

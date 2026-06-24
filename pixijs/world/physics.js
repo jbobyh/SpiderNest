@@ -252,6 +252,9 @@ export function syncExternalWallBodies(blobCells, visibleCells = null) {
 }
 
 // ── Collision events ──────────────────────────────────────────
+export function getAllBodies() {
+  return _engine ? Composite.allBodies(_engine.world) : [];
+}
 
 // callback(pairs) called on each 'collisionStart' event
 export function onCollision(callback) {
