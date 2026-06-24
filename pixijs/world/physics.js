@@ -30,7 +30,11 @@ export function createEngine() {
 }
 
 export function stepEngine(dtMs) {
-  Engine.update(_engine, dtMs);
+  const subSteps = 2;
+  const subDt = dtMs / subSteps;
+  for (let i = 0; i < subSteps; i++) {
+    Engine.update(_engine, subDt);
+  }
 }
 
 // ── Entity bodies ─────────────────────────────────────────────
