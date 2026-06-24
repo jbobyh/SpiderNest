@@ -410,6 +410,7 @@ export class PhaseBoss extends Enemy {
     this.dashCount = 0;
     this.state = 'chase';
     this.stateTimer = 0;
+    this.strafeSwitchTimer = CONFIG.BOSS_STRAFE_SWITCH_TIME ?? 1.2;
     // Reset inertia
     this.vx = 0; this.vy = 0;
     this.currentSpeed = undefined;
@@ -461,15 +462,17 @@ export class PhaseBoss extends Enemy {
         this.strafeSwitchTimer = CONFIG.BOSS_STRAFE_SWITCH_TIME ?? 1.2;
       }
       if (dist > 0) {
-        const bvx = (-dy / dist) * bossSpd * this.strafeDir;
-        const bvy = (dx / dist) * bossSpd * this.strafeDir;
-        
         const body = this.body;
         const hitWall = body && Math.hypot(body.velocity.x, body.velocity.y) < bossSpd * 0.3;
-        if (hitWall) {
+        
+        // Flip direction if hit wall, but add small debounce to prevent jitter
+        if (hitWall && this.strafeSwitchTimer < (CONFIG.BOSS_STRAFE_SWITCH_TIME || 1.2) - 0.2) {
           this.strafeDir *= -1;
           this.strafeSwitchTimer = CONFIG.BOSS_STRAFE_SWITCH_TIME ?? 1.2;
         }
+
+        const bvx = (-dy / dist) * bossSpd * this.strafeDir;
+        const bvy = (dx / dist) * bossSpd * this.strafeDir;
         setBodyVelocity(body, bvx, bvy);
       }
     } else {
