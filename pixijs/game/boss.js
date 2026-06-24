@@ -307,14 +307,3 @@ function _bossDefForCurrentLevel() {
   const lv = typeof currentLevel !== 'undefined' ? currentLevel : 1;
   return (typeof BOSS_DEFS !== 'undefined' && BOSS_DEFS[lv]) || _fallbackDef();
 }
-
-function _playerHitParticles(particles, px, py) {
-  for (let k = 0; k < CONFIG.PLAYER_HIT_PARTICLES_COUNT; k++) {
-    const a = Math.random() * Math.PI * 2;
-    particles.push({ x: px, y: py,
-      vx: Math.cos(a) * CONFIG.PLAYER_HIT_PARTICLES_SPEED,
-      vy: Math.sin(a) * CONFIG.PLAYER_HIT_PARTICLES_SPEED,
-      life: CONFIG.PLAYER_HIT_PARTICLES_LIFE, maxLife: CONFIG.PLAYER_HIT_PARTICLES_LIFE,
-      color: '#ff4444' });
-  }
-}

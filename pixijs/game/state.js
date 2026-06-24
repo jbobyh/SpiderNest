@@ -5,9 +5,8 @@
 
 import {
   cellKey, cellFromKey, cellOf, CELL_PX,
-  CARDINAL_DIRECTIONS, shuffleInPlace,
-  recomputeOpenCells, getConnectedCells, getCellBounds,
-  wallKey, wallKeyFromStr,
+  CARDINAL_DIRECTIONS,
+  recomputeOpenCells, wallKeyFromStr,
 } from '../world/constants.js';
 import { generateLevel } from '../world/level-gen.js';
 
@@ -304,48 +303,6 @@ export function updateRevealedRoomsOnPurify(state, purifiedRoomIdx) {
     for (const cell of state.rooms[roomIdx].cells) {
       state.everRevealedCells.add(cell.k);
     }
-  }
-}
-
-// ── Reveal helpers ────────────────────────────────────────────
-
-export function revealRoom(state, ck) {
-  if (!state.rooms || !state.rooms.length) return;
-  for (const room of state.rooms) {
-    let found = false;
-    for (const cell of room.cells) {
-      if (cell.k === ck) { found = true; break; }
-    }
-    if (!found) continue;
-    for (const cell of room.cells) {
-      state.everRevealedCells.add(cell.k);
-      _revealAdjacentCells(state.everRevealedCells, cell.x, cell.y, state.disabledCells, state.permanentlyClosed);
-      if (state.upgrades.farSight) {
-        _revealDiagonalCells(state.everRevealedCells, cell.x, cell.y, state.disabledCells, state.permanentlyClosed);
-      }
-    }
-    break;
-  }
-}
-
-function _revealAdjacentCells(revealed, cx, cy, disabled, permanentlyClosed) {
-  for (const [dx, dy] of CARDINAL_DIRECTIONS) {
-    const nx = cx + dx, ny = cy + dy;
-    const nk = cellKey(nx, ny);
-    if (disabled && disabled.has(nk)) continue;
-    if (permanentlyClosed && permanentlyClosed.has(nk)) continue;
-    revealed.add(nk);
-  }
-}
-
-function _revealDiagonalCells(revealed, cx, cy, disabled, permanentlyClosed) {
-  const ALL_DIRS = [[1,1],[-1,1],[1,-1],[-1,-1],...CARDINAL_DIRECTIONS];
-  for (const [dx, dy] of ALL_DIRS) {
-    const nx = cx + dx, ny = cy + dy;
-    const nk = cellKey(nx, ny);
-    if (disabled && disabled.has(nk)) continue;
-    if (permanentlyClosed && permanentlyClosed.has(nk)) continue;
-    revealed.add(nk);
   }
 }
 

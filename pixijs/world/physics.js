@@ -29,8 +29,6 @@ export function createEngine() {
   return _engine;
 }
 
-export function getEngine() { return _engine; }
-
 export function stepEngine(dtMs) {
   Engine.update(_engine, dtMs);
 }
@@ -234,38 +232,6 @@ export function syncExternalWallBodies(blobCells, visibleCells = null) {
     Composite.add(_engine.world, body);
     _externalWallBodies.set(wk, body);
   }
-}
-
-// Outer boundary walls around a rectangular region of cells.
-// Removes previous outer walls first.
-export function syncOuterBounds(minX, minY, maxX, maxY) {
-  for (const b of _outerWalls) Composite.remove(_engine.world, b);
-  _outerWalls = [];
-
-  const T  = CELL_PX;                                   // thickness = one cell
-  const w  = (maxX - minX + 1) * CELL_PX;
-  const h  = (maxY - minY + 1) * CELL_PX;
-  const cx = (minX + maxX + 1) * CELL_PX / 2;
-  const cy = (minY + maxY + 1) * CELL_PX / 2;
-  const x0 = minX * CELL_PX;
-  const y0 = minY * CELL_PX;
-  const x1 = (maxX + 1) * CELL_PX;
-  const y1 = (maxY + 1) * CELL_PX;
-
-  const rects = [
-    [cx,       y0 - T / 2, w + T * 2, T], // top
-    [cx,       y1 + T / 2, w + T * 2, T], // bottom
-    [x0 - T / 2, cy,       T, h + T * 2], // left
-    [x1 + T / 2, cy,       T, h + T * 2], // right
-  ];
-
-  for (const [rx, ry, rw, rh] of rects) {
-    const body = Bodies.rectangle(rx, ry, rw, rh, { isStatic: true, label: 'outer_wall', collisionFilter: { category: CAT_WALL } });
-    Composite.add(_engine.world, body);
-    _outerWalls.push(body);
-  }
-
-  return _outerWalls;
 }
 
 // ── Collision events ──────────────────────────────────────────

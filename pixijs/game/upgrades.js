@@ -5,13 +5,11 @@
 
 import { Sounds } from '../core/sound.js';
 import { fireReflectionBullets } from './combat.js';
-import { cellOf, cellKey } from '../world/constants.js';
 
 // ── Upgrade popup (DOM) ───────────────────────────────────────
 
 let _popupTimer = 0;
 
-export function getUpgradePopupTimer()     { return _popupTimer; }
 export function tickUpgradePopupTimer(dt)  { _popupTimer = Math.max(0, _popupTimer - dt); return _popupTimer; }
 
 export function showUpgradePopup(text, color, icon = '⬆') {

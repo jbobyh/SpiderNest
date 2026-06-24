@@ -357,15 +357,6 @@ function _deathParticles(particles, x, y, scale) {
   }
 }
 
-function _playerHitParticles(particles, px, py, scale) {
-  for (let k = 0; k < CONFIG.PLAYER_HIT_PARTICLES_COUNT; k++) {
-    const a = Math.random() * Math.PI * 2;
-    particles.push({ x: px, y: py, vx: Math.cos(a) * CONFIG.PLAYER_HIT_PARTICLES_SPEED * scale,
-      vy: Math.sin(a) * CONFIG.PLAYER_HIT_PARTICLES_SPEED * scale,
-      life: CONFIG.PLAYER_HIT_PARTICLES_LIFE, maxLife: CONFIG.PLAYER_HIT_PARTICLES_LIFE, color: '#ff4444' });
-  }
-}
-
 function _makeSoldier(x, y) {
   return {
     x, y, vx: 0, vy: 0,

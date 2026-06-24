@@ -101,11 +101,6 @@ export function getFlyingHeart() {
   return flyingHeart;
 }
 
-// Get pending open heart mode ('hud' | 'cell' | false)
-export function getPendingOpenHeart() {
-  return pendingOpenHeart;
-}
-
 // Check if wall interaction is in progress
 export function isWallInteractionPending() {
   return !!flyingHeart;
@@ -240,9 +235,4 @@ function _spawnRewardsForNewlyPurified(state, wall) {
       }
     }
   }
-}
-
-// Get pending heart state for HUD rendering
-export function getPendingHeartState() {
-  return { flyingHeart, pendingOpenHeart };
 }

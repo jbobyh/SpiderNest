@@ -205,11 +205,3 @@ export async function loadMusicBundle(onProgress) {
   }
   await Assets.loadBundle('music', onProgress);
 }
-
-/**
- * Convenience: get a loaded texture/sound by alias.
- * @param {string} alias
- */
-export function getAsset(alias) {
-  return Assets.get(alias);
-}

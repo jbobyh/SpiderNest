@@ -120,13 +120,6 @@ export function updateTransition(dt, camera, onComplete) {
   }
 }
 
-/**
- * True while a transition is active.
- */
-export function isTransitioning() {
-  return _transition !== null;
-}
-
 // ── Private helpers ───────────────────────────────────────────
 
 function _battleBounds(state, pendingCellKey, CP) {
