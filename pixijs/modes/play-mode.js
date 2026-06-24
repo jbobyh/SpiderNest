@@ -17,8 +17,9 @@ import {
   cellOf, cellKey, getWallAtPoint, getRoomBonus,
 } from '../world/constants.js';
 import { setBodyVelocity, setPlayerDashing } from '../world/physics.js';
+import { bulletManager } from '../game/bullet-manager.js';
 import {
-  shoot, updateBullets, updateEnemyBullets, pickupWeapon, enemyBulletRange,
+  shoot, pickupWeapon, enemyBulletRange, ENEMY_BULLET_COLOR,
 } from '../game/combat.js';
 import { updateEnemyAI } from '../game/enemy-ai.js';
 import { handleBossKilled, applyFreezeUpgrade } from '../game/boss.js';
@@ -33,6 +34,7 @@ import {
   handleWallToggle, updateFlyingHeart, isWallInteractionPending,
 } from '../game/walls.js';
 import { spawnParticles } from '../render/particles.js';
+import { clearBullets, syncBullets, initBulletRenderer } from '../render/bullet-renderer.js';
 
 // ── Public API ────────────────────────────────────────────────
 
@@ -166,8 +168,7 @@ export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}
   handleWeaponPickup(state, playerProgress, keys);
 
   // ── Bullets ───────────────────────────────────────────────
-  updateBullets(state, dt, _onEnemyKilled.bind(null, state, playerProgress), null);
-  updateEnemyBullets(state, dt, _onPlayerHit.bind(null, state, playerProgress, onPlayerDead));
+  bulletManager.update(state, dt, _onEnemyKilled.bind(null, state, playerProgress), _onPlayerHit.bind(null, state, playerProgress, onPlayerDead));
 
   // ── Particles ─────────────────────────────────────────────
   _stepParticles(state.particles, dt);
@@ -382,14 +383,12 @@ function _onEnemyKilled(state, playerProgress, g) {
     if (pdist > 0) {
       const ebx = (pdx / pdist) * CONFIG.BLOATED_DEATH_SHOT_SPEED;
       const eby = (pdy / pdist) * CONFIG.BLOATED_DEATH_SHOT_SPEED;
-      state.enemyBullets.push({
+      bulletManager.spawn({
         x: g.x, y: g.y,
-        vx: ebx,
-        vy: eby,
-        _baseVx: ebx,
-        _baseVy: eby,
+        vx: ebx, vy: eby,
+        owner: 'enemy',
+        color: ENEMY_BULLET_COLOR,
         maxRange: enemyBulletRange(ebx, eby),
-        distanceTraveled: 0,
       });
     }
   }

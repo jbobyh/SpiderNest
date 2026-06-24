@@ -26,8 +26,9 @@ import {
   syncEnemySprites, clearEnemySprites,
 } from './render/enemy-renderer.js';
 import {
-  syncBullets, clearBullets,
+  syncBullets, clearBullets, initBulletRenderer,
 } from './render/bullet-renderer.js';
+import { bulletManager } from './game/bullet-manager.js';
 import {
   initParticles, syncParticles, clearParticles,
 } from './render/particles.js';
@@ -145,6 +146,7 @@ export function startGameLoop({
   initParticles(layers.particles);
   initDamageNumbers(layers.damageNumbers);
   initPlayerRenderer(layers.entities);
+  initBulletRenderer(layers.entities);
   initCollectibleRenderer(layers.entities);
   initFlyingHeartRenderer(layers.particles);
   initHud(layers.hud);
@@ -200,6 +202,7 @@ export function stopGameLoop() {
   destroyInput();
   destroyPlayerRenderer();
   clearEnemySprites();
+  bulletManager.clear();
   clearBullets();
   clearParticles();
   clearDamageNumbers();
@@ -372,7 +375,7 @@ function _render(dt) {
     _state.player.x,
   );
 
-  syncBullets(_state.bullets, _state.enemyBullets, layers.entities);
+  syncBullets(bulletManager.bullets);
   syncParticles(_state.particles);
   updateAndSyncDamageNumbers(_state, dt, _camera);
   syncCollectibles(_state);

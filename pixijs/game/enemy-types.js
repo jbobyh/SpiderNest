@@ -1,7 +1,8 @@
 import { Enemy } from './enemy-base.js';
 import { getEnemyMoveDir, hasLineOfSight } from './flow-field.js';
 import { setBodyVelocity } from '../world/physics.js';
-import { enemyBulletRange } from './combat.js';
+import { enemyBulletRange, ENEMY_BULLET_COLOR } from './combat.js';
+import { bulletManager } from './bullet-manager.js';
 import { CELL_PX, cellKey } from '../world/constants.js';
 
 // ── Chaser (Soldier, Bat, Chaser) ─────────────────────────────
@@ -71,12 +72,12 @@ export class ShooterEnemy extends Enemy {
 
       const ebx = (dx / dist) * CONFIG.SHOOTER_BULLET_SPEED;
       const eby = (dy / dist) * CONFIG.SHOOTER_BULLET_SPEED;
-      state.enemyBullets.push({
+      bulletManager.spawn({
         x: this.x, y: this.y,
         vx: ebx, vy: eby,
-        _baseVx: ebx, _baseVy: eby,
+        owner: 'enemy',
+        color: ENEMY_BULLET_COLOR,
         maxRange: enemyBulletRange(ebx, eby),
-        distanceTraveled: 0,
       });
     }
 
@@ -483,12 +484,12 @@ export class PhaseBoss extends Enemy {
       this.shootCd = CONFIG.SHOOTER_SHOOT_CD * shootCdMult;
       const ebx = (dx / dist) * CONFIG.SHOOTER_BULLET_SPEED * bulletSpeedMult;
       const eby = (dy / dist) * CONFIG.SHOOTER_BULLET_SPEED * bulletSpeedMult;
-      state.enemyBullets.push({
+      bulletManager.spawn({
         x: this.x, y: this.y,
         vx: ebx, vy: eby,
-        _baseVx: ebx, _baseVy: eby,
+        owner: 'enemy',
+        color: ENEMY_BULLET_COLOR,
         maxRange: enemyBulletRange(ebx, eby),
-        distanceTraveled: 0,
       });
     }
   }

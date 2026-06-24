@@ -1,88 +1,83 @@
-// ============================================================
-// BULLET RENDERER
-//
-// syncBullets(bullets, enemyBullets, entitiesLayer)
-//   — keeps Graphics circles in sync with bullet state arrays.
-//   — player bullets  : colored circle (b.weaponColor if present, else cyan)
-//   — enemy bullets   : orange circle
-//
-// clearBullets() — destroy all tracked bullet graphics (level reset)
-//
-// Globals: CONFIG (from config.js)
-// ============================================================
+import { ParticleContainer, Particle, Graphics, Rectangle } from 'pixi.js';
+import { app } from '../core/app.js';
 
-import { Graphics } from 'pixi.js';
-
-// Map from state bullet object → Graphics circle
-const _playerMap = new Map();
-const _enemyMap  = new Map();
-
-// Small free-list pool to avoid GC churn
+let _container = null;
+let _texture = null;
+const _particleMap = new Map(); // Bullet -> Particle
 const _pool = [];
 
-const PLAYER_BULLET_COLOR = 0xffff00; // yellow fallback (weapon color overrides)
-const ENEMY_BULLET_COLOR  = 0xff4400;
-const BULLET_R = CONFIG.BULLET_RADIUS;
-
-// ── Public API ────────────────────────────────────────────────
+const BULLET_R = CONFIG.BULLET_RADIUS || 3;
 
 /**
- * Sync player and enemy bullet Graphics to state arrays.
- * @param {object[]} bullets       — state.bullets / state.battle.bullets
- * @param {object[]} enemyBullets  — state.enemyBullets / state.battle.enemyBullets
- * @param {import('pixi.js').Container} entitiesLayer
+ * Initialize the bullet renderer with a ParticleContainer.
+ * @param {import('pixi.js').Container} parent - The layer to add the container to.
  */
-export function syncBullets(bullets, enemyBullets, entitiesLayer) {
-  _sync(bullets,      _playerMap, entitiesLayer, false);
-  _sync(enemyBullets, _enemyMap,  entitiesLayer, true);
+export function initBulletRenderer(parent) {
+  if (_container) {
+    if (_container.parent) _container.parent.removeChild(_container);
+    _container.destroy({ children: true });
+  }
+
+  // Create a simple circle texture for bullets
+  const g = new Graphics().circle(0, 0, BULLET_R).fill({ color: 0xffffff });
+  _texture = app.renderer.generateTexture(g);
+  g.destroy();
+
+  _container = new ParticleContainer({
+    texture: _texture,
+    dynamicProperties: {
+      position: true,
+      color: true,
+      rotation: false,
+      uvs: false,
+    },
+    // Set a large enough boundsArea to avoid culling
+    boundsArea: new Rectangle(-5000, -5000, 10000, 10000),
+  });
+
+  parent.addChild(_container);
 }
 
 /**
- * Destroy all tracked bullet graphics and clear maps.
+ * Sync bullet objects from the manager to the ParticleContainer.
+ * @param {object[]} bullets - Array of Bullet objects from the manager.
+ */
+export function syncBullets(bullets) {
+  if (!_container) return;
+
+  // 1. Remove particles for dead bullets
+  for (const [bullet, particle] of _particleMap) {
+    if (bullet.isDead || !bullets.includes(bullet)) {
+      _container.removeParticle(particle);
+      _pool.push(particle);
+      _particleMap.delete(bullet);
+    }
+  }
+
+  // 2. Add/Update particles
+  for (const b of bullets) {
+    let p = _particleMap.get(b);
+    if (!p) {
+      p = _pool.pop() ?? new Particle({ texture: _texture });
+      p.anchorX = 0.5;
+      p.anchorY = 0.5;
+      _container.addParticle(p);
+      _particleMap.set(b, p);
+    }
+
+    p.x = b.x;
+    p.y = b.y;
+    p.tint = b.color;
+  }
+}
+
+/**
+ * Destroy all tracked particles and clear maps.
  */
 export function clearBullets() {
-  for (const g of _playerMap.values()) { g.destroy(); }
-  for (const g of _enemyMap.values())  { g.destroy(); }
-  _playerMap.clear();
-  _enemyMap.clear();
-  for (const g of _pool) g.destroy();
+  if (_container) {
+    _container.removeParticles();
+  }
+  _particleMap.clear();
   _pool.length = 0;
-}
-
-// ── Internal ──────────────────────────────────────────────────
-
-function _sync(stateArr, map, layer, isEnemy) {
-  // Remove Graphics for bullets that left the state array
-  for (const [b, g] of map) {
-    if (!stateArr.includes(b)) {
-      layer.removeChild(g);
-      _release(g);
-      map.delete(b);
-    }
-  }
-
-  // Add Graphics for new bullets; update position for existing ones
-  for (const b of stateArr) {
-    if (!map.has(b)) {
-      const g = _acquire(isEnemy ? ENEMY_BULLET_COLOR : (b.weaponColor ?? PLAYER_BULLET_COLOR));
-      layer.addChild(g);
-      map.set(b, g);
-    }
-    const g = map.get(b);
-    g.x = b.x;
-    g.y = b.y;
-  }
-}
-
-function _acquire(color) {
-  const g = _pool.pop() ?? new Graphics();
-  g.clear();
-  g.circle(0, 0, BULLET_R).fill({ color });
-  g.visible = true;
-  return g;
-}
-
-function _release(g) {
-  g.visible = false;
-  _pool.push(g);
 }
