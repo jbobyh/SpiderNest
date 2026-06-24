@@ -116,6 +116,13 @@ const CONFIG = {
   SPIDER_WOBBLE_MAX: 0.3, // макс. амплитуда покачивания
   SPIDER_SPAWN_MARGIN: 10,        // отступ от стен при спавне
 
+  // Bat (level 1 only)
+  BAT_HP: 3*2,            // здоровье летучей мыши
+  BAT_SPEED: 1,          // скорость летучей мыши
+  BAT_RADIUS: 7,          // радиус коллизии летучей мыши
+  BAT_VISUAL_SCALE: 3.9,          // множитель визуального размера
+  BAT_ANIM_FPS: 8,        // скорость анимации полёта
+
   // Shooters
   SHOOTER_HP: 2*2,             // здоровье плеваки
   SHOOTER_SPEED: 1,          // скорость плеваки (пикс/сек)
@@ -245,57 +252,57 @@ const LEVEL_ROOM_BONUS_COUNTS = { 1: 4, 2: 10, 3: 16 };
 // ============================================================
 // ROOM ENEMY POOLS
 // Пресеты врагов для каждого типа комнаты по уровням.
-// Ключи: soldier, shooter, bull, buldyga, cocoon, bloated
+// Ключи: bat, soldier, shooter, bull, buldyga, cocoon, bloated
 // Типы комнат: easy, medium, hard, key, simpleupgrade, cursedupgrade, enemy
 // ============================================================
 const ROOM_POOLS = {
   1: {
     easy: [
-      { soldier: 3, shooter: 2 },
-      { soldier: 2, shooter: 3 },
+      { bat: 3, shooter: 2 },
+      { bat: 2, shooter: 3 },
       { shooter: 4 },
-      { soldier: 4, bloated: 1 },
-      { soldier: 5, bloated: 1 },
+      { bat: 4, bloated: 1 },
+      { bat: 5, bloated: 1 },
     ],
     medium: [
       { bloated: 2 },
-      { soldier: 3, shooter: 2, bloated: 1 },
-      { soldier: 4, shooter: 2, bloated: 1 },
-      { soldier: 3, shooter: 2 },
-      { bloated: 2, soldier: 2, shooter: 1 },
+      { bat: 3, shooter: 2, bloated: 1 },
+      { bat: 4, shooter: 2, bloated: 1 },
+      { bat: 3, shooter: 2 },
+      { bloated: 2, bat: 2, shooter: 1 },
     ],
     hard: [
-      { bloated: 3 },
-      { bloated: 2, shooter: 3 },
-      { bloated: 3, shooter: 3 },
-      { soldier: 6, shooter: 2 },
-      { bloated: 2, soldier: 4, shooter: 2 },
+      { bat: 3, bloated: 2 },
+      { bat: 3, bloated: 2, shooter: 3 },
+      { bat: 2, bloated: 3, shooter: 3 },
+      { bat: 6, shooter: 2 },
+      { bloated: 2, bat: 4, shooter: 2 },
     ],
     key: [
       { bloated: 4 },
       { bloated: 3, shooter: 2 },
       { bloated: 4, shooter: 2 },
-      { soldier: 7, shooter: 2 },
-      { bloated: 3, soldier: 4, shooter: 2 },
+      { bat: 7, shooter: 2 },
+      { bloated: 3, bat: 4, shooter: 2 },
     ],
     simpleupgrade: [
-      { bloated: 4 },
-      { bloated: 3, shooter: 2 },
-      { bloated: 4, shooter: 2 },
-      { soldier: 7, shooter: 2 },
-      { bloated: 3, soldier: 4, shooter: 2 },
+      { bat: 3, bloated: 4 },
+      { bat: 3, bloated: 3, shooter: 2 },
+      { bat: 3, bloated: 4, shooter: 2 },
+      { bat: 7, shooter: 2 },
+      { bloated: 3, bat: 4, shooter: 2 },
     ],
     cursedupgrade: [
-      { bloated: 4 },
-      { bloated: 3, shooter: 2 },
-      { bloated: 4, shooter: 2 },
-      { soldier: 5, shooter: 2 },
-      { bloated: 3, soldier: 4, shooter: 2 },
+      { bat: 3, bloated: 4 },
+      { bat: 3, bloated: 3, shooter: 2 },
+      { bat: 3, bloated: 4, shooter: 2 },
+      { bat: 5, shooter: 2 },
+      { bloated: 3, bat: 4, shooter: 2 },
     ],
     enemy: [
-      { soldier: 3, shooter: 0 },
-      { soldier: 2, shooter: 2 },
-      { soldier: 4, shooter: 0 },
+      { bat: 3, shooter: 0 },
+      { bat: 2, shooter: 2 },
+      { bat: 4, shooter: 0 },
     ],
   },
 
@@ -701,6 +708,18 @@ const COCOON_SW = 500, COCOON_SH = 500; // размер одного спрай�
 const COCOON_ANIM = {
   frames: 7,
   fps: 8,
+};
+
+// ============================================================
+// BAT ENEMY SPRITE SHEET
+// Sprite sheet: 512x64, each sprite 64x64 (8 frames horizontal)
+// Frames 0-6: movement loop; frame 7: damage
+// ============================================================
+const BAT_SW = 64, BAT_SH = 64; // размер одного спрайта (пикс)
+const BAT_ANIM = {
+  frames: 7, // movement frames
+  fps: CONFIG?.BAT_ANIM_FPS ?? 8,
+  hitFrame: 7,
 };
 
 // ============================================================

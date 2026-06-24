@@ -15,8 +15,10 @@ import { Assets } from 'pixi.js';
 export const heroFrames     = {};  // { idle_forward: Texture[], ... }
 export const plevakaFrames  = {};  // { run: Texture[], idle: Texture[], shoot: Texture[] }
 export const cocoonFrames   = [];  // Texture[7]
-export const enemyTextures  = {};  // { soldier, bull, buldyga, bloated }
-export const corpseTextures = {};  // { soldier, bull, buldyga, bloated, plevaka }
+export const batFrames      = [];  // Texture[7]
+export let   batHitTexture  = Texture.WHITE; // Texture
+export const enemyTextures  = {};  // { soldier, bat, bull, buldyga, bloated }
+export const corpseTextures = {};  // { soldier, bat, bull, buldyga, bloated, plevaka }
 export const weaponTextures = {};  // { pistol, shotgun, smg, rifle, revolver, carbine }
 
 /**
@@ -27,6 +29,7 @@ export function initEntityPool() {
   _buildHeroFrames();
   _buildPlevakaFrames();
   _buildCocoonFrames();
+  _buildBatFrames();
   _buildEnemyTextures();
   _buildWeaponTextures();
 }
@@ -36,7 +39,7 @@ export function initEntityPool() {
 /**
  * Create a Sprite for a live enemy of the given type.
  * Caller is responsible for adding it to a layer and destroying it later.
- * @param {string} type — 'soldier' | 'bull' | 'buldyga' | 'bloated' | 'plevaka' | 'shooter' | 'cocoon'
+ * @param {string} type — 'soldier' | 'bat' | 'bull' | 'buldyga' | 'bloated' | 'plevaka' | 'shooter' | 'cocoon'
  * @returns {Sprite}
  */
 export function makeEnemySprite(type) {
@@ -52,6 +55,11 @@ export function makeEnemySprite(type) {
  * @returns {Sprite}
  */
 export function makeCorpseSprite(type) {
+  if (type === 'bat') {
+    const spr = new Sprite(batHitTexture);
+    spr.anchor.set(0.5);
+    return spr;
+  }
   const key = (type === 'shooter') ? 'plevaka' : type;
   const tex = corpseTextures[key] ?? corpseTextures.soldier;
   const spr = new Sprite(tex);
@@ -108,6 +116,21 @@ function _buildCocoonFrames() {
   }
 }
 
+function _buildBatFrames() {
+  const batTex = Assets.get('bat');
+  if (!batTex) return;
+  for (let f = 0; f < BAT_ANIM.frames; f++) {
+    batFrames.push(new Texture({
+      source: batTex.source,
+      frame:  new Rectangle(f * BAT_SW, 0, BAT_SW, BAT_SH),
+    }));
+  }
+  batHitTexture = new Texture({
+    source: batTex.source,
+    frame:  new Rectangle(BAT_ANIM.hitFrame * BAT_SW, 0, BAT_SW, BAT_SH),
+  });
+}
+
 function _buildEnemyTextures() {
   enemyTextures.soldier = Assets.get('soldier');
   enemyTextures.bull     = Assets.get('bull');
@@ -130,5 +153,6 @@ function _buildWeaponTextures() {
 function _enemyTexForType(type) {
   if (type === 'plevaka' || type === 'shooter') return plevakaFrames.idle?.[0] ?? Texture.WHITE;
   if (type === 'cocoon')                         return cocoonFrames[0]         ?? Texture.WHITE;
+  if (type === 'bat')                            return batFrames[0]            ?? Texture.WHITE;
   return enemyTextures[type] ?? enemyTextures.soldier ?? Texture.WHITE;
 }

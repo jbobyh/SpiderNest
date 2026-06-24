@@ -23,6 +23,7 @@ import {
 import {
   updateEnemyAI,
 } from '../game/enemy-ai.js';
+import { updateBoss }                      from '../game/boss.js';
 import {
   updateCollectibles, checkAltarActivation, isNearAltar,
   checkUpgradeChestActivation, isNearUpgradeChest,
@@ -45,13 +46,23 @@ import { spawnParticles } from '../render/particles.js';
  * @param {import('../render/camera.js').Camera} camera
  * @param {number}   dt             — delta time in seconds
  * @param {object}   callbacks      — { onEnterBattle, onPlayerDead }
+ * @param {object}   options        — { isBattle: false }
  */
-export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}) {
-  if (state.phase !== 'play') return;
+export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}, options = { isBattle: false }) {
+  const { isBattle } = options;
+  if (!isBattle && state.phase !== 'play') return;
+  if (isBattle && state.phase !== 'battle') return;
 
-  const { onEnterBattle, onPlayerDead } = callbacks;
+  const { onEnterBattle, onPlayerDead, currentLevel } = callbacks;
+  const b = isBattle ? state.battle : null;
 
   state.time += dt;
+
+  // ── Freeze timer (Battle only) ─────────────────────────────
+  if (isBattle && b && b.freezeTimer > 0) b.freezeTimer -= dt;
+
+  // ── Pending spawns (Battle only) ───────────────────────────
+  if (isBattle && b) _processPendingSpawns(b, state, dt);
 
   // ── Invulnerability timer ─────────────────────────────────
   if (state.player.invulnerable > 0) state.player.invulnerable -= dt;
@@ -89,55 +100,69 @@ export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}
     shoot(state);
   }
 
-  // ── Wall toggle (right-click) ─────────────────────────────
-  if (state.phase === 'play' && !isWallInteractionPending()) {
-    handleWallToggle(state, state.mouse.x, state.mouse.y, mouse.rightHeld, camera);
+  // ── Play-only interactions ────────────────────────────────
+  if (!isBattle) {
+    // Wall toggle (right-click)
+    if (!isWallInteractionPending()) {
+      handleWallToggle(state, state.mouse.x, state.mouse.y, mouse.rightHeld, camera);
+    }
+
+    // Cursor update
+    _updateCursor(state, camera);
+
+    // Upgrade chest check
+    {
+      const fDown = keys['f'] || keys['F'] || keys['а'] || keys['А'];
+      const chestActivated = checkUpgradeChestActivation(state, fDown && !_fWasPressed, (ck) => {
+        if (onEnterBattle) onEnterBattle(ck);
+      });
+      if (chestActivated) _fWasPressed = true;
+    }
+
+    // Cursed chest check
+    if (!_fWasPressed) {
+      const fDown = keys['f'] || keys['F'] || keys['а'] || keys['А'];
+      const cursedActivated = checkCursedChestActivation(state, fDown && !_fWasPressed, (ck) => {
+        if (onEnterBattle) onEnterBattle(ck);
+      });
+      if (cursedActivated) _fWasPressed = true;
+    }
+
+    // Room bonus altar check
+    if (!_fWasPressed) {
+      const fDown = keys['f'] || keys['F'] || keys['а'] || keys['А'];
+      const bonusActivated = checkRoomBonusAltarActivation(state, fDown && !_fWasPressed, (ck) => {
+        if (onEnterBattle) onEnterBattle(ck);
+      });
+      if (bonusActivated) _fWasPressed = true;
+    }
+
+    // Altar check
+    if (!_fWasPressed) {
+      const fDown = keys['f'] || keys['F'] || keys['а'] || keys['А'];
+      const altarActivated = checkAltarActivation(state, fDown && !_fWasPressed, (ck) => {
+        if (onEnterBattle) onEnterBattle(ck);
+      });
+      if (altarActivated) _fWasPressed = true;
+    }
+
+    // Boss summon readiness
+    state.bossSummonReady =
+      state.summonSphereCollected && state.phase === 'play' && !state.bossDefeated;
+
+    // Boss summon (Space key)
+    if (keys[' '] && !_spaceWasPressed && state.bossSummonReady) {
+      _spaceWasPressed = true;
+      if (onEnterBattle) onEnterBattle(null);
+    }
+    if (!keys[' ']) _spaceWasPressed = false;
   }
 
   // ── Flying heart animation ─────────────────────────────────
   updateFlyingHeart(dt);
 
-  // ── Cursor update ───────────────────────────────────────────
-  _updateCursor(state, camera);
-
   // ── Weapon slot switch ────────────────────────────────────
   _handleWeaponSwitch(state);
-
-  // ── Upgrade chest check (F key, priority over altar) ───────────────
-  {
-    const fDown = keys['f'] || keys['F'] || keys['а'] || keys['А'];
-    const chestActivated = checkUpgradeChestActivation(state, fDown && !_fWasPressed, (ck) => {
-      if (onEnterBattle) onEnterBattle(ck);
-    });
-    if (chestActivated) _fWasPressed = true;
-  }
-
-  // ── Cursed chest check (F key, priority over altar) ───────────────
-  if (!_fWasPressed) {
-    const fDown = keys['f'] || keys['F'] || keys['а'] || keys['А'];
-    const cursedActivated = checkCursedChestActivation(state, fDown && !_fWasPressed, (ck) => {
-      if (onEnterBattle) onEnterBattle(ck);
-    });
-    if (cursedActivated) _fWasPressed = true;
-  }
-
-  // ── Room bonus altar check (F key) ───────────────
-  if (!_fWasPressed) {
-    const fDown = keys['f'] || keys['F'] || keys['а'] || keys['А'];
-    const bonusActivated = checkRoomBonusAltarActivation(state, fDown && !_fWasPressed, (ck) => {
-      if (onEnterBattle) onEnterBattle(ck);
-    });
-    if (bonusActivated) _fWasPressed = true;
-  }
-
-  // ── Altar check (F key, if not chest) ───────────────
-  if (!_fWasPressed) {
-    const fDown = keys['f'] || keys['F'] || keys['а'] || keys['А'];
-    const altarActivated = checkAltarActivation(state, fDown && !_fWasPressed, (ck) => {
-      if (onEnterBattle) onEnterBattle(ck);
-    });
-    if (altarActivated) _fWasPressed = true;
-  }
 
   // ── Weapon pickup (F key) ─────────────────────────────────
   handleWeaponPickup(state, playerProgress, keys);
@@ -152,35 +177,33 @@ export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}
   // ── Enemy AI ──────────────────────────────────────────────
   updateEnemyAI(state, playerProgress, dt, _onPlayerHit.bind(null, state, playerProgress, onPlayerDead));
 
+  // ── Boss updates (Battle only) ────────────────────────────
+  if (isBattle) {
+    for (const g of state.activeSpiders) {
+      if (g.isBoss) updateBoss(g, b, state, playerProgress, dt, currentLevel);
+    }
+  }
+
   // ── Corpse decay ──────────────────────────────────────────
   for (let i = state.deathCorpses.length - 1; i >= 0; i--) {
     state.deathCorpses[i].life -= dt;
     if (state.deathCorpses[i].life <= 0) state.deathCorpses.splice(i, 1);
   }
 
-  // ── Collectibles + altar check ────────────────────────────
+  // ── Collectibles ──────────────────────────────────────────
   updateCollectibles(state, playerProgress,
     (x, y, count, color) => spawnParticles(state.particles, x, y, count, 0, Math.PI * 2, 20, 60, 0.5, color),
     null,
   );
-
-  // ── Boss summon readiness ─────────────────────────────────
-  state.bossSummonReady =
-    state.summonSphereCollected && state.phase === 'play' && !state.bossDefeated;
-
-  // ── Boss summon (Space key) ─────────────────────────────
-  if (keys[' '] && !_spaceWasPressed && state.bossSummonReady) {
-    _spaceWasPressed = true;
-    if (onEnterBattle) onEnterBattle(null); // null = boss summon
-  }
-  if (!keys[' ']) _spaceWasPressed = false;
 
   // ── Upgrade popup timer ───────────────────────────────────
   const remaining = tickUpgradePopupTimer(dt);
   if (remaining <= 0) hideUpgradePopup();
 
   // ── Camera ───────────────────────────────────────────────
-  {
+  if (isBattle && b) {
+    camera.setZoom(b.zoom, b.centerX, b.centerY);
+  } else {
     let dx = state.mouse.x - state.player.x;
     let dy = state.mouse.y - state.player.y;
     const dist = Math.hypot(dx, dy);
@@ -193,8 +216,8 @@ export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}
       state.player.x + dx * CONFIG.CAMERA_CURSOR_WEIGHT,
       state.player.y + dy * CONFIG.CAMERA_CURSOR_WEIGHT,
     );
-    camera.update(dt);
   }
+  camera.update(dt);
 }
 
 // ── Private helpers ───────────────────────────────────────────
@@ -330,10 +353,35 @@ function _stepParticles(particles, dt) {
   }
 }
 
+function _processPendingSpawns(b, state, dt) {
+  if (!b.pendingSpawns?.length) return;
+  for (let i = b.pendingSpawns.length - 1; i >= 0; i--) {
+    const ps = b.pendingSpawns[i];
+    ps.spawnDelay -= dt;
+    // Emit particles continuously during the last second before spawn
+    if (ps.spawnDelay > 0 && ps.spawnDelay <= 1.0) {
+      if (!ps.particleTimer) ps.particleTimer = 0;
+      ps.particleTimer += dt;
+      if (ps.particleTimer >= 0.1) {
+        spawnParticles(state.particles, ps.enemy.x, ps.enemy.y, 1, 0, Math.PI * 2, 20, 40, 0.3, '#ff0000');
+        ps.particleTimer = 0;
+      }
+    }
+    if (ps.spawnDelay <= 0) {
+      state.activeSpiders.push(ps.enemy);
+      b.pendingSpawns.splice(i, 1);
+    }
+  }
+}
+
 function _onEnemyKilled(state, playerProgress, g) {
   if (state.upgrades.killAccel) {
     state.upgrades.killAccelPercent =
       Math.min(80, (state.upgrades.killAccelPercent || 0) + 5);
+  }
+  if (g.isBoss) {
+    state.bossDefeated = true;
+    Sounds.bossdeath?.();
   }
   // Bloated death shot
   if (g.type === 'bloated') {

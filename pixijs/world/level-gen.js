@@ -190,6 +190,7 @@ function setCellEnemies(cellContents, key, contentFields, preset) {
 // ── Enemy creation ───────────────────────────────────────────
 
 const ENEMY_POOL_TYPE_MAP = {
+  bat:     'bat',
   soldier: 'soldier',
   shooter: 'plevaka',
   bull:    'bull',
@@ -201,6 +202,7 @@ const ENEMY_POOL_TYPE_MAP = {
 function getEnemyStats(enemyType, level) {
   const hpMult = level >= 3 ? 4 : level === 2 ? 2 : 1;
   switch (enemyType) {
+    case 'bat':     return { hp: CONFIG.BAT_HP    * hpMult, radius: CONFIG.BAT_RADIUS,    visualScale: CONFIG.BAT_VISUAL_SCALE };
     case 'cocoon':  return { hp: CONFIG.COCOON_HP  * hpMult, radius: CONFIG.COCOON_RADIUS,  visualScale: CONFIG.COCOON_VISUAL_SCALE };
     case 'bloated': return { hp: CONFIG.BLOATED_HP * hpMult, radius: CONFIG.BLOATED_RADIUS, visualScale: CONFIG.BLOATED_VISUAL_SCALE };
     case 'bull':    return { hp: CONFIG.BULL_HP    * hpMult, radius: CONFIG.BULL_RADIUS,    visualScale: CONFIG.BULL_VISUAL_SCALE };
@@ -213,6 +215,7 @@ function getEnemyStats(enemyType, level) {
 function createTrappedEnemy(enemyType, gx, gy, homeX, homeY, level) {
   const { hp, radius, visualScale } = getEnemyStats(enemyType, level);
   const isPlevaka = enemyType === 'plevaka' || enemyType === 'shooter';
+  const isAnimated = isPlevaka || enemyType === 'bat';
   return {
     x: gx, y: gy,
     homeX, homeY,
@@ -228,9 +231,9 @@ function createTrappedEnemy(enemyType, gx, gy, homeX, homeY, level) {
     dashTargetX:  0, dashTargetY:  0,
     dashDirX:     0, dashDirY:     0,
     dashDistance: 0,
-    animState:  isPlevaka ? 'idle' : null,
-    animFrame:  isPlevaka ? 0      : null,
-    animTimer:  isPlevaka ? 0      : null,
+    animState:  isAnimated ? (enemyType === 'bat' ? 'fly' : 'idle') : null,
+    animFrame:  isAnimated ? 0 : null,
+    animTimer:  isAnimated ? 0 : null,
     currentSpeed:      enemyType === 'buldyga' ? CONFIG.BULDYGA_SPEED         : undefined,
     speedAccumulator:  0,
     spawnTimer:        enemyType === 'cocoon'  ? CONFIG.COCOON_SPAWN_INTERVAL : undefined,
