@@ -45,7 +45,7 @@ export function shoot(state) {
   const isBurstWeapon = weapon.burstSize && weapon.burstSize > 1;
   const pellets       = isBurstWeapon ? weapon.pellets : weapon.pellets + state.upgrades.pellets;
   const burstTotal    = isBurstWeapon ? weapon.burstSize + state.upgrades.pellets : weapon.burstSize;
-  const burstDelay    = _burstStepDelay(weapon, burstTotal);
+  const burstDelay    = _burstStepDelay(weapon, burstTotal) * state.upgrades.cooldownMult * killAccelMult;
   let   totalSpread   = weapon.spread * state.upgrades.spreadMult;
   const bulletSpeed   = weapon.bulletSpeed * state.upgrades.bulletSpeedMult;
 
