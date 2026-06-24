@@ -24,6 +24,7 @@ import { spawnRoomRewards } from '../game/collectibles.js';
 import { spawnPurifyWave } from '../render/particles.js';
 import { updateRevealedRoomsOnPurify } from '../game/state.js';
 import { updatePlayMode, handleWeaponPickup } from './play-mode.js';
+import { EnemyFactory } from '../game/enemy-factory.js';
 
 // ── Battle state creation ─────────────────────────────────────
 
@@ -312,24 +313,7 @@ function _getRoomCenterCell(state, ck) {
 }
 
 function _enemyCopy(g, bx, by) {
-  const isPlevaka = g.type === 'plevaka' || g.type === 'shooter';
-  const isBat = g.type === 'bat';
-  return {
-    x: bx, y: by, vx: 0, vy: 0,
-    hp: g.hp, maxHp: g.maxHp,
-    type: g.type, phase: g.phase, wobble: g.wobble,
-    shootCd: g.shootCd || 0,
-    radius: g.radius, visualScale: g.visualScale,
-    state: g.state, stateTimer: g.stateTimer,
-    dashTargetX: g.dashTargetX, dashTargetY: g.dashTargetY,
-    dashDirX: g.dashDirX, dashDirY: g.dashDirY,
-    dashDistance: g.dashDistance,
-    currentSpeed: g.currentSpeed, speedAccumulator: g.speedAccumulator,
-    stunTimer: g.stunTimer || 0, hitFlash: 0,
-    animState: isPlevaka ? (g.animState || 'idle') : (isBat ? (g.animState || 'fly') : null),
-    animFrame: (isPlevaka || isBat) ? (g.animFrame || 0) : null,
-    animTimer: (isPlevaka || isBat) ? (g.animTimer || 0) : null,
-  };
+  return EnemyFactory.create(g.type, bx, by, g);
 }
 
 

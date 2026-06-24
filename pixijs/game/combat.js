@@ -238,10 +238,14 @@ export function updateBullets(state, dt, onEnemyKilled, onPlayerHit) {
       }
 
       const damage = b.damage || CONFIG.BULLET_DAMAGE;
-      g.hp      -= damage;
-      g.hitFlash = CONFIG.ENEMY_HIT_FLASH_DURATION;
-      if (!g.isBoss) g.stunTimer = CONFIG.ENEMY_STUN_DURATION;
-      Sounds.hit();
+      if (g.takeDamage) {
+        g.takeDamage(damage, b.isCrit);
+      } else {
+        g.hp      -= damage;
+        g.hitFlash = CONFIG.ENEMY_HIT_FLASH_DURATION;
+        if (!g.isBoss) g.stunTimer = CONFIG.ENEMY_STUN_DURATION;
+        Sounds.hit();
+      }
       spawnDamageNumber(state, g.x, g.y - (g.radius || CONFIG.SPIDER_RADIUS), damage, b.isCrit, 1);
 
       const bAngle = Math.atan2(b.vy, b.vx);
@@ -391,10 +395,14 @@ export function updateBattleBullets(state, dt, onEnemyKilled) {
         bul.damage *= 2;
       }
 
-      g.hp      -= damage;
-      g.hitFlash = CONFIG.ENEMY_HIT_FLASH_DURATION;
-      if (!g.isBoss) g.stunTimer = CONFIG.ENEMY_STUN_DURATION;
-      Sounds.hit();
+      if (g.takeDamage) {
+        g.takeDamage(damage, bul.isCrit);
+      } else {
+        g.hp      -= damage;
+        g.hitFlash = CONFIG.ENEMY_HIT_FLASH_DURATION;
+        if (!g.isBoss) g.stunTimer = CONFIG.ENEMY_STUN_DURATION;
+        Sounds.hit();
+      }
 
       const bAngle = Math.atan2(bul.vy, bul.vx);
       for (let k = 0; k < CONFIG.HIT_PARTICLES_COUNT; k++) {

@@ -9,6 +9,7 @@ import {
   recomputeOpenCells, wallKeyFromStr,
 } from '../world/constants.js';
 import { generateLevel } from '../world/level-gen.js';
+import { EnemyFactory } from './enemy-factory.js';
 
 // ── Default player progress (cross-level persistent state) ────
 
@@ -436,8 +437,8 @@ function _deserializeState(data) {
     hearts:        (data.hearts || []).map(h => ({ ...h, spawned: h.spawned !== false })),
     chestObjs:     (data.chestObjs || []).map(c => ({ ...c, spawned: c.spawned !== false })),
     upgrades:      { ...data.upgrades },
-    spiders:       data.spiders.map(g => ({ ...g })),
-    activeSpiders: (data.activeSpiders || []).map(g => ({ ...g })),
+    spiders:       data.spiders.map(g => EnemyFactory.fromObject(g)),
+    activeSpiders: (data.activeSpiders || []).map(g => EnemyFactory.fromObject(g)),
     droppedWeapons: data.droppedWeapons ? [...data.droppedWeapons] : [],
     weaponSlots:   data.weaponSlots ? [...data.weaponSlots] : ['pistol', null],
     activeSlot:    data.activeSlot || 0,
