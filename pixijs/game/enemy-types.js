@@ -20,13 +20,66 @@ export class ChaserEnemy extends Enemy {
     if (dist > 0) {
       const dir = getEnemyMoveDir(this.x, this.y, state.player.x, state.player.y, state.flowField, state.openCells, state.removedWalls);
       const speedMult = this.getRoomSpeedMult(state);
-      const baseSpeed = this.type === 'bat' ? CONFIG.BAT_SPEED : CONFIG.SPIDER_SPEED;
-      setBodyVelocity(this.body, dir.dx * baseSpeed * speedMult, dir.dy * baseSpeed * speedMult);
+      setBodyVelocity(this.body, dir.dx * CONFIG.SPIDER_SPEED * speedMult, dir.dy * CONFIG.SPIDER_SPEED * speedMult);
+    }
+  }
+}
+
+// ── Bat (Zigzag Chaser) ───────────────────────────────────────
+export class ZigzagChaserEnemy extends Enemy {
+  updateBehavior(dt, state) {
+    if (this.stunTimer > 0) {
+      setBodyVelocity(this.body, 0, 0);
+      return;
     }
 
-    if (this.type === 'bat') {
-      this._updateBatAnim(dt);
+    const dx = state.player.x - this.x;
+    const dy = state.player.y - this.y;
+    const dist = Math.hypot(dx, dy);
+
+    if (dist > 0) {
+      const speedMult = this.getRoomSpeedMult(state);
+      const baseSpeed = CONFIG.BAT_SPEED;
+      
+      // Use direct movement with zigzag if LoS, otherwise follow flow field
+      const hasLos = hasLineOfSight(state.openCells, state.removedWalls, this.x, this.y, state.player.x, state.player.y);
+      
+      let moveDir;
+      if (hasLos) {
+        // Normalized direct vector
+        const dirX = dx / dist;
+        const dirY = dy / dist;
+        
+        // Perpendicular vector (rotate 90 deg: (x, y) -> (-y, x))
+        const perpX = -dirY;
+        const perpY = dirX;
+        
+        // Sine-based oscillation
+        const freq = CONFIG.BAT_ZIGZAG_FREQ;
+        const amp = CONFIG.BAT_ZIGZAG_AMP;
+        const offset = Math.sin(state.time * freq) * amp;
+        
+        // Final direction = direct + oscillating perpendicular
+        moveDir = {
+          dx: dirX + perpX * offset,
+          dy: dirY + perpY * offset
+        };
+        
+        // Re-normalize to ensure constant speed
+        const moveLen = Math.hypot(moveDir.dx, moveDir.dy);
+        if (moveLen > 0) {
+          moveDir.dx /= moveLen;
+          moveDir.dy /= moveLen;
+        }
+      } else {
+        // Fallback to flow field pathfinding when out of LoS
+        moveDir = getEnemyMoveDir(this.x, this.y, state.player.x, state.player.y, state.flowField, state.openCells, state.removedWalls);
+      }
+      
+      setBodyVelocity(this.body, moveDir.dx * baseSpeed * speedMult, moveDir.dy * baseSpeed * speedMult);
     }
+
+    this._updateBatAnim(dt);
   }
 
   _updateBatAnim(dt) {

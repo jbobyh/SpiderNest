@@ -138,14 +138,7 @@ export function handleWallToggle(state, mx, my, rightHeld, camera = null) {
 
   if (!state.removedWalls.has(wall.wk)) {
     // OPEN wall: spend a life
-    const aKey = cellKey(wall.ax, wall.ay);
-    const bKey = cellKey(wall.bx, wall.by);
-
-    // Check for cursed chest in adjacent cells
-    const aContent = state.cellContents.get(aKey);
-    const bContent = state.cellContents.get(bKey);
-    const hasCursedChest = (aContent?.type === 'cursed') || (bContent?.type === 'cursed');
-    const cost = hasCursedChest ? 2 : 1;
+    const cost = 1;
 
     if (state.player.lives < cost) return;
 
@@ -157,7 +150,7 @@ export function handleWallToggle(state, mx, my, rightHeld, camera = null) {
     if (!purifiedA && !purifiedB) return; // Deny interaction
 
     // Auto-close far wall if only 1 life left (not for cursed rooms)
-    if (state.player.lives === 1 && !hasCursedChest) {
+    if (state.player.lives === 1) {
       const wallToClose = findAutoCloseWall(state, wall.wk);
       if (!wallToClose) return;
 
@@ -189,15 +182,7 @@ export function handleWallToggle(state, mx, my, rightHeld, camera = null) {
     // CLOSE wall: recover lives
     if (state.player.lives >= 5) return; // max lives cap
 
-    // Check purified before recovering life
-    const aKey = cellKey(wall.ax, wall.ay);
-    const bKey = cellKey(wall.bx, wall.by);
-
-    // Check for cursed chest in adjacent cells
-    const aContent = state.cellContents.get(aKey);
-    const bContent = state.cellContents.get(bKey);
-    const hasCursedChest = (aContent?.type === 'cursed') || (bContent?.type === 'cursed');
-    const refund = hasCursedChest ? 2 : 1;
+    const refund = 1;
 
     const roomA = state.cellToRoom?.get(aKey);
     const roomB = state.cellToRoom?.get(bKey);

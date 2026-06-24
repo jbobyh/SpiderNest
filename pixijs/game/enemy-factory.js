@@ -1,4 +1,4 @@
-import { ChaserEnemy, ShooterEnemy, BullEnemy, BuldygaEnemy, BloatedEnemy, CocoonEnemy, PhaseBoss } from './enemy-types.js';
+import { ChaserEnemy, ZigzagChaserEnemy, ShooterEnemy, BullEnemy, BuldygaEnemy, BloatedEnemy, CocoonEnemy, PhaseBoss } from './enemy-types.js';
 
 const ENEMY_DEFS = {
   soldier: { hp: 'SPIDER_HP', radius: 'SPIDER_RADIUS', visualScale: 'SPIDER_VISUAL_SCALE' },
@@ -40,7 +40,9 @@ export class EnemyFactory {
         return new CocoonEnemy(data);
       case 'soldier':
       case 'chaser':
+        return new ChaserEnemy(data);
       case 'bat':
+        return new ZigzagChaserEnemy(data);
       default:
         return new ChaserEnemy(data);
     }
