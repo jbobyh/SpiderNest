@@ -240,6 +240,7 @@ export function updateBullets(state, dt, onEnemyKilled, onPlayerHit) {
       const damage = b.damage || CONFIG.BULLET_DAMAGE;
       g.hp      -= damage;
       g.hitFlash = CONFIG.ENEMY_HIT_FLASH_DURATION;
+      if (!g.isBoss) g.stunTimer = CONFIG.ENEMY_STUN_DURATION;
       Sounds.hit();
       spawnDamageNumber(state, g.x, g.y - (g.radius || CONFIG.SPIDER_RADIUS), damage, b.isCrit, 1);
 

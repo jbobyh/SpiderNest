@@ -85,6 +85,8 @@ const MANIFEST = {
         { alias: 'plevaka-dead',      src: IMG + 'plevaka_dead.png' },
         // Cocoon — animated sprite sheet (3500×500, 7 frames horizontal)
         { alias: 'cocoon',            src: IMG + 'cocoon.png' },
+        // Bat — 512×64 sprite sheet, 8 frames of 64×64 (7 move + 1 damage)
+        { alias: 'bat',               src: IMG + 'Bat_NoContour.png' },
         // Screens
         { alias: 'death-screen',      src: IMG + 'death.png' },
         { alias: 'gameover-screen',   src: IMG + 'gameover.png' },

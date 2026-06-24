@@ -38,7 +38,7 @@ function _getRoomSpeedMult(state, x, y) {
 
 const CORPSE_DURATION = 2.0;
 
-const CORPSE_TYPES = new Set(['soldier', 'chaser', 'plevaka', 'shooter', 'bull', 'buldyga', 'bloated']);
+const CORPSE_TYPES = new Set(['soldier', 'chaser', 'bat', 'plevaka', 'shooter', 'bull', 'buldyga', 'bloated']);
 
 export function spawnCorpse(corpseArray, g, radius) {
   if (!CORPSE_TYPES.has(g.type || 'soldier')) return;
@@ -71,6 +71,7 @@ export function updateEnemyAI(state, playerProgress, dt, onPlayerDamaged) {
 
     if (g.hitFlash > 0) g.hitFlash -= dt;
     if (g.stunTimer  > 0) g.stunTimer -= dt;
+    if (g.type === 'bat') _tickBatAnim(g, dt);
     if (!g.body) g.body = createEnemyBody(g.x, g.y, g.radius || CONFIG.SPIDER_RADIUS, g);
 
     // Stuck detection
@@ -98,10 +99,11 @@ export function updateEnemyAI(state, playerProgress, dt, onPlayerDamaged) {
     if (g.type === 'plevaka' || g.type === 'shooter') {
       _tickPlevakaAnim(g, dt);
       const hasLos = hasLineOfSight(s.openCells, s.removedWalls, g.x, g.y, s.player.x, s.player.y);
-      
+      const isStunned = g.stunTimer > 0;
+
       if (g.shootCd > 0) g.shootCd -= dt;
-      
-      // Shoot only if has line of sight and in range
+
+      // Shoot only if has line of sight and in range (stun does not prevent shooting)
       if (hasLos && dist <= SHOOT_RANGE && g.shootCd <= 0 && dist > 0) {
         g.shootCd = CONFIG.SHOOTER_SHOOT_CD;
         if (g.animState !== null) { g.animState = 'shoot'; g.animFrame = 0; g.animTimer = 0; }
@@ -117,9 +119,11 @@ export function updateEnemyAI(state, playerProgress, dt, onPlayerDamaged) {
           distanceTraveled: 0,
         });
       }
-      
-      // Move if no line of sight, or if too far (even with line of sight)
-      if (!hasLos || dist > STOP_DIST) {
+
+      // Stun freezes movement, but shooting still happens above
+      if (isStunned) {
+        setBodyVelocity(g.body, 0, 0);
+      } else if (!hasLos || dist > STOP_DIST) {
         if (dist > 0) {
           const dir = getEnemyMoveDir(g.x, g.y, s.player.x, s.player.y, s.flowField, s.openCells, s.removedWalls);
           const speedMult = _getRoomSpeedMult(s, g.x, g.y);
@@ -140,10 +144,12 @@ export function updateEnemyAI(state, playerProgress, dt, onPlayerDamaged) {
       continue;
 
     } else if (g.type === 'bloated') {
-      if (dist > 0) {
+      if (g.stunTimer <= 0 && dist > 0) {
         const dir = getEnemyMoveDir(g.x, g.y, s.player.x, s.player.y, s.flowField, s.openCells, s.removedWalls);
         const speedMult = _getRoomSpeedMult(s, g.x, g.y);
         setBodyVelocity(g.body, dir.dx * CONFIG.BLOATED_SPEED * speedMult, dir.dy * CONFIG.BLOATED_SPEED * speedMult);
+      } else if (g.stunTimer > 0) {
+        setBodyVelocity(g.body, 0, 0);
       }
       if (dist < (g.radius || CONFIG.BLOATED_RADIUS) + CONFIG.PLAYER_RADIUS) {
         // Contact damage handled by onCollision in physics.js
@@ -155,11 +161,14 @@ export function updateEnemyAI(state, playerProgress, dt, onPlayerDamaged) {
       continue;
 
     } else {
-      // Soldier / chaser
-      if (dist > 0) {
+      // Soldier / chaser / bat
+      if (g.stunTimer <= 0 && dist > 0) {
         const dir = getEnemyMoveDir(g.x, g.y, s.player.x, s.player.y, s.flowField, s.openCells, s.removedWalls);
         const speedMult = _getRoomSpeedMult(s, g.x, g.y);
-        setBodyVelocity(g.body, dir.dx * CONFIG.SPIDER_SPEED * speedMult, dir.dy * CONFIG.SPIDER_SPEED * speedMult);
+        const spd = g.type === 'bat' ? CONFIG.BAT_SPEED : CONFIG.SPIDER_SPEED;
+        setBodyVelocity(g.body, dir.dx * spd * speedMult, dir.dy * spd * speedMult);
+      } else if (g.stunTimer > 0) {
+        setBodyVelocity(g.body, 0, 0);
       }
       if (dist < (g.radius || CONFIG.SPIDER_RADIUS) + CONFIG.PLAYER_RADIUS) {
         // Contact damage handled by onCollision in physics.js
@@ -183,15 +192,28 @@ function _tickPlevakaAnim(g, dt) {
   }
 }
 
+function _tickBatAnim(g, dt) {
+  if (g.animState === null || typeof BAT_ANIM === 'undefined') return;
+  g.animTimer += dt;
+  const cfg = BAT_ANIM;
+  if (g.animTimer >= 1 / cfg.fps) {
+    g.animTimer = 0;
+    g.animFrame = (g.animFrame + 1) % cfg.frames;
+  }
+}
+
 function _updateBullPlay(g, s, dx, dy, dist, dt, CHARGE_DIST, DASH_DIST, CP, playerProgress, onPlayerDamaged, i) {
   if (!g.state) g.state = 'chase';
   if (g.stateTimer === undefined) g.stateTimer = 0;
   const effectiveR = g.radius || CONFIG.BULL_RADIUS;
   const hitDist    = effectiveR + CONFIG.PLAYER_RADIUS;
+  const isStunned  = g.stunTimer > 0;
 
   switch (g.state) {
     case 'chase':
-      if (dist > CHARGE_DIST && dist > 0) {
+      if (isStunned) {
+        setBodyVelocity(g.body, 0, 0);
+      } else if (dist > CHARGE_DIST && dist > 0) {
         const dir = getEnemyMoveDir(g.x, g.y, s.player.x, s.player.y, s.flowField, s.openCells, s.removedWalls);
         const speedMult = _getRoomSpeedMult(s, g.x, g.y);
         setBodyVelocity(g.body, dir.dx * CONFIG.BULL_SPEED * speedMult, dir.dy * CONFIG.BULL_SPEED * speedMult);
@@ -244,6 +266,12 @@ function _updateBuldygaPlay(g, s, dx, dy, dist, dt, CP, playerProgress, onPlayer
   if (g.currentSpeed === undefined) g.currentSpeed = CONFIG.BULDYGA_SPEED;
   if (g.speedAccumulator === undefined) g.speedAccumulator = 0;
   if (g.vx === undefined) { g.vx = 0; g.vy = 0; }
+
+  if (g.stunTimer > 0) {
+    g.vx = 0; g.vy = 0;
+    setBodyVelocity(g.body, 0, 0);
+    return;
+  }
 
   g.speedAccumulator += dt;
   if (g.speedAccumulator >= 1.0) {

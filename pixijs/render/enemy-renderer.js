@@ -8,7 +8,7 @@
 //
 // clearEnemySprites() — destroy all tracked sprites (level reset)
 //
-// Globals: CONFIG, PLEVAKA_ANIMS, COCOON_ANIM (from config.js)
+// Globals: CONFIG, PLEVAKA_ANIMS, COCOON_ANIM, BAT_ANIM (from config.js)
 // ============================================================
 
 import { Sprite, ColorMatrixFilter } from 'pixi.js';
@@ -17,6 +17,8 @@ import {
   makeCorpseSprite,
   getPlevakaFrame,
   cocoonFrames,
+  batFrames,
+  batHitTexture,
   enemyTextures,
 } from './entity-pool.js';
 
@@ -130,10 +132,20 @@ function _syncActive(activeSpiders, layer, gameTime, playerX) {
 function _updateEnemyTexture(g, sprite, gameTime) {
   const isPlevaka = g.type === 'plevaka' || g.type === 'shooter';
   const isCocoon  = g.type === 'cocoon';
+  const isBat     = g.type === 'bat';
   const isBoss    = g.isBoss;
 
   if (isPlevaka && g.animState !== null) {
     const tex = getPlevakaFrame(g.animState, g.animFrame ?? 0);
+    if (sprite.texture !== tex) sprite.texture = tex;
+  } else if (isBat) {
+    let tex;
+    if (g.hitFlash > 0) {
+      tex = batHitTexture;
+    } else {
+      const frame = g.animFrame ?? 0;
+      tex = batFrames[Math.min(frame, batFrames.length - 1)] ?? batHitTexture;
+    }
     if (sprite.texture !== tex) sprite.texture = tex;
   } else if (isCocoon) {
     const fps   = COCOON_ANIM.fps;
@@ -151,12 +163,13 @@ function _updateEnemyTexture(g, sprite, gameTime) {
 // ── Helpers ───────────────────────────────────────────────────
 
 /**
- * Scale a 500×500 sprite so its displayed size = radius * visualScale px.
+ * Scale a sprite so its displayed size = radius * visualScale px.
  * Camera zoom handles battle-mode magnification — no extra multiplier needed here.
  */
 function _applyEnemyScale(sprite, radius, visualScale) {
   const drawSize = (radius ?? CONFIG.SPIDER_RADIUS) * (visualScale ?? CONFIG.SPIDER_VISUAL_SCALE);
-  const s        = drawSize / 500;
+  const texSize  = sprite.texture?.height || 500;
+  const s        = drawSize / texSize;
   // Preserve x-sign (flip) while updating magnitude
   const signX    = sprite.scale.x < 0 ? -1 : 1;
   sprite.scale.set(signX * s, s);
