@@ -15,7 +15,7 @@ const CONFIG = {
   LIVES_PER_HEART: 1,     // жизней на одно сердце
   PLAYER_SPEED: 2.2,      // скорость игрока (пикс/сек)
   PLAYER_RADIUS: 5,       // радиус коллизии игрока
-  PLAYER_SPRITE_RADIUS: 17,        // визуальный радиус спрайта (половина ширины отрисовки)
+  PLAYER_SPRITE_RADIUS: 14,        // визуальный радиус спрайта (половина ширины отрисовки)
   PLAYER_INVULNERABLE_TIME: 1,    // секунд неуязвимости после урона
 
   // Player Dash
@@ -43,7 +43,7 @@ const CONFIG = {
   HIT_PARTICLES_SPEED_MAX: 200,       // макс. скорость частиц крови
   HIT_PARTICLES_SPREAD: 0.6,          // угол разлёта крови (рад)
   HIT_PARTICLES_LIFE: 0.5,            // время жизни частиц крови (сек)
-  HIT_PARTICLES_COLOR: '#00ff44',     // цвет крови врага
+  HIT_PARTICLES_COLOR: '#a21515',     // цвет крови врага
   ENEMY_HIT_FLASH_DURATION: 0.18,     // длительность белой вспышки при уроне (сек)
   ENEMY_STUN_DURATION: 0.3,           // длительность стана при получении урона (сек)
 
