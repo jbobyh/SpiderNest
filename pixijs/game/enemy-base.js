@@ -31,6 +31,7 @@ export class Enemy {
   }
 
   update(dt, state) {
+    if (this.isDead) return;
     if (this.hitFlash > 0) this.hitFlash -= dt;
     if (this.stunTimer > 0) this.stunTimer -= dt;
 

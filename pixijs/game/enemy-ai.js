@@ -36,9 +36,17 @@ export function updateEnemyAI(state, playerProgress, dt, onPlayerDamaged) {
 
     g.update(dt, state);
 
-    if (g.isDead) {
+    if (g.isDead || g.hp <= 0) {
+      if (!g.isDead) g.die(state, true); // Ensure die() is called if hp <= 0
+      
       spawnCorpse(s.deathCorpses, g, g.radius);
       _deathParticles(s.particles, g.x, g.y, 1);
+      
+      if (g.body) {
+        destroyBody(g.body);
+        g.body = null;
+      }
+      
       s.activeSpiders.splice(i, 1);
       continue;
     }

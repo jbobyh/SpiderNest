@@ -35,7 +35,7 @@ import {
 import {
   initDamageNumbers, updateAndSyncDamageNumbers, clearDamageNumbers,
 } from './render/damage-numbers.js';
-import { initHud, updateHud, updateBossHpBar, showLevelComplete, hideLevelComplete, destroyHud }   from './render/hud.js';
+import { initHud, updateHud, updateBossHpBar, updateFps, showLevelComplete, hideLevelComplete, destroyHud }   from './render/hud.js';
 import {
   initCollectibleRenderer, syncCollectibles, clearCollectibles,
 } from './render/collectible-renderer.js';
@@ -49,6 +49,9 @@ import {
 import {
   initTooltip, updateTooltip, destroyTooltip,
 } from './render/tooltip.js';
+import {
+  initDebugRenderer, syncDebugColliders, clearDebugRenderer,
+} from './render/debug-renderer.js';
 import { initInput, destroyInput } from './core/input.js';
 import { Sounds }               from './core/sound.js';
 import {
@@ -151,6 +154,7 @@ export function startGameLoop({
   initHud(layers.hud);
   initOverlay(layers.hud);
   initTooltip(layers.hud);
+  initDebugRenderer(layers.debug);
 
   // Tile layer for current level
   buildTileLayer(layers.tiles, {
@@ -210,6 +214,7 @@ export function stopGameLoop() {
   destroyOverlay();
   destroyHud();
   destroyTooltip();
+  clearDebugRenderer();
   clearWorldLayers();
 
   // Physics cleanup
@@ -380,6 +385,7 @@ function _render(dt) {
   syncBullets(bulletManager.bullets);
   syncParticles(_state.particles);
   updateAndSyncDamageNumbers(_state, dt, _camera);
+  syncDebugColliders(_state.phase === 'battle');
   syncCollectibles(_state);
   syncFlyingHeart();
   updateTooltip(_state, _camera);
@@ -395,6 +401,9 @@ function _render(dt) {
   if (_state.battle?.isBossBattle) {
     updateBossHpBar(_state);
   }
+
+  // Update FPS counter
+  updateFps(app.ticker.FPS);
 
   // Rebuild tile layer and sync physics walls when walls, purified, or revealed cells change
   const purifiedSize      = _state.purified?.size ?? 0;
