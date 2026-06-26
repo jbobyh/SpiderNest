@@ -215,10 +215,11 @@ const CONFIG = {
 // LEVEL CONFIGURATION
 // ============================================================
 const LEVEL_CONFIG = {
-  // gridSize: размер сетки; disabledCells: заблокированных клеток; heartsCount: сердец на уровне
-  1: { gridSize: 5, cellCount: 25, heartsCount: 1 },
-  2: { gridSize: 7, cellCount: 49, heartsCount: 2 },
-  3: { gridSize: 9, cellCount: 81, heartsCount: 3 },
+  // gridSize: размер сетки; cellCount: клеток в уровне; heartsCount: сердец;
+  // roomQuotas: обязательное количество комнат каждого размера (остальные — 1-клеточные)
+  1: { gridSize: 5, cellCount: 25, heartsCount: 1, roomQuotas: { size4: 1, size3: 2, size2: 3 } },
+  2: { gridSize: 7, cellCount: 49, heartsCount: 2, roomQuotas: { size4: 1, size3: 2, size2: 3 } },
+  3: { gridSize: 9, cellCount: 81, heartsCount: 3, roomQuotas: { size4: 1, size3: 2, size2: 3 } },
 };
 
 // Количество оружия и апгрейдов на каждом уровне
