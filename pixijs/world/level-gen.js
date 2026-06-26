@@ -12,18 +12,41 @@ import {
   shuffleInPlace, inBounds,
 } from './constants.js';
 
+// ── Room content types ───────────────────────────────────────
+
+const ROOM_TYPES = {
+  START:         'start',
+  SUMMON_SPHERE: 'summonSphere',
+  ROOM_BONUS:    'roomBonus',
+  WEAPON:        'weapon',
+  HEART:         'heart',
+  CHEST:         'chest',
+  CURSED_CHEST:  'cursed',
+  ENEMY:         'enemies',
+  EMPTY:         'empty',
+};
+
 // ── Room size distribution ───────────────────────────────────
 
-function buildRoomQuotaList(roomQuotas, targetCellCount) {
+function buildRoomQuotaList(roomQuotas, targetRoomCount) {
   const q = roomQuotas || { size4: 1, size3: 2, size2: 3 };
   const sizes = [];
+  
+  // Total rooms to generate (excluding Room 0 which is always size 1)
+  const remainingRooms = targetRoomCount - 1;
+
   for (let i = 0; i < (q.size4 || 0); i++) sizes.push(4);
   for (let i = 0; i < (q.size3 || 0); i++) sizes.push(3);
   for (let i = 0; i < (q.size2 || 0); i++) sizes.push(2);
 
-  const mandatoryCells = sizes.reduce((sum, s) => sum + s, 0);
-  const singleCount    = Math.max(0, targetCellCount - 1 - mandatoryCells);
-  for (let i = 0; i < singleCount; i++) sizes.push(1);
+  // If we have more quotas than rooms, truncate
+  if (sizes.length > remainingRooms) {
+    sizes.splice(remainingRooms);
+  } else {
+    // Fill the rest with size-1 rooms
+    const singleCount = remainingRooms - sizes.length;
+    for (let i = 0; i < singleCount; i++) sizes.push(1);
+  }
 
   shuffleInPlace(sizes);
   return sizes;
@@ -121,13 +144,13 @@ function getInternalWalls(cells) {
 
 // ── BFS room expansion ───────────────────────────────────────
 
-function generateRooms(startX, startY, targetCellCount, roomQuotas) {
+function generateRoomsRandom(targetRoomCount, roomQuotas) {
   const rooms        = [];
   const allCells     = new Map(); // cellKey → roomIndex
   const removedWalls = new Set();
   const internalWalls = new Set();
 
-  const sizes    = buildRoomQuotaList(roomQuotas, targetCellCount);
+  const sizes    = buildRoomQuotaList(roomQuotas, targetRoomCount);
   let nextIdx    = 0;
 
   function pickRoomSize() {
@@ -135,6 +158,8 @@ function generateRooms(startX, startY, targetCellCount, roomQuotas) {
     return 1;
   }
 
+  // Start Room (always 1-cell, always at the left-most possible position relative to growth)
+  const startX = 0, startY = 0;
   const startRoom = {
     cells:    [{ x: startX, y: startY, k: cellKey(startX, startY) }],
     size:     1,
@@ -145,7 +170,7 @@ function generateRooms(startX, startY, targetCellCount, roomQuotas) {
 
   const frontier = [{ x: startX, y: startY }];
 
-  while (allCells.size < targetCellCount && frontier.length > 0) {
+  while (rooms.length < targetRoomCount && frontier.length > 0) {
     const idx       = Math.floor(Math.random() * frontier.length);
     const { x, y } = frontier[idx];
     const dirs      = shuffleInPlace([...CARDINAL_DIRECTIONS]);
@@ -192,6 +217,90 @@ function generateRooms(startX, startY, targetCellCount, roomQuotas) {
   return { rooms, allCells: new Set(allCells.keys()), removedWalls, internalWalls };
 }
 
+function generateRoomsGrid(targetRoomCount, roomQuotas) {
+  const sizes = buildRoomQuotaList(roomQuotas, targetRoomCount);
+  const totalCellsNeeded = 1 + sizes.reduce((sum, s) => sum + s, 0);
+  
+  // Calculate W x H rectangle (min dimension 5)
+  let h = 5;
+  let w = Math.ceil(totalCellsNeeded / h);
+  if (w < 5) { w = 5; h = Math.ceil(totalCellsNeeded / w); }
+
+  const totalCells = w * h;
+  const rooms = [];
+  const allCells = new Map(); // cellKey -> roomIndex
+  const removedWalls = new Set();
+  const internalWalls = new Set();
+
+  // 1. Place Start Room (left edge, center row)
+  const startX = 0;
+  const startY = Math.floor(h / 2);
+  const startRoom = {
+    cells: [{ x: startX, y: startY, k: cellKey(startX, startY) }],
+    size: 1,
+    cellKeys: new Set([cellKey(startX, startY)]),
+  };
+  rooms.push(startRoom);
+  allCells.set(cellKey(startX, startY), 0);
+
+  // 2. Fill remaining grid
+  const quota = [...sizes];
+  
+  for (let x = 0; x < w; x++) {
+    for (let y = 0; y < h; y++) {
+      const k = cellKey(x, y);
+      if (allCells.has(k)) continue;
+
+      let size = quota.length > 0 ? quota.shift() : 1;
+      let roomCells = [];
+
+      if (size === 1) {
+        roomCells = [{ x, y, k }];
+      } else {
+        // Find connected free cells within the rectangle bounds
+        roomCells = [{ x, y, k }];
+        const queue = [{ x, y }];
+        const seenInSearch = new Set([k]);
+
+        while (roomCells.length < size && queue.length > 0) {
+          const curr = queue.shift();
+          const dirs = shuffleInPlace([...CARDINAL_DIRECTIONS]);
+          for (const [dx, dy] of dirs) {
+            const nx = curr.x + dx, ny = curr.y + dy;
+            const nk = cellKey(nx, ny);
+            if (nx >= 0 && nx < w && ny >= 0 && ny < h && !allCells.has(nk) && !seenInSearch.has(nk)) {
+              seenInSearch.add(nk);
+              roomCells.push({ x: nx, y: ny, k: nk });
+              queue.push({ x: nx, y: ny });
+              if (roomCells.length === size) break;
+            }
+          }
+        }
+        
+        // If we couldn't find enough cells, the room will just be smaller
+        // (the extra "size" is effectively lost, but subsequent 1-cell fills will handle it)
+      }
+
+      const roomIndex = rooms.length;
+      const cellKeys = new Set();
+      for (const cell of roomCells) { 
+        cellKeys.add(cell.k); 
+        allCells.set(cell.k, roomIndex); 
+      }
+      
+      const roomInternal = getInternalWalls(roomCells);
+      for (const wKey of roomInternal) { 
+        removedWalls.add(wKey); 
+        internalWalls.add(wKey); 
+      }
+
+      rooms.push({ cells: roomCells, size: roomCells.length, cellKeys });
+    }
+  }
+
+  return { rooms, allCells: new Set(allCells.keys()), removedWalls, internalWalls };
+}
+
 // ── Difficulty helpers ───────────────────────────────────────
 
 function cellDistanceFromStart(x, y, startX, startY) {
@@ -204,6 +313,11 @@ function getDifficultyTier(dist, maxDist) {
   if (dist <= third)     return 'easy';
   if (dist <= third * 2) return 'medium';
   return 'hard';
+}
+
+function tierForRoom(rooms, ri, startX, startY, maxCellDist) {
+  const cell = rooms[ri].cells[0];
+  return getDifficultyTier(cellDistanceFromStart(cell.x, cell.y, startX, startY), maxCellDist);
 }
 
 function pickRoomPreset(level, poolName) {
@@ -226,6 +340,195 @@ function setCellEnemies(cellContents, key, contentFields, preset) {
     enemiesReleased: false,
     enemies:         [],
   });
+}
+
+function getRoomCenter(room) {
+  let sumX = 0, sumY = 0;
+  for (const cell of room.cells) { sumX += cell.x; sumY += cell.y; }
+  return {
+    x: (sumX / room.cells.length + 0.5) * CELL_PX,
+    y: (sumY / room.cells.length + 0.5) * CELL_PX,
+  };
+}
+
+function getCenterCellKey(room) {
+  let sumX = 0, sumY = 0;
+  for (const cell of room.cells) { sumX += cell.x; sumY += cell.y; }
+  const centerX = Math.floor(sumX / room.cells.length + 0.5);
+  const centerY = Math.floor(sumY / room.cells.length + 0.5);
+  return cellKey(centerX, centerY);
+}
+
+function assignRoomContents(level, rooms, availableRooms, playerProgress, cx, cy, cellToRoom) {
+  const levelConfig = LEVEL_CONFIG[level] || LEVEL_CONFIG[1];
+  const content = levelConfig.content;
+  const assignments = new Map();
+
+  assignments.set(0, ROOM_TYPES.START);
+
+  // 1. Room Bonuses (Strict size requirement: 3-4 cells)
+  // We do this FIRST to ensure they get the large rooms before anything else
+  let bonusesToPlace = content.bonuses || 0;
+  const largeRoomIndices = availableRooms.filter(ri => rooms[ri].size >= 3);
+  shuffleInPlace(largeRoomIndices);
+  
+  while (bonusesToPlace > 0 && largeRoomIndices.length > 0) {
+    const ri = largeRoomIndices.shift();
+    assignments.set(ri, ROOM_TYPES.ROOM_BONUS);
+    availableRooms.splice(availableRooms.indexOf(ri), 1);
+    bonusesToPlace--;
+  }
+  // Fallback: if we still need bonuses but ran out of large rooms, 
+  // we must place them in any room to satisfy the "full size" rule.
+  while (bonusesToPlace > 0 && availableRooms.length > 0) {
+    const ri = availableRooms.shift();
+    assignments.set(ri, ROOM_TYPES.ROOM_BONUS);
+    bonusesToPlace--;
+  }
+
+  // 2. Summon Sphere (Critical)
+  if (availableRooms.length > 0) {
+    const ri = availableRooms.shift();
+    assignments.set(ri, ROOM_TYPES.SUMMON_SPHERE);
+  }
+
+  // 3. Weapons (Level 1 special rule)
+  let weaponCount = content.weapons || 0;
+  if (level === 1) {
+    const diagonalOffsets = [[-1, -1], [1, -1], [-1, 1], [1, 1]];
+    const weaponCandidates = [];
+    for (const [dx, dy] of diagonalOffsets) {
+      const k = cellKey(cx + dx, cy + dy);
+      const ri = cellToRoom.get(k);
+      if (ri !== undefined && !assignments.has(ri)) {
+        weaponCandidates.push(ri);
+      }
+    }
+    shuffleInPlace(weaponCandidates);
+    const count = Math.min(weaponCount, weaponCandidates.length);
+    for (let i = 0; i < count; i++) {
+      const ri = weaponCandidates[i];
+      assignments.set(ri, ROOM_TYPES.WEAPON);
+      const idx = availableRooms.indexOf(ri);
+      if (idx !== -1) availableRooms.splice(idx, 1);
+    }
+    weaponCount -= count;
+  }
+
+  // General weapon placement
+  for (let i = 0; i < weaponCount && availableRooms.length > 0; i++) {
+    assignments.set(availableRooms.shift(), ROOM_TYPES.WEAPON);
+  }
+
+  // 4. Specialized Rooms (distributed to remaining available rooms)
+  const placeType = (type, count) => {
+    let placed = 0;
+    while (placed < count && availableRooms.length > 0) {
+      assignments.set(availableRooms.shift(), type);
+      placed++;
+    }
+  };
+
+  placeType(ROOM_TYPES.HEART, content.hearts);
+  placeType(ROOM_TYPES.CHEST, content.upgrades);
+  placeType(ROOM_TYPES.CURSED_CHEST, content.cursed);
+
+  // 4. Combat Fill
+  const combatRoomCount = Math.floor(availableRooms.length * content.enemyRoomPercent);
+  for (let i = 0; i < combatRoomCount && availableRooms.length > 0; i++) {
+    assignments.set(availableRooms.shift(), ROOM_TYPES.ENEMY);
+  }
+
+  // 5. Default Empty
+  while (availableRooms.length > 0) {
+    assignments.set(availableRooms.shift(), ROOM_TYPES.EMPTY);
+  }
+
+  return assignments;
+}
+
+function applyRoomContent(ri, type, level, rooms, levelState, playerProgress, weaponPool, maxCellDist, cx, cy) {
+  const room = rooms[ri];
+  const center = getRoomCenter(room);
+  const centerKey = getCenterCellKey(room);
+  const tier = tierForRoom(rooms, ri, cx, cy, maxCellDist);
+
+  // Default cell contents setup
+  const setCells = (contentFields, preset) => {
+    for (const cell of room.cells) {
+      if (preset) {
+        setCellEnemies(levelState.cellContents, cell.k, { ...contentFields, type }, preset);
+      } else {
+        levelState.cellContents.set(cell.k, { ...contentFields, type });
+      }
+    }
+  };
+
+  switch (type) {
+    case ROOM_TYPES.START:
+      setCells({ type: 'empty' });
+      break;
+
+    case ROOM_TYPES.SUMMON_SPHERE: {
+      const preset = pickRoomPreset(level, tier);
+      setCells({}, preset);
+      levelState.summonSphere = { x: center.x, y: center.y, cellKey: centerKey, collected: false, spawned: false };
+      break;
+    }
+
+    case ROOM_TYPES.ROOM_BONUS: {
+      const preset = pickRoomPreset(level, 'simpleupgrade');
+      setCells({}, preset);
+      levelState.roomBonusAltars.push({
+        roomIdx: ri, x: center.x, y: center.y, cellKey: centerKey, activated: false, bonusType: null,
+      });
+      break;
+    }
+
+    case ROOM_TYPES.WEAPON: {
+      const weaponId = weaponPool.shift();
+      if (weaponId) {
+        setCells({ weaponId });
+        levelState.droppedWeapons.push({ x: center.x, y: center.y, weaponId, cellKey: centerKey });
+        playerProgress.spawnedWeapons.push(weaponId);
+      } else {
+        setCells({ type: 'empty' });
+      }
+      break;
+    }
+
+    case ROOM_TYPES.HEART: {
+      const preset = pickRoomPreset(level, tier);
+      setCells({}, preset);
+      levelState.hearts.push({ x: center.x, y: center.y, cellKey: centerKey, collected: false, spawned: false });
+      break;
+    }
+
+    case ROOM_TYPES.CHEST: {
+      const preset = pickRoomPreset(level, 'simpleupgrade');
+      setCells({}, preset);
+      levelState.upgradeChests.push({ x: center.x, y: center.y, cellKey: centerKey, collected: false, spawned: true });
+      break;
+    }
+
+    case ROOM_TYPES.CURSED_CHEST: {
+      const preset = pickRoomPreset(level, 'cursedupgrade');
+      setCells({}, preset);
+      levelState.chestObjs.push({ x: center.x, y: center.y, cellKey: centerKey, collected: false, spawned: true });
+      break;
+    }
+
+    case ROOM_TYPES.ENEMY: {
+      const preset = pickRoomPreset(level, tier);
+      setCells({}, preset);
+      break;
+    }
+
+    case ROOM_TYPES.EMPTY:
+    default:
+      setCells({ type: 'empty' });
+      break;
+  }
 }
 
 // ── Enemy creation ───────────────────────────────────────────
@@ -302,24 +605,29 @@ function spawnEnemiesFromPreset(preset, cellX, cellY, trappedSpiders, level) {
 
 export function generateLevel(level, playerProgress) {
   const levelConfig = LEVEL_CONFIG[level] || LEVEL_CONFIG[3];
-  const gridSize    = levelConfig.gridSize;
-  const heartsCount = levelConfig.heartsCount;
-  const cellCount   = levelConfig.cellCount || gridSize * gridSize;
-
-  const cx = Math.floor(gridSize / 2);
-  const cy = Math.floor(gridSize / 2);
+  const roomCount   = levelConfig.roomCount || 25;
 
   // ── Room generation ──
   let levelData = null;
   const maxAttempts = CONFIG.MAX_GENERATION_ATTEMPTS || 1000;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    levelData = generateRooms(cx, cy, cellCount, levelConfig.roomQuotas);
-    if (levelData.allCells.size === cellCount) break;
+    if (levelConfig.genType === 'grid') {
+      levelData = generateRoomsGrid(roomCount, levelConfig.roomQuotas);
+    } else {
+      levelData = generateRoomsRandom(roomCount, levelConfig.roomQuotas);
+    }
+    if (levelData.rooms.length >= roomCount) break;
   }
-  if (levelData.allCells.size !== cellCount) {
+  
+  if (!levelData || levelData.rooms.length < roomCount) {
     throw new Error(`Failed to generate level ${level} after ${maxAttempts} attempts`);
   }
+  
   const { rooms, allCells: blobCells, removedWalls: roomRemovedWalls, internalWalls: roomInternalWalls } = levelData;
+
+  // Start position is always the first cell of Room 0
+  const cx = rooms[0].cells[0].x;
+  const cy = rooms[0].cells[0].y;
 
   const disabledCells = new Set();
   const cellContents  = new Map();
@@ -333,7 +641,7 @@ export function generateLevel(level, playerProgress) {
   for (let i = 1; i < rooms.length; i++) availableRooms.push(i);
   shuffleInPlace(availableRooms);
 
-  // Max distance for difficulty tiers
+  // Max distance for difficulty tiers (from start room)
   let maxCellDist = 0;
   for (const ri of availableRooms) {
     for (const cell of rooms[ri].cells) {
@@ -342,168 +650,29 @@ export function generateLevel(level, playerProgress) {
     }
   }
 
-  function tierForRoom(ri) {
-    const cell = rooms[ri].cells[0];
-    return getDifficultyTier(cellDistanceFromStart(cell.x, cell.y, cx, cy), maxCellDist);
-  }
-
-  function getRoomCenter(ri) {
-    const room = rooms[ri];
-    let sumX = 0, sumY = 0;
-    for (const cell of room.cells) { sumX += cell.x; sumY += cell.y; }
-    return {
-      x: (sumX / room.cells.length + 0.5) * CELL_PX,
-      y: (sumY / room.cells.length + 0.5) * CELL_PX,
-    };
-  }
-
-  function getCenterCellKey(ri) {
-    const room = rooms[ri];
-    let sumX = 0, sumY = 0;
-    for (const cell of room.cells) { sumX += cell.x; sumY += cell.y; }
-    const centerX = Math.floor(sumX / room.cells.length + 0.5);
-    const centerY = Math.floor(sumY / room.cells.length + 0.5);
-    return cellKey(centerX, centerY);
-  }
-
-  function setRoomContent(ri, type, extraFields, preset) {
-    for (const cell of rooms[ri].cells) {
-      setCellEnemies(cellContents, cell.k, { ...extraFields, type }, preset);
-    }
-  }
-
-  // ── Summon sphere ──
-  let summonSphere = null;
-  if (availableRooms.length > 0) {
-    const si     = Math.floor(Math.random() * availableRooms.length);
-    const ri     = availableRooms.splice(si, 1)[0];
-    setRoomContent(ri, 'summonSphere', {}, pickRoomPreset(level, tierForRoom(ri)));
-    const center = getRoomCenter(ri);
-    summonSphere = { x: center.x, y: center.y, cellKey: getCenterCellKey(ri), collected: false, spawned: false };
-  }
-
-  // ── Room bonus altars ──
-  const roomBonusAltars = [];
-  const roomBonuses = [];
-  const targetBonusCount = LEVEL_ROOM_BONUS_COUNTS[level] || 4;
-  
-  // Find candidate rooms (size 3 or 4) that are still available
-  const candidateBonusRoomIndices = availableRooms.filter(ri => rooms[ri].size === 3 || rooms[ri].size === 4);
-  shuffleInPlace(candidateBonusRoomIndices);
-
-  const bonusCount = Math.min(targetBonusCount, candidateBonusRoomIndices.length);
-  for (let i = 0; i < bonusCount; i++) {
-    const ri = candidateBonusRoomIndices[i];
-    
-    // Remove from global availableRooms
-    const globalIdx = availableRooms.indexOf(ri);
-    if (globalIdx >= 0) availableRooms.splice(globalIdx, 1);
-
-    setRoomContent(ri, 'roomBonus', {}, pickRoomPreset(level, 'simpleupgrade'));
-    const center = getRoomCenter(ri);
-    roomBonusAltars.push({
-      roomIdx: ri,
-      x: center.x,
-      y: center.y,
-      cellKey: getCenterCellKey(ri),
-      activated: false,
-      bonusType: null,
-    });
-  }
-
-  // ── Weapons ──
-  const droppedWeapons = [];
-  const allWeapons     = ['shotgun', 'smg', 'rifle', 'revolver', 'carbine'];
-  const weaponPool     = allWeapons.filter(w => !playerProgress.spawnedWeapons.includes(w));
+  // ── Room content assignment ──
+  const allWeapons = ['shotgun', 'smg', 'rifle', 'revolver', 'carbine'];
+  const weaponPool = allWeapons.filter(w => !playerProgress.spawnedWeapons.includes(w));
   shuffleInPlace(weaponPool);
-  const targetWeaponCount = LEVEL_WEAPON_COUNTS[level] || 1;
-  const weaponCount       = Math.min(targetWeaponCount, availableRooms.length, weaponPool.length);
 
-  let weaponRoomIndices = [];
-  const summonSphereRoomIdx = summonSphere ? cellToRoom.get(summonSphere.cellKey) : null;
-  if (level === 1) {
-    const diagonalOffsets = [[-1, -1], [1, -1], [-1, 1], [1, 1]];
-    for (const [dx, dy] of diagonalOffsets) {
-      const k  = cellKey(cx + dx, cy + dy);
-      const ri = cellToRoom.get(k);
-      if (ri !== undefined && ri !== summonSphereRoomIdx && !rooms[ri].contentSet) weaponRoomIndices.push(ri);
-    }
-    shuffleInPlace(weaponRoomIndices);
-    weaponRoomIndices = weaponRoomIndices.slice(0, weaponCount);
-  }
+  const levelState = {
+    cellContents,
+    hearts: [],
+    summonSphere: null,
+    upgradeChests: [],
+    chestObjs: [],
+    droppedWeapons: [],
+    roomBonusAltars: [],
+    roomBonuses: [],
+  };
 
-  for (let i = 0; i < weaponCount; i++) {
-    let ri;
-    if (level === 1 && i < weaponRoomIndices.length) {
-      ri = weaponRoomIndices[i];
-      const idx = availableRooms.indexOf(ri);
-      if (idx >= 0) availableRooms.splice(idx, 1);
-    } else {
-      if (availableRooms.length === 0) break;
-      ri = availableRooms.shift();
-    }
-    if (ri === undefined) continue;
-    // Skip if this room has summonSphere (already has enemy content)
-    if (ri === summonSphereRoomIdx) continue;
-    const weaponId = weaponPool[i];
-    const center   = getRoomCenter(ri);
-    droppedWeapons.push({ x: center.x, y: center.y, weaponId, cellKey: getCenterCellKey(ri) });
-    playerProgress.spawnedWeapons.push(weaponId);
-    for (const cell of rooms[ri].cells) cellContents.set(cell.k, { type: 'weapon', weaponId });
-  }
-
-  // ── Hearts ──
-  const hearts = [];
-  const hCount = Math.min(heartsCount, availableRooms.length);
-  for (let i = 0; i < hCount; i++) {
-    const ri     = availableRooms.shift();
-    setRoomContent(ri, 'heart', {}, pickRoomPreset(level, tierForRoom(ri)));
-    const center = getRoomCenter(ri);
-    hearts.push({ x: center.x, y: center.y, cellKey: getCenterCellKey(ri), collected: false, spawned: false });
-  }
-
-  // ── Upgrade chests (3 random choices) ──
-  const upgradeChests = [];
-  const targetChestCount = LEVEL_UPGRADE_COUNTS[level] || 4;
-  const chestCount = Math.min(targetChestCount, availableRooms.length);
-  for (let i = 0; i < chestCount; i++) {
-    const ri = availableRooms.shift();
-    setRoomContent(ri, 'chest', {}, pickRoomPreset(level, 'simpleupgrade'));
-    const center = getRoomCenter(ri);
-    upgradeChests.push({
-      x: center.x, y: center.y,
-      cellKey: getCenterCellKey(ri),
-      collected: false,
-      spawned: true,
-    });
-  }
-
-  // ── Cursed chests ──
-  const chestObjs  = [];
-  const cursedChestCount = Math.min(LEVEL_CHEST_COUNTS[level] || 1, availableRooms.length);
-  for (let i = 0; i < cursedChestCount; i++) {
-    const ri = availableRooms.shift();
-    if (ri === undefined) break;
-    setRoomContent(ri, 'cursed', {}, pickRoomPreset(level, 'cursedupgrade'));
-    const center = getRoomCenter(ri);
-    chestObjs.push({ x: center.x, y: center.y, cellKey: getCenterCellKey(ri), collected: false, spawned: true });
-  }
-
-  // ── Enemy rooms ──
-  const enemyRoomCount = Math.floor(availableRooms.length * CONFIG.ENEMY_SPAWN_CHANCE);
-  shuffleInPlace(availableRooms);
-  for (let i = 0; i < enemyRoomCount; i++) {
-    const ri = availableRooms.shift();
-    setRoomContent(ri, 'enemies', {}, pickRoomPreset(level, tierForRoom(ri)));
-  }
-
-  // ── Remaining rooms → empty ──
-  for (const ri of availableRooms) {
-    for (const cell of rooms[ri].cells) cellContents.set(cell.k, { type: 'empty' });
+  const assignments = assignRoomContents(level, rooms, [...availableRooms], playerProgress, cx, cy, cellToRoom);
+  
+  for (const [ri, type] of assignments.entries()) {
+    applyRoomContent(ri, type, level, rooms, levelState, playerProgress, weaponPool, maxCellDist, cx, cy);
   }
 
   // ── Only the start room is purified initially ──
-  // Empty rooms become purified when the player opens a wall into them.
   const purified = new Set([0]);
 
   // ── Spawn trapped enemies ──
@@ -514,18 +683,19 @@ export function generateLevel(level, playerProgress) {
     const ri = cellToRoom.get(k);
     if (ri === undefined || processedRooms.has(ri)) continue;
     processedRooms.add(ri);
-    const { x: spawnX, y: spawnY } = cellFromKey(getCenterCellKey(ri));
+    const { x: spawnX, y: spawnY } = cellFromKey(getCenterCellKey(rooms[ri]));
     spawnEnemiesFromPreset(content.enemyPreset, spawnX, spawnY, trappedSpiders, level);
   }
 
   // ── Initial visibility ──
-  const initOpen         = new Set([cellKey(cx, cy)]);
-  const initEverOpened   = new Set([cellKey(cx, cy)]);
-  const initEverRevealed = new Set([cellKey(cx, cy)]);
+  const startKey = cellKey(cx, cy);
+  const initOpen         = new Set([startKey]);
+  const initEverOpened   = new Set([startKey]);
+  const initEverRevealed = new Set([startKey]);
   for (const cell of rooms[0].cells) initEverRevealed.add(cell.k);
   for (const [dx, dy] of CARDINAL_DIRECTIONS) {
     const nk = cellKey(cx + dx, cy + dy);
-    if (!disabledCells.has(nk)) initEverRevealed.add(nk);
+    if (blobCells.has(nk)) initEverRevealed.add(nk);
   }
 
   // ── Room background colours ──
@@ -538,17 +708,16 @@ export function generateLevel(level, playerProgress) {
     for (const cell of rooms[i].cells) roomColors.set(cell.k, color);
   }
 
-  // ── Room altars (battle triggers) — skip upgrade/chest/roomBonus rooms ──
+  // ── Room altars (battle triggers) ──
   const roomAltars        = [];
   const altarProcessed    = new Set();
   for (const [k, content] of cellContents) {
     if (!content.enemyPreset || content.enemyCount <= 0 || content.enemiesReleased) continue;
-    // Skip rooms with chest, cursed, or roomBonus (they use F-key interaction instead)
-    if (content.type === 'chest' || content.type === 'cursed' || content.type === 'roomBonus') continue;
+    if (content.type === ROOM_TYPES.CHEST || content.type === ROOM_TYPES.CURSED_CHEST || content.type === ROOM_TYPES.ROOM_BONUS) continue;
     const ri = cellToRoom.get(k);
     if (ri === undefined || altarProcessed.has(ri)) continue;
     altarProcessed.add(ri);
-    const centerKey     = getCenterCellKey(ri);
+    const centerKey     = getCenterCellKey(rooms[ri]);
     const { x: acx, y: acy } = cellFromKey(centerKey);
     roomAltars.push({
       roomIdx:   ri,
@@ -559,9 +728,18 @@ export function generateLevel(level, playerProgress) {
     });
   }
 
+  // Determine effective gridSize for legacy support (max dimension)
+  let minX = cx, maxX = cx, minY = cy, maxY = cy;
+  for (const k of blobCells) {
+    const { x, y } = cellFromKey(k);
+    minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+    minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+  }
+  const effectiveGridSize = Math.max(maxX - minX + 1, maxY - minY + 1);
+
   return {
     level,
-    gridSize,
+    gridSize:           effectiveGridSize,
     rooms,
     blobCells,
     openCells:          initOpen,
@@ -576,18 +754,18 @@ export function generateLevel(level, playerProgress) {
     cellContents,
     startCell:          { x: cx, y: cy },
     exitCell:           null,
-    hearts,
+    hearts:             levelState.hearts,
     heartsCollected:    0,
-    summonSphere,
+    summonSphere:       levelState.summonSphere,
     summonSphereCollected: false,
-    upgradeChests,
-    chestObjs,
+    upgradeChests:      levelState.upgradeChests,
+    chestObjs:          levelState.chestObjs,
     revealedExit:       false,
-    droppedWeapons,
+    droppedWeapons:     levelState.droppedWeapons,
     trappedSpiders,
     roomAltars,
-    roomBonusAltars,
-    roomBonuses,
+    roomBonusAltars:    levelState.roomBonusAltars,
+    roomBonuses:        levelState.roomBonuses,
     purified,
   };
 }
