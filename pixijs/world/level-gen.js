@@ -14,21 +14,19 @@ import {
 
 // ── Room size distribution ───────────────────────────────────
 
-const ROOM_SIZE_WEIGHTS = [
-  { size: 1, weight: 0.40 },
-  { size: 2, weight: 0.30 },
-  { size: 3, weight: 0.20 },
-  { size: 4, weight: 0.10 },
-];
+function buildRoomQuotaList(roomQuotas, targetCellCount) {
+  const q = roomQuotas || { size4: 1, size3: 2, size2: 3 };
+  const sizes = [];
+  for (let i = 0; i < (q.size4 || 0); i++) sizes.push(4);
+  for (let i = 0; i < (q.size3 || 0); i++) sizes.push(3);
+  for (let i = 0; i < (q.size2 || 0); i++) sizes.push(2);
 
-function pickRoomSize() {
-  const r = Math.random();
-  let acc = 0;
-  for (const { size, weight } of ROOM_SIZE_WEIGHTS) {
-    acc += weight;
-    if (r < acc) return size;
-  }
-  return 1;
+  const mandatoryCells = sizes.reduce((sum, s) => sum + s, 0);
+  const singleCount    = Math.max(0, targetCellCount - 1 - mandatoryCells);
+  for (let i = 0; i < singleCount; i++) sizes.push(1);
+
+  shuffleInPlace(sizes);
+  return sizes;
 }
 
 // ── Room shape generation ────────────────────────────────────
@@ -123,11 +121,19 @@ function getInternalWalls(cells) {
 
 // ── BFS room expansion ───────────────────────────────────────
 
-function generateRooms(startX, startY, targetCellCount) {
+function generateRooms(startX, startY, targetCellCount, roomQuotas) {
   const rooms        = [];
   const allCells     = new Map(); // cellKey → roomIndex
   const removedWalls = new Set();
   const internalWalls = new Set();
+
+  const sizes    = buildRoomQuotaList(roomQuotas, targetCellCount);
+  let nextIdx    = 0;
+
+  function pickRoomSize() {
+    if (nextIdx < sizes.length) return sizes[nextIdx];
+    return 1;
+  }
 
   const startRoom = {
     cells:    [{ x: startX, y: startY, k: cellKey(startX, startY) }],
@@ -175,6 +181,7 @@ function generateRooms(startX, startY, targetCellCount) {
 
       rooms.push({ cells: roomCells, size: roomCells.length, cellKeys });
       for (const cell of roomCells) frontier.push({ x: cell.x, y: cell.y });
+      nextIdx++;
       placed = true;
       break;
     }
@@ -303,8 +310,16 @@ export function generateLevel(level, playerProgress) {
   const cy = Math.floor(gridSize / 2);
 
   // ── Room generation ──
-  const { rooms, allCells: blobCells, removedWalls: roomRemovedWalls, internalWalls: roomInternalWalls }
-    = generateRooms(cx, cy, cellCount);
+  let levelData = null;
+  const maxAttempts = CONFIG.MAX_GENERATION_ATTEMPTS || 1000;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    levelData = generateRooms(cx, cy, cellCount, levelConfig.roomQuotas);
+    if (levelData.allCells.size === cellCount) break;
+  }
+  if (levelData.allCells.size !== cellCount) {
+    throw new Error(`Failed to generate level ${level} after ${maxAttempts} attempts`);
+  }
+  const { rooms, allCells: blobCells, removedWalls: roomRemovedWalls, internalWalls: roomInternalWalls } = levelData;
 
   const disabledCells = new Set();
   const cellContents  = new Map();
