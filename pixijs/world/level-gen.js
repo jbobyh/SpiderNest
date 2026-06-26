@@ -382,6 +382,35 @@ export function generateLevel(level, playerProgress) {
     summonSphere = { x: center.x, y: center.y, cellKey: getCenterCellKey(ri), collected: false, spawned: false };
   }
 
+  // ── Room bonus altars ──
+  const roomBonusAltars = [];
+  const roomBonuses = [];
+  const targetBonusCount = LEVEL_ROOM_BONUS_COUNTS[level] || 4;
+  
+  // Find candidate rooms (size 3 or 4) that are still available
+  const candidateBonusRoomIndices = availableRooms.filter(ri => rooms[ri].size === 3 || rooms[ri].size === 4);
+  shuffleInPlace(candidateBonusRoomIndices);
+
+  const bonusCount = Math.min(targetBonusCount, candidateBonusRoomIndices.length);
+  for (let i = 0; i < bonusCount; i++) {
+    const ri = candidateBonusRoomIndices[i];
+    
+    // Remove from global availableRooms
+    const globalIdx = availableRooms.indexOf(ri);
+    if (globalIdx >= 0) availableRooms.splice(globalIdx, 1);
+
+    setRoomContent(ri, 'roomBonus', {}, pickRoomPreset(level, 'simpleupgrade'));
+    const center = getRoomCenter(ri);
+    roomBonusAltars.push({
+      roomIdx: ri,
+      x: center.x,
+      y: center.y,
+      cellKey: getCenterCellKey(ri),
+      activated: false,
+      bonusType: null,
+    });
+  }
+
   // ── Weapons ──
   const droppedWeapons = [];
   const allWeapons     = ['shotgun', 'smg', 'rifle', 'revolver', 'carbine'];
@@ -458,26 +487,6 @@ export function generateLevel(level, playerProgress) {
     setRoomContent(ri, 'cursed', {}, pickRoomPreset(level, 'cursedupgrade'));
     const center = getRoomCenter(ri);
     chestObjs.push({ x: center.x, y: center.y, cellKey: getCenterCellKey(ri), collected: false, spawned: true });
-  }
-
-  // ── Room bonus altars ──
-  const roomBonusAltars = [];
-  const roomBonuses = [];
-  const targetBonusCount = LEVEL_ROOM_BONUS_COUNTS[level] || 4;
-  const bonusCount = Math.min(targetBonusCount, availableRooms.length);
-  for (let i = 0; i < bonusCount; i++) {
-    const ri = availableRooms.shift();
-    if (ri === undefined) break;
-    setRoomContent(ri, 'roomBonus', {}, pickRoomPreset(level, 'simpleupgrade'));
-    const center = getRoomCenter(ri);
-    roomBonusAltars.push({
-      roomIdx: ri,
-      x: center.x,
-      y: center.y,
-      cellKey: getCenterCellKey(ri),
-      activated: false,
-      bonusType: null,
-    });
   }
 
   // ── Enemy rooms ──

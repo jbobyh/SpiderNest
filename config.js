@@ -252,7 +252,8 @@ const LEVEL_WEAPON_COUNTS  = { 1: 1, 2: 2, 3: 2 };
 const LEVEL_UPGRADE_COUNTS = { 1: 4, 2: 10, 3: 16 };
 // Количество проклятых сундуков на каждом уровне
 const LEVEL_CHEST_COUNTS   = { 1: 1, 2: 2, 3: 3 };
-const LEVEL_ROOM_BONUS_COUNTS = { 1: 4, 2: 10, 3: 16 };
+// Количество бонусных комнат на каждом уровне
+const LEVEL_ROOM_BONUS_COUNTS = { 1: 3, 2: 3, 3: 3 };
 
 // ============================================================
 // ROOM ENEMY POOLS
