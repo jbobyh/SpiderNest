@@ -9,7 +9,7 @@ import { applyUpgrade } from './upgrades.js';
 import { pickupWeapon  } from './combat.js';
 import { buildTileLayer } from '../render/tiles.js';
 import { layers } from '../render/layers.js';
-import { getCurrentLevel } from '../game-loop.js';
+import { getCurrentLevel, saveCurrentGame } from '../game-loop.js';
 
 const PICKUP_R = CONFIG.PLAYER_RADIUS + CONFIG.PICKUP_DISTANCE;
 
@@ -185,6 +185,9 @@ export function spawnRoomRewards(state, cellKey) {
   for (const heart of state.hearts) {
     if (heart.cellKey === cellKey) heart.spawned = true;
   }
+  for (const chest of (state.upgradeChests || [])) {
+    if (chest.cellKey === cellKey) chest.spawned = true;
+  }
   for (const chest of (state.chestObjs || [])) {
     if (chest.cellKey === cellKey) chest.spawned = true;
   }
@@ -219,7 +222,9 @@ export function applyCursedChoice(state, playerProgress, choiceId) {
   if (chest) chest.collected = true;
   state._cursedChoiceState = null;
 
-  if (!choiceId) return;
+  if (!choiceId) {
+    return;
+  }
   applyUpgrade(state, playerProgress, choiceId);
 
   // Enter battle mode after choice

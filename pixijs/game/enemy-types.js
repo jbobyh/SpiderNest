@@ -164,13 +164,6 @@ export class ShooterEnemy extends Enemy {
       }
     }
   }
-
-  serialize() {
-    return {
-      ...super.serialize(),
-      shootCd: this.shootCd,
-    };
-  }
 }
 
 // ── Bull ──────────────────────────────────────────────────────
@@ -255,17 +248,6 @@ export class BullEnemy extends Enemy {
         break;
     }
   }
-
-  serialize() {
-    return {
-      ...super.serialize(),
-      state: this.state,
-      stateTimer: this.stateTimer,
-      dashDirX: this.dashDirX,
-      dashDirY: this.dashDirY,
-      dashDistance: this.dashDistance,
-    };
-  }
 }
 
 // ── Buldyga ───────────────────────────────────────────────────
@@ -329,14 +311,6 @@ export class BuldygaEnemy extends Enemy {
     
     setBodyVelocity(this.body, this.vx, this.vy);
   }
-
-  serialize() {
-    return {
-      ...super.serialize(),
-      currentSpeed: this.currentSpeed,
-      speedAccumulator: this.speedAccumulator,
-    };
-  }
 }
 
 // ── Bloated ───────────────────────────────────────────────────
@@ -384,13 +358,6 @@ export class CocoonEnemy extends Enemy {
         this.onSpawnRequested('soldier', spawnX, spawnY);
       }
     }
-  }
-
-  serialize() {
-    return {
-      ...super.serialize(),
-      spawnTimer: this.spawnTimer,
-    };
   }
 }
 
@@ -616,18 +583,6 @@ export class PhaseBoss extends Enemy {
       hp: 30, speedMult: 1.2, radius: CONFIG.SPIDER_RADIUS * 2,
       visualScale: 4.0,
       phases: [{ id: 'soldier', duration: 6 }, { id: 'pause', duration: 1 }],
-    };
-  }
-
-  serialize() {
-    return {
-      ...super.serialize(),
-      phaseIndex: this.phaseIndex,
-      phaseTimer: this.phaseTimer,
-      dashCount: this.dashCount,
-      strafeDir: this.strafeDir,
-      strafeSwitchTimer: this.strafeSwitchTimer,
-      level: this.level,
     };
   }
 }

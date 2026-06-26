@@ -86,6 +86,12 @@ let _running           = false;
 
 // ── Public API ────────────────────────────────────────────────
 
+export function saveCurrentGame() {
+  if (_state && _currentLevel && _playerProgress) {
+    saveGame(_state, _currentLevel, _playerProgress);
+  }
+}
+
 /**
  * Initialise all subsystems and start the game loop.
  *
@@ -124,6 +130,7 @@ export function startGameLoop({
   // Initialize lazy-rebuild tracking
   _state._lastPurifiedSize = _state.purified?.size ?? 0;
   _state._lastEverRevealedSize = _state.everRevealedCells?.size ?? 0;
+  _state._lastRemovedWallsSize = _state.removedWalls?.size ?? 0;
 
   // Physics engine
   createEngine();
@@ -179,7 +186,7 @@ export function startGameLoop({
   // Input
   initInput(app.canvas);
 
-  // Save once at level start
+  // Save once at level start (or load)
   saveGame(_state, _currentLevel, _playerProgress);
 
   // Music — load bundle first (large files), then start playback
@@ -481,6 +488,7 @@ function _onBattleWon(state, playerProgress) {
 
 function _onZoomOutComplete(_tr) {
   exitBattleMode(_state);
+  saveCurrentGame();
   Sounds.playLevelMusic(_currentLevel);
 
   // Rebuild tiles (walls may have changed, room purification updated)
@@ -517,7 +525,6 @@ function _onLevelComplete(state, playerProgress) {
   state.phase = 'win';
   Sounds.stopGameMusic();
   savePlayerProgress(state, playerProgress);
-  deleteSave();
   showLevelComplete(() => {
     hideLevelComplete();
     nextLevel();
@@ -541,6 +548,11 @@ export function restartLevel() {
  * Advance to the next level.
  */
 export function nextLevel() {
+  // Recover hearts from open rooms
+  if (_state && _playerProgress) {
+    _playerProgress.totalLives = (_state.player?.lives || 0) + (_state.playerRemovedWalls || 0);
+  }
+
   stopGameLoop();
   _currentLevel = Math.min(_currentLevel + 1, CONFIG.MAX_LEVELS ?? 3);
   startGameLoop({ level: _currentLevel, playerProgress: _playerProgress });
