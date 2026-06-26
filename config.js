@@ -240,19 +240,53 @@ const CONFIG = {
 // LEVEL CONFIGURATION
 // ============================================================
 const LEVEL_CONFIG = {
-  // gridSize: размер сетки; cellCount: клеток в уровне; heartsCount: сердец;
+  // gridSize: размер сетки; roomCount: кол-во комнат;
   // roomQuotas: обязательное количество комнат каждого размера (остальные — 1-клеточные)
-  1: { gridSize: 5, cellCount: 25, heartsCount: 1, roomQuotas: { size4: 1, size3: 2, size2: 3 } },
-  2: { gridSize: 7, cellCount: 49, heartsCount: 2, roomQuotas: { size4: 1, size3: 2, size2: 3 } },
-  3: { gridSize: 9, cellCount: 81, heartsCount: 3, roomQuotas: { size4: 1, size3: 2, size2: 3 } },
+  1: { 
+    genType: 'grid',
+    roomCount: 25,
+    roomQuotas: { size4: 1, size3: 2, size2: 3 },
+    content: {
+      weapons: 1,
+      upgrades: 4,
+      cursed: 1,
+      bonuses: 3,
+      hearts: 1,
+      enemyRoomPercent: 0.4
+    }
+  },
+  2: { 
+    genType: 'random',
+    roomCount: 25,
+    roomQuotas: { size4: 1, size3: 2, size2: 3 },
+    content: {
+      weapons: 2,
+      upgrades: 10,
+      cursed: 2,
+      bonuses: 3,
+      hearts: 2,
+      enemyRoomPercent: 0.5
+    }
+  },
+  3: { 
+    genType: 'random',
+    roomCount: 25,
+    roomQuotas: { size4: 1, size3: 2, size2: 3 },
+    content: {
+      weapons: 2,
+      upgrades: 16,
+      cursed: 3,
+      bonuses: 3,
+      hearts: 3,
+      enemyRoomPercent: 0.6
+    }
+  },
 };
 
-// Количество оружия и апгрейдов на каждом уровне
+// Legacy counts (can be removed once refactoring is complete, but keeping for now if needed elsewhere)
 const LEVEL_WEAPON_COUNTS  = { 1: 1, 2: 2, 3: 2 };
 const LEVEL_UPGRADE_COUNTS = { 1: 4, 2: 10, 3: 16 };
-// Количество проклятых сундуков на каждом уровне
 const LEVEL_CHEST_COUNTS   = { 1: 1, 2: 2, 3: 3 };
-// Количество бонусных комнат на каждом уровне
 const LEVEL_ROOM_BONUS_COUNTS = { 1: 3, 2: 3, 3: 3 };
 
 // ============================================================
