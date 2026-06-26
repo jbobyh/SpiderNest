@@ -68,9 +68,43 @@ function generateRoomShape(centerX, centerY, size) {
   }
 
   if (size === 4) {
-    add(centerX + 1, centerY);
-    add(centerX,     centerY + 1);
-    add(centerX + 1, centerY + 1);
+    const shape = Math.floor(Math.random() * 3); // 0 = square, 1 = L, 2 = T
+
+    if (shape === 0) {
+      // Square: 2x2 block anchored at top-left
+      add(centerX + 1, centerY);
+      add(centerX,     centerY + 1);
+      add(centerX + 1, centerY + 1);
+    } else if (shape === 1) {
+      // L-shape: straight line of 3 + one cell attached to an end
+      const horizontal = Math.random() < 0.5;
+      if (horizontal) {
+        add(centerX - 1, centerY);
+        add(centerX + 1, centerY);
+        if (Math.random() < 0.5) add(centerX - 1, centerY + 1);
+        else                     add(centerX - 1, centerY - 1);
+      } else {
+        add(centerX, centerY - 1);
+        add(centerX, centerY + 1);
+        if (Math.random() < 0.5) add(centerX + 1, centerY - 1);
+        else                     add(centerX - 1, centerY - 1);
+      }
+    } else {
+      // T-shape: straight line of 3 + one cell attached to the middle cell
+      const horizontal = Math.random() < 0.5;
+      if (horizontal) {
+        add(centerX - 1, centerY);
+        add(centerX + 1, centerY);
+        if (Math.random() < 0.5) add(centerX, centerY + 1);
+        else                     add(centerX, centerY - 1);
+      } else {
+        add(centerX, centerY - 1);
+        add(centerX, centerY + 1);
+        if (Math.random() < 0.5) add(centerX + 1, centerY);
+        else                     add(centerX - 1, centerY);
+      }
+    }
+
     return cells;
   }
 
