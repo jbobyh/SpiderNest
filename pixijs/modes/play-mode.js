@@ -13,6 +13,7 @@
 import { keys, mouse, getMovementDir, isInteractPressed } from '../core/input.js';
 import { Sounds }                       from '../core/sound.js';
 import { app }                          from '../core/app.js';
+import { getCurrentLevel, saveCurrentGame } from '../game-loop.js';
 import {
   cellOf, cellKey, getWallAtPoint, getRoomBonus, getRoomSpeedMultiplier,
 } from '../world/constants.js';
@@ -442,6 +443,7 @@ export function handleWeaponPickup(state, playerProgress, triggered) {
       playerProgress.weaponSlots = [...state.weaponSlots];
       playerProgress.activeSlot  = state.activeSlot;
       playerProgress.maxSlots    = state.maxSlots;
+      saveCurrentGame();
       break;
     }
   }

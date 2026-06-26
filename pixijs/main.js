@@ -4,7 +4,7 @@ import { resumeAudioContext } from './core/sound.js';
 import {
   startGameLoop, restartLevel, nextLevel,
 } from './game-loop.js';
-import { loadGame, hasSave } from './game/state.js';
+import { loadGame, hasSave, deleteSave } from './game/state.js';
 
 // ============================================================
 // BOOT SEQUENCE
@@ -47,6 +47,7 @@ async function boot() {
         startGameLoop({
           level:          save.currentLevel,
           playerProgress: save.playerProgress,
+          savedState:     save.state,
         });
       } else {
         startGameLoop({ level: 1 });
@@ -58,6 +59,7 @@ async function boot() {
     enterFullscreen();
     resumeAudioContext();
     document.getElementById('overlay').style.display = 'none';
+    deleteSave();
     startGameLoop({ level: 1 });
   });
 }

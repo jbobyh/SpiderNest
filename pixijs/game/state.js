@@ -185,7 +185,7 @@ export function createGameState(level, playerProgress) {
 // ── Save / Load ───────────────────────────────────────────────
 
 const SAVE_KEY = 'spidernest_save';
-const SAVE_VERSION = 2;
+const SAVE_VERSION = 3;
 
 export function saveGame(state, currentLevel, playerProgress) {
   try {
@@ -384,12 +384,14 @@ function _serializeState(s) {
       isDashing: false,
       dashDirX: 0, dashDirY: 0, dashProgress: 0,
     },
+    bossSummonReady:  s.bossSummonReady || false,
     cellContents:  [...s.cellContents].map(([k, v]) => [k, v]),
     hearts:        s.hearts,
+    upgradeChests: s.upgradeChests || [],
     chestObjs:     s.chestObjs || [],
     upgrades:      { ...s.upgrades },
-    spiders:       s.spiders.map(g => ({ ...g })),
-    activeSpiders: s.activeSpiders.map(g => ({ ...g })),
+    spiders:       s.spiders.map(g => (g.serialize ? g.serialize() : { ...g })),
+    activeSpiders: s.activeSpiders.map(g => (g.serialize ? g.serialize() : { ...g })),
     droppedWeapons: s.droppedWeapons ? [...s.droppedWeapons] : [],
     weaponSlots:   s.weaponSlots ? [...s.weaponSlots] : ['pistol', null],
     activeSlot:    s.activeSlot || 0,
@@ -399,6 +401,7 @@ function _serializeState(s) {
     roomBonusAltars: s.roomBonusAltars || [],
     roomBonuses:     s.roomBonuses || [],
     purified:      [...(s.purified || [])],
+    purifyWaveFired: [...(s.purifyWaveFired || [])],
     cellToRoom:    [...(s.cellToRoom || [])],
     revealedRooms: [...(s.revealedRooms || [])],
   };
@@ -425,7 +428,7 @@ function _deserializeState(data) {
     summonSphere:       data.summonSphere,
     summonSphereCollected: data.summonSphereCollected || false,
     bossDefeated:       data.bossDefeated || false,
-    bossSummonReady:    false,
+    bossSummonReady:    data.bossSummonReady || false,
     player: {
       ...data.player,
       isDashing: false, dashDirX: 0, dashDirY: 0, dashProgress: 0,
@@ -433,6 +436,7 @@ function _deserializeState(data) {
     },
     cellContents:  new Map(data.cellContents),
     hearts:        (data.hearts || []).map(h => ({ ...h, spawned: h.spawned !== false })),
+    upgradeChests: (data.upgradeChests || []).map(c => ({ ...c, spawned: c.spawned !== false })),
     chestObjs:     (data.chestObjs || []).map(c => ({ ...c, spawned: c.spawned !== false })),
     upgrades:      { ...data.upgrades },
     spiders:       data.spiders.map(g => EnemyFactory.fromObject(g)),
@@ -460,6 +464,6 @@ function _deserializeState(data) {
     purified:         new Set(data.purified || []),
     cellToRoom:        new Map(data.cellToRoom || []),
     revealedRooms:     new Set(data.revealedRooms || []),
-    purifyWaveFired:   new Set(),
+    purifyWaveFired:   new Set(data.purifyWaveFired || []),
   };
 }
