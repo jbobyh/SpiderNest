@@ -24,6 +24,7 @@ import {
 } from '../game/combat.js';
 import { updateEnemyAI } from '../game/enemy-ai.js';
 import { handleBossKilled, applyFreezeUpgrade } from '../game/boss.js';
+import { dealPlayerDamage } from '../game/upgrades.js';
 import {
   updateCollectibles, checkAltarActivation, isNearAltar,
   checkUpgradeChestActivation, isNearUpgradeChest,
@@ -353,6 +354,9 @@ function _onEnemyKilled(state, playerProgress, g) {
   if (state.upgrades.killAccel) {
     state.upgrades.killAccelPercent =
       Math.min(80, (state.upgrades.killAccelPercent || 0) + 5);
+    if (playerProgress && playerProgress.upgrades) {
+      playerProgress.upgrades.killAccelPercent = state.upgrades.killAccelPercent;
+    }
   }
   if (g.isBoss) {
     handleBossKilled(g, state, playerProgress);
@@ -377,20 +381,8 @@ function _onEnemyKilled(state, playerProgress, g) {
   }
 }
 
-function _onPlayerHit(state, playerProgress, onPlayerDead, _state, isBattle) {
-  if (state.player.invulnerable > 0) return;
-  if (state.upgrades.shield > 0) {
-    state.upgrades.shield--;
-    state.player.invulnerable = CONFIG.PLAYER_INVULNERABLE_TIME;
-    Sounds.shieldhit?.();
-    return;
-  }
-  state.player.lives--;
-  state.player.invulnerable = CONFIG.PLAYER_INVULNERABLE_TIME;
-  Sounds.playerhit?.();
-  if (state.player.lives <= 0 && onPlayerDead) {
-    onPlayerDead(state, playerProgress);
-  }
+function _onPlayerHit(state, playerProgress, onPlayerDead) {
+  dealPlayerDamage(state, playerProgress, null, onPlayerDead);
 }
 
 // ── Cursor update for wall interaction ───────────────────────
