@@ -57,7 +57,7 @@ import { Sounds }               from './core/sound.js';
 import {
   createGameState, createDefaultProgress, saveGame, savePlayerProgress, deleteSave,
 } from './game/state.js';
-import { updatePlayMode, isNearWeapon, isNearAltar, isNearUpgradeChest, isNearCursedChest, isNearRoomBonusAltar } from './modes/play-mode.js';
+import { updatePlayMode, isNearWeapon, isNearAltar, isNearUpgradeChest, isNearSpatialChest, isNearRoomBonusAltar } from './modes/play-mode.js';
 import {
   createBattleState, createBossBattleState,
   updateBattleMode, exitBattleMode,
@@ -175,7 +175,7 @@ export function startGameLoop({
     disabledCells:      _state.disabledCells,
     rooms:              _state.rooms,
     purified:           _state.purified,
-    chestObjs:          _state.chestObjs,
+    spatialChests:      _state.spatialChests,
     hearts:             _state.hearts,
     upgradeChests:      _state.upgradeChests,
     summonSphere:       _state.summonSphere,
@@ -399,10 +399,10 @@ function _render(dt) {
   const nearWeapon = _state.phase === 'play' ? isNearWeapon(_state) : false;
   const nearAltar  = _state.phase === 'play' ? isNearAltar(_state)  : false;
   const nearChest  = _state.phase === 'play' ? isNearUpgradeChest(_state) : false;
-  const nearCursedChest = _state.phase === 'play' ? isNearCursedChest(_state) : false;
+  const nearSpatialChest = _state.phase === 'play' ? isNearSpatialChest(_state) : false;
   const nearRoomBonusAltar = _state.phase === 'play' ? isNearRoomBonusAltar(_state) : false;
   const bossSummonReady = _state.phase === 'play' ? _state.bossSummonReady : false;
-  updateHud(_state, _currentLevel, nearWeapon, nearAltar, bossSummonReady, nearChest, nearCursedChest, nearRoomBonusAltar);
+  updateHud(_state, _currentLevel, nearWeapon, nearAltar, bossSummonReady, nearChest, nearSpatialChest, nearRoomBonusAltar);
 
   // Update boss HP bar during boss battle
   if (_state.battle?.isBossBattle) {
@@ -444,7 +444,7 @@ function _render(dt) {
       disabledCells:      _state.disabledCells,
       rooms:              _state.rooms,
       purified:           _state.purified,
-      chestObjs:          _state.chestObjs,
+      spatialChests:      _state.spatialChests,
       hearts:             _state.hearts,
       upgradeChests:      _state.upgradeChests,
       summonSphere:       _state.summonSphere,
@@ -503,7 +503,7 @@ function _onZoomOutComplete(_tr) {
     disabledCells:      _state.disabledCells,
     rooms:              _state.rooms,
     purified:           _state.purified,
-    chestObjs:          _state.chestObjs,
+    spatialChests:      _state.spatialChests,
     hearts:             _state.hearts,
     upgradeChests:      _state.upgradeChests,
     summonSphere:       _state.summonSphere,

@@ -21,7 +21,7 @@ const ROOM_TYPES = {
   WEAPON:        'weapon',
   HEART:         'heart',
   CHEST:         'chest',
-  CURSED_CHEST:  'cursed',
+  SPATIAL_CHEST: 'spatial',
   ENEMY:         'enemies',
   EMPTY:         'empty',
 };
@@ -431,7 +431,7 @@ function assignRoomContents(level, rooms, availableRooms, playerProgress, cx, cy
 
   placeType(ROOM_TYPES.HEART, content.hearts);
   placeType(ROOM_TYPES.CHEST, content.upgrades);
-  placeType(ROOM_TYPES.CURSED_CHEST, content.cursed);
+  placeType(ROOM_TYPES.SPATIAL_CHEST, content.cursed);
 
   // 4. Combat Fill
   const combatRoomCount = Math.floor(availableRooms.length * content.enemyRoomPercent);
@@ -511,10 +511,10 @@ function applyRoomContent(ri, type, level, rooms, levelState, playerProgress, we
       break;
     }
 
-    case ROOM_TYPES.CURSED_CHEST: {
+    case ROOM_TYPES.SPATIAL_CHEST: {
       const preset = pickRoomPreset(level, 'cursedupgrade');
       setCells({}, preset);
-      levelState.chestObjs.push({ x: center.x, y: center.y, cellKey: centerKey, collected: false, spawned: true });
+      levelState.spatialChests.push({ x: center.x, y: center.y, cellKey: centerKey, collected: false, spawned: true });
       break;
     }
 
@@ -660,7 +660,7 @@ export function generateLevel(level, playerProgress) {
     hearts: [],
     summonSphere: null,
     upgradeChests: [],
-    chestObjs: [],
+    spatialChests: [],
     droppedWeapons: [],
     roomBonusAltars: [],
     roomBonuses: [],
@@ -713,7 +713,7 @@ export function generateLevel(level, playerProgress) {
   const altarProcessed    = new Set();
   for (const [k, content] of cellContents) {
     if (!content.enemyPreset || content.enemyCount <= 0 || content.enemiesReleased) continue;
-    if (content.type === ROOM_TYPES.CHEST || content.type === ROOM_TYPES.CURSED_CHEST || content.type === ROOM_TYPES.ROOM_BONUS) continue;
+    if (content.type === ROOM_TYPES.CHEST || content.type === ROOM_TYPES.SPATIAL_CHEST || content.type === ROOM_TYPES.ROOM_BONUS) continue;
     const ri = cellToRoom.get(k);
     if (ri === undefined || altarProcessed.has(ri)) continue;
     altarProcessed.add(ri);
@@ -759,7 +759,7 @@ export function generateLevel(level, playerProgress) {
     summonSphere:       levelState.summonSphere,
     summonSphereCollected: false,
     upgradeChests:      levelState.upgradeChests,
-    chestObjs:          levelState.chestObjs,
+    spatialChests:      levelState.spatialChests,
     revealedExit:       false,
     droppedWeapons:     levelState.droppedWeapons,
     trappedSpiders,

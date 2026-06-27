@@ -112,7 +112,7 @@ export function initHud(parentContainer) {
 
 // ── Update (call every frame or on state change) ─────────────
 
-export function updateHud(gameState, currentLevel, nearWeapon = false, nearAltar = false, bossSummonReady = false, nearChest = false, nearCursedChest = false, nearRoomBonusAltar = false) {
+export function updateHud(gameState, currentLevel, nearWeapon = false, nearAltar = false, bossSummonReady = false, nearChest = false, nearSpatialChest = false, nearRoomBonusAltar = false) {
   if (!_parent || !gameState) return;
 
   dom.levelLabel.text = `Уровень ${currentLevel}`;
@@ -123,13 +123,13 @@ export function updateHud(gameState, currentLevel, nearWeapon = false, nearAltar
   _updateWeaponSlots(gameState);
 
   // Show/hide pickup hint (reuse panel, swap text)
-  // Priority: room bonus altar > cursed chest > chest > altar > weapon
-  const showHint = nearWeapon || nearAltar || nearChest || nearCursedChest || nearRoomBonusAltar;
+  // Priority: room bonus altar > spatial chest > chest > altar > weapon
+  const showHint = nearWeapon || nearAltar || nearChest || nearSpatialChest || nearRoomBonusAltar;
   dom.pickupHint.visible = showHint;
   if (showHint) {
     let hintText = 'подобрать';
     if (nearRoomBonusAltar) hintText = 'Активировать алтарь комнаты';
-    else if (nearCursedChest) hintText = 'Открыть проклятый сундук';
+    else if (nearSpatialChest) hintText = 'Открыть пространственный сундук';
     else if (nearChest) hintText = 'Открыть сундук';
     else if (nearAltar) hintText = 'Призвать врагов';
     _setPickupHintText(hintText);
@@ -213,6 +213,23 @@ const UPGRADE_LEVEL_MAP = [
   { id: 'reflection',    get: u => u.reflection ? 1 : 0 },
   { id: 'cooldown',      get: u => u.cooldownMult < 1 ? Math.ceil((1 - u.cooldownMult) * 6.67) : 0 },
   { id: 'speed',         get: u => u.speedMult > 1 ? Math.ceil((u.speedMult - 1) * 10) : 0 },
+  // Spatial Upgrades
+  { id: 'spatialReloadRooms',   get: u => u.spatialReloadRooms ? 1 : 0 },
+  { id: 'spatialReloadHearts',  get: u => u.spatialReloadHearts ? 1 : 0 },
+  { id: 'spatialRangeRooms',    get: u => u.spatialRangeRooms ? 1 : 0 },
+  { id: 'spatialRangeHearts',   get: u => u.spatialRangeHearts ? 1 : 0 },
+  { id: 'spatialAccuracyRooms', get: u => u.spatialAccuracyRooms ? 1 : 0 },
+  { id: 'spatialAccuracyHearts',get: u => u.spatialAccuracyHearts ? 1 : 0 },
+  { id: 'spatialBulletSpeedRooms',  get: u => u.spatialBulletSpeedRooms ? 1 : 0 },
+  { id: 'spatialBulletSpeedHearts', get: u => u.spatialBulletSpeedHearts ? 1 : 0 },
+  { id: 'spatialSpeedRooms',    get: u => u.spatialSpeedRooms ? 1 : 0 },
+  { id: 'spatialSpeedHearts',   get: u => u.spatialSpeedHearts ? 1 : 0 },
+  { id: 'spatialCritChanceRooms',   get: u => u.spatialCritChanceRooms ? 1 : 0 },
+  { id: 'spatialCritChanceHearts',  get: u => u.spatialCritChanceHearts ? 1 : 0 },
+  { id: 'spatialCritDamageRooms',   get: u => u.spatialCritDamageRooms ? 1 : 0 },
+  { id: 'spatialCritDamageHearts',  get: u => u.spatialCritDamageHearts ? 1 : 0 },
+  { id: 'spatialPenetrateRooms',    get: u => u.spatialPenetrateRooms ? 1 : 0 },
+  { id: 'spatialPenetrateHearts',   get: u => u.spatialPenetrateHearts ? 1 : 0 },
 ];
 
 function _updateUpgrades(s) {
@@ -226,8 +243,8 @@ function _updateUpgrades(s) {
   for (const { id, get } of UPGRADE_LEVEL_MAP) {
     const lv = get(s.upgrades);
     if (lv <= 0) continue;
-    const def = UPGRADE_TYPES.find(u => u.id === id);
-    if (def) active.push({ ...def, level: Math.min(lv, def.max) });
+    const def = UPGRADE_TYPES.find(u => u.id === id) || (typeof SPATIAL_UPGRADE_TYPES !== 'undefined' ? SPATIAL_UPGRADE_TYPES.find(u => u.id === id) : null);
+    if (def) active.push({ ...def, level: Math.min(lv, def.max || 1) });
   }
   if (active.length === 0) return;
 

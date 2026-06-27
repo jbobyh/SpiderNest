@@ -10,6 +10,8 @@ import { Sounds } from '../core/sound.js';
 import { showUpgradePopup } from './upgrades.js';
 import { EnemyFactory } from './enemy-factory.js';
 
+import { openBossCursedChoice } from './collectibles.js';
+
 // ── Boss kill handler ─────────────────────────────────────────
 
 export function handleBossKilled(g, state, playerProgress) {
@@ -20,6 +22,7 @@ export function handleBossKilled(g, state, playerProgress) {
   state.exitCell = { x: bossCellX, y: bossCellY };
   Sounds.stopBossMusic?.();
   showUpgradePopup('БОСС ПОБЕЖДЕН!', '#ff4400');
+  openBossCursedChoice(state);
 }
 
 // ── Create boss entity ────────────────────────────────────────

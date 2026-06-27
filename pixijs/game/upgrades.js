@@ -37,9 +37,29 @@ export function applyUpgrade(state, playerProgress, type, showPopup = true) {
 
   const def = (typeof UPGRADE_TYPES !== 'undefined' ? UPGRADE_TYPES : [])
     .concat(typeof CURSED_UPGRADE_TYPES !== 'undefined' ? CURSED_UPGRADE_TYPES : [])
+    .concat(typeof SPATIAL_UPGRADE_TYPES !== 'undefined' ? SPATIAL_UPGRADE_TYPES : [])
     .find(u => u.id === type);
 
   if (!def) return;
+
+  // Increment pick count
+  state.upgradeLevels[type] = (state.upgradeLevels[type] || 0) + 1;
+  playerProgress.upgradeLevels[type] = state.upgradeLevels[type];
+
+  // Set binary flag for the upgrade itself (only if it's a boolean in state)
+  if (typeof upg[type] === 'boolean') {
+    upg[type] = true;
+    pp[type] = true;
+  }
+
+  // Mutual exclusion logic (blocks property)
+  if (def.blocks) {
+    const blockedId = def.blocks;
+    upg[blockedId] = false;
+    pp[blockedId] = false;
+    // If it's a numeric stat being blocked, we should ideally reset it, 
+    // but spatial upgrades currently use binary flags + dynamic calc in combat.js.
+  }
 
   // Apply declarative effects
   if (def.effects) {
@@ -163,7 +183,7 @@ export function dealPlayerDamage(state, playerProgress, _unused, onDead) {
   if (s.player.lives <= 0) {
     s.player.lives = 0;
     s.phase = 'dead';
-    if (onDead) onDead();
+    if (onDead) onDead(state, playerProgress);
   }
 
   return true;
