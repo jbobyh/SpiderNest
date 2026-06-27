@@ -9,29 +9,15 @@
 
 import { Container, Graphics, Text, TextStyle } from 'pixi.js';
 import { mouse } from '../core/input.js';
-
-const VW = CONFIG.VIEW_W;
-const VH = CONFIG.VIEW_H;
+import {
+  VW, VH, STYLE_TOOLTIP_LABEL, STYLE_TOOLTIP_DESC, createPanel, clearContainer, hexToNum,
+} from './ui-shared.js';
 
 // ── Module state ──────────────────────────────────────────────
 
 let _hud   = null;
 let _panel = null; // Container with background + text
 let _hoverSource = null; // 'world' or 'hud'
-
-// ── Text styles ───────────────────────────────────────────────
-
-const STYLE_LABEL = new TextStyle({
-  fill: '#ffffff',
-  fontSize: 13,
-  fontFamily: 'Huninn, monospace',
-  fontWeight: 'bold',
-});
-const STYLE_DESC = new TextStyle({
-  fill: '#ffffff',
-  fontSize: 11,
-  fontFamily: 'Huninn, monospace',
-});
 
 // ── Public API ───────────────────────────────────────────────
 
@@ -92,21 +78,21 @@ export function showTooltip(screenX, screenY, label, description, color, source 
     _hud.addChild(_panel);
   }
 
-  _panel.removeChildren().forEach(c => c.destroy());
+  clearContainer(_panel);
 
   const pad = 10;
   const lineGap = 6;
   const boxW = 220;
 
   // Label
-  const lbl = new Text({ text: label, style: STYLE_LABEL });
+  const lbl = new Text({ text: label, style: STYLE_TOOLTIP_LABEL });
   lbl.position.set(pad, pad);
   _panel.addChild(lbl);
 
   // Description
   const desc = new Text({ 
     text: description, 
-    style: STYLE_DESC,
+    style: STYLE_TOOLTIP_DESC,
     wordWrap: true,
     wordWrapWidth: boxW - pad * 2,
     breakWords: true, // Handle long Russian words
@@ -122,10 +108,12 @@ export function showTooltip(screenX, screenY, label, description, color, source 
   const boxH = Math.max(realH, 40);
 
   // Background (add at index 0)
-  const bg = new Graphics();
-  bg.rect(0, 0, boxW, boxH)
-    .fill({ color: 0x050a0f, alpha: 0.95 })
-    .stroke({ color: _hexToNum(color), alpha: 1, width: 1.5 });
+  const bg = createPanel({
+    x: 0, y: 0,
+    width: boxW, height: boxH,
+    bgColor: 0x050a0f, bgAlpha: 0.95,
+    strokeColor: hexToNum(color), strokeAlpha: 1, strokeWidth: 1.5
+  });
   _panel.addChildAt(bg, 0);
 
   let tx = screenX + 24; // Offset more to the right to avoid overlap with icon
@@ -148,12 +136,4 @@ export function hideTooltip(source = null) {
     _panel = null;
   }
   _hoverSource = null;
-}
-
-// ── Helpers ───────────────────────────────────────────────────
-
-function _hexToNum(val) {
-  if (typeof val === 'number') return val;
-  if (!val || typeof val !== 'string') return 0xffffff;
-  return parseInt(val.replace('#', ''), 16);
 }

@@ -254,21 +254,22 @@ function _addChoiceBtn(cont, ch, bx, by) {
 
   // Draw button background (redrawn on hover via closure)
   const btn = new Graphics();
+  btn.position.set(bx, by);
   const _drawNormal = () =>
     btn.clear()
-       .rect(bx, by, BTN_W, BTN_H)
+       .rect(0, 0, BTN_W, BTN_H)
        .fill({ color: 0x1a0030, alpha: 0.95 })
        .stroke({ color: accent, alpha: 0.8, width: 1.5 });
   const _drawHover = () =>
     btn.clear()
-       .rect(bx, by, BTN_W, BTN_H)
+       .rect(0, 0, BTN_W, BTN_H)
        .fill({ color: 0x2d0050, alpha: 0.98 })
        .stroke({ color: accent, alpha: 1, width: 2 });
 
   _drawNormal();
   btn.eventMode = 'static';
   btn.cursor    = 'pointer';
-  btn.hitArea   = { contains: (x, y) => x >= bx && x <= bx + BTN_W && y >= by && y <= by + BTN_H };
+  btn.hitArea   = { contains: (x, y) => x >= 0 && x <= BTN_W && y >= 0 && y <= BTN_H };
   btn.on('pointerover', _drawHover);
   btn.on('pointerout',  _drawNormal);
   btn.on('pointerdown', () => _onSpecialChoice(ch.id));
@@ -280,8 +281,8 @@ function _addChoiceBtn(cont, ch, bx, by) {
     style: new TextStyle({ fill: ch.color ?? '#cc66ff', fontSize: 30, fontFamily: 'sans-serif' }),
   });
   icon.anchor.set(0.5, 0);
-  icon.position.set(bx + BTN_W / 2, by + 8);
-  cont.addChild(icon);
+  icon.position.set(BTN_W / 2, 8);
+  btn.addChild(icon);
 
   // Label
   const lbl = new Text({
@@ -293,8 +294,8 @@ function _addChoiceBtn(cont, ch, bx, by) {
     }),
   });
   lbl.anchor.set(0.5, 0);
-  lbl.position.set(bx + BTN_W / 2, by + 50);
-  cont.addChild(lbl);
+  lbl.position.set(BTN_W / 2, 50);
+  btn.addChild(lbl);
 
   // Short description
   const desc = new Text({
@@ -306,8 +307,8 @@ function _addChoiceBtn(cont, ch, bx, by) {
     }),
   });
   desc.anchor.set(0.5, 0);
-  desc.position.set(bx + BTN_W / 2, by + 72);
-  cont.addChild(desc);
+  desc.position.set(BTN_W / 2, 72);
+  btn.addChild(desc);
 }
 
 function _onSpecialChoice(id) {
@@ -374,21 +375,22 @@ function _addUpgradeChoiceBtn(cont, ch, bx, by) {
   const accent = ch.color ? _hexToNum(ch.color) : 0x44aaff;
 
   const btn = new Graphics();
+  btn.position.set(bx, by);
   const _drawNormal = () =>
     btn.clear()
-       .rect(bx, by, UPGRADE_BTN_W, UPGRADE_BTN_H)
+       .rect(0, 0, UPGRADE_BTN_W, UPGRADE_BTN_H)
        .fill({ color: 0x1a2a30, alpha: 0.95 })
        .stroke({ color: accent, alpha: 0.8, width: 1.5 });
   const _drawHover = () =>
     btn.clear()
-       .rect(bx, by, UPGRADE_BTN_W, UPGRADE_BTN_H)
+       .rect(0, 0, UPGRADE_BTN_W, UPGRADE_BTN_H)
        .fill({ color: 0x2d4050, alpha: 0.98 })
        .stroke({ color: accent, alpha: 1, width: 2 });
 
   _drawNormal();
   btn.eventMode = 'static';
   btn.cursor    = 'pointer';
-  btn.hitArea   = { contains: (x, y) => x >= bx && x <= bx + UPGRADE_BTN_W && y >= by && y <= by + UPGRADE_BTN_H };
+  btn.hitArea   = { contains: (x, y) => x >= 0 && x <= UPGRADE_BTN_W && y >= 0 && y <= UPGRADE_BTN_H };
   btn.on('pointerover', _drawHover);
   btn.on('pointerout',  _drawNormal);
   btn.on('pointerdown', () => _onUpgradeChoice(ch.id));
@@ -400,8 +402,8 @@ function _addUpgradeChoiceBtn(cont, ch, bx, by) {
     style: new TextStyle({ fill: ch.color ?? '#44aaff', fontSize: 28, fontFamily: 'sans-serif' }),
   });
   icon.anchor.set(0.5, 0);
-  icon.position.set(bx + UPGRADE_BTN_W / 2, by + 8);
-  cont.addChild(icon);
+  icon.position.set(UPGRADE_BTN_W / 2, 8);
+  btn.addChild(icon);
 
   // Label
   const lbl = new Text({
@@ -413,8 +415,8 @@ function _addUpgradeChoiceBtn(cont, ch, bx, by) {
     }),
   });
   lbl.anchor.set(0.5, 0);
-  lbl.position.set(bx + UPGRADE_BTN_W / 2, by + 45);
-  cont.addChild(lbl);
+  lbl.position.set(UPGRADE_BTN_W / 2, 45);
+  btn.addChild(lbl);
 
   // Short description
   const desc = new Text({
@@ -426,27 +428,28 @@ function _addUpgradeChoiceBtn(cont, ch, bx, by) {
     }),
   });
   desc.anchor.set(0.5, 0);
-  desc.position.set(bx + UPGRADE_BTN_W / 2, by + 68);
-  cont.addChild(desc);
+  desc.position.set(UPGRADE_BTN_W / 2, 68);
+  btn.addChild(desc);
 }
 
 function _addDeclineBtn(cont, bx, by) {
   const btn = new Graphics();
+  btn.position.set(bx, by);
   const _drawNormal = () =>
     btn.clear()
-       .rect(bx, by, DECLINE_BTN_W, DECLINE_BTN_H)
+       .rect(0, 0, DECLINE_BTN_W, DECLINE_BTN_H)
        .fill({ color: 0x302020, alpha: 0.95 })
        .stroke({ color: 0x888888, alpha: 0.6, width: 1 });
   const _drawHover = () =>
     btn.clear()
-       .rect(bx, by, DECLINE_BTN_W, DECLINE_BTN_H)
+       .rect(0, 0, DECLINE_BTN_W, DECLINE_BTN_H)
        .fill({ color: 0x403030, alpha: 0.98 })
        .stroke({ color: 0xaaaaaa, alpha: 0.8, width: 1.5 });
 
   _drawNormal();
   btn.eventMode = 'static';
   btn.cursor    = 'pointer';
-  btn.hitArea   = { contains: (x, y) => x >= bx && x <= bx + DECLINE_BTN_W && y >= by && y <= by + DECLINE_BTN_H };
+  btn.hitArea   = { contains: (x, y) => x >= 0 && x <= DECLINE_BTN_W && y >= 0 && y <= DECLINE_BTN_H };
   btn.on('pointerover', _drawHover);
   btn.on('pointerout',  _drawNormal);
   btn.on('pointerdown', () => _onUpgradeChoice(null));
@@ -460,8 +463,8 @@ function _addDeclineBtn(cont, bx, by) {
     }),
   });
   lbl.anchor.set(0.5, 0.5);
-  lbl.position.set(bx + DECLINE_BTN_W / 2, by + DECLINE_BTN_H / 2);
-  cont.addChild(lbl);
+  lbl.position.set(DECLINE_BTN_W / 2, DECLINE_BTN_H / 2);
+  btn.addChild(lbl);
 }
 
 function _onUpgradeChoice(id) {
@@ -533,21 +536,22 @@ function _addRoomBonusChoiceBtn(cont, ch, bx, by) {
   const accent = ch.color ? _hexToNum(ch.color) : 0x44ff88;
 
   const btn = new Graphics();
+  btn.position.set(bx, by);
   const _drawNormal = () =>
     btn.clear()
-       .rect(bx, by, UPGRADE_BTN_W, UPGRADE_BTN_H)
+       .rect(0, 0, UPGRADE_BTN_W, UPGRADE_BTN_H)
        .fill({ color: 0x1a2a30, alpha: 0.95 })
        .stroke({ color: accent, alpha: 0.8, width: 1.5 });
   const _drawHover = () =>
     btn.clear()
-       .rect(bx, by, UPGRADE_BTN_W, UPGRADE_BTN_H)
+       .rect(0, 0, UPGRADE_BTN_W, UPGRADE_BTN_H)
        .fill({ color: 0x2d4050, alpha: 0.98 })
        .stroke({ color: accent, alpha: 1, width: 2 });
 
   _drawNormal();
   btn.eventMode = 'static';
   btn.cursor    = 'pointer';
-  btn.hitArea   = { contains: (x, y) => x >= bx && x <= bx + UPGRADE_BTN_W && y >= by && y <= by + UPGRADE_BTN_H };
+  btn.hitArea   = { contains: (x, y) => x >= 0 && x <= UPGRADE_BTN_W && y >= 0 && y <= UPGRADE_BTN_H };
   btn.on('pointerover', _drawHover);
   btn.on('pointerout',  _drawNormal);
   btn.on('pointerdown', () => _onRoomBonusChoice(ch.id));
@@ -559,8 +563,8 @@ function _addRoomBonusChoiceBtn(cont, ch, bx, by) {
     style: new TextStyle({ fill: ch.color ?? '#44ff88', fontSize: 28, fontFamily: 'sans-serif' }),
   });
   icon.anchor.set(0.5, 0);
-  icon.position.set(bx + UPGRADE_BTN_W / 2, by + 8);
-  cont.addChild(icon);
+  icon.position.set(UPGRADE_BTN_W / 2, 8);
+  btn.addChild(icon);
 
   // Label
   const lbl = new Text({
@@ -572,8 +576,8 @@ function _addRoomBonusChoiceBtn(cont, ch, bx, by) {
     }),
   });
   lbl.anchor.set(0.5, 0);
-  lbl.position.set(bx + UPGRADE_BTN_W / 2, by + 45);
-  cont.addChild(lbl);
+  lbl.position.set(UPGRADE_BTN_W / 2, 45);
+  btn.addChild(lbl);
 
   // Short description
   const desc = new Text({
@@ -585,8 +589,8 @@ function _addRoomBonusChoiceBtn(cont, ch, bx, by) {
     }),
   });
   desc.anchor.set(0.5, 0);
-  desc.position.set(bx + UPGRADE_BTN_W / 2, by + 68);
-  cont.addChild(desc);
+  desc.position.set(UPGRADE_BTN_W / 2, 68);
+  btn.addChild(desc);
 }
 
 function _onRoomBonusChoice(id) {
