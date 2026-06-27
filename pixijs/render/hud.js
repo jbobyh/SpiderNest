@@ -18,17 +18,10 @@ import { keys } from '../core/input.js';
 import { getActiveWeapon, getBulletRange, getSpatialBonus } from '../game/combat.js';
 import { getRoomSpeedMultiplier, cellOf, cellKey } from '../world/constants.js';
 import { showTooltip, hideTooltip } from './tooltip.js';
-
-const VW = CONFIG.VIEW_W;
-const VH = CONFIG.VIEW_H;
-
-// ── Shared text styles ───────────────────────────────────────
-
-const STYLE_LEVEL   = new TextStyle({ fill: '#00d4ff', fontSize: 13, fontFamily: 'Huninn, monospace', fontWeight: 'bold' });
-const STYLE_SLOT_LBL = new TextStyle({ fill: '#00d4ff', fontSize: 9,  fontFamily: 'Huninn, monospace', fontWeight: 'bold' });
-const STYLE_HINT    = new TextStyle({ fill: 'rgba(180,160,130,0.8)', fontSize: 9, fontFamily: 'Huninn, monospace' });
-const STYLE_UPG_LVL = new TextStyle({ fill: '#ffffff', fontSize: 8, fontFamily: 'Huninn, monospace', fontWeight: 'bold' });
-const STYLE_UPG_ICN = new TextStyle({ fill: '#ffffff', fontSize: 20, fontFamily: 'sans-serif' });
+import {
+  VW, VH, UI_COLORS, STYLE_LEVEL, STYLE_SLOT_LBL, STYLE_HINT, STYLE_UPG_LVL,
+  STYLE_STATS_LABEL, STYLE_STATS_VALUE, createPanel, clearContainer, hexToNum,
+} from './ui-shared.js';
 
 // ── Internal HUD state ───────────────────────────────────────
 
@@ -55,7 +48,7 @@ const dom = {
 
 export function initHud(parentContainer) {
   _parent = parentContainer;
-  _parent.removeChildren().forEach(c => c.destroy({ children: true }));
+  clearContainer(_parent);
 
   // Level label (top-left)
   dom.levelLabel = new Text({ text: 'Уровень 1', style: STYLE_LEVEL });
@@ -185,7 +178,7 @@ function _getUpgradesHash(s) {
 // ── Character Stats Panel ─────────────────────────────────────
 
 function _updateStatsPanel(s) {
-  dom.statsPanel.removeChildren().forEach(c => c.destroy({ children: true }));
+  clearContainer(dom.statsPanel);
 
   const weapon = getActiveWeapon(s);
   
@@ -265,10 +258,13 @@ function _updateStatsPanel(s) {
   const panelY = (VH - panelH) / 2;
 
   // Background
-  const bg = new Graphics();
-  bg.roundRect(panelX, panelY, panelW, panelH, 12)
-    .fill({ color: 0x080c14, alpha: 0.95 })
-    .stroke({ color: 0x00d4ff, alpha: 0.6, width: 2 });
+  const bg = createPanel({
+    x: panelX, y: panelY,
+    width: panelW, height: panelH,
+    bgColor: 0x080c14, bgAlpha: 0.95,
+    strokeColor: UI_COLORS.CYAN, strokeAlpha: 0.6, strokeWidth: 2,
+    radius: 12
+  });
   dom.statsPanel.addChild(bg);
 
   // Title
@@ -290,11 +286,7 @@ function _updateStatsPanel(s) {
   for (const row of rows) {
     const lbl = new Text({
       text: row.label,
-      style: new TextStyle({
-        fill: 'rgba(140,160,180,0.8)',
-        fontSize: 12,
-        fontFamily: 'Huninn, sans-serif'
-      })
+      style: STYLE_STATS_LABEL
     });
     lbl.anchor.set(0, 0.5);
     lbl.position.set(panelX + pad, y + lineH / 2);
@@ -320,7 +312,7 @@ function _updateStatsPanel(s) {
 // ── Hearts ────────────────────────────────────────────────────
 
 function _updateHearts(s) {
-  dom.heartsRow.removeChildren().forEach(c => c.destroy());
+  clearContainer(dom.heartsRow);
 
   const filled    = s.player.lives;
   const removedWt = s.playerRemovedWalls || 0;
@@ -356,7 +348,7 @@ function _updateHearts(s) {
 // ── Shields ───────────────────────────────────────────────────
 
 function _updateShields(s) {
-  dom.shieldsRow.removeChildren().forEach(c => c.destroy());
+  clearContainer(dom.shieldsRow);
   const count = s.upgrades?.shield || 0;
   if (count <= 0) return;
 
@@ -477,11 +469,12 @@ function _buildUpgradePanel(container, upgrades, startY, theme) {
   const panelH = rows * ROW_H + PAD_Y * 2;
   const panelX = VW - panelW;
 
-  const bg = new Graphics();
-  bg.rect(0, 0, panelW, panelH)
-    .fill({ color: theme.bgColor, alpha: theme.bgAlpha })
-    .stroke({ color: theme.strokeColor, alpha: 0.6, width: 1 });
-  bg.position.set(panelX, startY);
+  const bg = createPanel({
+    x: panelX, y: startY,
+    width: panelW, height: panelH,
+    bgColor: theme.bgColor, bgAlpha: theme.bgAlpha,
+    strokeColor: theme.strokeColor, strokeAlpha: 0.6, strokeWidth: 1
+  });
   container.addChild(bg);
 
   for (let i = 0; i < upgrades.length; i++) {
@@ -526,7 +519,7 @@ function _buildUpgradePanel(container, upgrades, startY, theme) {
 // ── Weapon slots ──────────────────────────────────────────────
 
 function _updateWeaponSlots(s) {
-  dom.weaponPanel.removeChildren().forEach(c => c.destroy());
+  clearContainer(dom.weaponPanel);
 
   const SLOT  = 44, SGAP = 6, PAD = 8, LABEL_H = 14;
   const totalH = SLOT + LABEL_H + PAD * 2;
@@ -536,11 +529,12 @@ function _updateWeaponSlots(s) {
   const panelX  = MARGIN;
   const panelY  = VH - totalH - MARGIN;
 
-  const bg = new Graphics();
-  bg.rect(0, 0, totalW, totalH)
-    .fill({ color: 0x050a0f, alpha: 0.75 })
-    .stroke({ color: 0x1a3a5c, alpha: 0.7, width: 1 });
-  bg.position.set(panelX, panelY);
+  const bg = createPanel({
+    x: panelX, y: panelY,
+    width: totalW, height: totalH,
+    bgColor: UI_COLORS.BG_DARK, bgAlpha: 0.75,
+    strokeColor: UI_COLORS.STROKE_DEFAULT, strokeAlpha: 0.7, strokeWidth: 1
+  });
   dom.weaponPanel.addChild(bg);
 
   for (let i = 0; i < maxSlots; i++) {
@@ -549,10 +543,15 @@ function _updateWeaponSlots(s) {
     const wId    = s.weaponSlots[i];
     const active = i === s.activeSlot;
 
-    const slotBg = new Graphics();
-    slotBg.rect(sx, sy, SLOT, SLOT)
-      .fill({ color: active ? 0x00b4ff : 0x000000, alpha: active ? 0.12 : 0.3 })
-      .stroke({ color: active ? 0x00d4ff : 0x1a3a5c, alpha: 0.9, width: active ? 1.5 : 1 });
+    const slotBg = createPanel({
+      x: sx, y: sy,
+      width: SLOT, height: SLOT,
+      bgColor: active ? UI_COLORS.CYAN : 0x000000,
+      bgAlpha: active ? 0.12 : 0.3,
+      strokeColor: active ? UI_COLORS.CYAN : UI_COLORS.STROKE_DEFAULT,
+      strokeAlpha: 0.9,
+      strokeWidth: active ? 1.5 : 1
+    });
     dom.weaponPanel.addChild(slotBg);
 
     if (wId) {
@@ -593,7 +592,7 @@ const HINTS = [
 ];
 
 function _buildHintsPanel() {
-  dom.hintsPanel.removeChildren().forEach(c => c.destroy());
+  clearContainer(dom.hintsPanel);
 
   const ICON   = 24, GAP = 8, LABEL_H = 12;
   const PAD_X  = 20, PAD_Y = 6;
@@ -609,11 +608,12 @@ function _buildHintsPanel() {
   const panelX = VW - totalW - MARGIN_R;
   const panelY = VH - totalH - weaponPanelH - 4;
 
-  const bg = new Graphics();
-  bg.rect(0, 0, totalW, totalH)
-    .fill({ color: 0x050a0f, alpha: 0.65 })
-    .stroke({ color: 0x1a3a5c, alpha: 0.55, width: 1 });
-  bg.position.set(panelX, panelY);
+  const bg = createPanel({
+    x: panelX, y: panelY,
+    width: totalW, height: totalH,
+    bgColor: UI_COLORS.BG_DARK, bgAlpha: 0.65,
+    strokeColor: UI_COLORS.STROKE_DEFAULT, strokeAlpha: 0.55, strokeWidth: 1
+  });
   dom.hintsPanel.addChild(bg);
 
   for (let i = 0; i < HINTS.length; i++) {
@@ -642,10 +642,12 @@ function _buildHintsPanel() {
       else if (alias.includes('left')) keyText = 'LMB';
       else if (alias.includes('right')) keyText = 'RMB';
 
-      const g = new Graphics();
-      g.rect(ix, iy, ICON, ICON)
-        .fill({ color: 0x1a3a5c, alpha: 0.8 })
-        .stroke({ color: 0x00d4ff, alpha: 0.9, width: 1 });
+      const g = createPanel({
+        x: ix, y: iy,
+        width: ICON, height: ICON,
+        bgColor: UI_COLORS.STROKE_DEFAULT, bgAlpha: 0.8,
+        strokeColor: UI_COLORS.CYAN, strokeAlpha: 0.9, strokeWidth: 1
+      });
       dom.hintsPanel.addChild(g);
 
       const txt = new Text({
@@ -672,16 +674,18 @@ function _buildHintsPanel() {
 // ── Pickup hint (F key) ──────────────────────────────────────
 
 function _buildPickupHint() {
-  dom.pickupHint.removeChildren().forEach(c => c.destroy());
+  clearContainer(dom.pickupHint);
 
   const KEY_SIZE = 28, GAP = 6;
   const panelW = KEY_SIZE + 80;
   const panelH = KEY_SIZE + 10;
 
-  const bg = new Graphics();
-  bg.rect(0, 0, panelW, panelH)
-    .fill({ color: 0x050a0f, alpha: 0.75 })
-    .stroke({ color: 0x2a5a8c, alpha: 0.8, width: 1 });
+  const bg = createPanel({
+    x: 0, y: 0,
+    width: panelW, height: panelH,
+    bgColor: UI_COLORS.BG_DARK, bgAlpha: 0.75,
+    strokeColor: 0x2a5a8c, strokeAlpha: 0.8, strokeWidth: 1
+  });
   dom.pickupHint.addChild(bg);
 
   // Key icon
@@ -711,24 +715,27 @@ function _setPickupHintText(text) {
 // ── Boss summon hint (Space key) ──────────────────────────────
 
 function _buildBossSummonHint() {
-  dom.bossSummonHint.removeChildren().forEach(c => c.destroy());
+  clearContainer(dom.bossSummonHint);
 
   const KEY_SIZE = 28, GAP = 6;
   const panelW = KEY_SIZE + 100;
   const panelH = KEY_SIZE + 10;
 
-  const bg = new Graphics();
-  bg.rect(0, 0, panelW, panelH)
-    .fill({ color: 0x050a0f, alpha: 0.75 })
-    .stroke({ color: 0xff6600, alpha: 0.8, width: 1 });
+  const bg = createPanel({
+    x: 0, y: 0,
+    width: panelW, height: panelH,
+    bgColor: UI_COLORS.BG_DARK, bgAlpha: 0.75,
+    strokeColor: 0xff6600, strokeAlpha: 0.8, strokeWidth: 1
+  });
   dom.bossSummonHint.addChild(bg);
 
   // Space key icon (draw as rectangle with text)
-  const keyBg = new Graphics();
-  keyBg.rect(0, 0, KEY_SIZE, KEY_SIZE)
-    .fill({ color: 0x1a3a5c, alpha: 0.8 })
-    .stroke({ color: 0x00d4ff, alpha: 0.9, width: 1 });
-  keyBg.position.set(5, 5);
+  const keyBg = createPanel({
+    x: 5, y: 5,
+    width: KEY_SIZE, height: KEY_SIZE,
+    bgColor: UI_COLORS.STROKE_DEFAULT, bgAlpha: 0.8,
+    strokeColor: UI_COLORS.CYAN, strokeAlpha: 0.9, strokeWidth: 1
+  });
   dom.bossSummonHint.addChild(keyBg);
 
   const keyLbl = new Text({ text: 'SPC', style: new TextStyle({
@@ -759,7 +766,7 @@ function _buildBossSummonHint() {
 // ── Boss HP bar (top center) ───────────────────────────────────
 
 function _buildBossHpBar() {
-  dom.bossHpBar.removeChildren().forEach(c => c.destroy());
+  clearContainer(dom.bossHpBar);
 
   const BAR_W = 400;
   const BAR_H = 16;
@@ -767,11 +774,12 @@ function _buildBossHpBar() {
   const Y = 20;
 
   // Background (dark red)
-  const bg = new Graphics();
-  bg.rect(0, 0, BAR_W, BAR_H)
-    .fill({ color: 0x331111, alpha: 0.9 })
-    .stroke({ color: 0x662222, alpha: 0.8, width: 1 });
-  bg.position.set(X, Y);
+  const bg = createPanel({
+    x: X, y: Y,
+    width: BAR_W, height: BAR_H,
+    bgColor: 0x331111, bgAlpha: 0.9,
+    strokeColor: 0x662222, strokeAlpha: 0.8, strokeWidth: 1
+  });
   bg.label = 'boss-hp-bg';
   dom.bossHpBar.addChild(bg);
 
@@ -853,12 +861,15 @@ export function updateFps(fps) {
 let _nextLevelCallback = null;
 
 function _buildLevelComplete() {
-  dom.levelComplete.removeChildren().forEach(c => c.destroy());
+  clearContainer(dom.levelComplete);
 
   // Semi-transparent background
-  const bg = new Graphics();
-  bg.rect(0, 0, VW, VH)
-    .fill({ color: 0x040a04, alpha: 0.88 });
+  const bg = createPanel({
+    x: 0, y: 0,
+    width: VW, height: VH,
+    bgColor: 0x040a04, bgAlpha: 0.88,
+    strokeWidth: 0
+  });
   dom.levelComplete.addChild(bg);
 
   // Title
@@ -890,11 +901,12 @@ function _buildLevelComplete() {
   const btnX = (VW - btnW) / 2;
   const btnY = VH / 2 + 60;
 
-  const btnBg = new Graphics();
-  btnBg.rect(0, 0, btnW, btnH)
-    .fill({ color: 0x00d4ff, alpha: 0.2 })
-    .stroke({ color: 0x00d4ff, alpha: 0.8, width: 2 });
-  btnBg.position.set(btnX, btnY);
+  const btnBg = createPanel({
+    x: btnX, y: btnY,
+    width: btnW, height: btnH,
+    bgColor: UI_COLORS.CYAN, bgAlpha: 0.2,
+    strokeColor: UI_COLORS.CYAN, strokeAlpha: 0.8, strokeWidth: 2
+  });
   btnBg.label = 'level-complete-btn-bg';
   btnBg.eventMode = 'static';
   btnBg.cursor = 'pointer';
