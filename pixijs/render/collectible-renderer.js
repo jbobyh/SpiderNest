@@ -59,7 +59,7 @@ export function syncCollectibles(state) {
   const everRevealedCells = (!inBattle) ? state.everRevealedCells : new Set();
 
   _syncHearts       (state.hearts         || []);
-  _syncChests       (state.chestObjs      || [], openCells, everRevealedCells);
+  _syncSpatialChests(state.spatialChests  || [], openCells, everRevealedCells);
   _syncUpgradeChests(state.upgradeChests  || [], openCells, everRevealedCells);
   _syncWeapons      (state.droppedWeapons || [], openCells, everRevealedCells);
   _syncSphere       (state.summonSphere);
@@ -94,11 +94,11 @@ function _syncHearts(hearts) {
   }
 }
 
-// ── Cursed Chests ────────────────────────────────────────────
+// ── Spatial Chests ───────────────────────────────────────────
 
-const CHEST_SIZE = 30;
+const SPATIAL_CHEST_SIZE = 30;
 
-function _syncChests(chests, openCells, everRevealedCells) {
+function _syncSpatialChests(chests, openCells, everRevealedCells) {
   const alive = new Set();
   for (const c of chests) {
     if (c.collected || c.spawned === false) continue;
@@ -107,13 +107,13 @@ function _syncChests(chests, openCells, everRevealedCells) {
     const ck = cellKey(cc.x, cc.y);
     const isVisible = openCells?.has(ck) || everRevealedCells?.has(ck);
     if (!isVisible) continue;
-    const k = c.cellKey ?? c.originalCellKey ?? `c:${Math.round(c.x)},${Math.round(c.y)}`;
+    const k = c.cellKey ?? c.originalCellKey ?? `sc:${Math.round(c.x)},${Math.round(c.y)}`;
     alive.add(k);
     if (!_chests.has(k)) {
       const tex = Assets.get('cursed-chest');
       const spr = new Sprite(tex ?? Texture.WHITE);
       spr.anchor.set(0.5);
-      spr.width = spr.height = CHEST_SIZE;
+      spr.width = spr.height = SPATIAL_CHEST_SIZE;
       // No tint - use natural cursed chest texture
       _layer.addChild(spr);
       _chests.set(k, spr);

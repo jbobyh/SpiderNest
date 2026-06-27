@@ -249,7 +249,7 @@ const LEVEL_CONFIG = {
     content: {
       weapons: 1,
       upgrades: 4,
-      cursed: 1,
+      cursed: 3,
       bonuses: 3,
       hearts: 1,
       enemyRoomPercent: 0.4
@@ -286,7 +286,7 @@ const LEVEL_CONFIG = {
 // Legacy counts (can be removed once refactoring is complete, but keeping for now if needed elsewhere)
 const LEVEL_WEAPON_COUNTS  = { 1: 1, 2: 2, 3: 2 };
 const LEVEL_UPGRADE_COUNTS = { 1: 4, 2: 10, 3: 16 };
-const LEVEL_CHEST_COUNTS   = { 1: 1, 2: 2, 3: 3 };
+const LEVEL_CHEST_COUNTS   = { 1: 3, 2: 2, 3: 3 };
 const LEVEL_ROOM_BONUS_COUNTS = { 1: 3, 2: 3, 3: 3 };
 
 // ============================================================
@@ -731,6 +731,237 @@ const CURSED_UPGRADE_TYPES = [
     icon: '🎯',
     effects: { sniper: true }
   },
+];
+
+// ============================================================
+// SPATIAL UPGRADE TYPES (пространственные бонусы)
+// Бинарные бонусы (либо есть, либо нет). 
+// Взаимоисключающие по оси source (комнаты vs сердца).
+// ============================================================
+const SPATIAL_UPGRADE_TYPES = [
+  // RELOAD SPEED AXIS (+10%)
+  {
+    id: 'spatialReloadRooms',
+    type: 'additive',
+    axis: 'reload',
+    source: 'rooms',
+    blocks: 'spatialReloadHearts',
+    label: 'Пространственный ритм',
+    description: 'Скорость перезарядки +10% за каждую открытую комнату.',
+    color: '#00d4ff',
+    max: 1,
+    icon: '🔄',
+    effects: { reloadPerRoom: 0.10 }
+  },
+  {
+    id: 'spatialReloadHearts',
+    type: 'additive',
+    axis: 'reload',
+    source: 'hearts',
+    blocks: 'spatialReloadRooms',
+    label: 'Сердечный ритм',
+    description: 'Скорость перезарядки +10% за каждое сердце.',
+    color: '#ff4444',
+    max: 1,
+    icon: '❤️',
+    effects: { reloadPerHeart: 0.10 }
+  },
+  
+  // RANGE AXIS (+20%)
+  {
+    id: 'spatialRangeRooms',
+    type: 'additive',
+    axis: 'range',
+    source: 'rooms',
+    blocks: 'spatialRangeHearts',
+    label: 'Дальние горизонты',
+    description: 'Дальность стрельбы +20% за каждую открытую комнату.',
+    color: '#ffff44',
+    max: 1,
+    icon: '🔭',
+    effects: { rangePerRoom: 0.20 }
+  },
+  {
+    id: 'spatialRangeHearts',
+    type: 'additive',
+    axis: 'range',
+    source: 'hearts',
+    blocks: 'spatialRangeRooms',
+    label: 'Жизненная дистанция',
+    description: 'Дальность стрельбы +20% за каждое сердце.',
+    color: '#ff8800',
+    max: 1,
+    icon: '🏹',
+    effects: { rangePerHeart: 0.20 }
+  },
+  
+  // ACCURACY AXIS (+20%)
+  {
+    id: 'spatialAccuracyRooms',
+    type: 'additive',
+    axis: 'accuracy',
+    source: 'rooms',
+    blocks: 'spatialAccuracyHearts',
+    label: 'Геометрическая точность',
+    description: 'Точность +20% за каждую открытую комнату.',
+    color: '#44ff44',
+    max: 1,
+    icon: '📐',
+    effects: { accuracyPerRoom: 0.20 }
+  },
+  {
+    id: 'spatialAccuracyHearts',
+    type: 'additive',
+    axis: 'accuracy',
+    source: 'hearts',
+    blocks: 'spatialAccuracyRooms',
+    label: 'Интуитивная точность',
+    description: 'Точность +20% за каждое сердце.',
+    color: '#ff00ff',
+    max: 1,
+    icon: '👁️',
+    effects: { accuracyPerHeart: 0.20 }
+  },
+
+  // BULLET SPEED AXIS (+20%)
+  {
+    id: 'spatialBulletSpeedRooms',
+    type: 'additive',
+    axis: 'bulletSpeed',
+    source: 'rooms',
+    blocks: 'spatialBulletSpeedHearts',
+    label: 'Пространственное ускорение',
+    description: 'Скорость пули +20% за каждую открытую комнату.',
+    color: '#00ffff',
+    max: 1,
+    icon: '⚡',
+    effects: { bulletSpeedPerRoom: 0.20 }
+  },
+  {
+    id: 'spatialBulletSpeedHearts',
+    type: 'additive',
+    axis: 'bulletSpeed',
+    source: 'hearts',
+    blocks: 'spatialBulletSpeedRooms',
+    label: 'Сердечное ускорение',
+    description: 'Скорость пули +20% за каждое сердце.',
+    color: '#ff6666',
+    max: 1,
+    icon: '🚀',
+    effects: { bulletSpeedPerHeart: 0.20 }
+  },
+
+  // SPEED AXIS (+10%)
+  {
+    id: 'spatialSpeedRooms',
+    type: 'additive',
+    axis: 'speed',
+    source: 'rooms',
+    blocks: 'spatialSpeedHearts',
+    label: 'Пространственный маневр',
+    description: 'Скорость бега +10% за каждую открытую комнату.',
+    color: '#66ff66',
+    max: 1,
+    icon: '🏃',
+    effects: { speedPerRoom: 0.10 }
+  },
+  {
+    id: 'spatialSpeedHearts',
+    type: 'additive',
+    axis: 'speed',
+    source: 'hearts',
+    blocks: 'spatialSpeedRooms',
+    label: 'Сердечный маневр',
+    description: 'Скорость бега +10% за каждое сердце.',
+    color: '#ff66ff',
+    max: 1,
+    icon: '💨',
+    effects: { speedPerHeart: 0.10 }
+  },
+
+  // CRIT CHANCE AXIS (+5%)
+  {
+    id: 'spatialCritChanceRooms',
+    type: 'additive',
+    axis: 'critChance',
+    source: 'rooms',
+    blocks: 'spatialCritChanceHearts',
+    label: 'Пространственный фокус',
+    description: 'Шанс крита +5% за каждую открытую комнату.',
+    color: '#ffcc00',
+    max: 1,
+    icon: '🎯',
+    effects: { critChancePerRoom: 0.05 }
+  },
+  {
+    id: 'spatialCritChanceHearts',
+    type: 'additive',
+    axis: 'critChance',
+    source: 'hearts',
+    blocks: 'spatialCritChanceRooms',
+    label: 'Сердечный фокус',
+    description: 'Шанс крита +5% за каждое сердце.',
+    color: '#ff3300',
+    max: 1,
+    icon: '💥',
+    effects: { critChancePerHeart: 0.05 }
+  },
+
+  // CRIT DAMAGE AXIS (+50%)
+  {
+    id: 'spatialCritDamageRooms',
+    type: 'additive',
+    axis: 'critDamage',
+    source: 'rooms',
+    blocks: 'spatialCritDamageHearts',
+    label: 'Пространственная мощь',
+    description: 'Крит урон +50% за каждую открытую комнату.',
+    color: '#ccff00',
+    max: 1,
+    icon: '🔱',
+    effects: { critDamagePerRoom: 0.50 }
+  },
+  {
+    id: 'spatialCritDamageHearts',
+    type: 'additive',
+    axis: 'critDamage',
+    source: 'hearts',
+    blocks: 'spatialCritDamageRooms',
+    label: 'Сердечная мощь',
+    description: 'Крит урон +50% за каждое сердце.',
+    color: '#990000',
+    max: 1,
+    icon: '🩸',
+    effects: { critDamagePerHeart: 0.50 }
+  },
+
+  // PENETRATION AXIS (+1)
+  {
+    id: 'spatialPenetrateRooms',
+    type: 'additive',
+    axis: 'penetrate',
+    source: 'rooms',
+    blocks: 'spatialPenetrateHearts',
+    label: 'Пространственный прокол',
+    description: 'Пуля пробивает 1 врага за каждую открытую комнату.',
+    color: '#cc00ff',
+    max: 1,
+    icon: '🗡️',
+    effects: { penetratePerRoom: 1 }
+  },
+  {
+    id: 'spatialPenetrateHearts',
+    type: 'additive',
+    axis: 'penetrate',
+    source: 'hearts',
+    blocks: 'spatialPenetrateRooms',
+    label: 'Сердечный прокол',
+    description: 'Пуля пробивает 1 врага за каждое сердце.',
+    color: '#ff0066',
+    max: 1,
+    icon: '💉',
+    effects: { penetratePerHeart: 1 }
+  }
 ];
 
 // ============================================================

@@ -20,7 +20,7 @@ import {
 import { setBodyVelocity, setPlayerDashing } from '../world/physics.js';
 import { bulletManager } from '../game/bullet-manager.js';
 import {
-  shoot, pickupWeapon, enemyBulletRange, ENEMY_BULLET_COLOR,
+  shoot, pickupWeapon, enemyBulletRange, ENEMY_BULLET_COLOR, getSpatialBonus,
 } from '../game/combat.js';
 import { updateEnemyAI } from '../game/enemy-ai.js';
 import { handleBossKilled, applyFreezeUpgrade } from '../game/boss.js';
@@ -28,7 +28,7 @@ import { dealPlayerDamage } from '../game/upgrades.js';
 import {
   updateCollectibles, checkAltarActivation, isNearAltar,
   checkUpgradeChestActivation, isNearUpgradeChest,
-  checkCursedChestActivation, isNearCursedChest,
+  checkSpatialChestActivation, isNearSpatialChest,
   checkRoomBonusAltarActivation, isNearRoomBonusAltar,
 } from '../game/collectibles.js';
 import { tickUpgradePopupTimer, hideUpgradePopup } from '../game/upgrades.js';
@@ -122,8 +122,8 @@ export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}
       if (onEnterBattle) onEnterBattle(ck);
     });
 
-    // Cursed chest check
-    checkCursedChestActivation(state, interactTriggered, (ck) => {
+    // Spatial chest check
+    checkSpatialChestActivation(state, interactTriggered, (ck) => {
       if (onEnterBattle) onEnterBattle(ck);
     });
 
@@ -223,7 +223,8 @@ function _getActiveWeapon(state) {
 }
 
 function _stepMovement(state, dt) {
-  let spd = CONFIG.PLAYER_SPEED * state.upgrades.speedMult;
+  const spatialSpeed = (typeof getSpatialBonus !== 'undefined') ? getSpatialBonus(state, 'speed') : 0;
+  let spd = CONFIG.PLAYER_SPEED * state.upgrades.speedMult * (1 + spatialSpeed);
 
   // Apply room bonus speed modifier
   const playerCell = cellOf(state.player.x, state.player.y);
@@ -443,7 +444,7 @@ export function handleWeaponPickup(state, playerProgress, triggered) {
 
 // ── Re-export proximity checks for game-loop ──────────────────────
 
-export { isNearAltar, isNearUpgradeChest, isNearCursedChest, isNearRoomBonusAltar };
+export { isNearAltar, isNearUpgradeChest, isNearSpatialChest, isNearRoomBonusAltar };
 
 // ── Check if player is near a weapon (for HUD hint) ──────────
 
