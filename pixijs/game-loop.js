@@ -50,6 +50,9 @@ import {
 import {
   initTooltip, updateTooltip, destroyTooltip,
 } from './render/tooltip.js';
+import {
+  initLighting, updateLighting, destroyLighting, forceLightingUpdate,
+} from './render/lighting.js';
 import { initInput, destroyInput } from './core/input.js';
 import { Sounds }               from './core/sound.js';
 import {
@@ -141,6 +144,9 @@ export function startGameLoop({
   _state._ff_scy         = -1;
   _state.blockedSubNodes = new Set();
 
+  // Cache wall segments for lighting
+  _state._wallSegments = null;
+
   // Renderer init
   _camera = new Camera();
   initLayers(_camera);
@@ -153,6 +159,7 @@ export function startGameLoop({
   initHud(layers.hud);
   initOverlay(layers.hud);
   initTooltip(layers.hud);
+  initLighting(layers.lighting);
 
   // Tile layer for current level
   const _tileData0 = {
@@ -174,7 +181,8 @@ export function startGameLoop({
     roomBonusAltars:     _state.roomBonusAltars,
   };
   buildTileLayer(layers.tiles, _tileData0, _currentLevel);
-  initWall3D(layers.walls3d, extractWallSegments(_tileData0), _camera.worldX, _camera.worldY);
+  _state._wallSegments = extractWallSegments(_tileData0);
+  initWall3D(layers.walls3d, _state._wallSegments, _camera.worldX, _camera.worldY);
   initWallDissolve(layers.walls3d);
   setWallOpenCallback((wk) => startWallDissolve(wk, _camera.worldX, _camera.worldY));
 
@@ -207,6 +215,7 @@ export function stopGameLoop() {
   destroyInput();
   destroyWall3D();
   destroyWallDissolve();
+  destroyLighting();
   destroyPlayerRenderer();
   clearEnemySprites();
   clearBullets();
@@ -381,7 +390,7 @@ function _render(dt) {
     _state.player.x,
   );
 
-  syncBullets(_state.bullets, _state.enemyBullets, layers.entities);
+  syncBullets(_state.bullets, _state.enemyBullets, layers.bullets);
   syncParticles(_state.particles);
   updateAndSyncDamageNumbers(_state, dt, _camera);
   syncCollectibles(_state);
@@ -396,6 +405,9 @@ function _render(dt) {
   updateHud(_state, _currentLevel, nearWeapon, nearAltar, bossSummonReady, nearChest, nearCursedChest, nearRoomBonusAltar);
   updateWall3D(_camera.worldX, _camera.worldY);
   updateWallDissolve(dt);
+
+  // Update lighting from player
+  updateLighting(_state.player.x, _state.player.y, _state.removedWalls, _state._wallSegments);
 
   // Update boss HP bar during boss battle
   if (_state.battle?.isBossBattle) {
@@ -441,7 +453,9 @@ function _render(dt) {
       roomBonuses:        _state.roomBonuses,
     };
     buildTileLayer(layers.tiles, _tileDataR, _currentLevel);
-    initWall3D(layers.walls3d, extractWallSegments(_tileDataR), _camera.worldX, _camera.worldY);
+    _state._wallSegments = extractWallSegments(_tileDataR);
+    initWall3D(layers.walls3d, _state._wallSegments, _camera.worldX, _camera.worldY);
+    forceLightingUpdate();
   }
 }
 
@@ -501,7 +515,8 @@ function _onZoomOutComplete(_tr) {
     roomBonuses:        _state.roomBonuses,
   };
   buildTileLayer(layers.tiles, _tileDataZ, _currentLevel);
-  initWall3D(layers.walls3d, extractWallSegments(_tileDataZ), _camera.worldX, _camera.worldY);
+  _state._wallSegments = extractWallSegments(_tileDataZ);
+  initWall3D(layers.walls3d, _state._wallSegments, _camera.worldX, _camera.worldY);
 }
 
 function _onPlayerDead(state, playerProgress) {
