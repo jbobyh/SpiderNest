@@ -249,7 +249,7 @@ const LEVEL_CONFIG = {
     content: {
       weapons: 1,
       upgrades: 4,
-      cursed: 3,
+      cursed: 1,
       bonuses: 3,
       hearts: 1,
       enemyRoomPercent: 0.4
@@ -262,7 +262,7 @@ const LEVEL_CONFIG = {
     content: {
       weapons: 2,
       upgrades: 10,
-      cursed: 2,
+      cursed: 1,
       bonuses: 3,
       hearts: 2,
       enemyRoomPercent: 0.5
@@ -275,7 +275,7 @@ const LEVEL_CONFIG = {
     content: {
       weapons: 2,
       upgrades: 16,
-      cursed: 3,
+      cursed: 1,
       bonuses: 3,
       hearts: 3,
       enemyRoomPercent: 0.6
