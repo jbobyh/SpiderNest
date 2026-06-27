@@ -214,13 +214,13 @@ function _spawnPlayerBullet(state, weapon, angle, bulletSpeed, scale, battleStat
     damage: damage,
     penetrate: basePenetrate,
     ricochet: !!state.upgrades.ricochet,
-    maxRange: _bulletRange(state, weapon, scale),
+    maxRange: getBulletRange(state, weapon, scale),
     color: PLAYER_BULLET_COLOR,
     isCrit: isCrit
   });
 }
 
-function _bulletRange(state, weapon, scale) {
+export function getBulletRange(state, weapon, scale) {
   if (state.upgrades.infiniteRange) return Infinity;
   const RANGE_SCALE = CELL_PX / 10;
   let range = (weapon.range != null

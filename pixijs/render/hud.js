@@ -12,8 +12,12 @@
 // ============================================================
 
 import {
-  Container, Sprite, Texture, Text, TextStyle, Graphics,
+  Container, Sprite, Texture, Text, TextStyle, Graphics, Rectangle,
 } from 'pixi.js';
+import { keys } from '../core/input.js';
+import { getActiveWeapon, getBulletRange, getSpatialBonus } from '../game/combat.js';
+import { getRoomSpeedMultiplier, cellOf, cellKey } from '../world/constants.js';
+import { showTooltip, hideTooltip } from './tooltip.js';
 
 const VW = CONFIG.VIEW_W;
 const VH = CONFIG.VIEW_H;
@@ -35,6 +39,8 @@ const dom = {
   heartsRow:    null,
   shieldsRow:   null,
   upgradePanel: null,
+  spatialPanel: null,
+  cursedPanel:  null,
   weaponPanel:  null,
   hintsPanel:   null,
   pickupHint:   null, // dynamic hint for weapon pickup
@@ -42,6 +48,7 @@ const dom = {
   bossHpBar:    null, // boss HP bar (top center)
   levelComplete: null, // level complete screen overlay
   fpsCounter:   null, // FPS counter (bottom right)
+  statsPanel:   null, // character stats panel (Tab key)
 };
 
 // ── Init ──────────────────────────────────────────────────────
@@ -65,7 +72,16 @@ export function initHud(parentContainer) {
 
   // Upgrade icon panel (top-right)
   dom.upgradePanel = new Container({ label: 'upgrades' });
+  dom.upgradePanel.eventMode = 'static';
   _parent.addChild(dom.upgradePanel);
+
+  dom.spatialPanel = new Container({ label: 'spatial-upgrades' });
+  dom.spatialPanel.eventMode = 'static';
+  _parent.addChild(dom.spatialPanel);
+
+  dom.cursedPanel = new Container({ label: 'cursed-upgrades' });
+  dom.cursedPanel.eventMode = 'static';
+  _parent.addChild(dom.cursedPanel);
 
   // Weapon slots (bottom-left)
   dom.weaponPanel = new Container({ label: 'weapons' });
@@ -105,6 +121,13 @@ export function initHud(parentContainer) {
   dom.fpsCounter.visible = CONFIG.SHOW_FPS === true;
   _parent.addChild(dom.fpsCounter);
 
+  // Stats panel (centered)
+  dom.statsPanel = new Container({ label: 'stats-panel' });
+  dom.statsPanel.visible = false;
+  _parent.addChild(dom.statsPanel);
+
+  _parent.eventMode = 'static';
+
   _buildLevelComplete();
 
   _buildHintsPanel();
@@ -135,8 +158,163 @@ export function updateHud(gameState, currentLevel, nearWeapon = false, nearAltar
     _setPickupHintText(hintText);
   }
 
-  // Show/hide boss summon hint
-  dom.bossSummonHint.visible = bossSummonReady && !showHint;
+  // Stats panel (Tab key)
+  const showStats = keys['tab'];
+  dom.statsPanel.visible = showStats;
+  if (showStats) {
+    _updateStatsPanel(gameState);
+  }
+}
+
+// ── Upgrade State Tracking ────────────────────────────────────
+
+let _lastUpgradesHash = '';
+let _lastMaxSlots = 0;
+
+function _getUpgradesHash(s) {
+  // Create a simple string hash of active upgrades and their levels
+  let hash = '';
+  const upg = s.upgrades;
+  for (const key in upg) {
+    if (upg[key]) hash += `${key}:${upg[key]}|`;
+  }
+  hash += `maxSlots:${s.maxSlots}`;
+  return hash;
+}
+
+// ── Character Stats Panel ─────────────────────────────────────
+
+function _updateStatsPanel(s) {
+  dom.statsPanel.removeChildren().forEach(c => c.destroy({ children: true }));
+
+  const weapon = getActiveWeapon(s);
+  
+  // Accuracy calculation (Spread in degrees)
+  const spatialAccuracy = getSpatialBonus(s, 'accuracy');
+  let totalSpread = (weapon?.spread || 0) * (s.upgrades.spreadMult || 1) * Math.max(0, 1 - spatialAccuracy);
+  
+  if (s.upgrades.sniper) {
+    let roomCount = 1;
+    if (s.battle && s.battle.battleCells && s.rooms) {
+      let participatingRooms = 0;
+      for (const room of s.rooms) {
+        if (room.cells.some(c => s.battle.battleCells.has(c.k))) {
+          participatingRooms++;
+        }
+      }
+      roomCount = participatingRooms;
+    }
+    if (roomCount <= 2) totalSpread = 0;
+    else totalSpread *= (1 + 0.10 * (roomCount - 2));
+  }
+  const spreadDeg = Math.round(totalSpread * (180 / Math.PI));
+
+  // Range calculation
+  const range = Math.round(getBulletRange(s, weapon || WEAPON_DEFS.pistol, 1));
+
+  // Speed calculation
+  const spatialSpeed = getSpatialBonus(s, 'speed');
+  const playerCell = cellOf(s.player.x, s.player.y);
+  const playerCellKey = cellKey(playerCell.x, playerCell.y);
+  const roomSpeedMult = getRoomSpeedMultiplier(s, playerCellKey);
+  const totalSpeed = Math.round(CONFIG.PLAYER_SPEED * s.upgrades.speedMult * (1 + spatialSpeed) * roomSpeedMult);
+
+  // Cooldown calculation
+  const killAccelMult = s.upgrades.killAccel ? Math.max(0.1, 1 - s.upgrades.killAccelPercent / 100) : 1.0;
+  const spatialReload = getSpatialBonus(s, 'reload');
+  const cooldown = (weapon?.cooldown || 0.4) * s.upgrades.cooldownMult * killAccelMult * Math.max(0.1, 1 - spatialReload);
+
+  // Damage calculation
+  const spatialCritChance = getSpatialBonus(s, 'critChance');
+  const critChance = (s.upgrades.critChance + spatialCritChance);
+  const damage = (weapon?.damage || 2) + s.upgrades.damage;
+
+  const spatialCritDamage = getSpatialBonus(s, 'critDamage');
+  const critMult = 2 + spatialCritDamage;
+
+  // Penetration
+  const spatialPenetrate = getSpatialBonus(s, 'penetrate');
+  const penetrate = s.upgrades.infinitePenetrate ? '∞' : (weapon?.penetrate || 0) + s.upgrades.penetrate + Math.floor(spatialPenetrate);
+
+  // Bullet Speed
+  const spatialBulletSpeed = getSpatialBonus(s, 'bulletSpeed');
+  const bulletSpeed = Math.round((weapon?.bulletSpeed || 300) * s.upgrades.bulletSpeedMult * (1 + spatialBulletSpeed));
+
+  const rows = [
+    { label: 'ЖИЗНИ', value: `${s.player.lives}`, color: 0xff4444 },
+    { label: 'СКОРОСТЬ БЕГА', value: `${totalSpeed}`, color: 0x44ff88 },
+    { label: 'УРОН ПУЛИ', value: `${damage}`, color: 0xff8800 },
+    { label: 'ШАНС КРИТА', value: `${Math.round(critChance * 100)}%`, color: 0xff0000 },
+    { label: 'КРИТ УРОН', value: `x${critMult.toFixed(1)}`, color: 0xff4400 },
+    { label: 'ПУЛЬ ЗА ВЫСТРЕЛ', value: `${(weapon?.pellets || 1) + s.upgrades.pellets}`, color: 0x00d4ff },
+    { label: 'ТОЧНОСТЬ', value: spreadDeg === 0 ? 'Идеальная' : `±${spreadDeg}°`, color: 0xff66aa },
+    { label: 'ДАЛЬНОСТЬ ПУЛИ', value: `${range}`, color: 0x88ff44 },
+    { label: 'ПРОБИТИЕ ВРАГОВ', value: `${penetrate}`, color: 0xaa44ff },
+    { label: 'СКОРОСТЬ ПУЛИ', value: `${bulletSpeed}`, color: 0xffff44 },
+    { label: 'ПЕРЕЗАРЯДКА', value: `${cooldown.toFixed(2)}с`, color: 0x00ccff },
+  ];
+
+  if (s.upgrades.shield > 0) rows.push({ label: 'ЩИТЫ', value: `${s.upgrades.shield}`, color: 0x00aaff });
+  if (s.upgrades.killAccel) rows.push({ label: 'РАЗГОН ПЕРЕЗАРЯДКИ', value: `${s.upgrades.killAccelPercent.toFixed(1)}%`, color: 0xff8800 });
+
+  const panelW = 280;
+  const lineH = 22;
+  const pad = 16;
+  const panelH = pad * 2 + rows.length * lineH + 24;
+  const panelX = (VW - panelW) / 2;
+  const panelY = (VH - panelH) / 2;
+
+  // Background
+  const bg = new Graphics();
+  bg.roundRect(panelX, panelY, panelW, panelH, 12)
+    .fill({ color: 0x080c14, alpha: 0.95 })
+    .stroke({ color: 0x00d4ff, alpha: 0.6, width: 2 });
+  dom.statsPanel.addChild(bg);
+
+  // Title
+  const title = new Text({
+    text: 'ХАРАКТЕРИСТИКИ',
+    style: new TextStyle({
+      fill: '#00d4ff',
+      fontSize: 16,
+      fontFamily: 'Orbitron, sans-serif',
+      fontWeight: 'bold'
+    })
+  });
+  title.anchor.set(0.5, 0);
+  title.position.set(panelX + panelW / 2, panelY + pad);
+  dom.statsPanel.addChild(title);
+
+  // Rows
+  let y = panelY + pad + 28;
+  for (const row of rows) {
+    const lbl = new Text({
+      text: row.label,
+      style: new TextStyle({
+        fill: 'rgba(140,160,180,0.8)',
+        fontSize: 12,
+        fontFamily: 'Huninn, sans-serif'
+      })
+    });
+    lbl.anchor.set(0, 0.5);
+    lbl.position.set(panelX + pad, y + lineH / 2);
+    dom.statsPanel.addChild(lbl);
+
+    const val = new Text({
+      text: row.value,
+      style: new TextStyle({
+        fill: row.color,
+        fontSize: 14,
+        fontFamily: 'Orbitron, sans-serif',
+        fontWeight: 'bold'
+      })
+    });
+    val.anchor.set(1, 0.5);
+    val.position.set(panelX + panelW - pad, y + lineH / 2);
+    dom.statsPanel.addChild(val);
+
+    y += lineH;
+  }
 }
 
 // ── Hearts ────────────────────────────────────────────────────
@@ -198,88 +376,151 @@ function _updateShields(s) {
   }
 }
 
-// ── Upgrade icon panel ────────────────────────────────────────
+// ── Upgrade icon panels ──────────────────────────────────────
 
-const UPGRADE_LEVEL_MAP = [
-  { id: 'pellets',       get: u => u.pellets || 0 },
-  { id: 'damage',        get: u => u.damage || 0 },
-  { id: 'penetrate',     get: u => u.penetrate || 0 },
-  { id: 'bulletSpeed',   get: u => u.bulletSpeedMult > 1 ? 1 : 0 },
-  { id: 'critChance',    get: u => u.critChance > 0 ? Math.ceil(u.critChance * 20) : 0 },
-  { id: 'killAccel',     get: u => u.killAccel ? 1 : 0 },
-  { id: 'enhancedPierce',get: u => u.enhancedPierce ? 1 : 0 },
-  { id: 'shield',        get: u => u.shield || 0 },
-  { id: 'retreat',       get: u => u.retreat > 0 ? 1 : 0 },
-  { id: 'reflection',    get: u => u.reflection ? 1 : 0 },
-  { id: 'cooldown',      get: u => u.cooldownMult < 1 ? Math.ceil((1 - u.cooldownMult) * 6.67) : 0 },
-  { id: 'speed',         get: u => u.speedMult > 1 ? Math.ceil((u.speedMult - 1) * 10) : 0 },
-  // Spatial Upgrades
-  { id: 'spatialReloadRooms',   get: u => u.spatialReloadRooms ? 1 : 0 },
-  { id: 'spatialReloadHearts',  get: u => u.spatialReloadHearts ? 1 : 0 },
-  { id: 'spatialRangeRooms',    get: u => u.spatialRangeRooms ? 1 : 0 },
-  { id: 'spatialRangeHearts',   get: u => u.spatialRangeHearts ? 1 : 0 },
-  { id: 'spatialAccuracyRooms', get: u => u.spatialAccuracyRooms ? 1 : 0 },
-  { id: 'spatialAccuracyHearts',get: u => u.spatialAccuracyHearts ? 1 : 0 },
-  { id: 'spatialBulletSpeedRooms',  get: u => u.spatialBulletSpeedRooms ? 1 : 0 },
-  { id: 'spatialBulletSpeedHearts', get: u => u.spatialBulletSpeedHearts ? 1 : 0 },
-  { id: 'spatialSpeedRooms',    get: u => u.spatialSpeedRooms ? 1 : 0 },
-  { id: 'spatialSpeedHearts',   get: u => u.spatialSpeedHearts ? 1 : 0 },
-  { id: 'spatialCritChanceRooms',   get: u => u.spatialCritChanceRooms ? 1 : 0 },
-  { id: 'spatialCritChanceHearts',  get: u => u.spatialCritChanceHearts ? 1 : 0 },
-  { id: 'spatialCritDamageRooms',   get: u => u.spatialCritDamageRooms ? 1 : 0 },
-  { id: 'spatialCritDamageHearts',  get: u => u.spatialCritDamageHearts ? 1 : 0 },
-  { id: 'spatialPenetrateRooms',    get: u => u.spatialPenetrateRooms ? 1 : 0 },
-  { id: 'spatialPenetrateHearts',   get: u => u.spatialPenetrateHearts ? 1 : 0 },
+const REGULAR_UPGRADE_IDS = [
+  'pellets', 'damage', 'penetrate', 'bulletSpeed', 'critChance',
+  'killAccel', 'enhancedPierce', 'shield', 'retreat', 'reflection',
+  'cooldown', 'speed'
 ];
 
 function _updateUpgrades(s) {
-  dom.upgradePanel.removeChildren().forEach(c => c.destroy());
+  const newHash = _getUpgradesHash(s);
+  if (newHash === _lastUpgradesHash) return;
+  _lastUpgradesHash = newHash;
+
+  dom.upgradePanel.removeChildren().forEach(c => c.destroy({ children: true }));
+  dom.spatialPanel.removeChildren().forEach(c => c.destroy({ children: true }));
+  dom.cursedPanel.removeChildren().forEach(c => c.destroy({ children: true }));
+
   if (!s.upgrades || !UPGRADE_TYPES) return;
 
+  // 1. Regular Upgrades
+  const activeRegular = [];
+  for (const upg of UPGRADE_TYPES) {
+    if (!REGULAR_UPGRADE_IDS.includes(upg.id)) continue;
+    let level = 0;
+    if (upg.id === 'pellets') level = s.upgrades.pellets || 0;
+    else if (upg.id === 'damage') level = s.upgrades.damage || 0;
+    else if (upg.id === 'penetrate') level = s.upgrades.penetrate || 0;
+    else if (upg.id === 'bulletSpeed') level = s.upgrades.bulletSpeedMult > 1 ? 1 : 0;
+    else if (upg.id === 'critChance') level = s.upgrades.critChance > 0 ? Math.ceil(s.upgrades.critChance * 20) : 0;
+    else if (upg.id === 'killAccel') level = s.upgrades.killAccel ? 1 : 0;
+    else if (upg.id === 'enhancedPierce') level = s.upgrades.enhancedPierce ? 1 : 0;
+    else if (upg.id === 'shield') level = s.upgrades.shield || 0;
+    else if (upg.id === 'retreat') level = s.upgrades.retreat > 0 ? 1 : 0;
+    else if (upg.id === 'reflection') level = s.upgrades.reflection ? 1 : 0;
+    else if (upg.id === 'cooldown') level = s.upgrades.cooldownMult < 1 ? Math.ceil((1 - s.upgrades.cooldownMult) * 6.67) : 0;
+    else if (upg.id === 'speed') level = s.upgrades.speedMult > 1 ? Math.ceil((s.upgrades.speedMult - 1) * 10) : 0;
+    
+    if (level > 0) {
+      activeRegular.push({ ...upg, level: Math.min(level, upg.max || 1) });
+    }
+  }
+
+  // 2. Spatial Upgrades
+  const activeSpatial = [];
+  const spatialPool = (typeof SPATIAL_UPGRADE_TYPES !== 'undefined') ? SPATIAL_UPGRADE_TYPES : [];
+  for (const upg of spatialPool) {
+    if (s.upgrades[upg.id]) {
+      activeSpatial.push({ ...upg, level: 1 });
+    }
+  }
+
+  // 3. Cursed Upgrades
+  const activeCursed = [];
+  const cursedPool = (typeof CURSED_UPGRADE_TYPES !== 'undefined') ? CURSED_UPGRADE_TYPES : [];
+  for (const upg of cursedPool) {
+    let level = 0;
+    const val = s.upgrades[upg.id];
+    if (upg.id === 'weaponSlot') level = s.maxSlots > 1 ? s.maxSlots - 1 : 0;
+    else if (val === true) level = 1;
+    else if (typeof val === 'number' && val > 0) level = val;
+    
+    if (level > 0) {
+      activeCursed.push({ ...upg, level: Math.min(level, upg.max || 1) });
+    }
+  }
+
+  // Build panels and stack them
+  let currentY = 0;
+  const GAP_BETWEEN_PANELS = 4;
+
+  if (activeRegular.length > 0) {
+    currentY += _buildUpgradePanel(dom.upgradePanel, activeRegular, currentY, {
+      bgColor: 0x050a0f, bgAlpha: 0.72, strokeColor: 0x1a3a5c
+    });
+    currentY += GAP_BETWEEN_PANELS;
+  }
+
+  if (activeSpatial.length > 0) {
+    currentY += _buildUpgradePanel(dom.spatialPanel, activeSpatial, currentY, {
+      bgColor: 0x050a0f, bgAlpha: 0.72, strokeColor: 0x1a3a5c
+    });
+    currentY += GAP_BETWEEN_PANELS;
+  }
+
+  if (activeCursed.length > 0) {
+    currentY += _buildUpgradePanel(dom.cursedPanel, activeCursed, currentY, {
+      bgColor: 0x0a0514, bgAlpha: 0.78, strokeColor: 0x7828b4
+    });
+  }
+}
+
+function _buildUpgradePanel(container, upgrades, startY, theme) {
   const ICON = 20, GAP = 4, PER_ROW = 10;
   const PAD_X = 8, PAD_Y = 6, ROW_H = ICON + 4;
 
-  const active = [];
-  for (const { id, get } of UPGRADE_LEVEL_MAP) {
-    const lv = get(s.upgrades);
-    if (lv <= 0) continue;
-    const def = UPGRADE_TYPES.find(u => u.id === id) || (typeof SPATIAL_UPGRADE_TYPES !== 'undefined' ? SPATIAL_UPGRADE_TYPES.find(u => u.id === id) : null);
-    if (def) active.push({ ...def, level: Math.min(lv, def.max || 1) });
-  }
-  if (active.length === 0) return;
-
-  const rows   = Math.ceil(active.length / PER_ROW);
-  const cols   = Math.min(active.length, PER_ROW);
+  const rows = Math.ceil(upgrades.length / PER_ROW);
+  const cols = Math.min(upgrades.length, PER_ROW);
   const panelW = cols * ICON + (cols - 1) * GAP + PAD_X * 2;
   const panelH = rows * ROW_H + PAD_Y * 2;
   const panelX = VW - panelW;
-  const panelY = 0;
 
   const bg = new Graphics();
   bg.rect(0, 0, panelW, panelH)
-    .fill({ color: 0x050a0f, alpha: 0.72 })
-    .stroke({ color: 0x1a3a5c, alpha: 0.6, width: 1 });
-  bg.position.set(panelX, panelY);
-  dom.upgradePanel.addChild(bg);
+    .fill({ color: theme.bgColor, alpha: theme.bgAlpha })
+    .stroke({ color: theme.strokeColor, alpha: 0.6, width: 1 });
+  bg.position.set(panelX, startY);
+  container.addChild(bg);
 
-  for (let i = 0; i < active.length; i++) {
-    const upg = active[active.length - 1 - i]; // latest upgrades in bottom-right
+  for (let i = 0; i < upgrades.length; i++) {
+    const upg = upgrades[upgrades.length - 1 - i]; // latest upgrades in bottom-right
     const col = i % PER_ROW;
     const row = Math.floor(i / PER_ROW);
-    const ix  = panelX + panelW - PAD_X - col * (ICON + GAP) - ICON;
-    const iy  = panelY + panelH - PAD_Y - row * ROW_H - ICON;
+    const ix = panelX + panelW - PAD_X - col * (ICON + GAP) - ICON;
+    const iy = startY + panelH - PAD_Y - row * ROW_H - ICON;
 
-    const iconTxt = new Text({ text: upg.icon, style: new TextStyle({ fill: upg.color, fontSize: ICON, fontFamily: 'sans-serif' }) });
-    iconTxt.position.set(ix, iy);
-    dom.upgradePanel.addChild(iconTxt);
+    const iconCont = new Container();
+    iconCont.position.set(ix, iy);
+    iconCont.eventMode = 'static';
+    iconCont.cursor = 'pointer';
+    // Add hit area to ensure the whole icon is hoverable
+    iconCont.hitArea = new Rectangle(0, 0, ICON, ICON);
+    
+    const iconTxt = new Text({
+      text: upg.icon,
+      style: new TextStyle({ fill: upg.color, fontSize: ICON, fontFamily: 'sans-serif' })
+    });
+    iconCont.addChild(iconTxt);
 
     if (upg.level > 1) {
       const lvlTxt = new Text({ text: String(upg.level), style: STYLE_UPG_LVL });
       lvlTxt.anchor.set(1, 1);
-      lvlTxt.position.set(ix + ICON, iy + ICON);
-      dom.upgradePanel.addChild(lvlTxt);
+      lvlTxt.position.set(ICON, ICON);
+      iconCont.addChild(lvlTxt);
     }
+
+    iconCont.on('pointerover', (e) => {
+      // Use logical coordinates for tooltip positioning (center of icon)
+      showTooltip(ix + ICON / 2, iy + ICON / 2, upg.label, upg.description, upg.color);
+    });
+    iconCont.on('pointerout', () => hideTooltip());
+
+    container.addChild(iconCont);
   }
+
+  return panelH;
 }
 
 // ── Weapon slots ──────────────────────────────────────────────
@@ -345,6 +586,7 @@ function _updateWeaponSlots(s) {
 const HINTS = [
   { alias: 'ctrl-f',     label: 'подобрать' },
   { alias: 'ctrl-shift', label: 'рывок' },
+  { alias: 'ctrl-q',     label: 'оружие' },
   { alias: 'ctrl-tab',   label: 'характ.' },
   { alias: 'mouse-left', label: 'выстрел' },
   { alias: 'mouse-right',label: 'откр/закр' },
@@ -379,12 +621,46 @@ function _buildHintsPanel() {
     const ix = panelX + PAD_X + i * 1.5 * (ICON + GAP);
     const iy = panelY + PAD_Y;
 
+    let iconFound = false;
     try {
-      const spr = new Sprite(Texture.from(alias));
-      spr.width = spr.height = ICON;
-      spr.position.set(ix, iy);
-      dom.hintsPanel.addChild(spr);
+      const tex = Texture.from(alias);
+      if (tex && tex.valid) {
+        const spr = new Sprite(tex);
+        spr.width = spr.height = ICON;
+        spr.position.set(ix, iy);
+        dom.hintsPanel.addChild(spr);
+        iconFound = true;
+      }
     } catch { /* texture not ready */ }
+
+    if (!iconFound) {
+      // Draw text-based icon if texture missing (e.g. for Q)
+      let keyText = 'F';
+      if (alias.includes('q')) keyText = 'Q';
+      else if (alias.includes('tab')) keyText = 'TAB';
+      else if (alias.includes('shift')) keyText = 'SHFT';
+      else if (alias.includes('left')) keyText = 'LMB';
+      else if (alias.includes('right')) keyText = 'RMB';
+
+      const g = new Graphics();
+      g.rect(ix, iy, ICON, ICON)
+        .fill({ color: 0x1a3a5c, alpha: 0.8 })
+        .stroke({ color: 0x00d4ff, alpha: 0.9, width: 1 });
+      dom.hintsPanel.addChild(g);
+
+      const txt = new Text({
+        text: keyText,
+        style: new TextStyle({
+          fill: '#00d4ff',
+          fontSize: 10,
+          fontFamily: 'Huninn, monospace',
+          fontWeight: 'bold',
+        })
+      });
+      txt.anchor.set(0.5, 0.5);
+      txt.position.set(ix + ICON / 2, iy + ICON / 2);
+      dom.hintsPanel.addChild(txt);
+    }
 
     const lbl = new Text({ text: label, style: STYLE_HINT });
     lbl.anchor.set(0.5, 0);

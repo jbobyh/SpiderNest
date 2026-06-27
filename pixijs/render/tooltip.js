@@ -17,6 +17,7 @@ const VH = CONFIG.VIEW_H;
 
 let _hud   = null;
 let _panel = null; // Container with background + text
+let _hoverSource = null; // 'world' or 'hud'
 
 // ── Text styles ───────────────────────────────────────────────
 
@@ -68,49 +69,38 @@ export function updateTooltip(state, camera) {
       if (def) {
         const screenX = (dw.x - camera.worldX) * camera.zoom + VW / 2;
         const screenY = (dw.y - camera.worldY) * camera.zoom + VH / 2;
-        showTooltip(screenX, screenY, def.label, def.description, def.color);
+        showTooltip(screenX, screenY, def.label, def.description, def.color, 'world');
         return;
       }
     }
   }
 
-  hideTooltip();
+  // Only hide if the current tooltip is from the world
+  if (_hoverSource === 'world') {
+    hideTooltip();
+  }
 }
 
-export function showTooltip(screenX, screenY, label, description, color) {
+export function showTooltip(screenX, screenY, label, description, color, source = 'hud') {
   if (!_hud) return;
 
-  const pad = 10;
-  const lineGap = 6;
-  const boxW = 200; // fixed width for simplicity
-  const boxH = 13 + lineGap + 11 + pad * 2;
-
-  let tx = screenX + 18;
-  let ty = screenY - boxH / 2;
-
-  // Keep on screen
-  if (tx + boxW > VW - 4) tx = screenX - boxW - 10;
-  if (ty < 4) ty = 4;
-  if (ty + boxH > VH - 4) ty = VH - 4 - boxH;
+  _hoverSource = source;
 
   if (!_panel) {
     _panel = new Container({ label: 'tooltip' });
+    _panel.eventMode = 'none'; // Ensure clicks pass through the tooltip
     _hud.addChild(_panel);
   }
 
   _panel.removeChildren().forEach(c => c.destroy());
 
-  // Background
-  const bg = new Graphics();
-  bg.rect(0, 0, boxW, boxH)
-    .fill({ color: 0x050a0f, alpha: 0.93 })
-    .stroke({ color: _hexToNum(color), alpha: 1, width: 1.5 });
-  bg.position.set(tx, ty);
-  _panel.addChild(bg);
+  const pad = 10;
+  const lineGap = 6;
+  const boxW = 220;
 
   // Label
   const lbl = new Text({ text: label, style: STYLE_LABEL });
-  lbl.position.set(tx + pad, ty + pad);
+  lbl.position.set(pad, pad);
   _panel.addChild(lbl);
 
   // Description
@@ -119,21 +109,51 @@ export function showTooltip(screenX, screenY, label, description, color) {
     style: STYLE_DESC,
     wordWrap: true,
     wordWrapWidth: boxW - pad * 2,
+    breakWords: true, // Handle long Russian words
   });
-  desc.position.set(tx + pad, ty + pad + 13 + lineGap);
+  
+  const lblBounds = lbl.getLocalBounds();
+  const descBounds = desc.getLocalBounds();
+
+  desc.position.set(pad, pad + lblBounds.height + lineGap);
   _panel.addChild(desc);
+
+  const realH = pad + lblBounds.height + lineGap + descBounds.height + pad;
+  const boxH = Math.max(realH, 40);
+
+  // Background (add at index 0)
+  const bg = new Graphics();
+  bg.rect(0, 0, boxW, boxH)
+    .fill({ color: 0x050a0f, alpha: 0.95 })
+    .stroke({ color: _hexToNum(color), alpha: 1, width: 1.5 });
+  _panel.addChildAt(bg, 0);
+
+  let tx = screenX + 24; // Offset more to the right to avoid overlap with icon
+  let ty = screenY - boxH / 2;
+
+  // Keep on screen
+  if (tx + boxW > VW - 4) tx = screenX - boxW - 24;
+  if (ty < 4) ty = 4;
+  if (ty + boxH > VH - 4) ty = VH - 4 - boxH;
+
+  _panel.position.set(tx, ty);
 }
 
-export function hideTooltip() {
+export function hideTooltip(source = null) {
+  // If source is provided, only hide if it matches current hover source
+  if (source && _hoverSource !== source) return;
+
   if (_panel) {
     _panel.destroy({ children: true });
     _panel = null;
   }
+  _hoverSource = null;
 }
 
 // ── Helpers ───────────────────────────────────────────────────
 
-function _hexToNum(str) {
-  if (!str) return 0xffffff;
-  return parseInt(str.replace('#', ''), 16);
+function _hexToNum(val) {
+  if (typeof val === 'number') return val;
+  if (!val || typeof val !== 'string') return 0xffffff;
+  return parseInt(val.replace('#', ''), 16);
 }

@@ -302,13 +302,14 @@ function _updateDashTrails(state, dt) {
 
 function _handleWeaponSwitch(state) {
   if (state.maxSlots <= 1) return;
-  if (keys['tab']) {
-    if (!keys._tabWas) {
+  const switchPressed = keys['q'] || keys['й'];
+  if (switchPressed) {
+    if (!keys._qWas) {
       state.activeSlot = (state.activeSlot + 1) % state.maxSlots;
-      keys._tabWas = true;
+      keys._qWas = true;
     }
   } else {
-    keys._tabWas = false;
+    keys._qWas = false;
   }
 }
 
