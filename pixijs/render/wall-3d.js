@@ -134,7 +134,7 @@ export function updateWall3D(camX, camY) {
       const t2 = _project(b2.x, b2.y, H, camX, camY);
 
       const faceTex = (en.isPurifiedSide ? _wallTex : _wallTexDark) ?? _wallTex ?? _wallTexDark;
-      if (faceTex) {
+      if (CONFIG.WALL_3D_USE_TEXTURES && faceTex) {
         // Textured face via Mesh
         const geom = new MeshGeometry({
           positions: new Float32Array([

@@ -18,6 +18,7 @@ const CONFIG = {
   WALL_DISSOLVE_FADE_END:    2.4,  // порог конца fade-out
   WALL_3D_HEIGHT:         96 * 1.3 / 5,   // высота 3д стены (мировые пиксели) = CELL_PX / 3
   WALL_3D_CAM_Z:          96 * 1.3 * 2,   // виртуальная высота камеры для перспективы
+  WALL_3D_USE_TEXTURES:  true,           // использовать текстуры на боковых гранях 3д стен
 
   // Lighting
   LIGHT_RADIUS: 200,       // радиус освещения от игрока (пиксели)
