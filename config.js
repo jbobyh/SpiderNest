@@ -167,6 +167,35 @@ const CONFIG = {
     bloated: 35,      // взрывается при смерти
   },
 
+  // ── Бюджетная генерация врагов в комнатах ──────────────────
+  // budget(cells) = base * growthRate^(cells-1), затем * levelMult * contentMult
+  // growthRate > 1 → выпуклая (нелинейная) кривая: большие комнаты опаснее.
+  ROOM_ENEMY_BUDGET: {
+    base: 100,                 // бюджет 1-клеточной комнаты (до множителей)
+    growthRate: 1.4,           // >1 = выпуклая (нелинейная) кривая; 1.0 = линейно
+    levelMult: { 1: 1.0, 2: 1.2, 3: 1.5 },
+    maxEnemiesPerCell: 8,      // потолок врагов на ячейку (анти-переполнение)
+    maxEnemiesTotal:   32,     // абсолютный потолок врагов в комнате
+  },
+
+  // Множитель бюджета по содержимому комнаты. weapon/empty/start — без врагов (множитель 0).
+  ROOM_CONTENT_BUDGET_MULT: {
+    enemies:      1.0,
+    heart:        1.0,
+    summonSphere: 1.4,   // ключевая комната (мини-босс)
+    chest:        1.15,
+    spatial:      1.15,
+    roomBonus:    1.15,
+  },
+
+  // Доступные типы врагов по уровням + веса выбора (больше = чаще встречается).
+  // Ключи должны совпадать с ENEMY_COSTS и ENEMY_POOL_TYPE_MAP.
+  ENEMY_SPAWN_TABLE: {
+    1: { bat: 5, shooter: 2, bloated: 1 },
+    2: { soldier: 5, shooter: 2, bull: 2, buldyga: 1, bloated: 1 },
+    3: { soldier: 4, shooter: 2, bull: 2, buldyga: 1, bloated: 1, cocoon: 1 },
+  },
+
   // Level generation
   DISABLED_CELLS_COUNT: 15,       // кол-во заблокированных клеток по умолчанию
   BLOCK_CELLS_FOREVER: false,     // блокировать клетки навсегда (дебаг)

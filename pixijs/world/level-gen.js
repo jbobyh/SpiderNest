@@ -2,8 +2,8 @@
 // LEVEL GENERATION — pure data, no rendering
 // Ported from js/game-state.js :: initState()
 // Globals used (loaded by index.html):
-//   CONFIG, LEVEL_CONFIG, ROOM_POOLS, UPGRADE_TYPES,
-//   LEVEL_WEAPON_COUNTS, LEVEL_UPGRADE_COUNTS, LEVEL_CHEST_COUNTS
+//   CONFIG (incl. ENEMY_COSTS, ROOM_ENEMY_BUDGET, ROOM_CONTENT_BUDGET_MULT,
+//           ENEMY_SPAWN_TABLE), LEVEL_CONFIG, UPGRADE_TYPES
 // ============================================================
 
 import {
@@ -302,28 +302,79 @@ function generateRoomsGrid(targetRoomCount, roomQuotas) {
 }
 
 // ── Difficulty helpers ───────────────────────────────────────
+//
+// Сложность комнаты теперь считается по бюджету врагов:
+//   budget(cells) = base * growthRate^(cells-1), затем * levelMult * contentMult
+// Это выпуклая (нелинейная) кривая — большие комнаты ощутимо опаснее.
+// Дистанция от старта больше не влияет (раньше был easy/medium/hard тир).
 
-function cellDistanceFromStart(x, y, startX, startY) {
-  return Math.max(Math.abs(x - startX), Math.abs(y - startY));
+// Сопоставление типа содержимого комнаты → ключ множителя бюджета.
+// weapon/empty/start здесь нет намеренно (там нет врагов → множитель 0).
+const CONTENT_BUDGET_KEY = {
+  [ROOM_TYPES.SUMMON_SPHERE]: 'summonSphere',
+  [ROOM_TYPES.ROOM_BONUS]:    'roomBonus',
+  [ROOM_TYPES.HEART]:         'heart',
+  [ROOM_TYPES.CHEST]:         'chest',
+  [ROOM_TYPES.SPATIAL_CHEST]: 'spatial',
+  [ROOM_TYPES.ENEMY]:         'enemies',
+};
+
+function roomEnemyBudget(level, roomType, cellCount) {
+  const multKey = CONTENT_BUDGET_KEY[roomType];
+  if (!multKey) return 0; // start / weapon / empty — без врагов
+
+  const cfg = CONFIG.ROOM_ENEMY_BUDGET;
+  const levelMult = (cfg.levelMult[level] ?? cfg.levelMult[3]) || 1;
+  const contentMult = CONFIG.ROOM_CONTENT_BUDGET_MULT[multKey] ?? 1;
+
+  const raw = cfg.base * Math.pow(cfg.growthRate, Math.max(0, cellCount - 1));
+  return Math.round(raw * levelMult * contentMult);
 }
 
-function getDifficultyTier(dist, maxDist) {
-  if (maxDist <= 0) return 'easy';
-  const third = maxDist / 3;
-  if (dist <= third)     return 'easy';
-  if (dist <= third * 2) return 'medium';
-  return 'hard';
-}
+// Жадный взвешенный выбор состава врагов под заданный бюджет.
+// Возвращает объект { enemyKey: count, ... } (ключи — как в ENEMY_COSTS / ENEMY_POOL_TYPE_MAP).
+function generateRoomEnemyComposition(level, roomType, cellCount) {
+  const budget = roomEnemyBudget(level, roomType, cellCount);
+  if (budget <= 0) return {};
 
-function tierForRoom(rooms, ri, startX, startY, maxCellDist) {
-  const cell = rooms[ri].cells[0];
-  return getDifficultyTier(cellDistanceFromStart(cell.x, cell.y, startX, startY), maxCellDist);
-}
+  const costs  = CONFIG.ENEMY_COSTS;
+  const table  = CONFIG.ENEMY_SPAWN_TABLE[level] || CONFIG.ENEMY_SPAWN_TABLE[3];
+  const maxByCells = cellCount * (CONFIG.ROOM_ENEMY_BUDGET.maxEnemiesPerCell || 8);
+  const maxTotal   =  CONFIG.ROOM_ENEMY_BUDGET.maxEnemiesTotal || 32;
+  const maxEnemies = Math.min(maxByCells, maxTotal);
 
-function pickRoomPreset(level, poolName) {
-  const pools = ROOM_POOLS[level] || ROOM_POOLS[1];
-  const pool  = pools[poolName]   || pools.easy;
-  return { ...pool[Math.floor(Math.random() * pool.length)] };
+  // Доступные типы (цена ≤ бюджета), отсортированные по цене (дорогие — в конце).
+  const candidates = Object.keys(table)
+    .filter(k => costs[k] != null && costs[k] > 0 && table[k] > 0)
+    .map(k => ({ key: k, cost: costs[k], weight: table[k] }))
+    .filter(c => c.cost <= budget)
+    .sort((a, b) => a.cost - b.cost);
+  if (candidates.length === 0) return {};
+
+  let remaining = budget;
+  let total     = 0;
+  const out     = {};
+
+  while (total < maxEnemies) {
+    // Берём только тех, кого ещё можно себе позволить.
+    const affordable = candidates.filter(c => c.cost <= remaining);
+    if (affordable.length === 0) break;
+
+    // Взвешенный случайный выбор: дешёвые «базовые» враги выпадают чаще, элита — реже.
+    const totalWeight = affordable.reduce((s, c) => s + c.weight, 0);
+    let roll = Math.random() * totalWeight;
+    let picked = affordable[affordable.length - 1];
+    for (const c of affordable) {
+      roll -= c.weight;
+      if (roll <= 0) { picked = c; break; }
+    }
+
+    out[picked.key] = (out[picked.key] || 0) + 1;
+    remaining -= picked.cost;
+    total++;
+  }
+
+  return out;
 }
 
 function countEnemiesInPreset(preset) {
@@ -447,16 +498,19 @@ function assignRoomContents(level, rooms, availableRooms, playerProgress, cx, cy
   return assignments;
 }
 
-function applyRoomContent(ri, type, level, rooms, levelState, playerProgress, weaponPool, maxCellDist, cx, cy) {
+function applyRoomContent(ri, type, level, rooms, levelState, playerProgress, weaponPool) {
   const room = rooms[ri];
   const center = getRoomCenter(room);
   const centerKey = getCenterCellKey(room);
-  const tier = tierForRoom(rooms, ri, cx, cy, maxCellDist);
+
+  // Единая композиция врагов по бюджету (ячейки × уровень × тип содержимого).
+  // Для start/weapon/empty вернёт {} — врагов не будет.
+  const preset = generateRoomEnemyComposition(level, type, room.cells.length);
 
   // Default cell contents setup
-  const setCells = (contentFields, preset) => {
+  const setCells = (contentFields) => {
     for (const cell of room.cells) {
-      if (preset) {
+      if (Object.keys(preset).length > 0) {
         setCellEnemies(levelState.cellContents, cell.k, { ...contentFields, type }, preset);
       } else {
         levelState.cellContents.set(cell.k, { ...contentFields, type });
@@ -470,15 +524,13 @@ function applyRoomContent(ri, type, level, rooms, levelState, playerProgress, we
       break;
 
     case ROOM_TYPES.SUMMON_SPHERE: {
-      const preset = pickRoomPreset(level, tier);
-      setCells({}, preset);
+      setCells({});
       levelState.summonSphere = { x: center.x, y: center.y, cellKey: centerKey, collected: false, spawned: false };
       break;
     }
 
     case ROOM_TYPES.ROOM_BONUS: {
-      const preset = pickRoomPreset(level, 'simpleupgrade');
-      setCells({}, preset);
+      setCells({});
       levelState.roomBonusAltars.push({
         roomIdx: ri, x: center.x, y: center.y, cellKey: centerKey, activated: false, bonusType: null,
       });
@@ -498,29 +550,25 @@ function applyRoomContent(ri, type, level, rooms, levelState, playerProgress, we
     }
 
     case ROOM_TYPES.HEART: {
-      const preset = pickRoomPreset(level, tier);
-      setCells({}, preset);
+      setCells({});
       levelState.hearts.push({ x: center.x, y: center.y, cellKey: centerKey, collected: false, spawned: false });
       break;
     }
 
     case ROOM_TYPES.CHEST: {
-      const preset = pickRoomPreset(level, 'simpleupgrade');
-      setCells({}, preset);
+      setCells({});
       levelState.upgradeChests.push({ x: center.x, y: center.y, cellKey: centerKey, collected: false, spawned: true });
       break;
     }
 
     case ROOM_TYPES.SPATIAL_CHEST: {
-      const preset = pickRoomPreset(level, 'cursedupgrade');
-      setCells({}, preset);
+      setCells({});
       levelState.spatialChests.push({ x: center.x, y: center.y, cellKey: centerKey, collected: false, spawned: true });
       break;
     }
 
     case ROOM_TYPES.ENEMY: {
-      const preset = pickRoomPreset(level, tier);
-      setCells({}, preset);
+      setCells({});
       break;
     }
 
@@ -641,15 +689,6 @@ export function generateLevel(level, playerProgress) {
   for (let i = 1; i < rooms.length; i++) availableRooms.push(i);
   shuffleInPlace(availableRooms);
 
-  // Max distance for difficulty tiers (from start room)
-  let maxCellDist = 0;
-  for (const ri of availableRooms) {
-    for (const cell of rooms[ri].cells) {
-      const d = cellDistanceFromStart(cell.x, cell.y, cx, cy);
-      if (d > maxCellDist) maxCellDist = d;
-    }
-  }
-
   // ── Room content assignment ──
   const allWeapons = ['shotgun', 'smg', 'rifle', 'revolver', 'carbine'];
   const weaponPool = allWeapons.filter(w => !playerProgress.spawnedWeapons.includes(w));
@@ -667,9 +706,9 @@ export function generateLevel(level, playerProgress) {
   };
 
   const assignments = assignRoomContents(level, rooms, [...availableRooms], playerProgress, cx, cy, cellToRoom);
-  
+
   for (const [ri, type] of assignments.entries()) {
-    applyRoomContent(ri, type, level, rooms, levelState, playerProgress, weaponPool, maxCellDist, cx, cy);
+    applyRoomContent(ri, type, level, rooms, levelState, playerProgress, weaponPool);
   }
 
   // ── Only the start room is purified initially ──
