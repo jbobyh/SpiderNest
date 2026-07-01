@@ -156,6 +156,17 @@ const CONFIG = {
   BLOATED_DEATH_SHOT_SPEED: 120,  // скорость пули при смерти (как у плеваки)
   BLOATED_CHANCE: 0.30,           // шанс спавна распухшего на уровне 3 (после кокона)
 
+  // Enemy costs for budget-based spawning
+  ENEMY_COSTS: {
+    bat: 15,          // летающий, зигзаг
+    soldier: 20,      // преследует игрока
+    shooter: 30,      // стреляет
+    bull: 40,         // рывки
+    buldyga: 50,      // инерция, ускорение
+    cocoon: 60,       // спавнит солдат
+    bloated: 35,      // взрывается при смерти
+  },
+
   // Level generation
   DISABLED_CELLS_COUNT: 15,       // кол-во заблокированных клеток по умолчанию
   BLOCK_CELLS_FOREVER: false,     // блокировать клетки навсегда (дебаг)
