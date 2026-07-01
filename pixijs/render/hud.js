@@ -12,19 +12,16 @@
 // ============================================================
 
 import {
-  Container, Sprite, Texture, Text, TextStyle, Graphics,
+  Container, Sprite, Texture, Text, TextStyle, Graphics, Rectangle,
 } from 'pixi.js';
-
-const VW = CONFIG.VIEW_W;
-const VH = CONFIG.VIEW_H;
-
-// ── Shared text styles ───────────────────────────────────────
-
-const STYLE_LEVEL   = new TextStyle({ fill: '#00d4ff', fontSize: 13, fontFamily: 'Huninn, monospace', fontWeight: 'bold' });
-const STYLE_SLOT_LBL = new TextStyle({ fill: '#00d4ff', fontSize: 9,  fontFamily: 'Huninn, monospace', fontWeight: 'bold' });
-const STYLE_HINT    = new TextStyle({ fill: 'rgba(180,160,130,0.8)', fontSize: 9, fontFamily: 'Huninn, monospace' });
-const STYLE_UPG_LVL = new TextStyle({ fill: '#ffffff', fontSize: 8, fontFamily: 'Huninn, monospace', fontWeight: 'bold' });
-const STYLE_UPG_ICN = new TextStyle({ fill: '#ffffff', fontSize: 20, fontFamily: 'sans-serif' });
+import { keys } from '../core/input.js';
+import { getActiveWeapon, getBulletRange, getSpatialBonus } from '../game/combat.js';
+import { getRoomSpeedMultiplier, cellOf, cellKey } from '../world/constants.js';
+import { showTooltip, hideTooltip } from './tooltip.js';
+import {
+  VW, VH, UI_COLORS, STYLE_LEVEL, STYLE_SLOT_LBL, STYLE_HINT, STYLE_UPG_LVL,
+  STYLE_STATS_LABEL, STYLE_STATS_VALUE, createPanel, clearContainer, hexToNum,
+} from './ui-shared.js';
 
 // ── Internal HUD state ───────────────────────────────────────
 
@@ -35,6 +32,8 @@ const dom = {
   heartsRow:    null,
   shieldsRow:   null,
   upgradePanel: null,
+  spatialPanel: null,
+  cursedPanel:  null,
   weaponPanel:  null,
   hintsPanel:   null,
   pickupHint:   null, // dynamic hint for weapon pickup
@@ -42,13 +41,14 @@ const dom = {
   bossHpBar:    null, // boss HP bar (top center)
   levelComplete: null, // level complete screen overlay
   fpsCounter:   null, // FPS counter (bottom right)
+  statsPanel:   null, // character stats panel (Tab key)
 };
 
 // ── Init ──────────────────────────────────────────────────────
 
 export function initHud(parentContainer) {
   _parent = parentContainer;
-  _parent.removeChildren().forEach(c => c.destroy({ children: true }));
+  clearContainer(_parent);
 
   // Level label (top-left)
   dom.levelLabel = new Text({ text: 'Уровень 1', style: STYLE_LEVEL });
@@ -65,7 +65,16 @@ export function initHud(parentContainer) {
 
   // Upgrade icon panel (top-right)
   dom.upgradePanel = new Container({ label: 'upgrades' });
+  dom.upgradePanel.eventMode = 'static';
   _parent.addChild(dom.upgradePanel);
+
+  dom.spatialPanel = new Container({ label: 'spatial-upgrades' });
+  dom.spatialPanel.eventMode = 'static';
+  _parent.addChild(dom.spatialPanel);
+
+  dom.cursedPanel = new Container({ label: 'cursed-upgrades' });
+  dom.cursedPanel.eventMode = 'static';
+  _parent.addChild(dom.cursedPanel);
 
   // Weapon slots (bottom-left)
   dom.weaponPanel = new Container({ label: 'weapons' });
@@ -105,6 +114,13 @@ export function initHud(parentContainer) {
   dom.fpsCounter.visible = CONFIG.SHOW_FPS === true;
   _parent.addChild(dom.fpsCounter);
 
+  // Stats panel (centered)
+  dom.statsPanel = new Container({ label: 'stats-panel' });
+  dom.statsPanel.visible = false;
+  _parent.addChild(dom.statsPanel);
+
+  _parent.eventMode = 'static';
+
   _buildLevelComplete();
 
   _buildHintsPanel();
@@ -112,7 +128,7 @@ export function initHud(parentContainer) {
 
 // ── Update (call every frame or on state change) ─────────────
 
-export function updateHud(gameState, currentLevel, nearWeapon = false, nearAltar = false, bossSummonReady = false, nearChest = false, nearCursedChest = false, nearRoomBonusAltar = false) {
+export function updateHud(gameState, currentLevel, nearWeapon = false, nearAltar = false, bossSummonReady = false, nearChest = false, nearSpatialChest = false, nearRoomBonusAltar = false) {
   if (!_parent || !gameState) return;
 
   dom.levelLabel.text = `Уровень ${currentLevel}`;
@@ -123,26 +139,180 @@ export function updateHud(gameState, currentLevel, nearWeapon = false, nearAltar
   _updateWeaponSlots(gameState);
 
   // Show/hide pickup hint (reuse panel, swap text)
-  // Priority: room bonus altar > cursed chest > chest > altar > weapon
-  const showHint = nearWeapon || nearAltar || nearChest || nearCursedChest || nearRoomBonusAltar;
+  // Priority: room bonus altar > spatial chest > chest > altar > weapon
+  const showHint = nearWeapon || nearAltar || nearChest || nearSpatialChest || nearRoomBonusAltar;
   dom.pickupHint.visible = showHint;
   if (showHint) {
     let hintText = 'подобрать';
     if (nearRoomBonusAltar) hintText = 'Активировать алтарь комнаты';
-    else if (nearCursedChest) hintText = 'Открыть проклятый сундук';
+    else if (nearSpatialChest) hintText = 'Открыть пространственный сундук';
     else if (nearChest) hintText = 'Открыть сундук';
     else if (nearAltar) hintText = 'Призвать врагов';
     _setPickupHintText(hintText);
   }
 
-  // Show/hide boss summon hint
-  dom.bossSummonHint.visible = bossSummonReady && !showHint;
+  // Stats panel (Tab key)
+  const showStats = keys['tab'];
+  dom.statsPanel.visible = showStats;
+  if (showStats) {
+    _updateStatsPanel(gameState);
+  }
+}
+
+// ── Upgrade State Tracking ────────────────────────────────────
+
+let _lastUpgradesHash = '';
+let _lastMaxSlots = 0;
+
+function _getUpgradesHash(s) {
+  // Create a simple string hash of active upgrades and their levels
+  let hash = '';
+  const upg = s.upgrades;
+  for (const key in upg) {
+    if (upg[key]) hash += `${key}:${upg[key]}|`;
+  }
+  hash += `maxSlots:${s.maxSlots}`;
+  return hash;
+}
+
+// ── Character Stats Panel ─────────────────────────────────────
+
+function _updateStatsPanel(s) {
+  clearContainer(dom.statsPanel);
+
+  const weapon = getActiveWeapon(s);
+  
+  // Accuracy calculation (Spread in degrees)
+  const spatialAccuracy = getSpatialBonus(s, 'accuracy');
+  let totalSpread = (weapon?.spread || 0) * (s.upgrades.spreadMult || 1) * Math.max(0, 1 - spatialAccuracy);
+  
+  if (s.upgrades.sniper) {
+    let roomCount = 1;
+    if (s.battle && s.battle.battleCells && s.rooms) {
+      let participatingRooms = 0;
+      for (const room of s.rooms) {
+        if (room.cells.some(c => s.battle.battleCells.has(c.k))) {
+          participatingRooms++;
+        }
+      }
+      roomCount = participatingRooms;
+    }
+    if (roomCount <= 2) totalSpread = 0;
+    else totalSpread *= (1 + 0.10 * (roomCount - 2));
+  }
+  const spreadDeg = Math.round(totalSpread * (180 / Math.PI));
+
+  // Range calculation
+  const range = Math.round(getBulletRange(s, weapon || WEAPON_DEFS.pistol, 1));
+
+  // Speed calculation
+  const spatialSpeed = getSpatialBonus(s, 'speed');
+  const playerCell = cellOf(s.player.x, s.player.y);
+  const playerCellKey = cellKey(playerCell.x, playerCell.y);
+  const roomSpeedMult = getRoomSpeedMultiplier(s, playerCellKey);
+  const totalSpeed = Math.round(CONFIG.PLAYER_SPEED * s.upgrades.speedMult * (1 + spatialSpeed) * roomSpeedMult);
+
+  // Cooldown calculation
+  const killAccelMult = s.upgrades.killAccel ? Math.max(0.1, 1 - s.upgrades.killAccelPercent / 100) : 1.0;
+  const spatialReload = getSpatialBonus(s, 'reload');
+  const cooldown = (weapon?.cooldown || 0.4) * s.upgrades.cooldownMult * killAccelMult * Math.max(0.1, 1 - spatialReload);
+
+  // Damage calculation
+  const spatialCritChance = getSpatialBonus(s, 'critChance');
+  const critChance = (s.upgrades.critChance + spatialCritChance);
+  const damage = (weapon?.damage || 2) + s.upgrades.damage;
+
+  const spatialCritDamage = getSpatialBonus(s, 'critDamage');
+  const critMult = 2 + spatialCritDamage;
+
+  // Penetration
+  const spatialPenetrate = getSpatialBonus(s, 'penetrate');
+  const penetrate = s.upgrades.infinitePenetrate ? '∞' : (weapon?.penetrate || 0) + s.upgrades.penetrate + Math.floor(spatialPenetrate);
+
+  // Bullet Speed
+  const spatialBulletSpeed = getSpatialBonus(s, 'bulletSpeed');
+  const bulletSpeed = Math.round((weapon?.bulletSpeed || 300) * s.upgrades.bulletSpeedMult * (1 + spatialBulletSpeed));
+
+  const rows = [
+    { label: 'ЖИЗНИ', value: `${s.player.lives}`, color: 0xff4444 },
+    { label: 'СКОРОСТЬ БЕГА', value: `${totalSpeed}`, color: 0x44ff88 },
+    { label: 'УРОН ПУЛИ', value: `${damage}`, color: 0xff8800 },
+    { label: 'ШАНС КРИТА', value: `${Math.round(critChance * 100)}%`, color: 0xff0000 },
+    { label: 'КРИТ УРОН', value: `x${critMult.toFixed(1)}`, color: 0xff4400 },
+    { label: 'ПУЛЬ ЗА ВЫСТРЕЛ', value: `${(weapon?.pellets || 1) + s.upgrades.pellets}`, color: 0x00d4ff },
+    { label: 'ТОЧНОСТЬ', value: spreadDeg === 0 ? 'Идеальная' : `±${spreadDeg}°`, color: 0xff66aa },
+    { label: 'ДАЛЬНОСТЬ ПУЛИ', value: `${range}`, color: 0x88ff44 },
+    { label: 'ПРОБИТИЕ ВРАГОВ', value: `${penetrate}`, color: 0xaa44ff },
+    { label: 'СКОРОСТЬ ПУЛИ', value: `${bulletSpeed}`, color: 0xffff44 },
+    { label: 'ПЕРЕЗАРЯДКА', value: `${cooldown.toFixed(2)}с`, color: 0x00ccff },
+  ];
+
+  if (s.upgrades.shield > 0) rows.push({ label: 'ЩИТЫ', value: `${s.upgrades.shield}`, color: 0x00aaff });
+  if (s.upgrades.killAccel) rows.push({ label: 'РАЗГОН ПЕРЕЗАРЯДКИ', value: `${s.upgrades.killAccelPercent.toFixed(1)}%`, color: 0xff8800 });
+
+  const panelW = 280;
+  const lineH = 22;
+  const pad = 16;
+  const panelH = pad * 2 + rows.length * lineH + 24;
+  const panelX = (VW - panelW) / 2;
+  const panelY = (VH - panelH) / 2;
+
+  // Background
+  const bg = createPanel({
+    x: panelX, y: panelY,
+    width: panelW, height: panelH,
+    bgColor: 0x080c14, bgAlpha: 0.95,
+    strokeColor: UI_COLORS.CYAN, strokeAlpha: 0.6, strokeWidth: 2,
+    radius: 12
+  });
+  dom.statsPanel.addChild(bg);
+
+  // Title
+  const title = new Text({
+    text: 'ХАРАКТЕРИСТИКИ',
+    style: new TextStyle({
+      fill: '#00d4ff',
+      fontSize: 16,
+      fontFamily: 'Orbitron, sans-serif',
+      fontWeight: 'bold'
+    })
+  });
+  title.anchor.set(0.5, 0);
+  title.position.set(panelX + panelW / 2, panelY + pad);
+  dom.statsPanel.addChild(title);
+
+  // Rows
+  let y = panelY + pad + 28;
+  for (const row of rows) {
+    const lbl = new Text({
+      text: row.label,
+      style: STYLE_STATS_LABEL
+    });
+    lbl.anchor.set(0, 0.5);
+    lbl.position.set(panelX + pad, y + lineH / 2);
+    dom.statsPanel.addChild(lbl);
+
+    const val = new Text({
+      text: row.value,
+      style: new TextStyle({
+        fill: row.color,
+        fontSize: 14,
+        fontFamily: 'Orbitron, sans-serif',
+        fontWeight: 'bold'
+      })
+    });
+    val.anchor.set(1, 0.5);
+    val.position.set(panelX + panelW - pad, y + lineH / 2);
+    dom.statsPanel.addChild(val);
+
+    y += lineH;
+  }
 }
 
 // ── Hearts ────────────────────────────────────────────────────
 
 function _updateHearts(s) {
-  dom.heartsRow.removeChildren().forEach(c => c.destroy());
+  clearContainer(dom.heartsRow);
 
   const filled    = s.player.lives;
   const removedWt = s.playerRemovedWalls || 0;
@@ -178,7 +348,7 @@ function _updateHearts(s) {
 // ── Shields ───────────────────────────────────────────────────
 
 function _updateShields(s) {
-  dom.shieldsRow.removeChildren().forEach(c => c.destroy());
+  clearContainer(dom.shieldsRow);
   const count = s.upgrades?.shield || 0;
   if (count <= 0) return;
 
@@ -198,77 +368,158 @@ function _updateShields(s) {
   }
 }
 
-// ── Upgrade icon panel ────────────────────────────────────────
+// ── Upgrade icon panels ──────────────────────────────────────
 
-const UPGRADE_LEVEL_MAP = [
-  { id: 'pellets',       get: u => u.pellets || 0 },
-  { id: 'damage',        get: u => u.damage || 0 },
-  { id: 'penetrate',     get: u => u.penetrate || 0 },
-  { id: 'bulletSpeed',   get: u => u.bulletSpeedMult > 1 ? 1 : 0 },
-  { id: 'critChance',    get: u => u.critChance > 0 ? Math.ceil(u.critChance * 20) : 0 },
-  { id: 'killAccel',     get: u => u.killAccel ? 1 : 0 },
-  { id: 'enhancedPierce',get: u => u.enhancedPierce ? 1 : 0 },
-  { id: 'shield',        get: u => u.shield || 0 },
-  { id: 'retreat',       get: u => u.retreat > 0 ? 1 : 0 },
-  { id: 'reflection',    get: u => u.reflection ? 1 : 0 },
-  { id: 'cooldown',      get: u => u.cooldownMult < 1 ? Math.ceil((1 - u.cooldownMult) * 6.67) : 0 },
-  { id: 'speed',         get: u => u.speedMult > 1 ? Math.ceil((u.speedMult - 1) * 10) : 0 },
+const REGULAR_UPGRADE_IDS = [
+  'pellets', 'damage', 'penetrate', 'bulletSpeed', 'critChance',
+  'killAccel', 'enhancedPierce', 'shield', 'retreat', 'reflection',
+  'cooldown', 'speed'
 ];
 
 function _updateUpgrades(s) {
-  dom.upgradePanel.removeChildren().forEach(c => c.destroy());
+  const newHash = _getUpgradesHash(s);
+  if (newHash === _lastUpgradesHash) return;
+  _lastUpgradesHash = newHash;
+
+  dom.upgradePanel.removeChildren().forEach(c => c.destroy({ children: true }));
+  dom.spatialPanel.removeChildren().forEach(c => c.destroy({ children: true }));
+  dom.cursedPanel.removeChildren().forEach(c => c.destroy({ children: true }));
+
   if (!s.upgrades || !UPGRADE_TYPES) return;
 
+  // 1. Regular Upgrades
+  const activeRegular = [];
+  for (const upg of UPGRADE_TYPES) {
+    if (!REGULAR_UPGRADE_IDS.includes(upg.id)) continue;
+    let level = 0;
+    if (upg.id === 'pellets') level = s.upgrades.pellets || 0;
+    else if (upg.id === 'damage') level = s.upgrades.damage || 0;
+    else if (upg.id === 'penetrate') level = s.upgrades.penetrate || 0;
+    else if (upg.id === 'bulletSpeed') level = s.upgrades.bulletSpeedMult > 1 ? 1 : 0;
+    else if (upg.id === 'critChance') level = s.upgrades.critChance > 0 ? Math.ceil(s.upgrades.critChance * 20) : 0;
+    else if (upg.id === 'killAccel') level = s.upgrades.killAccel ? 1 : 0;
+    else if (upg.id === 'enhancedPierce') level = s.upgrades.enhancedPierce ? 1 : 0;
+    else if (upg.id === 'shield') level = s.upgrades.shield || 0;
+    else if (upg.id === 'retreat') level = s.upgrades.retreat > 0 ? 1 : 0;
+    else if (upg.id === 'reflection') level = s.upgrades.reflection ? 1 : 0;
+    else if (upg.id === 'cooldown') level = s.upgrades.cooldownMult < 1 ? Math.ceil((1 - s.upgrades.cooldownMult) * 6.67) : 0;
+    else if (upg.id === 'speed') level = s.upgrades.speedMult > 1 ? Math.ceil((s.upgrades.speedMult - 1) * 10) : 0;
+    
+    if (level > 0) {
+      activeRegular.push({ ...upg, level: Math.min(level, upg.max || 1) });
+    }
+  }
+
+  // 2. Spatial Upgrades
+  const activeSpatial = [];
+  const spatialPool = (typeof SPATIAL_UPGRADE_TYPES !== 'undefined') ? SPATIAL_UPGRADE_TYPES : [];
+  for (const upg of spatialPool) {
+    if (s.upgrades[upg.id]) {
+      activeSpatial.push({ ...upg, level: 1 });
+    }
+  }
+
+  // 3. Cursed Upgrades
+  const activeCursed = [];
+  const cursedPool = (typeof CURSED_UPGRADE_TYPES !== 'undefined') ? CURSED_UPGRADE_TYPES : [];
+  for (const upg of cursedPool) {
+    let level = 0;
+    const val = s.upgrades[upg.id];
+    if (upg.id === 'weaponSlot') level = s.maxSlots > 1 ? s.maxSlots - 1 : 0;
+    else if (val === true) level = 1;
+    else if (typeof val === 'number' && val > 0) level = val;
+    
+    if (level > 0) {
+      activeCursed.push({ ...upg, level: Math.min(level, upg.max || 1) });
+    }
+  }
+
+  // Build panels and stack them
+  let currentY = 0;
+  const GAP_BETWEEN_PANELS = 4;
+
+  if (activeRegular.length > 0) {
+    currentY += _buildUpgradePanel(dom.upgradePanel, activeRegular, currentY, {
+      bgColor: 0x050a0f, bgAlpha: 0.72, strokeColor: 0x1a3a5c
+    });
+    currentY += GAP_BETWEEN_PANELS;
+  }
+
+  if (activeSpatial.length > 0) {
+    currentY += _buildUpgradePanel(dom.spatialPanel, activeSpatial, currentY, {
+      bgColor: 0x050a0f, bgAlpha: 0.72, strokeColor: 0x1a3a5c
+    });
+    currentY += GAP_BETWEEN_PANELS;
+  }
+
+  if (activeCursed.length > 0) {
+    currentY += _buildUpgradePanel(dom.cursedPanel, activeCursed, currentY, {
+      bgColor: 0x0a0514, bgAlpha: 0.78, strokeColor: 0x7828b4
+    });
+  }
+}
+
+function _buildUpgradePanel(container, upgrades, startY, theme) {
   const ICON = 20, GAP = 4, PER_ROW = 10;
   const PAD_X = 8, PAD_Y = 6, ROW_H = ICON + 4;
 
-  const active = [];
-  for (const { id, get } of UPGRADE_LEVEL_MAP) {
-    const lv = get(s.upgrades);
-    if (lv <= 0) continue;
-    const def = UPGRADE_TYPES.find(u => u.id === id);
-    if (def) active.push({ ...def, level: Math.min(lv, def.max) });
-  }
-  if (active.length === 0) return;
-
-  const rows   = Math.ceil(active.length / PER_ROW);
-  const cols   = Math.min(active.length, PER_ROW);
+  const rows = Math.ceil(upgrades.length / PER_ROW);
+  const cols = Math.min(upgrades.length, PER_ROW);
   const panelW = cols * ICON + (cols - 1) * GAP + PAD_X * 2;
   const panelH = rows * ROW_H + PAD_Y * 2;
   const panelX = VW - panelW;
-  const panelY = 0;
 
-  const bg = new Graphics();
-  bg.rect(0, 0, panelW, panelH)
-    .fill({ color: 0x050a0f, alpha: 0.72 })
-    .stroke({ color: 0x1a3a5c, alpha: 0.6, width: 1 });
-  bg.position.set(panelX, panelY);
-  dom.upgradePanel.addChild(bg);
+  const bg = createPanel({
+    x: panelX, y: startY,
+    width: panelW, height: panelH,
+    bgColor: theme.bgColor, bgAlpha: theme.bgAlpha,
+    strokeColor: theme.strokeColor, strokeAlpha: 0.6, strokeWidth: 1
+  });
+  container.addChild(bg);
 
-  for (let i = 0; i < active.length; i++) {
-    const upg = active[active.length - 1 - i]; // latest upgrades in bottom-right
+  for (let i = 0; i < upgrades.length; i++) {
+    const upg = upgrades[upgrades.length - 1 - i]; // latest upgrades in bottom-right
     const col = i % PER_ROW;
     const row = Math.floor(i / PER_ROW);
-    const ix  = panelX + panelW - PAD_X - col * (ICON + GAP) - ICON;
-    const iy  = panelY + panelH - PAD_Y - row * ROW_H - ICON;
+    const ix = panelX + panelW - PAD_X - col * (ICON + GAP) - ICON;
+    const iy = startY + panelH - PAD_Y - row * ROW_H - ICON;
 
-    const iconTxt = new Text({ text: upg.icon, style: new TextStyle({ fill: upg.color, fontSize: ICON, fontFamily: 'sans-serif' }) });
-    iconTxt.position.set(ix, iy);
-    dom.upgradePanel.addChild(iconTxt);
+    const iconCont = new Container();
+    iconCont.position.set(ix, iy);
+    iconCont.eventMode = 'static';
+    iconCont.cursor = 'pointer';
+    // Add hit area to ensure the whole icon is hoverable
+    iconCont.hitArea = new Rectangle(0, 0, ICON, ICON);
+    
+    const iconTxt = new Text({
+      text: upg.icon,
+      style: new TextStyle({ fill: upg.color, fontSize: ICON, fontFamily: 'sans-serif' })
+    });
+    iconCont.addChild(iconTxt);
 
     if (upg.level > 1) {
       const lvlTxt = new Text({ text: String(upg.level), style: STYLE_UPG_LVL });
       lvlTxt.anchor.set(1, 1);
-      lvlTxt.position.set(ix + ICON, iy + ICON);
-      dom.upgradePanel.addChild(lvlTxt);
+      lvlTxt.position.set(ICON, ICON);
+      iconCont.addChild(lvlTxt);
     }
+
+    iconCont.on('pointerover', (e) => {
+      // Use logical coordinates for tooltip positioning (center of icon)
+      showTooltip(ix + ICON / 2, iy + ICON / 2, upg.label, upg.description, upg.color);
+    });
+    iconCont.on('pointerout', () => hideTooltip());
+
+    container.addChild(iconCont);
   }
+
+  return panelH;
 }
 
 // ── Weapon slots ──────────────────────────────────────────────
 
 function _updateWeaponSlots(s) {
-  dom.weaponPanel.removeChildren().forEach(c => c.destroy());
+  clearContainer(dom.weaponPanel);
 
   const SLOT  = 44, SGAP = 6, PAD = 8, LABEL_H = 14;
   const totalH = SLOT + LABEL_H + PAD * 2;
@@ -278,11 +529,12 @@ function _updateWeaponSlots(s) {
   const panelX  = MARGIN;
   const panelY  = VH - totalH - MARGIN;
 
-  const bg = new Graphics();
-  bg.rect(0, 0, totalW, totalH)
-    .fill({ color: 0x050a0f, alpha: 0.75 })
-    .stroke({ color: 0x1a3a5c, alpha: 0.7, width: 1 });
-  bg.position.set(panelX, panelY);
+  const bg = createPanel({
+    x: panelX, y: panelY,
+    width: totalW, height: totalH,
+    bgColor: UI_COLORS.BG_DARK, bgAlpha: 0.75,
+    strokeColor: UI_COLORS.STROKE_DEFAULT, strokeAlpha: 0.7, strokeWidth: 1
+  });
   dom.weaponPanel.addChild(bg);
 
   for (let i = 0; i < maxSlots; i++) {
@@ -291,10 +543,15 @@ function _updateWeaponSlots(s) {
     const wId    = s.weaponSlots[i];
     const active = i === s.activeSlot;
 
-    const slotBg = new Graphics();
-    slotBg.rect(sx, sy, SLOT, SLOT)
-      .fill({ color: active ? 0x00b4ff : 0x000000, alpha: active ? 0.12 : 0.3 })
-      .stroke({ color: active ? 0x00d4ff : 0x1a3a5c, alpha: 0.9, width: active ? 1.5 : 1 });
+    const slotBg = createPanel({
+      x: sx, y: sy,
+      width: SLOT, height: SLOT,
+      bgColor: active ? UI_COLORS.CYAN : 0x000000,
+      bgAlpha: active ? 0.12 : 0.3,
+      strokeColor: active ? UI_COLORS.CYAN : UI_COLORS.STROKE_DEFAULT,
+      strokeAlpha: 0.9,
+      strokeWidth: active ? 1.5 : 1
+    });
     dom.weaponPanel.addChild(slotBg);
 
     if (wId) {
@@ -328,13 +585,14 @@ function _updateWeaponSlots(s) {
 const HINTS = [
   { alias: 'ctrl-f',     label: 'подобрать' },
   { alias: 'ctrl-shift', label: 'рывок' },
+  { alias: 'ctrl-q',     label: 'оружие' },
   { alias: 'ctrl-tab',   label: 'характ.' },
   { alias: 'mouse-left', label: 'выстрел' },
   { alias: 'mouse-right',label: 'откр/закр' },
 ];
 
 function _buildHintsPanel() {
-  dom.hintsPanel.removeChildren().forEach(c => c.destroy());
+  clearContainer(dom.hintsPanel);
 
   const ICON   = 24, GAP = 8, LABEL_H = 12;
   const PAD_X  = 20, PAD_Y = 6;
@@ -350,11 +608,12 @@ function _buildHintsPanel() {
   const panelX = VW - totalW - MARGIN_R;
   const panelY = VH - totalH - weaponPanelH - 4;
 
-  const bg = new Graphics();
-  bg.rect(0, 0, totalW, totalH)
-    .fill({ color: 0x050a0f, alpha: 0.65 })
-    .stroke({ color: 0x1a3a5c, alpha: 0.55, width: 1 });
-  bg.position.set(panelX, panelY);
+  const bg = createPanel({
+    x: panelX, y: panelY,
+    width: totalW, height: totalH,
+    bgColor: UI_COLORS.BG_DARK, bgAlpha: 0.65,
+    strokeColor: UI_COLORS.STROKE_DEFAULT, strokeAlpha: 0.55, strokeWidth: 1
+  });
   dom.hintsPanel.addChild(bg);
 
   for (let i = 0; i < HINTS.length; i++) {
@@ -362,12 +621,48 @@ function _buildHintsPanel() {
     const ix = panelX + PAD_X + i * 1.5 * (ICON + GAP);
     const iy = panelY + PAD_Y;
 
+    let iconFound = false;
     try {
-      const spr = new Sprite(Texture.from(alias));
-      spr.width = spr.height = ICON;
-      spr.position.set(ix, iy);
-      dom.hintsPanel.addChild(spr);
+      const tex = Texture.from(alias);
+      if (tex && tex.valid) {
+        const spr = new Sprite(tex);
+        spr.width = spr.height = ICON;
+        spr.position.set(ix, iy);
+        dom.hintsPanel.addChild(spr);
+        iconFound = true;
+      }
     } catch { /* texture not ready */ }
+
+    if (!iconFound) {
+      // Draw text-based icon if texture missing (e.g. for Q)
+      let keyText = 'F';
+      if (alias.includes('q')) keyText = 'Q';
+      else if (alias.includes('tab')) keyText = 'TAB';
+      else if (alias.includes('shift')) keyText = 'SHFT';
+      else if (alias.includes('left')) keyText = 'LMB';
+      else if (alias.includes('right')) keyText = 'RMB';
+
+      const g = createPanel({
+        x: ix, y: iy,
+        width: ICON, height: ICON,
+        bgColor: UI_COLORS.STROKE_DEFAULT, bgAlpha: 0.8,
+        strokeColor: UI_COLORS.CYAN, strokeAlpha: 0.9, strokeWidth: 1
+      });
+      dom.hintsPanel.addChild(g);
+
+      const txt = new Text({
+        text: keyText,
+        style: new TextStyle({
+          fill: '#00d4ff',
+          fontSize: 10,
+          fontFamily: 'Huninn, monospace',
+          fontWeight: 'bold',
+        })
+      });
+      txt.anchor.set(0.5, 0.5);
+      txt.position.set(ix + ICON / 2, iy + ICON / 2);
+      dom.hintsPanel.addChild(txt);
+    }
 
     const lbl = new Text({ text: label, style: STYLE_HINT });
     lbl.anchor.set(0.5, 0);
@@ -379,16 +674,18 @@ function _buildHintsPanel() {
 // ── Pickup hint (F key) ──────────────────────────────────────
 
 function _buildPickupHint() {
-  dom.pickupHint.removeChildren().forEach(c => c.destroy());
+  clearContainer(dom.pickupHint);
 
   const KEY_SIZE = 28, GAP = 6;
   const panelW = KEY_SIZE + 80;
   const panelH = KEY_SIZE + 10;
 
-  const bg = new Graphics();
-  bg.rect(0, 0, panelW, panelH)
-    .fill({ color: 0x050a0f, alpha: 0.75 })
-    .stroke({ color: 0x2a5a8c, alpha: 0.8, width: 1 });
+  const bg = createPanel({
+    x: 0, y: 0,
+    width: panelW, height: panelH,
+    bgColor: UI_COLORS.BG_DARK, bgAlpha: 0.75,
+    strokeColor: 0x2a5a8c, strokeAlpha: 0.8, strokeWidth: 1
+  });
   dom.pickupHint.addChild(bg);
 
   // Key icon
@@ -418,24 +715,27 @@ function _setPickupHintText(text) {
 // ── Boss summon hint (Space key) ──────────────────────────────
 
 function _buildBossSummonHint() {
-  dom.bossSummonHint.removeChildren().forEach(c => c.destroy());
+  clearContainer(dom.bossSummonHint);
 
   const KEY_SIZE = 28, GAP = 6;
   const panelW = KEY_SIZE + 100;
   const panelH = KEY_SIZE + 10;
 
-  const bg = new Graphics();
-  bg.rect(0, 0, panelW, panelH)
-    .fill({ color: 0x050a0f, alpha: 0.75 })
-    .stroke({ color: 0xff6600, alpha: 0.8, width: 1 });
+  const bg = createPanel({
+    x: 0, y: 0,
+    width: panelW, height: panelH,
+    bgColor: UI_COLORS.BG_DARK, bgAlpha: 0.75,
+    strokeColor: 0xff6600, strokeAlpha: 0.8, strokeWidth: 1
+  });
   dom.bossSummonHint.addChild(bg);
 
   // Space key icon (draw as rectangle with text)
-  const keyBg = new Graphics();
-  keyBg.rect(0, 0, KEY_SIZE, KEY_SIZE)
-    .fill({ color: 0x1a3a5c, alpha: 0.8 })
-    .stroke({ color: 0x00d4ff, alpha: 0.9, width: 1 });
-  keyBg.position.set(5, 5);
+  const keyBg = createPanel({
+    x: 5, y: 5,
+    width: KEY_SIZE, height: KEY_SIZE,
+    bgColor: UI_COLORS.STROKE_DEFAULT, bgAlpha: 0.8,
+    strokeColor: UI_COLORS.CYAN, strokeAlpha: 0.9, strokeWidth: 1
+  });
   dom.bossSummonHint.addChild(keyBg);
 
   const keyLbl = new Text({ text: 'SPC', style: new TextStyle({
@@ -466,7 +766,7 @@ function _buildBossSummonHint() {
 // ── Boss HP bar (top center) ───────────────────────────────────
 
 function _buildBossHpBar() {
-  dom.bossHpBar.removeChildren().forEach(c => c.destroy());
+  clearContainer(dom.bossHpBar);
 
   const BAR_W = 400;
   const BAR_H = 16;
@@ -474,11 +774,12 @@ function _buildBossHpBar() {
   const Y = 20;
 
   // Background (dark red)
-  const bg = new Graphics();
-  bg.rect(0, 0, BAR_W, BAR_H)
-    .fill({ color: 0x331111, alpha: 0.9 })
-    .stroke({ color: 0x662222, alpha: 0.8, width: 1 });
-  bg.position.set(X, Y);
+  const bg = createPanel({
+    x: X, y: Y,
+    width: BAR_W, height: BAR_H,
+    bgColor: 0x331111, bgAlpha: 0.9,
+    strokeColor: 0x662222, strokeAlpha: 0.8, strokeWidth: 1
+  });
   bg.label = 'boss-hp-bg';
   dom.bossHpBar.addChild(bg);
 
@@ -560,12 +861,15 @@ export function updateFps(fps) {
 let _nextLevelCallback = null;
 
 function _buildLevelComplete() {
-  dom.levelComplete.removeChildren().forEach(c => c.destroy());
+  clearContainer(dom.levelComplete);
 
   // Semi-transparent background
-  const bg = new Graphics();
-  bg.rect(0, 0, VW, VH)
-    .fill({ color: 0x040a04, alpha: 0.88 });
+  const bg = createPanel({
+    x: 0, y: 0,
+    width: VW, height: VH,
+    bgColor: 0x040a04, bgAlpha: 0.88,
+    strokeWidth: 0
+  });
   dom.levelComplete.addChild(bg);
 
   // Title
@@ -597,11 +901,12 @@ function _buildLevelComplete() {
   const btnX = (VW - btnW) / 2;
   const btnY = VH / 2 + 60;
 
-  const btnBg = new Graphics();
-  btnBg.rect(0, 0, btnW, btnH)
-    .fill({ color: 0x00d4ff, alpha: 0.2 })
-    .stroke({ color: 0x00d4ff, alpha: 0.8, width: 2 });
-  btnBg.position.set(btnX, btnY);
+  const btnBg = createPanel({
+    x: btnX, y: btnY,
+    width: btnW, height: btnH,
+    bgColor: UI_COLORS.CYAN, bgAlpha: 0.2,
+    strokeColor: UI_COLORS.CYAN, strokeAlpha: 0.8, strokeWidth: 2
+  });
   btnBg.label = 'level-complete-btn-bg';
   btnBg.eventMode = 'static';
   btnBg.cursor = 'pointer';

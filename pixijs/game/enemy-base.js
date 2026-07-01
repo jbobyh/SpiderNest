@@ -4,30 +4,21 @@ import { Sounds } from '../core/sound.js';
 
 export class Enemy {
   constructor(data) {
-    this.x = data.x;
-    this.y = data.y;
+    Object.assign(this, data);
+    
     this.vx = data.vx || 0;
     this.vy = data.vy || 0;
-    this.hp = data.hp;
     this.maxHp = data.maxHp || data.hp;
     this.radius = data.radius || (typeof CONFIG !== 'undefined' ? CONFIG.SPIDER_RADIUS : 20);
     this.visualScale = data.visualScale || 3.2;
-    this.type = data.type;
-    this.isBoss = !!data.isBoss;
-
-    this.hitFlash = data.hitFlash || 0;
-    this.stunTimer = data.stunTimer || 0;
-    this.stuckTimer = data.stuckTimer || 0;
     this.lastX = data.lastX ?? data.x;
     this.lastY = data.lastY ?? data.y;
 
     this.body = data.body || null;
     this.isDead = false;
-
-    // Animation state
-    this.animState = data.animState || null;
-    this.animFrame = data.animFrame || 0;
-    this.animTimer = data.animTimer || 0;
+    this.stuckTimer = data.stuckTimer || 0;
+    this.stunTimer = data.stunTimer || 0;
+    this.hitFlash = data.hitFlash || 0;
   }
 
   update(dt, state) {
@@ -39,7 +30,7 @@ export class Enemy {
       this.body = createEnemyBody(this.x, this.y, this.radius, this);
     }
 
-    this._updateStuckDetection(dt);
+    this._updateStuckDetection(dt, state);
     this.updateBehavior(dt, state);
     this._syncWithBody();
   }
@@ -48,7 +39,7 @@ export class Enemy {
     // To be overridden by subclasses
   }
 
-  _updateStuckDetection(dt) {
+  _updateStuckDetection(dt, state) {
     if (this.type === 'cocoon' || this.type === 'plevaka' || this.type === 'shooter' || this.type === 'bull' || this.isBoss) {
       return;
     }
@@ -102,25 +93,8 @@ export class Enemy {
   }
 
   serialize() {
-    return {
-      x: this.x,
-      y: this.y,
-      vx: this.vx,
-      vy: this.vy,
-      hp: this.hp,
-      maxHp: this.maxHp,
-      radius: this.radius,
-      visualScale: this.visualScale,
-      type: this.type,
-      isBoss: this.isBoss,
-      hitFlash: this.hitFlash,
-      stunTimer: this.stunTimer,
-      stuckTimer: this.stuckTimer,
-      lastX: this.lastX,
-      lastY: this.lastY,
-      animState: this.animState,
-      animFrame: this.animFrame,
-      animTimer: this.animTimer,
-    };
+    const data = { ...this };
+    delete data.body;
+    return data;
   }
 }

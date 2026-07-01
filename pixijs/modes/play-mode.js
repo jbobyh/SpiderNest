@@ -13,20 +13,22 @@
 import { keys, mouse, getMovementDir, isInteractPressed } from '../core/input.js';
 import { Sounds }                       from '../core/sound.js';
 import { app }                          from '../core/app.js';
+import { getCurrentLevel, saveCurrentGame } from '../game-loop.js';
 import {
   cellOf, cellKey, getWallAtPoint, getRoomBonus, getRoomSpeedMultiplier,
 } from '../world/constants.js';
 import { setBodyVelocity, setPlayerDashing } from '../world/physics.js';
 import { bulletManager } from '../game/bullet-manager.js';
 import {
-  shoot, pickupWeapon, enemyBulletRange, ENEMY_BULLET_COLOR,
+  shoot, pickupWeapon, enemyBulletRange, ENEMY_BULLET_COLOR, getSpatialBonus,
 } from '../game/combat.js';
 import { updateEnemyAI } from '../game/enemy-ai.js';
 import { handleBossKilled, applyFreezeUpgrade } from '../game/boss.js';
+import { dealPlayerDamage } from '../game/upgrades.js';
 import {
   updateCollectibles, checkAltarActivation, isNearAltar,
   checkUpgradeChestActivation, isNearUpgradeChest,
-  checkCursedChestActivation, isNearCursedChest,
+  checkSpatialChestActivation, isNearSpatialChest,
   checkRoomBonusAltarActivation, isNearRoomBonusAltar,
 } from '../game/collectibles.js';
 import { tickUpgradePopupTimer, hideUpgradePopup } from '../game/upgrades.js';
@@ -120,8 +122,8 @@ export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}
       if (onEnterBattle) onEnterBattle(ck);
     });
 
-    // Cursed chest check
-    checkCursedChestActivation(state, interactTriggered, (ck) => {
+    // Spatial chest check
+    checkSpatialChestActivation(state, interactTriggered, (ck) => {
       if (onEnterBattle) onEnterBattle(ck);
     });
 
@@ -221,7 +223,8 @@ function _getActiveWeapon(state) {
 }
 
 function _stepMovement(state, dt) {
-  let spd = CONFIG.PLAYER_SPEED * state.upgrades.speedMult;
+  const spatialSpeed = (typeof getSpatialBonus !== 'undefined') ? getSpatialBonus(state, 'speed') : 0;
+  let spd = CONFIG.PLAYER_SPEED * state.upgrades.speedMult * (1 + spatialSpeed);
 
   // Apply room bonus speed modifier
   const playerCell = cellOf(state.player.x, state.player.y);
@@ -299,13 +302,14 @@ function _updateDashTrails(state, dt) {
 
 function _handleWeaponSwitch(state) {
   if (state.maxSlots <= 1) return;
-  if (keys['tab']) {
-    if (!keys._tabWas) {
+  const switchPressed = keys['q'] || keys['й'];
+  if (switchPressed) {
+    if (!keys._qWas) {
       state.activeSlot = (state.activeSlot + 1) % state.maxSlots;
-      keys._tabWas = true;
+      keys._qWas = true;
     }
   } else {
-    keys._tabWas = false;
+    keys._qWas = false;
   }
 }
 
@@ -352,6 +356,9 @@ function _onEnemyKilled(state, playerProgress, g) {
   if (state.upgrades.killAccel) {
     state.upgrades.killAccelPercent =
       Math.min(80, (state.upgrades.killAccelPercent || 0) + 5);
+    if (playerProgress && playerProgress.upgrades) {
+      playerProgress.upgrades.killAccelPercent = state.upgrades.killAccelPercent;
+    }
   }
   if (g.isBoss) {
     handleBossKilled(g, state, playerProgress);
@@ -376,20 +383,8 @@ function _onEnemyKilled(state, playerProgress, g) {
   }
 }
 
-function _onPlayerHit(state, playerProgress, onPlayerDead, _state, isBattle) {
-  if (state.player.invulnerable > 0) return;
-  if (state.upgrades.shield > 0) {
-    state.upgrades.shield--;
-    state.player.invulnerable = CONFIG.PLAYER_INVULNERABLE_TIME;
-    Sounds.shieldhit?.();
-    return;
-  }
-  state.player.lives--;
-  state.player.invulnerable = CONFIG.PLAYER_INVULNERABLE_TIME;
-  Sounds.playerhit?.();
-  if (state.player.lives <= 0 && onPlayerDead) {
-    onPlayerDead(state, playerProgress);
-  }
+function _onPlayerHit(state, playerProgress, onPlayerDead) {
+  dealPlayerDamage(state, playerProgress, null, onPlayerDead);
 }
 
 // ── Cursor update for wall interaction ───────────────────────
@@ -442,6 +437,7 @@ export function handleWeaponPickup(state, playerProgress, triggered) {
       playerProgress.weaponSlots = [...state.weaponSlots];
       playerProgress.activeSlot  = state.activeSlot;
       playerProgress.maxSlots    = state.maxSlots;
+      saveCurrentGame();
       break;
     }
   }
@@ -449,7 +445,7 @@ export function handleWeaponPickup(state, playerProgress, triggered) {
 
 // ── Re-export proximity checks for game-loop ──────────────────────
 
-export { isNearAltar, isNearUpgradeChest, isNearCursedChest, isNearRoomBonusAltar };
+export { isNearAltar, isNearUpgradeChest, isNearSpatialChest, isNearRoomBonusAltar };
 
 // ── Check if player is near a weapon (for HUD hint) ──────────
 

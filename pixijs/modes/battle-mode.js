@@ -60,12 +60,22 @@ export function createBattleState(state, openedCellKey) {
   // Find room center cell for reward / content lookup
   const roomCenter    = _getRoomCenterCell(state, openedCellKey);
   const roomCenterKey = cellKey(roomCenter.x, roomCenter.y);
+  console.log('Battle triggered for cell:', openedCellKey, 'Room center:', roomCenterKey);
   const openedContent = state.cellContents.get(roomCenterKey);
 
   // Spawn pending room enemies into world-space
   const pendingSpawns = [];
   if (openedContent?.enemyCount && !openedContent.enemiesReleased) {
-    openedContent.enemiesReleased = true;
+    // Mark ALL cells of the triggered room as released for consistency
+    const triggeredRoom = state.rooms?.find(r => r.cells.some(c => c.k === openedCellKey));
+    if (triggeredRoom) {
+      for (const cell of triggeredRoom.cells) {
+        const content = state.cellContents.get(cell.k);
+        if (content) content.enemiesReleased = true;
+      }
+    } else {
+      openedContent.enemiesReleased = true;
+    }
 
     const enemiesToSpawn = [];
     for (let i = state.spiders.length - 1; i >= 0; i--) {
@@ -75,6 +85,7 @@ export function createBattleState(state, openedCellKey) {
         state.spiders.splice(i, 1);
       }
     }
+    console.log('Found enemies to spawn for room:', enemiesToSpawn.length, 'Remaining trapped:', state.spiders.length);
 
     // Collect open cells belonging to the opened room
     const roomOpenCells = [];
@@ -304,7 +315,11 @@ function _getRoomCenterCell(state, ck) {
 }
 
 function _enemyCopy(g, bx, by) {
-  return EnemyFactory.create(g.type, bx, by, g);
+  const copy = EnemyFactory.create(g.type, bx, by, g);
+  copy.stuckTimer = 0;
+  copy.lastX = bx;
+  copy.lastY = by;
+  return copy;
 }
 
 

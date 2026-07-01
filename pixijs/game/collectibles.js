@@ -9,7 +9,7 @@ import { applyUpgrade } from './upgrades.js';
 import { pickupWeapon  } from './combat.js';
 import { buildTileLayer } from '../render/tiles.js';
 import { layers } from '../render/layers.js';
-import { getCurrentLevel } from '../game-loop.js';
+import { getCurrentLevel, saveCurrentGame } from '../game-loop.js';
 
 const PICKUP_R = CONFIG.PLAYER_RADIUS + CONFIG.PICKUP_DISTANCE;
 
@@ -108,13 +108,13 @@ export function updateBattleCollectibles(state, playerProgress, onParticles) {
     }
   }
 
-  // Cursed chests
-  for (const bc of (b.chests || [])) {
+  // Spatial chests
+  for (const bc of (b.spatialChests || [])) {
     if (bc.collected) continue;
     if (Math.hypot(px - bc.x, py - bc.y) < PR) {
-      const worldChest = (state.chestObjs || []).find(c => c.cellKey === bc.originalCellKey);
+      const worldChest = (state.spatialChests || []).find(c => c.cellKey === bc.originalCellKey);
       if (worldChest) {
-        openCursedChoice(state, playerProgress, worldChest);
+        openSpatialChoice(state, worldChest);
         bc.collected = true;
       }
       break;
@@ -185,7 +185,10 @@ export function spawnRoomRewards(state, cellKey) {
   for (const heart of state.hearts) {
     if (heart.cellKey === cellKey) heart.spawned = true;
   }
-  for (const chest of (state.chestObjs || [])) {
+  for (const chest of (state.upgradeChests || [])) {
+    if (chest.cellKey === cellKey) chest.spawned = true;
+  }
+  for (const chest of (state.spatialChests || [])) {
     if (chest.cellKey === cellKey) chest.spawned = true;
   }
   if (state.summonSphere?.cellKey === cellKey) state.summonSphere.spawned = true;
@@ -201,28 +204,34 @@ export function spawnRoomRewards(state, cellKey) {
   }
 }
 
-// ── Cursed chest choice ───────────
+// ── Spatial chest choice ───────────
 
-export function openCursedChoice(state, chest, onEnterBattle) {
-  if (!chest && !state._pendingCursedChoice) {
-    state._pendingCursedChoice = { chest: null, callback: null };
+export function openSpatialChoice(state, chest, onEnterBattle) {
+  if (!chest && !state._specialChoiceState) {
+    state._specialChoiceState = { type: 'spatial', chest: null, active: false };
   }
   if (!chest) return;
   if (chest.collected) return;
   // Pause game, show choice overlay — actual rendering is in HUD layer
-  state._cursedChoiceState = { chest, active: true, onEnterBattle };
+  state._specialChoiceState = { type: 'spatial', chest, active: true, onEnterBattle };
 }
 
-export function applyCursedChoice(state, playerProgress, choiceId) {
-  if (!state._cursedChoiceState) return;
-  const { chest, onEnterBattle } = state._cursedChoiceState;
-  if (chest) chest.collected = true;
-  state._cursedChoiceState = null;
+export function openBossCursedChoice(state) {
+  state._specialChoiceState = { type: 'cursed', chest: null, active: true };
+}
 
-  if (!choiceId) return;
+export function applySpecialChoice(state, playerProgress, choiceId) {
+  if (!state._specialChoiceState) return;
+  const { type, chest, onEnterBattle } = state._specialChoiceState;
+  if (chest) chest.collected = true;
+  state._specialChoiceState = null;
+
+  if (!choiceId) {
+    return;
+  }
   applyUpgrade(state, playerProgress, choiceId);
 
-  // Enter battle mode after choice
+  // Enter battle mode after choice (for chests)
   if (onEnterBattle) onEnterBattle(chest?.cellKey);
 }
 
@@ -292,30 +301,30 @@ export function applyUpgradeChoice(state, playerProgress, choiceId) {
   if (cb) cb(chest?.cellKey);
 }
 
-// ── Cursed chest F-key activation ───────────
+// ── Spatial chest F-key activation ───────────
 
-export function checkCursedChestActivation(state, fKeyPressed, onEnterBattle) {
+export function checkSpatialChestActivation(state, fKeyPressed, onEnterBattle) {
   if (!fKeyPressed) return false;
   const px = state.player.x, py = state.player.y;
   const PICKUP_R = CONFIG.PLAYER_RADIUS + CONFIG.PICKUP_DISTANCE;
 
-  for (const chest of (state.chestObjs || [])) {
+  for (const chest of (state.spatialChests || [])) {
     if (chest.collected || chest.spawned === false) continue;
     const dist = Math.hypot(px - chest.x, py - chest.y);
     if (dist < PICKUP_R) {
-      openCursedChoice(state, chest, onEnterBattle);
+      openSpatialChoice(state, chest, onEnterBattle);
       return true;
     }
   }
   return false;
 }
 
-export function isNearCursedChest(state) {
+export function isNearSpatialChest(state) {
   if (state.phase !== 'play') return false;
   const px = state.player.x, py = state.player.y;
   const PICKUP_R = CONFIG.PLAYER_RADIUS + CONFIG.PICKUP_DISTANCE;
 
-  for (const chest of (state.chestObjs || [])) {
+  for (const chest of (state.spatialChests || [])) {
     if (chest.collected || chest.spawned === false) continue;
     const dist = Math.hypot(px - chest.x, py - chest.y);
     if (dist < PICKUP_R) return true;

@@ -17,7 +17,7 @@
 // ============================================================
 
 import { Container, Graphics, Text, TextStyle } from 'pixi.js';
-import { applyCursedChoice, applyUpgradeChoice, applyRoomBonusChoice } from '../game/collectibles.js';
+import { applySpecialChoice, applyUpgradeChoice, applyRoomBonusChoice } from '../game/collectibles.js';
 
 const VW = CONFIG.VIEW_W;
 const VH = CONFIG.VIEW_H;
@@ -83,18 +83,18 @@ export function updateOverlay(state, playerProgress, callbacks = {}) {
   // Store callback for upgrade chest
   if (callbacks.onEnterBattle) _onEnterBattle = callbacks.onEnterBattle;
 
-  const cc = state._cursedChoiceState;
+  const sc = state._specialChoiceState;
   const uc = state._upgradeChoiceState;
   const rc = state._roomBonusChoiceState;
 
-  // Cursed chest takes priority
-  if (cc?.active && !_panel) {
-    _showCursedChoice(state, playerProgress);
+  // Special choice (spatial/cursed) takes priority
+  if (sc?.active && !_panel) {
+    _showSpecialChoice(state, playerProgress);
   } else if (uc?.active && !_panel) {
     _showUpgradeChoice(state, playerProgress);
   } else if (rc?.active && !_panel) {
     _showRoomBonusChoice(state, playerProgress);
-  } else if (!cc?.active && !uc?.active && !rc?.active && _panel) {
+  } else if (!sc?.active && !uc?.active && !rc?.active && _panel) {
     _hidePanel();
   }
 }
@@ -184,7 +184,7 @@ export function hideGameOver() {
   _gameOverCallback = null;
 }
 
-// ── Cursed choice panel ───────────────────────────────────────
+// ── Choice panel layout constants ────────────────────────────
 
 const PANEL_W = 430;
 const PANEL_H = 250;
@@ -192,14 +192,22 @@ const BTN_W   = 120;
 const BTN_H   = 120;
 const BTN_GAP = 18;
 
-function _showCursedChoice(state, playerProgress) {
-  const choices = _pickChoices();
+const UPGRADE_BTN_W = 120;
+const UPGRADE_BTN_H = 110;
+const DECLINE_BTN_W = 180;
+const DECLINE_BTN_H = 36;
+
+// ── Special choice panel (Spatial / Cursed) ───────────────────
+
+function _showSpecialChoice(state, playerProgress) {
+  const type = state._specialChoiceState.type;
+  const choices = _pickSpecialChoices(state, type);
   _ctx = { state, playerProgress, choices };
 
   const px = (VW - PANEL_W) / 2;
   const py = (VH - PANEL_H) / 2;
 
-  const cont = new Container({ label: 'cursed-choice' });
+  const cont = new Container({ label: 'special-choice' });
 
   // Full-screen dim
   const dim = new Graphics();
@@ -208,19 +216,22 @@ function _showCursedChoice(state, playerProgress) {
 
   // Panel background
   const panel = new Graphics();
+  const accentColor = type === 'spatial' ? 0x00d4ff : 0x9900ff;
   panel.rect(px, py, PANEL_W, PANEL_H)
        .fill({ color: 0x160020, alpha: 0.97 })
-       .stroke({ color: 0x9900ff, alpha: 0.9, width: 2 });
+       .stroke({ color: accentColor, alpha: 0.9, width: 2 });
   cont.addChild(panel);
 
   // Title
-  const title = new Text({ text: '⚠ ПРОКЛЯТЫЙ СУНДУК ⚠', style: ST_TITLE });
+  const titleText = type === 'spatial' ? '✨ ПРОСТРАНСТВЕННЫЙ СУНДУК ✨' : '⚠ ПРОКЛЯТЫЙ БОНУС ⚠';
+  const title = new Text({ text: titleText, style: ST_TITLE });
   title.anchor.set(0.5, 0);
   title.position.set(VW / 2, py + 14);
   cont.addChild(title);
 
   // Hint
-  const hint = new Text({ text: 'Выбери одно из проклятых улучшений:', style: ST_HINT });
+  const hintText = type === 'spatial' ? 'Выбери пространственное улучшение:' : 'Выбери одно из проклятых улучшений:';
+  const hint = new Text({ text: hintText, style: ST_HINT });
   hint.anchor.set(0.5, 0);
   hint.position.set(VW / 2, py + 42);
   cont.addChild(hint);
@@ -243,24 +254,25 @@ function _addChoiceBtn(cont, ch, bx, by) {
 
   // Draw button background (redrawn on hover via closure)
   const btn = new Graphics();
+  btn.position.set(bx, by);
   const _drawNormal = () =>
     btn.clear()
-       .rect(bx, by, BTN_W, BTN_H)
+       .rect(0, 0, BTN_W, BTN_H)
        .fill({ color: 0x1a0030, alpha: 0.95 })
        .stroke({ color: accent, alpha: 0.8, width: 1.5 });
   const _drawHover = () =>
     btn.clear()
-       .rect(bx, by, BTN_W, BTN_H)
+       .rect(0, 0, BTN_W, BTN_H)
        .fill({ color: 0x2d0050, alpha: 0.98 })
        .stroke({ color: accent, alpha: 1, width: 2 });
 
   _drawNormal();
   btn.eventMode = 'static';
   btn.cursor    = 'pointer';
-  btn.hitArea   = { contains: (x, y) => x >= bx && x <= bx + BTN_W && y >= by && y <= by + BTN_H };
+  btn.hitArea   = { contains: (x, y) => x >= 0 && x <= BTN_W && y >= 0 && y <= BTN_H };
   btn.on('pointerover', _drawHover);
   btn.on('pointerout',  _drawNormal);
-  btn.on('pointerdown', () => _onChoice(ch.id));
+  btn.on('pointerdown', () => _onSpecialChoice(ch.id));
   cont.addChild(btn);
 
   // Icon emoji
@@ -269,8 +281,8 @@ function _addChoiceBtn(cont, ch, bx, by) {
     style: new TextStyle({ fill: ch.color ?? '#cc66ff', fontSize: 30, fontFamily: 'sans-serif' }),
   });
   icon.anchor.set(0.5, 0);
-  icon.position.set(bx + BTN_W / 2, by + 8);
-  cont.addChild(icon);
+  icon.position.set(BTN_W / 2, 8);
+  btn.addChild(icon);
 
   // Label
   const lbl = new Text({
@@ -282,8 +294,8 @@ function _addChoiceBtn(cont, ch, bx, by) {
     }),
   });
   lbl.anchor.set(0.5, 0);
-  lbl.position.set(bx + BTN_W / 2, by + 50);
-  cont.addChild(lbl);
+  lbl.position.set(BTN_W / 2, 50);
+  btn.addChild(lbl);
 
   // Short description
   const desc = new Text({
@@ -295,26 +307,21 @@ function _addChoiceBtn(cont, ch, bx, by) {
     }),
   });
   desc.anchor.set(0.5, 0);
-  desc.position.set(bx + BTN_W / 2, by + 72);
-  cont.addChild(desc);
+  desc.position.set(BTN_W / 2, 72);
+  btn.addChild(desc);
 }
 
-function _onChoice(id) {
+function _onSpecialChoice(id) {
   if (!_ctx) return;
   const { state, playerProgress } = _ctx;
-  applyCursedChoice(state, playerProgress, id);
+  applySpecialChoice(state, playerProgress, id);
   _hidePanel();
 }
 
 // ── Upgrade choice panel ───────────────────────────────────────
 
-const UPGRADE_BTN_W = 120;
-const UPGRADE_BTN_H = 110;
-const DECLINE_BTN_W = 180;
-const DECLINE_BTN_H = 36;
-
 function _showUpgradeChoice(state, playerProgress) {
-  const choices = _pickUpgradeChoices();
+  const choices = _pickUpgradeChoices(state);
   _ctx = { state, playerProgress, choices };
 
   const px = (VW - PANEL_W) / 2;
@@ -368,21 +375,22 @@ function _addUpgradeChoiceBtn(cont, ch, bx, by) {
   const accent = ch.color ? _hexToNum(ch.color) : 0x44aaff;
 
   const btn = new Graphics();
+  btn.position.set(bx, by);
   const _drawNormal = () =>
     btn.clear()
-       .rect(bx, by, UPGRADE_BTN_W, UPGRADE_BTN_H)
+       .rect(0, 0, UPGRADE_BTN_W, UPGRADE_BTN_H)
        .fill({ color: 0x1a2a30, alpha: 0.95 })
        .stroke({ color: accent, alpha: 0.8, width: 1.5 });
   const _drawHover = () =>
     btn.clear()
-       .rect(bx, by, UPGRADE_BTN_W, UPGRADE_BTN_H)
+       .rect(0, 0, UPGRADE_BTN_W, UPGRADE_BTN_H)
        .fill({ color: 0x2d4050, alpha: 0.98 })
        .stroke({ color: accent, alpha: 1, width: 2 });
 
   _drawNormal();
   btn.eventMode = 'static';
   btn.cursor    = 'pointer';
-  btn.hitArea   = { contains: (x, y) => x >= bx && x <= bx + UPGRADE_BTN_W && y >= by && y <= by + UPGRADE_BTN_H };
+  btn.hitArea   = { contains: (x, y) => x >= 0 && x <= UPGRADE_BTN_W && y >= 0 && y <= UPGRADE_BTN_H };
   btn.on('pointerover', _drawHover);
   btn.on('pointerout',  _drawNormal);
   btn.on('pointerdown', () => _onUpgradeChoice(ch.id));
@@ -394,8 +402,8 @@ function _addUpgradeChoiceBtn(cont, ch, bx, by) {
     style: new TextStyle({ fill: ch.color ?? '#44aaff', fontSize: 28, fontFamily: 'sans-serif' }),
   });
   icon.anchor.set(0.5, 0);
-  icon.position.set(bx + UPGRADE_BTN_W / 2, by + 8);
-  cont.addChild(icon);
+  icon.position.set(UPGRADE_BTN_W / 2, 8);
+  btn.addChild(icon);
 
   // Label
   const lbl = new Text({
@@ -407,8 +415,8 @@ function _addUpgradeChoiceBtn(cont, ch, bx, by) {
     }),
   });
   lbl.anchor.set(0.5, 0);
-  lbl.position.set(bx + UPGRADE_BTN_W / 2, by + 45);
-  cont.addChild(lbl);
+  lbl.position.set(UPGRADE_BTN_W / 2, 45);
+  btn.addChild(lbl);
 
   // Short description
   const desc = new Text({
@@ -420,27 +428,28 @@ function _addUpgradeChoiceBtn(cont, ch, bx, by) {
     }),
   });
   desc.anchor.set(0.5, 0);
-  desc.position.set(bx + UPGRADE_BTN_W / 2, by + 68);
-  cont.addChild(desc);
+  desc.position.set(UPGRADE_BTN_W / 2, 68);
+  btn.addChild(desc);
 }
 
 function _addDeclineBtn(cont, bx, by) {
   const btn = new Graphics();
+  btn.position.set(bx, by);
   const _drawNormal = () =>
     btn.clear()
-       .rect(bx, by, DECLINE_BTN_W, DECLINE_BTN_H)
+       .rect(0, 0, DECLINE_BTN_W, DECLINE_BTN_H)
        .fill({ color: 0x302020, alpha: 0.95 })
        .stroke({ color: 0x888888, alpha: 0.6, width: 1 });
   const _drawHover = () =>
     btn.clear()
-       .rect(bx, by, DECLINE_BTN_W, DECLINE_BTN_H)
+       .rect(0, 0, DECLINE_BTN_W, DECLINE_BTN_H)
        .fill({ color: 0x403030, alpha: 0.98 })
        .stroke({ color: 0xaaaaaa, alpha: 0.8, width: 1.5 });
 
   _drawNormal();
   btn.eventMode = 'static';
   btn.cursor    = 'pointer';
-  btn.hitArea   = { contains: (x, y) => x >= bx && x <= bx + DECLINE_BTN_W && y >= by && y <= by + DECLINE_BTN_H };
+  btn.hitArea   = { contains: (x, y) => x >= 0 && x <= DECLINE_BTN_W && y >= 0 && y <= DECLINE_BTN_H };
   btn.on('pointerover', _drawHover);
   btn.on('pointerout',  _drawNormal);
   btn.on('pointerdown', () => _onUpgradeChoice(null));
@@ -454,8 +463,8 @@ function _addDeclineBtn(cont, bx, by) {
     }),
   });
   lbl.anchor.set(0.5, 0.5);
-  lbl.position.set(bx + DECLINE_BTN_W / 2, by + DECLINE_BTN_H / 2);
-  cont.addChild(lbl);
+  lbl.position.set(DECLINE_BTN_W / 2, DECLINE_BTN_H / 2);
+  btn.addChild(lbl);
 }
 
 function _onUpgradeChoice(id) {
@@ -465,19 +474,15 @@ function _onUpgradeChoice(id) {
   _hidePanel();
 }
 
-function _pickUpgradeChoices() {
-  const pool = (typeof UPGRADE_TYPES !== 'undefined') ? [...UPGRADE_TYPES] : [];
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
-  }
-  return pool.slice(0, 3);
+function _pickUpgradeChoices(state) {
+  const pool = (typeof UPGRADE_TYPES !== 'undefined') ? UPGRADE_TYPES : [];
+  return _pickRandomFromPool(state, pool, 3);
 }
 
 // ── Room bonus choice panel ───────────────────────────────────────
 
 function _showRoomBonusChoice(state, playerProgress) {
-  const choices = _pickRoomBonusChoices();
+  const choices = _pickRoomBonusChoices(state);
   _ctx = { state, playerProgress, choices };
 
   const px = (VW - PANEL_W) / 2;
@@ -531,21 +536,22 @@ function _addRoomBonusChoiceBtn(cont, ch, bx, by) {
   const accent = ch.color ? _hexToNum(ch.color) : 0x44ff88;
 
   const btn = new Graphics();
+  btn.position.set(bx, by);
   const _drawNormal = () =>
     btn.clear()
-       .rect(bx, by, UPGRADE_BTN_W, UPGRADE_BTN_H)
+       .rect(0, 0, UPGRADE_BTN_W, UPGRADE_BTN_H)
        .fill({ color: 0x1a2a30, alpha: 0.95 })
        .stroke({ color: accent, alpha: 0.8, width: 1.5 });
   const _drawHover = () =>
     btn.clear()
-       .rect(bx, by, UPGRADE_BTN_W, UPGRADE_BTN_H)
+       .rect(0, 0, UPGRADE_BTN_W, UPGRADE_BTN_H)
        .fill({ color: 0x2d4050, alpha: 0.98 })
        .stroke({ color: accent, alpha: 1, width: 2 });
 
   _drawNormal();
   btn.eventMode = 'static';
   btn.cursor    = 'pointer';
-  btn.hitArea   = { contains: (x, y) => x >= bx && x <= bx + UPGRADE_BTN_W && y >= by && y <= by + UPGRADE_BTN_H };
+  btn.hitArea   = { contains: (x, y) => x >= 0 && x <= UPGRADE_BTN_W && y >= 0 && y <= UPGRADE_BTN_H };
   btn.on('pointerover', _drawHover);
   btn.on('pointerout',  _drawNormal);
   btn.on('pointerdown', () => _onRoomBonusChoice(ch.id));
@@ -557,8 +563,8 @@ function _addRoomBonusChoiceBtn(cont, ch, bx, by) {
     style: new TextStyle({ fill: ch.color ?? '#44ff88', fontSize: 28, fontFamily: 'sans-serif' }),
   });
   icon.anchor.set(0.5, 0);
-  icon.position.set(bx + UPGRADE_BTN_W / 2, by + 8);
-  cont.addChild(icon);
+  icon.position.set(UPGRADE_BTN_W / 2, 8);
+  btn.addChild(icon);
 
   // Label
   const lbl = new Text({
@@ -570,8 +576,8 @@ function _addRoomBonusChoiceBtn(cont, ch, bx, by) {
     }),
   });
   lbl.anchor.set(0.5, 0);
-  lbl.position.set(bx + UPGRADE_BTN_W / 2, by + 45);
-  cont.addChild(lbl);
+  lbl.position.set(UPGRADE_BTN_W / 2, 45);
+  btn.addChild(lbl);
 
   // Short description
   const desc = new Text({
@@ -583,8 +589,8 @@ function _addRoomBonusChoiceBtn(cont, ch, bx, by) {
     }),
   });
   desc.anchor.set(0.5, 0);
-  desc.position.set(bx + UPGRADE_BTN_W / 2, by + 68);
-  cont.addChild(desc);
+  desc.position.set(UPGRADE_BTN_W / 2, 68);
+  btn.addChild(desc);
 }
 
 function _onRoomBonusChoice(id) {
@@ -594,13 +600,9 @@ function _onRoomBonusChoice(id) {
   _hidePanel();
 }
 
-function _pickRoomBonusChoices() {
-  const pool = (typeof ROOM_BONUS_TYPES !== 'undefined') ? [...ROOM_BONUS_TYPES] : [];
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
-  }
-  return pool.slice(0, 3);
+function _pickRoomBonusChoices(state) {
+  const pool = (typeof ROOM_BONUS_TYPES !== 'undefined') ? ROOM_BONUS_TYPES : [];
+  return _pickRandomFromPool(state, pool, 3);
 }
 
 function _hidePanel() {
@@ -613,13 +615,39 @@ function _hidePanel() {
 
 // ── Helpers ───────────────────────────────────────────────────
 
-function _pickChoices() {
-  const pool = (typeof CURSED_UPGRADE_TYPES !== 'undefined') ? [...CURSED_UPGRADE_TYPES] : [];
-  for (let i = pool.length - 1; i > 0; i--) {
+function _pickRandomFromPool(state, pool, count) {
+  const available = pool.filter(u => _isUpgradeAvailable(state, u));
+  const shuffled = [...available];
+  for (let i = shuffled.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
-  return pool.slice(0, 3);
+  return shuffled.slice(0, count);
+}
+
+function _isUpgradeAvailable(state, def) {
+  if (!def || !state.upgrades || !state.upgradeLevels) return false;
+  
+  // 1. Check max count (if defined)
+  const count = state.upgradeLevels[def.id] || 0;
+  if (def.max !== undefined && count >= def.max) return false;
+
+  // 2. Check mutual exclusion (spatial upgrades)
+  // If this upgrade is already owned, or its blocker is already owned, it's unavailable.
+  if (state.upgrades[def.id] === true) return false;
+  if (def.blocks && state.upgrades[def.blocks] === true) return false;
+
+  return true;
+}
+
+function _pickSpecialChoices(state, type) {
+  let pool = [];
+  if (type === 'spatial') {
+    pool = (typeof SPATIAL_UPGRADE_TYPES !== 'undefined') ? SPATIAL_UPGRADE_TYPES : [];
+  } else {
+    pool = (typeof CURSED_UPGRADE_TYPES !== 'undefined') ? CURSED_UPGRADE_TYPES : [];
+  }
+  return _pickRandomFromPool(state, pool, 3);
 }
 
 function _hexToNum(str) {

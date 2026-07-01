@@ -57,7 +57,7 @@ import { Sounds }               from './core/sound.js';
 import {
   createGameState, createDefaultProgress, saveGame, savePlayerProgress, deleteSave,
 } from './game/state.js';
-import { updatePlayMode, isNearWeapon, isNearAltar, isNearUpgradeChest, isNearCursedChest, isNearRoomBonusAltar } from './modes/play-mode.js';
+import { updatePlayMode, isNearWeapon, isNearAltar, isNearUpgradeChest, isNearSpatialChest, isNearRoomBonusAltar } from './modes/play-mode.js';
 import {
   createBattleState, createBossBattleState,
   updateBattleMode, exitBattleMode,
@@ -85,6 +85,12 @@ let _tickerFn          = null;
 let _running           = false;
 
 // ── Public API ────────────────────────────────────────────────
+
+export function saveCurrentGame() {
+  if (_state && _currentLevel && _playerProgress) {
+    saveGame(_state, _currentLevel, _playerProgress);
+  }
+}
 
 /**
  * Initialise all subsystems and start the game loop.
@@ -124,6 +130,7 @@ export function startGameLoop({
   // Initialize lazy-rebuild tracking
   _state._lastPurifiedSize = _state.purified?.size ?? 0;
   _state._lastEverRevealedSize = _state.everRevealedCells?.size ?? 0;
+  _state._lastRemovedWallsSize = _state.removedWalls?.size ?? 0;
 
   // Physics engine
   createEngine();
@@ -168,7 +175,7 @@ export function startGameLoop({
     disabledCells:      _state.disabledCells,
     rooms:              _state.rooms,
     purified:           _state.purified,
-    chestObjs:          _state.chestObjs,
+    spatialChests:      _state.spatialChests,
     hearts:             _state.hearts,
     upgradeChests:      _state.upgradeChests,
     summonSphere:       _state.summonSphere,
@@ -179,7 +186,7 @@ export function startGameLoop({
   // Input
   initInput(app.canvas);
 
-  // Save once at level start
+  // Save once at level start (or load)
   saveGame(_state, _currentLevel, _playerProgress);
 
   // Music — load bundle first (large files), then start playback
@@ -392,10 +399,10 @@ function _render(dt) {
   const nearWeapon = _state.phase === 'play' ? isNearWeapon(_state) : false;
   const nearAltar  = _state.phase === 'play' ? isNearAltar(_state)  : false;
   const nearChest  = _state.phase === 'play' ? isNearUpgradeChest(_state) : false;
-  const nearCursedChest = _state.phase === 'play' ? isNearCursedChest(_state) : false;
+  const nearSpatialChest = _state.phase === 'play' ? isNearSpatialChest(_state) : false;
   const nearRoomBonusAltar = _state.phase === 'play' ? isNearRoomBonusAltar(_state) : false;
   const bossSummonReady = _state.phase === 'play' ? _state.bossSummonReady : false;
-  updateHud(_state, _currentLevel, nearWeapon, nearAltar, bossSummonReady, nearChest, nearCursedChest, nearRoomBonusAltar);
+  updateHud(_state, _currentLevel, nearWeapon, nearAltar, bossSummonReady, nearChest, nearSpatialChest, nearRoomBonusAltar);
 
   // Update boss HP bar during boss battle
   if (_state.battle?.isBossBattle) {
@@ -437,7 +444,7 @@ function _render(dt) {
       disabledCells:      _state.disabledCells,
       rooms:              _state.rooms,
       purified:           _state.purified,
-      chestObjs:          _state.chestObjs,
+      spatialChests:      _state.spatialChests,
       hearts:             _state.hearts,
       upgradeChests:      _state.upgradeChests,
       summonSphere:       _state.summonSphere,
@@ -481,6 +488,7 @@ function _onBattleWon(state, playerProgress) {
 
 function _onZoomOutComplete(_tr) {
   exitBattleMode(_state);
+  saveCurrentGame();
   Sounds.playLevelMusic(_currentLevel);
 
   // Rebuild tiles (walls may have changed, room purification updated)
@@ -495,7 +503,7 @@ function _onZoomOutComplete(_tr) {
     disabledCells:      _state.disabledCells,
     rooms:              _state.rooms,
     purified:           _state.purified,
-    chestObjs:          _state.chestObjs,
+    spatialChests:      _state.spatialChests,
     hearts:             _state.hearts,
     upgradeChests:      _state.upgradeChests,
     summonSphere:       _state.summonSphere,
@@ -517,7 +525,6 @@ function _onLevelComplete(state, playerProgress) {
   state.phase = 'win';
   Sounds.stopGameMusic();
   savePlayerProgress(state, playerProgress);
-  deleteSave();
   showLevelComplete(() => {
     hideLevelComplete();
     nextLevel();
@@ -541,6 +548,11 @@ export function restartLevel() {
  * Advance to the next level.
  */
 export function nextLevel() {
+  // Recover hearts from open rooms
+  if (_state && _playerProgress) {
+    _playerProgress.totalLives = (_state.player?.lives || 0) + (_state.playerRemovedWalls || 0);
+  }
+
   stopGameLoop();
   _currentLevel = Math.min(_currentLevel + 1, CONFIG.MAX_LEVELS ?? 3);
   startGameLoop({ level: _currentLevel, playerProgress: _playerProgress });

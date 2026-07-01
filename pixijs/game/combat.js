@@ -16,6 +16,48 @@ export function getActiveWeapon(state) {
   return weaponId ? WEAPON_DEFS[weaponId] : null;
 }
 
+// ── Spatial bonus helper ───────────────────────────────────────
+
+/**
+ * Calculates a dynamic bonus based on SPATIAL_UPGRADE_TYPES.
+ * @param {object} state 
+ * @param {string} axis - 'reload', 'range', 'accuracy', 'bulletSpeed', 'speed', 'critChance', 'critDamage', 'penetrate'
+ * @returns {number}
+ */
+export function getSpatialBonus(state, axis) {
+  if (!state.upgrades) return 0;
+
+  // Count open rooms
+  let roomCount = 1;
+  if (state.rooms && state.openCells) {
+    let openedRooms = 0;
+    for (const room of state.rooms) {
+      if (room.cells.some(c => state.openCells.has(c.k))) {
+        openedRooms++;
+      }
+    }
+    roomCount = Math.max(1, openedRooms);
+  }
+
+  const heartCount = state.player?.lives || 0;
+  
+  let total = 0;
+  const spatialPool = (typeof SPATIAL_UPGRADE_TYPES !== 'undefined') ? SPATIAL_UPGRADE_TYPES : [];
+  
+  for (const def of spatialPool) {
+    if (def.axis === axis && state.upgrades[def.id]) {
+      if (def.source === 'rooms') {
+        const effectVal = def.effects[`${axis}PerRoom`];
+        if (effectVal != null) total += effectVal * roomCount;
+      } else if (def.source === 'hearts') {
+        const effectVal = def.effects[`${axis}PerHeart`];
+        if (effectVal != null) total += effectVal * heartCount;
+      }
+    }
+  }
+  return total;
+}
+
 // ── Shoot (play-mode) ─────────────────────────────────────────
 
 export function shoot(state) {
@@ -36,7 +78,10 @@ export function shoot(state) {
   const killAccelMult = state.upgrades.killAccel
     ? Math.max(0.1, 1 - state.upgrades.killAccelPercent / 100)
     : 1.0;
-  const cooldown = weapon.cooldown * state.upgrades.cooldownMult * killAccelMult;
+  
+  // Spatial Reload Bonus
+  const spatialReload = getSpatialBonus(state, 'reload');
+  const cooldown = weapon.cooldown * state.upgrades.cooldownMult * killAccelMult * Math.max(0.1, 1 - spatialReload);
 
   const dx = state.mouse.x - state.player.x;
   const dy = state.mouse.y - state.player.y;
@@ -46,12 +91,26 @@ export function shoot(state) {
   const pellets       = isBurstWeapon ? weapon.pellets : weapon.pellets + state.upgrades.pellets;
   const burstTotal    = isBurstWeapon ? weapon.burstSize + state.upgrades.pellets : weapon.burstSize;
   const burstDelay    = _burstStepDelay(weapon, burstTotal) * state.upgrades.cooldownMult * killAccelMult;
-  let   totalSpread   = weapon.spread * state.upgrades.spreadMult;
-  const bulletSpeed   = weapon.bulletSpeed * state.upgrades.bulletSpeedMult;
+  
+  // Spatial Accuracy Bonus
+  const spatialAccuracy = getSpatialBonus(state, 'accuracy');
+  let   totalSpread   = weapon.spread * state.upgrades.spreadMult * Math.max(0, 1 - spatialAccuracy);
+
+  const spatialBulletSpeed = getSpatialBonus(state, 'bulletSpeed');
+  const bulletSpeed   = weapon.bulletSpeed * state.upgrades.bulletSpeedMult * (1 + spatialBulletSpeed);
 
   // Sniper upgrade: perfect accuracy when ≤2 rooms
-  if (state.upgrades.sniper && state.battle?.openCells) {
-    const roomCount = state.battle.openCells.size;
+  if (state.upgrades.sniper) {
+    let roomCount = 1;
+    if (state.battle && state.battle.battleCells && state.rooms) {
+      let participatingRooms = 0;
+      for (const room of state.rooms) {
+        if (room.cells.some(c => state.battle.battleCells.has(c.k))) {
+          participatingRooms++;
+        }
+      }
+      roomCount = participatingRooms;
+    }
     if (roomCount <= 2)   totalSpread = 0;
     else                  totalSpread *= 1 + 0.10 * (roomCount - 2);
   }
@@ -130,11 +189,18 @@ export function pickupWeapon(state, weaponId, particles, px, py, scale, dropPlay
 // ── Internal helpers ──────────────────────────────────────────
 
 function _spawnPlayerBullet(state, weapon, angle, bulletSpeed, scale, battleState = null) {
-  const isCrit = Math.random() < state.upgrades.critChance;
+  const spatialCritChance = getSpatialBonus(state, 'critChance');
+  const isCrit = Math.random() < (state.upgrades.critChance + spatialCritChance);
+  
   let damage = weapon.damage + state.upgrades.damage;
-  if (isCrit) damage *= 2;
+  if (isCrit) {
+    const spatialCritDamage = getSpatialBonus(state, 'critDamage');
+    const critMult = 2 + spatialCritDamage;
+    damage *= critMult;
+  }
 
-  const basePenetrate = state.upgrades.infinitePenetrate ? Infinity : weapon.penetrate + state.upgrades.penetrate;
+  const spatialPenetrate = getSpatialBonus(state, 'penetrate');
+  const basePenetrate = state.upgrades.infinitePenetrate ? Infinity : weapon.penetrate + state.upgrades.penetrate + Math.floor(spatialPenetrate);
   const vx = Math.cos(angle) * bulletSpeed;
   const vy = Math.sin(angle) * bulletSpeed;
   
@@ -148,21 +214,43 @@ function _spawnPlayerBullet(state, weapon, angle, bulletSpeed, scale, battleStat
     damage: damage,
     penetrate: basePenetrate,
     ricochet: !!state.upgrades.ricochet,
-    maxRange: _bulletRange(state, weapon, scale),
+    maxRange: getBulletRange(state, weapon, scale),
     color: PLAYER_BULLET_COLOR,
     isCrit: isCrit
   });
 }
 
-function _bulletRange(state, weapon, scale) {
+export function getBulletRange(state, weapon, scale) {
   if (state.upgrades.infiniteRange) return Infinity;
   const RANGE_SCALE = CELL_PX / 10;
   let range = (weapon.range != null
     ? weapon.range * RANGE_SCALE * scale
     : CONFIG.BULLET_LIFE * weapon.bulletSpeed * scale);
   if (state.upgrades.ricochet) range *= 1.5;
-  if (state.upgrades.longRange && state.openCells) {
-    range *= 1 + 0.20 * state.openCells.size;
+  
+  const spatialRange = getSpatialBonus(state, 'range');
+  range *= (1 + spatialRange);
+
+  if (state.upgrades.longRange) {
+    let roomCount = 1;
+    if (state.battle && state.battle.battleCells && state.rooms) {
+      let participatingRooms = 0;
+      for (const room of state.rooms) {
+        if (room.cells.some(c => state.battle.battleCells.has(c.k))) {
+          participatingRooms++;
+        }
+      }
+      roomCount = participatingRooms;
+    } else if (state.rooms && state.openCells) {
+      let openedRooms = 0;
+      for (const room of state.rooms) {
+        if (room.cells.some(c => state.openCells.has(c.k))) {
+          openedRooms++;
+        }
+      }
+      roomCount = openedRooms;
+    }
+    range *= 1 + 0.20 * roomCount;
   }
   return range;
 }
