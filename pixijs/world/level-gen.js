@@ -617,15 +617,16 @@ function createStasisEnemy(enemyType, gx, gy, level, roomIdx) {
   return enemy;
 }
 
-function spawnEnemiesFromPreset(preset, cellX, cellY, stasisEnemies, level, roomIdx) {
+function spawnEnemiesFromPreset(preset, cells, stasisEnemies, level, roomIdx) {
   const margin = CONFIG.ENEMY_STATS.spider.radius + CONFIG.ENEMY_STATS.spider.spawnMargin;
   for (const [configKey, count] of Object.entries(preset)) {
     if (!count) continue;
     const enemyType = ENEMY_POOL_TYPE_MAP[configKey];
     if (!enemyType) continue;
     for (let i = 0; i < count; i++) {
-      const gx = cellX * CELL_PX + margin + Math.random() * (CELL_PX - margin * 2);
-      const gy = cellY * CELL_PX + margin + Math.random() * (CELL_PX - margin * 2);
+      const cell = cells[Math.floor(Math.random() * cells.length)];
+      const gx = cell.x * CELL_PX + margin + Math.random() * (CELL_PX - margin * 2);
+      const gy = cell.y * CELL_PX + margin + Math.random() * (CELL_PX - margin * 2);
       stasisEnemies.push(createStasisEnemy(enemyType, gx, gy, level, roomIdx));
     }
   }
@@ -707,8 +708,7 @@ export function generateLevel(level, playerProgress) {
     const ri = cellToRoom.get(k);
     if (ri === undefined || processedRooms.has(ri)) continue;
     processedRooms.add(ri);
-    const { x: spawnX, y: spawnY } = cellFromKey(getCenterCellKey(rooms[ri]));
-    spawnEnemiesFromPreset(content.enemyPreset, spawnX, spawnY, trappedSpiders, level, ri);
+    spawnEnemiesFromPreset(content.enemyPreset, rooms[ri].cells, trappedSpiders, level, ri);
   }
 
   // ── Initial visibility ──
