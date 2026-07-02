@@ -257,6 +257,7 @@ function _handlePhysicsCollision(pairs) {
 }
 
 function _handlePlayerEnemyContact(player, enemy) {
+  if (enemy.stasis) return;
   if (player.invulnerable > 0 || player.isDashing) return;
 
   // Damage player
@@ -387,6 +388,7 @@ function _render(dt) {
     layers.entities,
     _state.time,
     _state.player.x,
+    _state.everRevealedCells,
   );
 
   syncBullets(bulletManager.bullets);

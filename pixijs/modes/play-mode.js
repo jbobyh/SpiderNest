@@ -159,7 +159,13 @@ export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}
   handleWeaponPickup(state, playerProgress, interactTriggered);
 
   // ── Bullets ───────────────────────────────────────────────
-  bulletManager.update(state, dt, _onEnemyKilled.bind(null, state, playerProgress), _onPlayerHit.bind(null, state, playerProgress, onPlayerDead));
+  const onStasisTriggered = isBattle ? null : (enemy) => {
+    if (state.phase !== 'play') return;
+    if (!enemy.stasis) return;
+    const room = state.rooms?.[enemy.stasisRoomIdx];
+    if (room && onEnterBattle) onEnterBattle(room.cells[0].k);
+  };
+  bulletManager.update(state, dt, _onEnemyKilled.bind(null, state, playerProgress), _onPlayerHit.bind(null, state, playerProgress, onPlayerDead), false, onStasisTriggered);
 
   // ── Particles ─────────────────────────────────────────────
   _stepParticles(state.particles, dt);

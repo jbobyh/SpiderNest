@@ -20,6 +20,18 @@ export function updateEnemyAI(state, playerProgress, dt, onPlayerDamaged) {
   for (let i = s.activeSpiders.length - 1; i >= 0; i--) {
     const g = s.activeSpiders[i];
 
+    // Stasis enemies: skip AI update but still handle death cleanup
+    if (g.stasis) {
+      if (g.isDead || g.hp <= 0) {
+        if (!g.isDead) g.die(state, true);
+        spawnCorpse(s.deathCorpses, g, g.radius);
+        _deathParticles(s.particles, g.x, g.y, 1);
+        if (g.body) { destroyBody(g.body); g.body = null; }
+        s.activeSpiders.splice(i, 1);
+      }
+      continue;
+    }
+
     // If for some reason it's not a class instance yet (e.g. newly spawned in a way that missed factory)
     if (typeof g.update !== 'function') {
       s.activeSpiders[i] = EnemyFactory.fromObject(g);

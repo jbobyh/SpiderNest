@@ -42,10 +42,10 @@ const _FLASH_BRIGHTNESS = 6; // how bright the white flash is
  */
 export function syncEnemySprites(
   activeSpiders, deathCorpses, entitiesLayer,
-  gameTime, playerX,
+  gameTime, playerX, everRevealedCells = null,
 ) {
   _syncCorpses(deathCorpses, entitiesLayer);
-  _syncActive(activeSpiders, entitiesLayer, gameTime, playerX);
+  _syncActive(activeSpiders, entitiesLayer, gameTime, playerX, everRevealedCells);
 }
 
 /**
@@ -86,7 +86,7 @@ function _syncCorpses(deathCorpses, layer) {
 
 // ── Active enemy sync ─────────────────────────────────────────
 
-function _syncActive(activeSpiders, layer, gameTime, playerX) {
+function _syncActive(activeSpiders, layer, gameTime, playerX, everRevealedCells = null) {
   // Remove sprites for enemies no longer in state
   for (const [g, entry] of _enemyMap) {
     if (!activeSpiders.includes(g)) {
@@ -110,11 +110,26 @@ function _syncActive(activeSpiders, layer, gameTime, playerX) {
     sprite.y = g.y;
     _applyEnemyScale(sprite, g.radius, g.visualScale);
 
-    // Horizontal flip: player left of enemy → face left
-    sprite.scale.x = (playerX < g.x) ? -Math.abs(sprite.scale.x) : Math.abs(sprite.scale.x);
+    // Stasis visibility: hide if in unrevealed cell
+    if (g.stasis && everRevealedCells) {
+      const ck = `${Math.floor(g.x / 126)},${Math.floor(g.y / 126)}`;
+      sprite.visible = everRevealedCells.has(ck);
+      if (sprite.visible) {
+        sprite.alpha = 0.6;
+        sprite.filters = null;
+      }
+    } else {
+      sprite.visible = true;
+      sprite.alpha = 1;
+    }
 
-    // Hit flash via ColorMatrixFilter
-    if (g.hitFlash > 0) {
+    // Horizontal flip: player left of enemy → face left
+    if (!g.stasis) {
+      sprite.scale.x = (playerX < g.x) ? -Math.abs(sprite.scale.x) : Math.abs(sprite.scale.x);
+    }
+
+    // Hit flash via ColorMatrixFilter (skip for stasis)
+    if (!g.stasis && g.hitFlash > 0) {
       const t = Math.min(1, g.hitFlash / CONFIG.ENEMY_HIT_FLASH_DURATION);
       filter.brightness(1 + (_FLASH_BRIGHTNESS - 1) * t, false);
       sprite.filters = [filter];

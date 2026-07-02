@@ -11,6 +11,7 @@ import {
   cellKey, cellFromKey, wallKey,
   shuffleInPlace, inBounds,
 } from './constants.js';
+import { EnemyFactory } from '../game/enemy-factory.js';
 
 // ── Room content types ───────────────────────────────────────
 
@@ -606,35 +607,17 @@ function getEnemyStats(enemyType, level) {
   }
 }
 
-function createTrappedEnemy(enemyType, gx, gy, homeX, homeY, level) {
+function createStasisEnemy(enemyType, gx, gy, level, roomIdx) {
   const { hp, radius, visualScale } = getEnemyStats(enemyType, level);
-  const isPlevaka = enemyType === 'plevaka' || enemyType === 'shooter';
-  const isAnimated = isPlevaka || enemyType === 'bat';
-  return {
-    x: gx, y: gy,
-    homeX, homeY,
-    trapped: true,
-    phase:   Math.random() * Math.PI * 2,
-    wobble:  CONFIG.ENEMY_STATS.spider.wobbleMin + Math.random() * (CONFIG.ENEMY_STATS.spider.wobbleMax - CONFIG.ENEMY_STATS.spider.wobbleMin),
-    vx: 0, vy: 0,
-    radius, hp, maxHp: hp, visualScale,
-    type:         enemyType,
-    shootCd:      0,
-    state:        'chase',
-    stateTimer:   0,
-    dashTargetX:  0, dashTargetY:  0,
-    dashDirX:     0, dashDirY:     0,
-    dashDistance: 0,
-    animState:  isAnimated ? (enemyType === 'bat' ? 'fly' : 'idle') : null,
-    animFrame:  isAnimated ? 0 : null,
-    animTimer:  isAnimated ? 0 : null,
-    currentSpeed:      enemyType === 'buldyga' ? CONFIG.ENEMY_STATS.buldyga.speed         : undefined,
-    speedAccumulator:  0,
-    spawnTimer:        enemyType === 'cocoon'  ? CONFIG.ENEMY_STATS.cocoon.spawnInterval : undefined,
-  };
+  const enemy = EnemyFactory.create(enemyType, gx, gy, {
+    hp, maxHp: hp, radius, visualScale, level,
+  });
+  enemy.stasis = true;
+  enemy.stasisRoomIdx = roomIdx;
+  return enemy;
 }
 
-function spawnEnemiesFromPreset(preset, cellX, cellY, trappedSpiders, level) {
+function spawnEnemiesFromPreset(preset, cellX, cellY, stasisEnemies, level, roomIdx) {
   const margin = CONFIG.ENEMY_STATS.spider.radius + CONFIG.ENEMY_STATS.spider.spawnMargin;
   for (const [configKey, count] of Object.entries(preset)) {
     if (!count) continue;
@@ -643,7 +626,7 @@ function spawnEnemiesFromPreset(preset, cellX, cellY, trappedSpiders, level) {
     for (let i = 0; i < count; i++) {
       const gx = cellX * CELL_PX + margin + Math.random() * (CELL_PX - margin * 2);
       const gy = cellY * CELL_PX + margin + Math.random() * (CELL_PX - margin * 2);
-      trappedSpiders.push(createTrappedEnemy(enemyType, gx, gy, cellX, cellY, level));
+      stasisEnemies.push(createStasisEnemy(enemyType, gx, gy, level, roomIdx));
     }
   }
 }
@@ -716,7 +699,7 @@ export function generateLevel(level, playerProgress) {
   // ── Only the start room is purified initially ──
   const purified = new Set([0]);
 
-  // ── Spawn trapped enemies ──
+  // ── Spawn stasis enemies ──
   const trappedSpiders   = [];
   const processedRooms   = new Set();
   for (const [k, content] of cellContents) {
@@ -725,7 +708,7 @@ export function generateLevel(level, playerProgress) {
     if (ri === undefined || processedRooms.has(ri)) continue;
     processedRooms.add(ri);
     const { x: spawnX, y: spawnY } = cellFromKey(getCenterCellKey(rooms[ri]));
-    spawnEnemiesFromPreset(content.enemyPreset, spawnX, spawnY, trappedSpiders, level);
+    spawnEnemiesFromPreset(content.enemyPreset, spawnX, spawnY, trappedSpiders, level, ri);
   }
 
   // ── Initial visibility ──

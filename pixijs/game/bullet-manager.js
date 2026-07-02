@@ -15,7 +15,7 @@ class BulletManager {
     return b;
   }
 
-  update(state, dt, onEnemyKilled, onPlayerHit, isBattle = false) {
+  update(state, dt, onEnemyKilled, onPlayerHit, isBattle = false, onStasisTriggered = null) {
     const BS = isBattle ? (CONFIG.BATTLE_SCALE || 1) : 1;
     const worldBullets = this.bullets;
     
@@ -96,7 +96,7 @@ class BulletManager {
 
       // 5. Entity collisions
       if (b.owner === 'player') {
-        if (this._checkEnemyCollisions(b, state, activeState, onEnemyKilled, isBattle)) {
+        if (this._checkEnemyCollisions(b, state, activeState, onEnemyKilled, isBattle, onStasisTriggered)) {
           worldBullets.splice(i, 1);
           releaseBullet(b);
           continue;
@@ -229,7 +229,7 @@ class BulletManager {
       CONFIG.PARTICLES.wallHit.life, '#22ffdd');
   }
 
-  _checkEnemyCollisions(b, state, activeState, onEnemyKilled, isBattle) {
+  _checkEnemyCollisions(b, state, activeState, onEnemyKilled, isBattle, onStasisTriggered = null) {
     const BS = isBattle ? (CONFIG.BATTLE_SCALE || 1) : 1;
     const spiders = activeState.activeSpiders;
     
@@ -273,6 +273,11 @@ class BulletManager {
       if (g.hp <= 0 && onEnemyKilled) {
         if (isBattle) onEnemyKilled(g, state, activeState, j);
         else onEnemyKilled(g, state);
+      }
+
+      // Trigger stasis room on damage
+      if (g.stasis && onStasisTriggered) {
+        onStasisTriggered(g);
       }
 
       b.hitCount++;

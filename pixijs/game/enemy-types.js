@@ -28,7 +28,16 @@ export class ChaserEnemy extends Enemy {
 
 // ── Bat (Zigzag Chaser) ───────────────────────────────────────
 export class ZigzagChaserEnemy extends Enemy {
+  constructor(data) {
+    super(data);
+    if (this.animState == null) this.animState = 'fly';
+    if (this.animFrame == null) this.animFrame = 0;
+    if (this.animTimer == null) this.animTimer = 0;
+  }
+
   updateBehavior(dt, state) {
+    this._updateBatAnim(dt);
+
     if (this.stunTimer > 0) {
       setBodyVelocity(this.body, 0, 0);
       return;
@@ -79,12 +88,10 @@ export class ZigzagChaserEnemy extends Enemy {
       
       setBodyVelocity(this.body, moveDir.dx * baseSpeed * speedMult, moveDir.dy * baseSpeed * speedMult);
     }
-
-    this._updateBatAnim(dt);
   }
 
   _updateBatAnim(dt) {
-    if (this.animState === null || typeof SPRITE_SHEETS.bat.anim === 'undefined') return;
+    if (this.animState == null || typeof SPRITE_SHEETS.bat.anim === 'undefined') return;
     this.animTimer += dt;
     const cfg = SPRITE_SHEETS.bat.anim;
     if (this.animTimer >= 1 / cfg.fps) {
@@ -99,7 +106,9 @@ export class ShooterEnemy extends Enemy {
   constructor(data) {
     super(data);
     this.shootCd = data.shootCd || 0;
-    if (this.animState === null) this.animState = 'idle';
+    if (this.animState == null) this.animState = 'idle';
+    if (this.animFrame == null) this.animFrame = 0;
+    if (this.animTimer == null) this.animTimer = 0;
   }
 
   updateBehavior(dt, state) {
@@ -152,7 +161,7 @@ export class ShooterEnemy extends Enemy {
   }
 
   _updateShooterAnim(dt) {
-    if (this.animState === null || typeof SPRITE_SHEETS.plevaka.anims === 'undefined') return;
+    if (this.animState == null || typeof SPRITE_SHEETS.plevaka.anims === 'undefined') return;
     this.animTimer += dt;
     const cfg = SPRITE_SHEETS.plevaka.anims[this.animState];
     if (!cfg) return;
