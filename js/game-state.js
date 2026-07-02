@@ -833,6 +833,7 @@
       buldyga: 'buldyga',
       cocoon: 'cocoon',
       bloated: 'bloated',
+      tank:    'tank',
     };
 
     function cellDistanceFromStart(x, y, startX, startY) {

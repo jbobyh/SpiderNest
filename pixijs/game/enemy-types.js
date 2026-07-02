@@ -5,7 +5,7 @@ import { enemyBulletRange, ENEMY_BULLET_COLOR } from './combat.js';
 import { bulletManager } from './bullet-manager.js';
 import { CELL_PX, cellKey } from '../world/constants.js';
 
-// ── Chaser (Soldier, Bat, Chaser) ─────────────────────────────
+// ── Chaser (Soldier, Bat, Chaser, Tank) ─────────────────────────────
 export class ChaserEnemy extends Enemy {
   updateBehavior(dt, state) {
     if (this.stunTimer > 0) {
@@ -20,7 +20,8 @@ export class ChaserEnemy extends Enemy {
     if (dist > 0) {
       const dir = getEnemyMoveDir(this.x, this.y, state.player.x, state.player.y, state.flowField, state.openCells, state.removedWalls);
       const speedMult = this.getRoomSpeedMult(state);
-      setBodyVelocity(this.body, dir.dx * CONFIG.SPIDER_SPEED * speedMult, dir.dy * CONFIG.SPIDER_SPEED * speedMult);
+      const speed = this.type === 'tank' ? CONFIG.TANK_SPEED : CONFIG.SPIDER_SPEED;
+      setBodyVelocity(this.body, dir.dx * speed * speedMult, dir.dy * speed * speedMult);
     }
   }
 }

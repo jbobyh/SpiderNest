@@ -589,6 +589,7 @@ const ENEMY_POOL_TYPE_MAP = {
   buldyga: 'buldyga',
   cocoon:  'cocoon',
   bloated: 'bloated',
+  tank:    'tank',
 };
 
 function getEnemyStats(enemyType, level) {
@@ -600,6 +601,7 @@ function getEnemyStats(enemyType, level) {
     case 'bull':    return { hp: CONFIG.BULL_HP    * hpMult, radius: CONFIG.BULL_RADIUS,    visualScale: CONFIG.BULL_VISUAL_SCALE };
     case 'buldyga': return { hp: CONFIG.BULDYGA_HP * hpMult, radius: CONFIG.BULDYGA_RADIUS, visualScale: CONFIG.BULDYGA_VISUAL_SCALE };
     case 'plevaka': return { hp: CONFIG.SHOOTER_HP * hpMult, radius: CONFIG.SPIDER_RADIUS,  visualScale: CONFIG.SHOOTER_VISUAL_SCALE };
+    case 'tank':    return { hp: CONFIG.TANK_HP    * hpMult, radius: CONFIG.TANK_RADIUS,    visualScale: CONFIG.TANK_VISUAL_SCALE };
     default:        return { hp: CONFIG.SPIDER_HP  * hpMult, radius: CONFIG.SPIDER_RADIUS,  visualScale: CONFIG.SPIDER_VISUAL_SCALE };
   }
 }

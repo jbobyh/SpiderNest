@@ -45,7 +45,7 @@ const CONFIG = {
   HIT_PARTICLES_LIFE: 0.5,            // время жизни частиц крови (сек)
   HIT_PARTICLES_COLOR: '#a21515',     // цвет крови врага
   ENEMY_HIT_FLASH_DURATION: 0.18,     // длительность белой вспышки при уроне (сек)
-  ENEMY_STUN_DURATION: 0.3,           // длительность стана при получении урона (сек)
+  ENEMY_STUN_DURATION: 0.05,           // длительность стана при получении урона (сек)
 
   // Death particles (when enemy dies)
   DEATH_PARTICLES_COUNT: 5,          // кол-во частиц при смерти врага
@@ -156,6 +156,12 @@ const CONFIG = {
   BLOATED_DEATH_SHOT_SPEED: 120,  // скорость пули при смерти (как у плеваки)
   BLOATED_CHANCE: 0.30,           // шанс спавна распухшего на уровне 3 (после кокона)
 
+  // Tank
+  TANK_HP: 20,            // здоровье танка
+  TANK_SPEED: 0.7,        // скорость танка (пикс/сек)
+  TANK_RADIUS: 14,   // радиус коллизии танка 
+  TANK_VISUAL_SCALE: 2,
+
   // Enemy costs for budget-based spawning
   ENEMY_COSTS: {
     bat: 15,          // летающий, зигзаг
@@ -165,6 +171,7 @@ const CONFIG = {
     buldyga: 50,      // инерция, ускорение
     cocoon: 60,       // спавнит солдат
     bloated: 35,      // взрывается при смерти
+    tank: 40,         // танк: большой, медленный, много HP
   },
 
   // ── Бюджетная генерация врагов в комнатах ──────────────────
@@ -181,7 +188,7 @@ const CONFIG = {
   // Множитель бюджета по содержимому комнаты. weapon/empty/start — без врагов (множитель 0).
   ROOM_CONTENT_BUDGET_MULT: {
     enemies:      1.0,
-    heart:        1.0,
+    heart:        1.5,
     summonSphere: 1.4,   // ключевая комната (мини-босс)
     chest:        1.15,
     spatial:      1.15,
@@ -191,9 +198,9 @@ const CONFIG = {
   // Доступные типы врагов по уровням + веса выбора (больше = чаще встречается).
   // Ключи должны совпадать с ENEMY_COSTS и ENEMY_POOL_TYPE_MAP.
   ENEMY_SPAWN_TABLE: {
-    1: { bat: 5, shooter: 2, bloated: 1 },
-    2: { soldier: 5, shooter: 2, bull: 2, buldyga: 1, bloated: 1 },
-    3: { soldier: 4, shooter: 2, bull: 2, buldyga: 1, bloated: 1, cocoon: 1 },
+    1: { bat: 1, shooter: 1, bloated: 0, tank: 5 },
+    2: { soldier: 5, shooter: 2, bull: 2, buldyga: 1, bloated: 1, tank: 1 },
+    3: { soldier: 4, shooter: 2, bull: 2, buldyga: 1, bloated: 1, cocoon: 1, tank: 1 },
   },
 
   // Level generation
@@ -313,157 +320,177 @@ const LEVEL_ROOM_BONUS_COUNTS = { 1: 3, 2: 3, 3: 3 };
 const ROOM_POOLS = {
   1: {
     easy: [
-      { bat: 3, shooter: 2 },
-      { bat: 2, shooter: 3 },
-      { shooter: 4 },
-      { bat: 4, bloated: 1 },
-      { bat: 5, bloated: 1 },
+      { bat: 3, shooter: 2, tank: 0 },
+      { bat: 2, shooter: 3, tank: 0 },
+      { shooter: 4, tank: 1 },
+      { bat: 4, bloated: 1, tank: 0 },
+      { bat: 5, bloated: 1, tank: 0 },
+      { tank: 1, bat: 2 },
     ],
     medium: [
-      { bloated: 2 },
-      { bat: 3, shooter: 2, bloated: 1 },
-      { bat: 4, shooter: 2, bloated: 1 },
-      { bat: 3, shooter: 2 },
-      { bloated: 2, bat: 2, shooter: 1 },
+      { bloated: 2, tank: 0 },
+      { bat: 3, shooter: 2, bloated: 1, tank: 0 },
+      { bat: 4, shooter: 2, bloated: 1, tank: 0 },
+      { bat: 3, shooter: 2, tank: 1 },
+      { bloated: 2, bat: 2, shooter: 1, tank: 0 },
+      { tank: 1, bloated: 1, bat: 1 },
     ],
     hard: [
-      { bat: 3, bloated: 2 },
-      { bat: 3, bloated: 2, shooter: 3 },
-      { bat: 2, bloated: 3, shooter: 3 },
-      { bat: 6, shooter: 2 },
-      { bloated: 2, bat: 4, shooter: 2 },
+      { bat: 3, bloated: 2, tank: 0 },
+      { bat: 3, bloated: 2, shooter: 3, tank: 0 },
+      { bat: 2, bloated: 3, shooter: 3, tank: 1 },
+      { bat: 6, shooter: 2, tank: 0 },
+      { bloated: 2, bat: 4, shooter: 2, tank: 0 },
+      { tank: 2, bloated: 1, bat: 1 },
     ],
     key: [
-      { bloated: 4 },
-      { bloated: 3, shooter: 2 },
-      { bloated: 4, shooter: 2 },
-      { bat: 7, shooter: 2 },
-      { bloated: 3, bat: 4, shooter: 2 },
+      { bloated: 4, tank: 0 },
+      { bloated: 3, shooter: 2, tank: 1 },
+      { bloated: 4, shooter: 2, tank: 0 },
+      { bat: 7, shooter: 2, tank: 0 },
+      { bloated: 3, bat: 4, shooter: 2, tank: 1 },
+      { tank: 2, bloated: 2, bat: 1 },
     ],
     simpleupgrade: [
-      { bat: 3, bloated: 4 },
-      { bat: 3, bloated: 3, shooter: 2 },
-      { bat: 3, bloated: 4, shooter: 2 },
-      { bat: 7, shooter: 2 },
-      { bloated: 3, bat: 4, shooter: 2 },
+      { bat: 3, bloated: 4, tank: 0 },
+      { bat: 3, bloated: 3, shooter: 2, tank: 1 },
+      { bat: 3, bloated: 4, shooter: 2, tank: 0 },
+      { bat: 7, shooter: 2, tank: 0 },
+      { bloated: 3, bat: 4, shooter: 2, tank: 1 },
+      { tank: 1, bloated: 3, bat: 1 },
     ],
     cursedupgrade: [
-      { bat: 3, bloated: 4 },
-      { bat: 3, bloated: 3, shooter: 2 },
-      { bat: 3, bloated: 4, shooter: 2 },
-      { bat: 5, shooter: 2 },
-      { bloated: 3, bat: 4, shooter: 2 },
+      { bat: 3, bloated: 4, tank: 0 },
+      { bat: 3, bloated: 3, shooter: 2, tank: 1 },
+      { bat: 3, bloated: 4, shooter: 2, tank: 0 },
+      { bat: 5, shooter: 2, tank: 0 },
+      { bloated: 3, bat: 4, shooter: 2, tank: 1 },
+      { tank: 1, bloated: 3, bat: 1 },
     ],
     enemy: [
-      { bat: 3, shooter: 0 },
-      { bat: 2, shooter: 2 },
-      { bat: 4, shooter: 0 },
+      { bat: 3, shooter: 0, tank: 1 },
+      { bat: 2, shooter: 2, tank: 0 },
+      { bat: 4, shooter: 0, tank: 0 },
     ],
   },
 
   2: {
     easy: [
-      { soldier: 3, shooter: 2, bull: 1 },
-      { soldier: 2, shooter: 3, bull: 1 },
-      { shooter: 4, bull: 1 },
-      { soldier: 4, bull: 2 },
-      { bloated: 2, bull: 1 },
-      { soldier: 3, shooter: 2, buldyga: 1 },
+      { soldier: 3, shooter: 2, bull: 1, tank: 0 },
+      { soldier: 2, shooter: 3, bull: 1, tank: 0 },
+      { shooter: 4, bull: 1, tank: 1 },
+      { soldier: 4, bull: 2, tank: 0 },
+      { bloated: 2, bull: 1, tank: 0 },
+      { soldier: 3, shooter: 2, buldyga: 1, tank: 0 },
+      { tank: 1, soldier: 2, shooter: 1 },
     ],
     medium: [
-      { soldier: 4, shooter: 3, bull: 1, buldyga: 1 },
-      { soldier: 3, shooter: 4, bull: 1, buldyga: 1 },
-      { shooter: 4, bull: 2, buldyga: 1 },
-      { soldier: 5, bull: 2, buldyga: 1 },
-      { bloated: 3, bull: 1, buldyga: 1 },
-      { soldier: 4, shooter: 2, buldyga: 2 },
+      { soldier: 4, shooter: 3, bull: 1, buldyga: 1, tank: 0 },
+      { soldier: 3, shooter: 4, bull: 1, buldyga: 1, tank: 0 },
+      { shooter: 4, bull: 2, buldyga: 1, tank: 1 },
+      { soldier: 5, bull: 2, buldyga: 1, tank: 0 },
+      { bloated: 3, bull: 1, buldyga: 1, tank: 0 },
+      { soldier: 4, shooter: 2, buldyga: 2, tank: 1 },
+      { tank: 1, buldyga: 1, soldier: 3 },
     ],
     hard: [
-      { soldier: 6, shooter: 2, bull: 2, buldyga: 1 },
-      { soldier: 5, shooter: 3, bull: 2, buldyga: 2 },
-      { shooter: 4, bull: 3, buldyga: 2 },
-      { soldier: 4, bull: 4, buldyga: 2 },
-      { bloated: 4, bull: 2, buldyga: 1 },
-      { buldyga: 4, shooter: 2, bull: 1 },
+      { soldier: 6, shooter: 2, bull: 2, buldyga: 1, tank: 0 },
+      { soldier: 5, shooter: 3, bull: 2, buldyga: 2, tank: 1 },
+      { shooter: 4, bull: 3, buldyga: 2, tank: 0 },
+      { soldier: 4, bull: 4, buldyga: 2, tank: 0 },
+      { bloated: 4, bull: 2, buldyga: 1, tank: 1 },
+      { buldyga: 4, shooter: 2, bull: 1, tank: 1 },
+      { tank: 2, buldyga: 1, soldier: 3 },
     ],
     key: [
-      { soldier: 6, shooter: 3, bull: 2, buldyga: 2 },
-      { soldier: 5, shooter: 4, bull: 2, buldyga: 2 },
-      { shooter: 5, bull: 3, buldyga: 2 },
-      { soldier: 7, bull: 3, buldyga: 2 },
-      { bloated: 4, bull: 2, buldyga: 2 },
-      { buldyga: 5, shooter: 3, bull: 2 },
+      { soldier: 6, shooter: 3, bull: 2, buldyga: 2, tank: 1 },
+      { soldier: 5, shooter: 4, bull: 2, buldyga: 2, tank: 0 },
+      { shooter: 5, bull: 3, buldyga: 2, tank: 1 },
+      { soldier: 7, bull: 3, buldyga: 2, tank: 0 },
+      { bloated: 4, bull: 2, buldyga: 2, tank: 1 },
+      { buldyga: 5, shooter: 3, bull: 2, tank: 1 },
+      { tank: 2, buldyga: 2, soldier: 3 },
     ],
     simpleupgrade: [
-      { soldier: 6, shooter: 3, bull: 2, buldyga: 2 },
-      { soldier: 5, shooter: 4, bull: 2, buldyga: 2 },
-      { shooter: 5, bull: 3, buldyga: 2 },
-      { soldier: 7, bull: 3, buldyga: 2 },
-      { bloated: 4, bull: 2, buldyga: 2 },
-      { buldyga: 5, shooter: 3, bull: 2 },
+      { soldier: 6, shooter: 3, bull: 2, buldyga: 2, tank: 1 },
+      { soldier: 5, shooter: 4, bull: 2, buldyga: 2, tank: 0 },
+      { shooter: 5, bull: 3, buldyga: 2, tank: 1 },
+      { soldier: 7, bull: 3, buldyga: 2, tank: 0 },
+      { bloated: 4, bull: 2, buldyga: 2, tank: 1 },
+      { buldyga: 5, shooter: 3, bull: 2, tank: 1 },
+      { tank: 2, buldyga: 2, soldier: 3 },
     ],
     cursedupgrade: [
-      { soldier: 6, shooter: 3, bull: 2, buldyga: 2 },
-      { soldier: 5, shooter: 4, bull: 2, buldyga: 2 },
-      { shooter: 5, bull: 3, buldyga: 2 },
-      { soldier: 7, bull: 3, buldyga: 2 },
-      { bloated: 4, bull: 2, buldyga: 2 },
-      { buldyga: 5, shooter: 3, bull: 2 },
+      { soldier: 6, shooter: 3, bull: 2, buldyga: 2, tank: 1 },
+      { soldier: 5, shooter: 4, bull: 2, buldyga: 2, tank: 0 },
+      { shooter: 5, bull: 3, buldyga: 2, tank: 1 },
+      { soldier: 7, bull: 3, buldyga: 2, tank: 0 },
+      { bloated: 4, bull: 2, buldyga: 2, tank: 1 },
+      { buldyga: 5, shooter: 3, bull: 2, tank: 1 },
+      { tank: 2, buldyga: 2, soldier: 3 },
     ],
     enemy: [
-      { soldier: 3, shooter: 1, bull: 1, buldyga: 1 },
-      { soldier: 2, shooter: 2, bull: 2, buldyga: 1 },
-      { soldier: 3, shooter: 0, bull: 1, buldyga: 2 },
+      { soldier: 3, shooter: 1, bull: 1, buldyga: 1, tank: 0 },
+      { soldier: 2, shooter: 2, bull: 2, buldyga: 1, tank: 1 },
+      { soldier: 3, shooter: 0, bull: 1, buldyga: 2, tank: 0 },
+      { tank: 1, soldier: 2, shooter: 1 },
     ],
   },
 
   3: {
     easy: [
-      { soldier: 5, shooter: 2, bull: 1, cocoon: 1, bloated: 1 },
-      { soldier: 4, shooter: 3, bull: 1, cocoon: 1, bloated: 1 },
-      { shooter: 4, bull: 2, cocoon: 1, bloated: 1 },
-      { soldier: 6, bull: 1, cocoon: 1, bloated: 1 },
-      { bloated: 3, bull: 1, cocoon: 1 },
+      { soldier: 5, shooter: 2, bull: 1, cocoon: 1, bloated: 1, tank: 0 },
+      { soldier: 4, shooter: 3, bull: 1, cocoon: 1, bloated: 1, tank: 0 },
+      { shooter: 4, bull: 2, cocoon: 1, bloated: 1, tank: 1 },
+      { soldier: 6, bull: 1, cocoon: 1, bloated: 1, tank: 0 },
+      { bloated: 3, bull: 1, cocoon: 1, tank: 0 },
+      { tank: 1, soldier: 3, shooter: 1 },
     ],
     medium: [
-      { soldier: 6, shooter: 3, bull: 2, cocoon: 1, bloated: 1 },
-      { soldier: 5, shooter: 4, bull: 2, cocoon: 1, bloated: 1 },
-      { shooter: 5, bull: 3, cocoon: 1, bloated: 1 },
-      { soldier: 7, bull: 2, cocoon: 1, buldyga: 1 },
-      { bloated: 4, bull: 2, cocoon: 1, buldyga: 1 },
+      { soldier: 6, shooter: 3, bull: 2, cocoon: 1, bloated: 1, tank: 1 },
+      { soldier: 5, shooter: 4, bull: 2, cocoon: 1, bloated: 1, tank: 0 },
+      { shooter: 5, bull: 3, cocoon: 1, bloated: 1, tank: 1 },
+      { soldier: 7, bull: 2, cocoon: 1, buldyga: 1, tank: 0 },
+      { bloated: 4, bull: 2, cocoon: 1, buldyga: 1, tank: 1 },
+      { tank: 1, buldyga: 1, soldier: 4 },
     ],
     hard: [
-      { soldier: 7, shooter: 4, bull: 3, cocoon: 2, bloated: 2, buldyga: 1 },
-      { soldier: 6, shooter: 5, bull: 3, cocoon: 2, bloated: 2, buldyga: 1 },
-      { shooter: 6, bull: 4, cocoon: 2, bloated: 2, buldyga: 2 },
-      { soldier: 8, bull: 3, cocoon: 2, bloated: 2, buldyga: 2 },
-      { bloated: 5, bull: 3, cocoon: 2, buldyga: 2 },
+      { soldier: 7, shooter: 4, bull: 3, cocoon: 2, bloated: 2, buldyga: 1, tank: 1 },
+      { soldier: 6, shooter: 5, bull: 3, cocoon: 2, bloated: 2, buldyga: 1, tank: 0 },
+      { shooter: 6, bull: 4, cocoon: 2, bloated: 2, buldyga: 2, tank: 1 },
+      { soldier: 8, bull: 3, cocoon: 2, bloated: 2, buldyga: 2, tank: 0 },
+      { bloated: 5, bull: 3, cocoon: 2, buldyga: 2, tank: 1 },
+      { tank: 2, buldyga: 1, soldier: 5 },
     ],
     key: [
-      { soldier: 7, shooter: 4, bull: 3, cocoon: 4, bloated: 2, buldyga: 2 },
-      { soldier: 6, shooter: 5, bull: 3, cocoon: 4, bloated: 2, buldyga: 2 },
-      { shooter: 6, bull: 4, cocoon: 5, bloated: 2, buldyga: 2 },
-      { soldier: 8, bull: 3, cocoon: 4, bloated: 2, buldyga: 2 },
-      { bloated: 5, bull: 3, cocoon: 4, buldyga: 2 },
+      { soldier: 7, shooter: 4, bull: 3, cocoon: 4, bloated: 2, buldyga: 2, tank: 1 },
+      { soldier: 6, shooter: 5, bull: 3, cocoon: 4, bloated: 2, buldyga: 2, tank: 1 },
+      { shooter: 6, bull: 4, cocoon: 5, bloated: 2, buldyga: 2, tank: 1 },
+      { soldier: 8, bull: 3, cocoon: 4, bloated: 2, buldyga: 2, tank: 0 },
+      { bloated: 5, bull: 3, cocoon: 4, buldyga: 2, tank: 1 },
+      { tank: 2, buldyga: 2, soldier: 4 },
     ],
     simpleupgrade: [
-      { soldier: 7, shooter: 4, bull: 3, cocoon: 4, bloated: 2, buldyga: 2 },
-      { soldier: 6, shooter: 5, bull: 3, cocoon: 4, bloated: 2, buldyga: 2 },
-      { shooter: 6, bull: 4, cocoon: 5, bloated: 2, buldyga: 2 },
-      { soldier: 8, bull: 3, cocoon: 4, bloated: 2, buldyga: 2 },
-      { bloated: 5, bull: 3, cocoon: 4, buldyga: 2 },
+      { soldier: 7, shooter: 4, bull: 3, cocoon: 4, bloated: 2, buldyga: 2, tank: 1 },
+      { soldier: 6, shooter: 5, bull: 3, cocoon: 4, bloated: 2, buldyga: 2, tank: 1 },
+      { shooter: 6, bull: 4, cocoon: 5, bloated: 2, buldyga: 2, tank: 1 },
+      { soldier: 8, bull: 3, cocoon: 4, bloated: 2, buldyga: 2, tank: 0 },
+      { bloated: 5, bull: 3, cocoon: 4, buldyga: 2, tank: 1 },
+      { tank: 2, buldyga: 2, soldier: 4 },
     ],
     cursedupgrade: [
-      { soldier: 7, shooter: 4, bull: 3, cocoon: 4, bloated: 2, buldyga: 2 },
-      { soldier: 6, shooter: 5, bull: 3, cocoon: 4, bloated: 2, buldyga: 2 },
-      { shooter: 6, bull: 4, cocoon: 5, bloated: 2, buldyga: 2 },
-      { soldier: 8, bull: 3, cocoon: 4, bloated: 2, buldyga: 2 },
-      { bloated: 5, bull: 3, cocoon: 4, buldyga: 2 },
+      { soldier: 7, shooter: 4, bull: 3, cocoon: 4, bloated: 2, buldyga: 2, tank: 1 },
+      { soldier: 6, shooter: 5, bull: 3, cocoon: 4, bloated: 2, buldyga: 2, tank: 1 },
+      { shooter: 6, bull: 4, cocoon: 5, bloated: 2, buldyga: 2, tank: 1 },
+      { soldier: 8, bull: 3, cocoon: 4, bloated: 2, buldyga: 2, tank: 0 },
+      { bloated: 5, bull: 3, cocoon: 4, buldyga: 2, tank: 1 },
+      { tank: 2, buldyga: 2, soldier: 4 },
     ],
     enemy: [
-      { soldier: 3, shooter: 1, bull: 1, buldyga: 1, cocoon: 1, bloated: 1 },
-      { soldier: 2, shooter: 2, bull: 2, buldyga: 1, cocoon: 0, bloated: 2 },
-      { soldier: 3, shooter: 0, bull: 1, buldyga: 2, cocoon: 1, bloated: 1 },
+      { soldier: 3, shooter: 1, bull: 1, buldyga: 1, cocoon: 1, bloated: 1, tank: 0 },
+      { soldier: 2, shooter: 2, bull: 2, buldyga: 1, cocoon: 0, bloated: 2, tank: 1 },
+      { soldier: 3, shooter: 0, bull: 1, buldyga: 2, cocoon: 1, bloated: 1, tank: 0 },
+      { tank: 1, soldier: 2, shooter: 1 },
     ],
   },
 };

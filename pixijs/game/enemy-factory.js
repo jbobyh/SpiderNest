@@ -10,6 +10,7 @@ const ENEMY_DEFS = {
   buldyga: { hp: 'BULDYGA_HP', radius: 'BULDYGA_RADIUS', visualScale: 'BULDYGA_VISUAL_SCALE' },
   bloated: { hp: 'BLOATED_HP', radius: 'BLOATED_RADIUS', visualScale: 'BLOATED_VISUAL_SCALE' },
   cocoon:  { hp: 'COCOON_HP',  radius: 'COCOON_RADIUS',  visualScale: 'COCOON_VISUAL_SCALE' },
+  tank:    { hp: 'TANK_HP',    radius: 'TANK_RADIUS',    visualScale: 'TANK_VISUAL_SCALE' },
 };
 
 export class EnemyFactory {
@@ -38,6 +39,7 @@ export class EnemyFactory {
         return new BloatedEnemy(data);
       case 'cocoon':
         return new CocoonEnemy(data);
+      case 'tank':
       case 'soldier':
       case 'chaser':
         return new ChaserEnemy(data);

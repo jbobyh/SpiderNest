@@ -17,9 +17,11 @@ export const plevakaFrames  = {};  // { run: Texture[], idle: Texture[], shoot: 
 export const cocoonFrames   = [];  // Texture[7]
 export const batFrames      = [];  // Texture[7]
 export let   batHitTexture  = Texture.WHITE; // Texture
-export const enemyTextures  = {};  // { soldier, bat, bull, buldyga, bloated }
-export const corpseTextures = {};  // { soldier, bat, bull, buldyga, bloated, plevaka }
+export const enemyTextures  = {};  // { soldier, bat, bull, buldyga, bloated, tank }
+export const corpseTextures = {};  // { soldier, bat, bull, buldyga, bloated, plevaka, tank }
 export const weaponTextures = {};  // { pistol, shotgun, smg, rifle, revolver, carbine }
+let tankTexture = Texture.WHITE;
+let tankCorpseTexture = Texture.WHITE;
 
 /**
  * Build all texture caches from loaded Assets.
@@ -30,6 +32,7 @@ export function initEntityPool() {
   _buildPlevakaFrames();
   _buildCocoonFrames();
   _buildBatFrames();
+  _buildTankTextures();
   _buildEnemyTextures();
   _buildWeaponTextures();
 }
@@ -57,6 +60,11 @@ export function makeEnemySprite(type) {
 export function makeCorpseSprite(type) {
   if (type === 'bat') {
     const spr = new Sprite(batHitTexture);
+    spr.anchor.set(0.5);
+    return spr;
+  }
+  if (type === 'tank') {
+    const spr = new Sprite(tankCorpseTexture);
     spr.anchor.set(0.5);
     return spr;
   }
@@ -131,17 +139,43 @@ function _buildBatFrames() {
   });
 }
 
+function _buildTankTextures() {
+  // Создаем текстуру для танка с помощью Canvas API
+  const canvas = document.createElement('canvas');
+  canvas.width = 100;
+  canvas.height = 100;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ff0000';
+  ctx.beginPath();
+  ctx.arc(50, 50, 50, 0, Math.PI * 2);
+  ctx.fill();
+  tankTexture = Texture.from(canvas);
+
+  // Создаем текстуру для трупа танка
+  const canvas2 = document.createElement('canvas');
+  canvas2.width = 100;
+  canvas2.height = 100;
+  const ctx2 = canvas2.getContext('2d');
+  ctx2.fillStyle = '#aa0000';
+  ctx2.beginPath();
+  ctx2.arc(50, 50, 50, 0, Math.PI * 2);
+  ctx2.fill();
+  tankCorpseTexture = Texture.from(canvas2);
+}
+
 function _buildEnemyTextures() {
   enemyTextures.soldier = Assets.get('soldier');
   enemyTextures.bull     = Assets.get('bull');
   enemyTextures.buldyga  = Assets.get('buldyga');
   enemyTextures.bloated  = Assets.get('bloated');
+  enemyTextures.tank     = tankTexture;
 
   corpseTextures.soldier = Assets.get('soldier-dead');
   corpseTextures.plevaka = Assets.get('plevaka-dead');
   corpseTextures.bull    = Assets.get('bull-dead');
   corpseTextures.buldyga = Assets.get('buldyga-dead');
   corpseTextures.bloated = Assets.get('bloated-dead');
+  corpseTextures.tank    = tankCorpseTexture;
 }
 
 function _buildWeaponTextures() {
@@ -154,5 +188,6 @@ function _enemyTexForType(type) {
   if (type === 'plevaka' || type === 'shooter') return plevakaFrames.idle?.[0] ?? Texture.WHITE;
   if (type === 'cocoon')                         return cocoonFrames[0]         ?? Texture.WHITE;
   if (type === 'bat')                            return batFrames[0]            ?? Texture.WHITE;
+  if (type === 'tank')                           return enemyTextures.tank       ?? Texture.WHITE;
   return enemyTextures[type] ?? enemyTextures.soldier ?? Texture.WHITE;
 }
