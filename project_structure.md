@@ -31,9 +31,10 @@ pixijs/
   - `startGameLoop()` — инициализация всех подсистем: физика, камера, слои, рендереры, ввод, сохранение, музыка, запуск тикера.
   - `stopGameLoop()` — остановка тикера и очистка всех рендер-объектов.
   - `_loop(dt)` — главный шаг: физика, синхронизация тел, обновление flow-field, диспетчер фаз (`play`, `battle`, `zoom_in`, `zoom_out`, `dead`, `win`), рендер.
-  - `_handlePhysicsCollision()` — столкновения игрока с врагами (контактный урон).
+  - `_handlePhysicsCollision()` / `_handlePlayerEnemyContact()` — столкновения игрока с врагами (контактный урон).
   - `_render()` — синхронизация всех рендереров с состоянием.
-  - Callbacks переходов: `_onEnterBattle`, `_onBattleWon`, `_onPlayerDead`, `_onLevelComplete`, `restartLevel()`, `nextLevel()`.
+  - Callbacks переходов: `_onEnterBattle`, `_onZoomInComplete`, `_onBattleWon`, `_onZoomOutComplete`, `_onPlayerDead`, `_onLevelComplete`.
+  - `restartLevel()`, `nextLevel()`, `saveCurrentGame()`, `getCurrentLevel()`.
 - **Состояние модуля:** `_state`, `_camera`, `_currentLevel`, `_playerProgress`, `_levelStartProgress`.
 ---
 
@@ -84,17 +85,19 @@ pixijs/
 - **Содержит:**
   - `createDefaultProgress()` — начальные улучшения/жизни/слоты оружия.
   - `createGameState(level, playerProgress)` — генерация уровня через `generateLevel()` и сборка стартового состояния.
-  - `saveGame()`, `loadGame()`, `hasSave()`, `deleteSave()` — localStorage (`spidernest_save`, версия 2).
+  - `saveGame()`, `loadGame()`, `hasSave()`, `deleteSave()` — localStorage (`spidernest_save`, версия 3).
   - `savePlayerProgress()` — сохранение прогресса при прохождении уровня.
   - `doOpenWall()`, `doCloseWall()` — изменение стен с пересчётом `openCells`.
   - `updateRevealedRoomsOnPurify()` — обновление видимости комнат при очищении.
+  - `tryPurifyRoomIfEmpty()` — попытка очищения комнаты, если в ней не осталось врагов.
 
 ### `game/enemy-ai.js`
 - **За что отвечает:** обновление врагов и обработка их смертей.
 - **Содержит:**
-  - `updateEnemyAI(state, playerProgress, dt, onPlayerDamaged)` — цикл по `activeSpiders`, вызов `g.update(dt, state)`, удаление мёртвых, спавн трупов и частиц.
-  - `spawnCorpse()` — создание объекта трупа в `state.deathCorpses`.
+  - `updateEnemyAI(state, playerProgress, dt, onPlayerDamaged)` — цикл по `activeSpiders`: stasis-пропуск, конверсия через `EnemyFactory.fromObject()`, установка `onSpawnRequested` для коконов, вызов `g.update(dt, state)`, удаление мёртвых, спавн трупов и частиц.
+  - `spawnCorpse()` — создание объекта трупа в `state.deathCorpses` (фильтр по `CORPSE_TYPES`).
   - `_deathParticles()` — всплеск частиц при смерти.
+  - `_makeSoldier()` — внутренняя фабрика солдата.
 
 ### `game/enemy-base.js`
 - **За что отвечает:** базовый класс врага.
@@ -117,13 +120,13 @@ pixijs/
 - **За что отвечает:** создание и восстановление врагов.
 - **Содержит:**
   - `class EnemyFactory` с `create(type, x, y, options)`, `fromObject(obj)`.
-  - `ENEMY_DEFS` — отображение типа в ключи `CONFIG` (HP, радиус, визуальный масштаб).
-  - Геттеры `getDefaultHp()`, `getDefaultRadius()`, `getDefaultVisualScale()` для боссов и обычных врагов.
+  - `ENEMY_STATS_KEY` — отображение типа врага в ключ `CONFIG.ENEMY_STATS` (HP, радиус, визуальный масштаб).
+  - Статические геттеры `getDefaultHp()`, `getDefaultRadius()`, `getDefaultVisualScale()` для боссов и обычных врагов.
 
 ### `game/boss.js`
 - **За что отвечает:** обработка победы над боссом и специфичные эффекты.
 - **Содержит:**
-  - `handleBossKilled()` — пометка босса побеждённым, установка клетки выхода, остановка музыки, попап.
+  - `handleBossKilled()` — пометка босса побеждённым, установка клетки выхода, остановка музыки, попап, открытие проклятого выбора через `openBossCursedChoice()`.
   - `createBossEntity(level, cx, cy)` — фабрика босса через `EnemyFactory`.
   - `applyFreezeUpgrade()` — применение апгрейда "заморозка" к бою.
 
@@ -145,27 +148,30 @@ pixijs/
 - **За что отвечает:** стрельба игрока и подбор оружия.
 - **Содержит:**
   - `getActiveWeapon(state)` — активное оружие из слотов.
+  - `getSpatialBonus(state, axis)` — бонус от открытых комнат по оси (reload, range, accuracy, bulletSpeed, speed, critChance, critDamage, penetrate).
   - `shoot(state)` — логика выстрела: разброс, количество дробинок, скорость пуль, крит, перезарядка, частицы вспышки.
   - `fireReflectionBullets()` — отражающие пули (апгрейд щита).
   - `pickupWeapon()` — подбор/замена оружия в слотах.
+  - `getBulletRange()` — расчёт дальности пули с учётом апгрейдов.
   - `_spawnPlayerBullet()` — внутренний спавн пули с учётом бонусов.
-  - `ENEMY_BULLET_COLOR`, `enemyBulletRange()`.
+  - `ENEMY_BULLET_COLOR`, `ENEMY_BULLET_TIME`, `enemyBulletRange()`.
 
 ### `game/collectibles.js`
 - **За что отвечает:** сбор предметов, сундуки, алтари, награды за комнаты, выбор улучшений.
 - **Содержит:**
-  - `updateCollectibles()` / `updateBattleCollectibles()` — сбор сердец, сферы, апгрейдов, проклятых сундуков, оружия.
+  - `updateCollectibles()` / `updateBattleCollectibles()` — сбор сердец, сферы, апгрейдов, сундуков, оружия.
   - `spawnRoomRewards()` — награды за победу в комнате (апгрейды/оружие/сердца).
-  - `checkAltarActivation()`, `checkUpgradeChestActivation()`, `checkCursedChestActivation()`, `checkRoomBonusAltarActivation()` — проверка близости и открытие боев.
-  - `openCursedChoice()`, `openUpgradeChoice()`, `openRoomBonusChoice()` — создание панелей выбора.
-  - `applyCursedChoice()`, `applyUpgradeChoice()`, `applyRoomBonusChoice()` — применение выбора.
+  - `checkAltarActivation()`, `checkUpgradeChestActivation()`, `checkSpatialChestActivation()`, `checkRoomBonusAltarActivation()` — проверка близости и открытие боев.
+  - `isNearAltar()`, `isNearUpgradeChest()`, `isNearSpatialChest()`, `isNearRoomBonusAltar()` — проверки близости для HUD-подсказок.
+  - `openSpatialChoice()`, `openBossCursedChoice()`, `openUpgradeChoice()`, `openRoomBonusChoice()` — создание панелей выбора.
+  - `applySpecialChoice()`, `applyUpgradeChoice()`, `applyRoomBonusChoice()` — применение выбора.
   - `syncBattleCollectibles()` — синхронизация собранного в бою обратно в мир.
 
 ### `game/upgrades.js`
 - **За что отвечает:** применение улучшений и урон по игроку.
 - **Содержит:**
   - `applyUpgrade()` — декларативное применение `effects` из `UPGRADE_TYPES`/`CURSED_UPGRADE_TYPES`.
-  - `showUpgradePopup()` / `hideUpgradePopup()` — DOM-попап с иконкой и цветом.
+  - `showUpgradePopup()` / `hideUpgradePopup()` / `tickUpgradePopupTimer()` — DOM-попап с иконкой и цветом, таймер авто-скрытия.
   - `dealPlayerDamage()` — учёт щита, `lastLife`, `reflection`, нанесение урона и вызов `onDead`.
   - `_applyRandomBonus()` — случайный набор бонусов.
 
@@ -173,9 +179,9 @@ pixijs/
 - **За что отвечает:** открытие/закрытие стен между комнатами (правая кнопка мыши).
 - **Содержит:**
   - `handleWallToggle()` — поиск стены под курсором, трата/возврат жизни, запуск анимации летающего сердца.
-  - `findAutoCloseWall()` — автоматический поиск стены для закрытия при 1 жизни.
-  - `launchFlyingHeart()`, `updateFlyingHeart()`, `getFlyingHeart()` — анимация сердца от стены к HUD.
-  - `spawnRoomRewards()` — вызов наград при открытии комнаты.
+  - `findAutoCloseWall()` — внутренняя функция автоматического поиска стены для закрытия при 1 жизни.
+  - `updateFlyingHeart()`, `getFlyingHeart()`, `isWallInteractionPending()` — анимация сердца от стены к HUD и проверка состояния.
+  - Вызывает `spawnRoomRewards()` из `collectibles.js` и `spawnPurifyWave()` из `render/particles.js` при открытии комнаты.
 
 ### `game/flow-field.js`
 - **За что отвечает:** поиск пути для врагов и линия видимости.
@@ -196,7 +202,7 @@ pixijs/
   - `updatePlayMode()` — движение/рывок игрока, стрельба, инпут, взаимодействие с миром, стены, враги, сбор предметов, боссы.
   - `_stepMovement()`, `_startDash()`, `_stepDash()` — движение и рывок.
   - `_syncInput()` — перевод мыши из экранных в мировые координаты через камеру.
-  - `isNearWeapon()`, `isNearAltar()`, `isNearUpgradeChest()`, `isNearCursedChest()`, `isNearRoomBonusAltar()` — проверки близости.
+  - `isNearWeapon()`, `isNearAltar()`, `isNearUpgradeChest()`, `isNearSpatialChest()`, `isNearRoomBonusAltar()` — проверки близости.
   - `handleWeaponPickup()` — ручной подбор оружия по F.
   - `updateCursor()` — смена курсора при наведении на стену.
 
@@ -220,6 +226,16 @@ pixijs/
 ---
 
 ## `render/` — отрисовка
+
+### `render/ui-shared.js`
+- **За что отвечает:** общие UI-константы, стили текстов и хелперы для HUD/оверлеев.
+- **Содержит:**
+  - `UI_COLORS` — палитра цветов (cyan, orange, red, green, purple, BG_DARK, BG_CURSED и т.д.).
+  - `BASE_STYLE`, `STYLE_LEVEL`, `STYLE_SLOT_LBL`, `STYLE_HINT`, `STYLE_UPG_LVL`, `STYLE_STATS_LABEL`, `STYLE_STATS_VALUE`, `STYLE_TOOLTIP_LABEL`, `STYLE_TOOLTIP_DESC` — готовые `TextStyle`.
+  - `createPanel({ x, y, width, height, bgColor, ... })` — фабрика панели `Graphics` с фоном и рамкой.
+  - `clearContainer(container)` — удаление и уничтожение всех детей контейнера.
+  - `hexToNum(val)` — конвертация hex-строки/числа в число.
+  - `VW`, `VH` — `CONFIG.VIEW_W` / `CONFIG.VIEW_H`.
 
 ### `render/layers.js`
 - **За что отвечает:** иерархия контейнеров PixiJS.
