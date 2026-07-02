@@ -281,16 +281,12 @@ function _handlePlayerEnemyContact(player, enemy) {
       // Actually, in the old code plevaka/shooter didn't have contact damage block.
       // But they are ranged. Let's keep it consistent with old logic.
       if (enemy.type !== 'shooter' && enemy.type !== 'plevaka') {
-        spawnCorpse(_state.deathCorpses, enemy, enemy.radius || CONFIG.ENEMY_STATS.spider.radius);
-        destroyBody(enemy.body);
-        _state.activeSpiders.splice(idx, 1);
-        
         spawnParticles(_state.particles, player.x, player.y, 8, 0, Math.PI*2, 20, 40, 0.5, '#ff4444');
-        
+
         player.lives--;
         player.invulnerable = CONFIG.PLAYER_INVULNERABLE_TIME;
         Sounds.playerhit?.();
-        
+
         if (player.lives <= 0) onPlayerDead(_state, _playerProgress);
       }
     }

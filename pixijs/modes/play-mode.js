@@ -17,7 +17,7 @@ import { getCurrentLevel, saveCurrentGame } from '../game-loop.js';
 import {
   cellOf, cellKey, getWallAtPoint, getRoomBonus, getRoomSpeedMultiplier,
 } from '../world/constants.js';
-import { setBodyVelocity, setPlayerDashing } from '../world/physics.js';
+import { setBodyVelocity, updatePlayerCollision } from '../world/physics.js';
 import { bulletManager } from '../game/bullet-manager.js';
 import {
   shoot, pickupWeapon, enemyBulletRange, ENEMY_BULLET_COLOR, getSpatialBonus,
@@ -68,6 +68,9 @@ export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}
 
   // ── Invulnerability timer ─────────────────────────────────
   if (state.player.invulnerable > 0) state.player.invulnerable -= dt;
+  if (state.player.body) {
+    updatePlayerCollision(state.player.body, state.player.isDashing, state.player.invulnerable > 0);
+  }
 
   // ── Dash cooldown ─────────────────────────────────────────
   if (state.player.dashCooldown > 0) state.player.dashCooldown -= dt;
@@ -269,7 +272,7 @@ function _startDash(state) {
   state.player.dashCooldown = CONFIG.PLAYER_DASH_COOLDOWN;
   Sounds.dash?.();
   if (state.player.body) {
-    setPlayerDashing(state.player.body, true);
+    updatePlayerCollision(state.player.body, true, state.player.invulnerable > 0);
     setBodyVelocity(state.player.body,
       state.player.dashDirX * CONFIG.PLAYER_DASH_SPEED,
       state.player.dashDirY * CONFIG.PLAYER_DASH_SPEED);
@@ -284,7 +287,7 @@ function _stepDash(state, dt) {
 
   if (state.player.dashProgress >= CONFIG.PLAYER_DASH_DISTANCE || hitWall) {
     state.player.isDashing = false;
-    if (body) { setPlayerDashing(body, false); setBodyVelocity(body, 0, 0); }
+    if (body) { updatePlayerCollision(body, false, state.player.invulnerable > 0); setBodyVelocity(body, 0, 0); }
   }
 }
 
