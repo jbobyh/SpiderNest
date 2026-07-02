@@ -28,15 +28,16 @@ import {
   syncEnemySprites, clearEnemySprites,
 } from './render/enemy-renderer.js';
 import {
-  syncBullets, clearBullets,
+  syncBullets, clearBullets, initBulletRenderer,
 } from './render/bullet-renderer.js';
+import { bulletManager } from './game/bullet-manager.js';
 import {
   initParticles, syncParticles, clearParticles,
 } from './render/particles.js';
 import {
   initDamageNumbers, updateAndSyncDamageNumbers, clearDamageNumbers,
 } from './render/damage-numbers.js';
-import { initHud, updateHud, updateBossHpBar, showLevelComplete, hideLevelComplete, destroyHud }   from './render/hud.js';
+import { initHud, updateHud, updateBossHpBar, updateFps, showLevelComplete, hideLevelComplete, destroyHud }   from './render/hud.js';
 import {
   initCollectibleRenderer, syncCollectibles, clearCollectibles,
 } from './render/collectible-renderer.js';
@@ -51,6 +52,9 @@ import {
   initTooltip, updateTooltip, destroyTooltip,
 } from './render/tooltip.js';
 import {
+  initDebugRenderer, syncDebugColliders, clearDebugRenderer,
+} from './render/debug-renderer.js'
+import {
   initLighting, updateLighting, destroyLighting, forceLightingUpdate,
 } from './render/lighting.js';
 import { initInput, destroyInput } from './core/input.js';
@@ -58,7 +62,7 @@ import { Sounds }               from './core/sound.js';
 import {
   createGameState, createDefaultProgress, saveGame, savePlayerProgress, deleteSave,
 } from './game/state.js';
-import { updatePlayMode, isNearWeapon, isNearAltar, isNearUpgradeChest, isNearCursedChest, isNearRoomBonusAltar } from './modes/play-mode.js';
+import { updatePlayMode, isNearWeapon, isNearAltar, isNearUpgradeChest, isNearSpatialChest, isNearRoomBonusAltar } from './modes/play-mode.js';
 import {
   createBattleState, createBossBattleState,
   updateBattleMode, exitBattleMode,
@@ -160,12 +164,14 @@ export function startGameLoop({
   initParticles(layers.particles);
   initDamageNumbers(layers.damageNumbers);
   initPlayerRenderer(layers.entities);
+  initBulletRenderer(layers.entities);
   initCollectibleRenderer(layers.entities);
   initFlyingHeartRenderer(layers.particles);
   initHud(layers.hud);
   initOverlay(layers.hud);
   initTooltip(layers.hud);
   initLighting(layers.lighting);
+  initDebugRenderer(layers.debug);
 
   // Tile layer for current level
   const _tileData0 = {
@@ -179,7 +185,7 @@ export function startGameLoop({
     disabledCells:      _state.disabledCells,
     rooms:              _state.rooms,
     purified:           _state.purified,
-    chestObjs:          _state.chestObjs,
+    spatialChests:      _state.spatialChests,
     hearts:             _state.hearts,
     upgradeChests:      _state.upgradeChests,
     summonSphere:       _state.summonSphere,
@@ -224,6 +230,7 @@ export function stopGameLoop() {
   destroyLighting();
   destroyPlayerRenderer();
   clearEnemySprites();
+  bulletManager.clear();
   clearBullets();
   clearParticles();
   clearDamageNumbers();
@@ -232,6 +239,7 @@ export function stopGameLoop() {
   destroyOverlay();
   destroyHud();
   destroyTooltip();
+  clearDebugRenderer();
   clearWorldLayers();
 
   // Physics cleanup
@@ -399,19 +407,20 @@ function _render(dt) {
     _state.player.x,
   );
 
-  syncBullets(_state.bullets, _state.enemyBullets, layers.bullets);
+  syncBullets(bulletManager.bullets);
   syncParticles(_state.particles);
   updateAndSyncDamageNumbers(_state, dt, _camera);
+  syncDebugColliders(_state.phase === 'battle');
   syncCollectibles(_state);
   syncFlyingHeart();
   updateTooltip(_state, _camera);
   const nearWeapon = _state.phase === 'play' ? isNearWeapon(_state) : false;
   const nearAltar  = _state.phase === 'play' ? isNearAltar(_state)  : false;
   const nearChest  = _state.phase === 'play' ? isNearUpgradeChest(_state) : false;
-  const nearCursedChest = _state.phase === 'play' ? isNearCursedChest(_state) : false;
+  const nearSpatialChest = _state.phase === 'play' ? isNearSpatialChest(_state) : false;
   const nearRoomBonusAltar = _state.phase === 'play' ? isNearRoomBonusAltar(_state) : false;
   const bossSummonReady = _state.phase === 'play' ? _state.bossSummonReady : false;
-  updateHud(_state, _currentLevel, nearWeapon, nearAltar, bossSummonReady, nearChest, nearCursedChest, nearRoomBonusAltar);
+  updateHud(_state, _currentLevel, nearWeapon, nearAltar, bossSummonReady, nearChest, nearSpatialChest, nearRoomBonusAltar);
   updateWall3D(_camera.worldX, _camera.worldY);
   updateWallDissolve(dt);
 
@@ -422,6 +431,9 @@ function _render(dt) {
   if (_state.battle?.isBossBattle) {
     updateBossHpBar(_state);
   }
+
+  // Update FPS counter
+  updateFps(app.ticker.FPS);
 
   // Rebuild tile layer and sync physics walls when walls, purified, or revealed cells change
   const purifiedSize      = _state.purified?.size ?? 0;
@@ -455,7 +467,7 @@ function _render(dt) {
       disabledCells:      _state.disabledCells,
       rooms:              _state.rooms,
       purified:           _state.purified,
-      chestObjs:          _state.chestObjs,
+      spatialChests:      _state.spatialChests,
       hearts:             _state.hearts,
       upgradeChests:      _state.upgradeChests,
       summonSphere:       _state.summonSphere,
@@ -518,7 +530,7 @@ function _onZoomOutComplete(_tr) {
     disabledCells:      _state.disabledCells,
     rooms:              _state.rooms,
     purified:           _state.purified,
-    chestObjs:          _state.chestObjs,
+    spatialChests:      _state.spatialChests,
     hearts:             _state.hearts,
     upgradeChests:      _state.upgradeChests,
     summonSphere:       _state.summonSphere,

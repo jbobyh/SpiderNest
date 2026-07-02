@@ -3,6 +3,7 @@
 // ============================================================
 
 import { Sounds } from '../core/sound.js';
+import { saveCurrentGame } from '../game-loop.js';
 import { doOpenWall, doCloseWall } from './state.js';
 import { spawnRoomRewards } from './collectibles.js';
 import { spawnPurifyWave } from '../render/particles.js';
@@ -166,6 +167,7 @@ export function handleWallToggle(state, mx, my, rightHeld, camera = null) {
         doOpenWall(state, wall.wk);
         _spawnRewardsForNewlyPurified(state, wall);
         if (_wallOpenCallback) _wallOpenCallback(wall.wk, wallMidX, wallMidY);
+        saveCurrentGame();
       });
       return;
     }
@@ -183,6 +185,7 @@ export function handleWallToggle(state, mx, my, rightHeld, camera = null) {
       doOpenWall(state, wall.wk);
       _spawnRewardsForNewlyPurified(state, wall);
       if (_wallOpenCallback) _wallOpenCallback(wall.wk, wallMidX, wallMidY);
+      saveCurrentGame();
     });
   } else {
     // CLOSE wall: recover lives
@@ -204,6 +207,7 @@ export function handleWallToggle(state, mx, my, rightHeld, camera = null) {
       doCloseWall(state, wall.wk);
       state.playerRemovedWalls--;
       state.player.lives += refund;
+      saveCurrentGame();
     }, () => {
       const hudCoords = getHudHeartCoords(state, heartIndex);
       // Convert HUD screen-space coords to world-space
