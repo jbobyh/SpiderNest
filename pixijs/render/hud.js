@@ -141,8 +141,8 @@ export function updateHud(gameState, currentLevel, nearWeapon = false, nearAltar
   // Show/hide pickup hint (reuse panel, swap text)
   // Priority: room bonus altar > spatial chest > chest > altar > weapon
   const showHint = nearWeapon || nearAltar || nearChest || nearSpatialChest || nearRoomBonusAltar;
-  dom.pickupHint.visible = showHint;
-  if (showHint) {
+  dom.pickupHint.visible = showHint && !bossSummonReady;
+  if (showHint && !bossSummonReady) {
     let hintText = 'подобрать';
     if (nearRoomBonusAltar) hintText = 'Активировать алтарь комнаты';
     else if (nearSpatialChest) hintText = 'Открыть пространственный сундук';
@@ -150,6 +150,9 @@ export function updateHud(gameState, currentLevel, nearWeapon = false, nearAltar
     else if (nearAltar) hintText = 'Призвать врагов';
     _setPickupHintText(hintText);
   }
+
+  // Show boss summon hint
+  dom.bossSummonHint.visible = bossSummonReady;
 
   // Stats panel (Tab key)
   const showStats = keys['tab'];
