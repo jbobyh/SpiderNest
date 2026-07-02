@@ -65,13 +65,25 @@ class BulletManager {
           ? this._battleCrossesWall(activeState, CELL_PX * BS, prevX, prevY, b.x, b.y)
           : crossesWall(removedWalls, prevX, prevY, b.x, b.y);
 
+        const prevCell = cellOf(prevX / (isBattle ? BS : 1), prevY / (isBattle ? BS : 1));
+        const prevCellKey = isBattle
+          ? cellKey(prevCell.x + activeState.cellOffsetX, prevCell.y + activeState.cellOffsetY)
+          : cellKey(prevCell.x, prevCell.y);
+        const prevRoomBonus = getRoomBonus(state, prevCellKey);
+        const wasInRoom = isBattle 
+          ? openCells.has(prevCellKey)
+          : inRoom(prevX, prevY, openCells);
+
         const currentCell = cellOf(b.x / (isBattle ? BS : 1), b.y / (isBattle ? BS : 1));
         const cellIsBlocked = isBattle 
           ? !openCells.has(cellKey(currentCell.x + activeState.cellOffsetX, currentCell.y + activeState.cellOffsetY))
           : !inRoom(b.x, b.y, openCells);
 
-        if (cellIsBlocked || hitsPartition) {
-          if (b.ricochet && !b._ricocheted) {
+        const hitsWall = cellIsBlocked || hitsPartition;
+
+        if (hitsWall) {
+          const canRicochet = !b._ricocheted && wasInRoom && (b._baseRicochet || prevRoomBonus === 'ricochet');
+          if (canRicochet) {
             this._handleRicochet(b, activeState, prevX, prevY, dt, isBattle, worldBullets, i);
           } else {
             this._handleWallHit(b, state, isBattle, worldBullets, i);
@@ -126,6 +138,12 @@ class BulletManager {
         b.vy = b._baseVy;
       }
       
+      if (roomBonus === 'ricochet') {
+        b.ricochet = true;
+      } else if (b._lastRoomBonus === 'ricochet') {
+        b.ricochet = b._baseRicochet;
+      }
+
       if (b.owner === 'player') {
         if (roomBonus === 'penetrate') {
           b.penetrate = Infinity;
