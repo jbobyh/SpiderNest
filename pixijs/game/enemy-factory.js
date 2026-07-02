@@ -1,4 +1,4 @@
-import { ChaserEnemy, ZigzagChaserEnemy, ShooterEnemy, BullEnemy, BuldygaEnemy, BloatedEnemy, CocoonEnemy, PhaseBoss } from './enemy-types.js';
+import { ChaserEnemy, ZigzagChaserEnemy, ShooterEnemy, WallShooterEnemy, BullEnemy, BuldygaEnemy, BloatedEnemy, CocoonEnemy, PhaseBoss } from './enemy-types.js';
 
 // Map type → ENEMY_STATS key (some types share stats)
 const ENEMY_STATS_KEY = {
@@ -12,6 +12,7 @@ const ENEMY_STATS_KEY = {
   bloated: 'bloated',
   cocoon:  'cocoon',
   tank:    'tank',
+  wallshooter: 'wallshooter',
 };
 
 export class EnemyFactory {
@@ -32,6 +33,8 @@ export class EnemyFactory {
       case 'shooter':
       case 'plevaka':
         return new ShooterEnemy(data);
+      case 'wallshooter':
+        return new WallShooterEnemy(data);
       case 'bull':
         return new BullEnemy(data);
       case 'buldyga':

@@ -176,6 +176,60 @@ export class ShooterEnemy extends Enemy {
   }
 }
 
+// ── Wall Shooter (4 bullets in a wall) ────────────────────────
+export class WallShooterEnemy extends ShooterEnemy {
+  updateBehavior(dt, state) {
+    const dx = state.player.x - this.x;
+    const dy = state.player.y - this.y;
+    const dist = Math.hypot(dx, dy);
+
+    const hasLos = hasLineOfSight(state.openCells, state.removedWalls, this.x, this.y, state.player.x, state.player.y);
+    const isStunned = this.stunTimer > 0;
+
+    if (this.shootCd > 0) this.shootCd -= dt;
+
+    const stats = CONFIG.ENEMY_STATS.wallshooter;
+    const shootRange = stats.shootRangeCells * CELL_PX;
+    const stopDist = stats.stopDistCells * CELL_PX;
+
+    if (hasLos && dist <= shootRange && this.shootCd <= 0 && dist > 0) {
+      this.shootCd = stats.shootCd;
+
+      const dirX = dx / dist;
+      const dirY = dy / dist;
+      const perpX = -dirY;
+      const perpY = dirX;
+      const count = stats.wallBulletCount;
+      const spacing = stats.wallBulletSpacing;
+      const offset = (count - 1) / 2;
+
+      for (let i = 0; i < count; i++) {
+        const ox = perpX * spacing * (i - offset);
+        const oy = perpY * spacing * (i - offset);
+        bulletManager.spawn({
+          x: this.x + ox, y: this.y + oy,
+          vx: dirX * stats.bulletSpeed, vy: dirY * stats.bulletSpeed,
+          owner: 'enemy',
+          color: ENEMY_BULLET_COLOR,
+          maxRange: enemyBulletRange(dirX * stats.bulletSpeed, dirY * stats.bulletSpeed),
+        });
+      }
+    }
+
+    if (isStunned) {
+      setBodyVelocity(this.body, 0, 0);
+    } else if (!hasLos || dist > stopDist) {
+      if (dist > 0) {
+        const dir = getEnemyMoveDir(this.x, this.y, state.player.x, state.player.y, state.flowField, state.openCells, state.removedWalls);
+        const speedMult = this.getRoomSpeedMult(state);
+        setBodyVelocity(this.body, dir.dx * stats.speed * speedMult, dir.dy * stats.speed * speedMult);
+      }
+    } else {
+      setBodyVelocity(this.body, 0, 0);
+    }
+  }
+}
+
 // ── Bull ──────────────────────────────────────────────────────
 export class BullEnemy extends Enemy {
   constructor(data) {

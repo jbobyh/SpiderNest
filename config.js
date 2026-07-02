@@ -52,15 +52,45 @@ const CONFIG = {
 
   // Enemy stats
   ENEMY_STATS: {
-    spider:   { hp: 3*2, speed: 1, radius: 7, visualScale: 2.9, wobbleMin: 0.2, wobbleMax: 0.3, spawnMargin: 10 },
-    bat:      { hp: 3*2, speed: 1, radius: 7, visualScale: 3.9, animFps: 15, zigzagFreq: 4, zigzagAmp: 0.8 },
-    shooter:  { hp: 2*2, speed: 1, radius: 6, visualScale: 2.5, bulletSpeed: 100, shootRangeCells: 2, shootCd: 1.5, stopDistCells: 2 },
-    bull:     { hp: 4*2, speed: 1, radius: 6, visualScale: 3.2, prepareTime: 1, restTime: 1.5, chargeDistCells: 0.75, dashDistCells: 0.02 },
-    buldyga:  { hp: 8*2, speed: 1, radius: 6, visualScale: 4.0, accel: 20, friction: 3.5, speedIncrement: 0.1 },
-    cocoon:   { hp: 16*2, radius: 10, visualScale: 3.2, spawnInterval: 3.0 },
-    bloated:  { hp: 4*2, speed: 1, radius: 7, visualScale: 3.2, deathShotSpeed: 120 },
+    spider:   { hp: 6, speed: 1, radius: 7, visualScale: 2.9, wobbleMin: 0.2, wobbleMax: 0.3, spawnMargin: 10 },
+    bat:      { hp: 6, speed: 1, radius: 7, visualScale: 3.9, animFps: 15, zigzagFreq: 4, zigzagAmp: 0.8 },
+    shooter:  { hp: 4, speed: 1, radius: 6, visualScale: 2.5, bulletSpeed: 100, shootRangeCells: 2, shootCd: 1.5, stopDistCells: 2 },
+    bull:     { hp: 8, speed: 1, radius: 6, visualScale: 3.2, prepareTime: 1, restTime: 1.5, chargeDistCells: 0.75, dashDistCells: 0.02 },
+    buldyga:  { hp: 16, speed: 1, radius: 6, visualScale: 4.0, accel: 20, friction: 3.5, speedIncrement: 0.1 },
+    cocoon:   { hp: 32, radius: 10, visualScale: 3.2, spawnInterval: 3.0 },
+    bloated:  { hp: 8, speed: 1, radius: 7, visualScale: 3.2, deathShotSpeed: 120 },
     tank:     { hp: 20, speed: 0.7, radius: 14, visualScale: 2 },
+    wallshooter: { hp: 4, speed: 1, radius: 8, visualScale: 2.5, bulletSpeed: 50, shootRangeCells: 1.5, shootCd: 3.0, stopDistCells: 1.4, wallBulletCount: 5, wallBulletSpacing: 8 },
   },
+
+  // Spawn table key → actual enemy type for EnemyFactory.create()
+  ENEMY_POOL_TYPE_MAP: {
+    bat:        'bat',
+    soldier:    'soldier',
+    shooter:    'plevaka',
+    bull:       'bull',
+    buldyga:    'buldyga',
+    cocoon:     'cocoon',
+    bloated:    'bloated',
+    tank:       'tank',
+    wallshooter:'wallshooter',
+  },
+
+  // Enemy type → stats key in ENEMY_STATS (with optional radiusKey override)
+  ENEMY_TYPE_STATS: {
+    bat:         { statsKey: 'bat' },
+    soldier:     { statsKey: 'spider' },
+    plevaka:     { statsKey: 'shooter', radiusKey: 'spider' },
+    bull:        { statsKey: 'bull' },
+    buldyga:     { statsKey: 'buldyga' },
+    cocoon:      { statsKey: 'cocoon' },
+    bloated:     { statsKey: 'bloated' },
+    tank:        { statsKey: 'tank' },
+    wallshooter: { statsKey: 'wallshooter' },
+  },
+
+  // HP multiplier by level
+  ENEMY_HP_MULT: { 1: 1, 2: 2, 3: 4 },
 
   // Enemy costs for budget-based spawning
   ENEMY_COSTS: {
@@ -72,6 +102,7 @@ const CONFIG = {
     cocoon: 60,       // спавнит солдат
     bloated: 35,      // взрывается при смерти
     tank: 40,         // танк: большой, медленный, много HP
+    wallshooter: 60,  // 4 пули стеной
   },
 
   // ── Бюджетная генерация врагов в комнатах ──────────────────
@@ -98,9 +129,9 @@ const CONFIG = {
   // Доступные типы врагов по уровням + веса выбора (больше = чаще встречается).
   // Ключи должны совпадать с ENEMY_COSTS и ENEMY_POOL_TYPE_MAP.
   ENEMY_SPAWN_TABLE: {
-    1: { bat: 5, shooter: 2, bloated: 1, tank: 1 },
-    2: { soldier: 5, shooter: 2, bull: 2, buldyga: 1, bloated: 1, tank: 1 },
-    3: { soldier: 4, shooter: 2, bull: 2, buldyga: 1, bloated: 1, cocoon: 1, tank: 1 },
+    1: { bat: 5, shooter: 2, bloated: 1, tank: 1, wallshooter: 1 },
+    2: { soldier: 5, shooter: 2, bull: 2, buldyga: 1, bloated: 1, tank: 1, wallshooter: 2 },
+    3: { soldier: 4, shooter: 2, bull: 2, buldyga: 1, bloated: 1, cocoon: 1, tank: 1, wallshooter: 2 },
   },
 
   // Level generation

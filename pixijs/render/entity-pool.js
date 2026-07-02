@@ -21,6 +21,8 @@ export const corpseTextures = {};  // { soldier, bat, bull, buldyga, bloated, pl
 export const weaponTextures = {};  // { pistol, shotgun, smg, rifle, revolver, carbine }
 let tankTexture = Texture.WHITE;
 let tankCorpseTexture = Texture.WHITE;
+let wallShooterTexture = Texture.WHITE;
+let wallShooterCorpseTexture = Texture.WHITE;
 
 /**
  * Build all texture caches from loaded Assets.
@@ -32,6 +34,7 @@ export function initEntityPool() {
   _buildCocoonFrames();
   _buildBatFrames();
   _buildTankTextures();
+  _buildWallShooterTextures();
   _buildEnemyTextures();
   _buildWeaponTextures();
 }
@@ -64,6 +67,11 @@ export function makeCorpseSprite(type) {
   }
   if (type === 'tank') {
     const spr = new Sprite(tankCorpseTexture);
+    spr.anchor.set(0.5);
+    return spr;
+  }
+  if (type === 'wallshooter') {
+    const spr = new Sprite(wallShooterCorpseTexture);
     spr.anchor.set(0.5);
     return spr;
   }
@@ -162,12 +170,38 @@ function _buildTankTextures() {
   tankCorpseTexture = Texture.from(canvas2);
 }
 
+function _buildWallShooterTextures() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 100;
+  canvas.height = 100;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ff6600';
+  ctx.beginPath();
+  ctx.arc(50, 50, 45, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#cc4400';
+  ctx.lineWidth = 6;
+  ctx.stroke();
+  wallShooterTexture = Texture.from(canvas);
+
+  const canvas2 = document.createElement('canvas');
+  canvas2.width = 100;
+  canvas2.height = 100;
+  const ctx2 = canvas2.getContext('2d');
+  ctx2.fillStyle = '#aa4400';
+  ctx2.beginPath();
+  ctx2.arc(50, 50, 45, 0, Math.PI * 2);
+  ctx2.fill();
+  wallShooterCorpseTexture = Texture.from(canvas2);
+}
+
 function _buildEnemyTextures() {
   enemyTextures.soldier = Assets.get('soldier');
   enemyTextures.bull     = Assets.get('bull');
   enemyTextures.buldyga  = Assets.get('buldyga');
   enemyTextures.bloated  = Assets.get('bloated');
   enemyTextures.tank     = tankTexture;
+  enemyTextures.wallshooter = wallShooterTexture;
 
   corpseTextures.soldier = Assets.get('soldier-dead');
   corpseTextures.plevaka = Assets.get('plevaka-dead');
@@ -175,6 +209,7 @@ function _buildEnemyTextures() {
   corpseTextures.buldyga = Assets.get('buldyga-dead');
   corpseTextures.bloated = Assets.get('bloated-dead');
   corpseTextures.tank    = tankCorpseTexture;
+  corpseTextures.wallshooter = wallShooterCorpseTexture;
 }
 
 function _buildWeaponTextures() {
@@ -188,5 +223,6 @@ function _enemyTexForType(type) {
   if (type === 'cocoon')                         return cocoonFrames[0]         ?? Texture.WHITE;
   if (type === 'bat')                            return batFrames[0]            ?? Texture.WHITE;
   if (type === 'tank')                           return enemyTextures.tank       ?? Texture.WHITE;
+  if (type === 'wallshooter')                    return enemyTextures.wallshooter ?? Texture.WHITE;
   return enemyTextures[type] ?? enemyTextures.soldier ?? Texture.WHITE;
 }

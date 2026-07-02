@@ -40,7 +40,7 @@ export class Enemy {
   }
 
   _updateStuckDetection(dt, state) {
-    if (this.type === 'cocoon' || this.type === 'plevaka' || this.type === 'shooter' || this.type === 'bull' || this.isBoss) {
+    if (this.type === 'cocoon' || this.type === 'plevaka' || this.type === 'shooter' || this.type === 'wallshooter' || this.type === 'bull' || this.isBoss) {
       return;
     }
     const moved = Math.hypot(this.x - this.lastX, this.y - this.lastY);

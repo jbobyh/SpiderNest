@@ -582,29 +582,16 @@ function applyRoomContent(ri, type, level, rooms, levelState, playerProgress, we
 
 // ── Enemy creation ───────────────────────────────────────────
 
-const ENEMY_POOL_TYPE_MAP = {
-  bat:     'bat',
-  soldier: 'soldier',
-  shooter: 'plevaka',
-  bull:    'bull',
-  buldyga: 'buldyga',
-  cocoon:  'cocoon',
-  bloated: 'bloated',
-  tank:    'tank',
-};
-
 function getEnemyStats(enemyType, level) {
-  const hpMult = level >= 3 ? 4 : level === 2 ? 2 : 1;
-  switch (enemyType) {
-    case 'bat':     return { hp: CONFIG.ENEMY_STATS.bat.hp      * hpMult, radius: CONFIG.ENEMY_STATS.bat.radius,      visualScale: CONFIG.ENEMY_STATS.bat.visualScale };
-    case 'cocoon':  return { hp: CONFIG.ENEMY_STATS.cocoon.hp  * hpMult, radius: CONFIG.ENEMY_STATS.cocoon.radius,  visualScale: CONFIG.ENEMY_STATS.cocoon.visualScale };
-    case 'bloated': return { hp: CONFIG.ENEMY_STATS.bloated.hp * hpMult, radius: CONFIG.ENEMY_STATS.bloated.radius, visualScale: CONFIG.ENEMY_STATS.bloated.visualScale };
-    case 'bull':    return { hp: CONFIG.ENEMY_STATS.bull.hp    * hpMult, radius: CONFIG.ENEMY_STATS.bull.radius,    visualScale: CONFIG.ENEMY_STATS.bull.visualScale };
-    case 'buldyga': return { hp: CONFIG.ENEMY_STATS.buldyga.hp * hpMult, radius: CONFIG.ENEMY_STATS.buldyga.radius, visualScale: CONFIG.ENEMY_STATS.buldyga.visualScale };
-    case 'plevaka': return { hp: CONFIG.ENEMY_STATS.shooter.hp * hpMult, radius: CONFIG.ENEMY_STATS.spider.radius,  visualScale: CONFIG.ENEMY_STATS.shooter.visualScale };
-    case 'tank':    return { hp: CONFIG.ENEMY_STATS.tank.hp    * hpMult, radius: CONFIG.ENEMY_STATS.tank.radius,    visualScale: CONFIG.ENEMY_STATS.tank.visualScale };
-    default:        return { hp: CONFIG.ENEMY_STATS.spider.hp  * hpMult, radius: CONFIG.ENEMY_STATS.spider.radius,  visualScale: CONFIG.ENEMY_STATS.spider.visualScale };
-  }
+  const hpMult = CONFIG.ENEMY_HP_MULT[level] || 1;
+  const mapping = CONFIG.ENEMY_TYPE_STATS[enemyType] || { statsKey: 'spider' };
+  const stats = CONFIG.ENEMY_STATS[mapping.statsKey] || CONFIG.ENEMY_STATS.spider;
+  const radiusStats = mapping.radiusKey ? CONFIG.ENEMY_STATS[mapping.radiusKey] : stats;
+  return {
+    hp: stats.hp * hpMult,
+    radius: radiusStats.radius,
+    visualScale: stats.visualScale,
+  };
 }
 
 function createStasisEnemy(enemyType, gx, gy, level, roomIdx) {
@@ -621,7 +608,7 @@ function spawnEnemiesFromPreset(preset, cells, stasisEnemies, level, roomIdx) {
   const margin = CONFIG.ENEMY_STATS.spider.radius + CONFIG.ENEMY_STATS.spider.spawnMargin;
   for (const [configKey, count] of Object.entries(preset)) {
     if (!count) continue;
-    const enemyType = ENEMY_POOL_TYPE_MAP[configKey];
+    const enemyType = CONFIG.ENEMY_POOL_TYPE_MAP[configKey];
     if (!enemyType) continue;
     for (let i = 0; i < count; i++) {
       const cell = cells[Math.floor(Math.random() * cells.length)];
