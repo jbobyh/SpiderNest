@@ -9,7 +9,7 @@ export class Enemy {
     this.vx = data.vx || 0;
     this.vy = data.vy || 0;
     this.maxHp = data.maxHp || data.hp;
-    this.radius = data.radius || (typeof CONFIG !== 'undefined' ? CONFIG.SPIDER_RADIUS : 20);
+    this.radius = data.radius || (typeof CONFIG !== 'undefined' ? CONFIG.ENEMY_STATS.spider.radius : 20);
     this.visualScale = data.visualScale || 3.2;
     this.lastX = data.lastX ?? data.x;
     this.lastY = data.lastY ?? data.y;

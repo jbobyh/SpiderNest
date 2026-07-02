@@ -280,7 +280,7 @@ function _handlePlayerEnemyContact(player, enemy) {
       // Actually, in the old code plevaka/shooter didn't have contact damage block.
       // But they are ranged. Let's keep it consistent with old logic.
       if (enemy.type !== 'shooter' && enemy.type !== 'plevaka') {
-        spawnCorpse(_state.deathCorpses, enemy, enemy.radius || CONFIG.SPIDER_RADIUS);
+        spawnCorpse(_state.deathCorpses, enemy, enemy.radius || CONFIG.ENEMY_STATS.spider.radius);
         destroyBody(enemy.body);
         _state.activeSpiders.splice(idx, 1);
         

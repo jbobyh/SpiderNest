@@ -124,9 +124,9 @@ export function shoot(state) {
 
   // Muzzle flash particles
   spawnParticles(state.particles, state.player.x, state.player.y,
-    CONFIG.MUZZLE_PARTICLES_COUNT, baseAngle, CONFIG.MUZZLE_PARTICLES_SPREAD,
-    CONFIG.MUZZLE_PARTICLES_SPEED_MIN, CONFIG.MUZZLE_PARTICLES_SPEED_MAX,
-    CONFIG.MUZZLE_PARTICLES_LIFE, '#ffff00');
+    CONFIG.PARTICLES.muzzle.count, baseAngle, CONFIG.PARTICLES.muzzle.spread,
+    CONFIG.PARTICLES.muzzle.speedMin, CONFIG.PARTICLES.muzzle.speedMax,
+    CONFIG.PARTICLES.muzzle.life, '#ffff00');
 
   _applyBurstCooldown(state, weapon, isBurstWeapon, burstTotal, burstDelay, cooldown);
 }
@@ -181,9 +181,9 @@ export function pickupWeapon(state, weaponId, particles, px, py, scale, dropPlay
   Sounds.weaponcollect();
   const wDef = WEAPON_DEFS[weaponId];
   spawnParticles(particles, px, py,
-    CONFIG.PICKUP_PARTICLES_COUNT, 0, Math.PI * 2,
-    CONFIG.PICKUP_PARTICLES_SPEED * scale, CONFIG.PICKUP_PARTICLES_SPEED * scale,
-    CONFIG.PICKUP_PARTICLES_LIFE, wDef ? wDef.color : '#ffffff');
+    CONFIG.PARTICLES.pickup.count, 0, Math.PI * 2,
+    CONFIG.PARTICLES.pickup.speed * scale, CONFIG.PARTICLES.pickup.speed * scale,
+    CONFIG.PARTICLES.pickup.life, wDef ? wDef.color : '#ffffff');
 }
 
 // ── Internal helpers ──────────────────────────────────────────

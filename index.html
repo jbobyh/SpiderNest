@@ -6,6 +6,65 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ПАУЧЬЕ ГНЕЗДО</title>
   <link rel="stylesheet" href="style.css">
+  <style>
+    #loading-screen {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(5, 10, 20, 0.92);
+      z-index: 20;
+      gap: 16px;
+      color: #cce8ff;
+      font-family: 'Huninn', monospace;
+      font-size: 18px;
+      pointer-events: none;
+    }
+    #loading-screen.hidden { display: none; }
+    #loading-bar-bg {
+      width: 260px;
+      height: 6px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    #loading-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: #00d4ff;
+      border-radius: 3px;
+      transition: width 0.1s linear;
+    }
+    #level-complete-screen {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      z-index: 15;
+      pointer-events: all;
+      background: rgba(4, 10, 4, 0.88);
+    }
+    #level-complete-screen.hidden {
+      display: none;
+    }
+    .end-screen-title {
+      font-family: 'Huninn', monospace;
+      font-size: 32px;
+      font-weight: bold;
+      letter-spacing: 4px;
+    }
+    #level-complete-screen .end-screen-title { color: #44ff88; text-shadow: 0 0 30px #00ff4466; }
+    .end-screen-sub {
+      font-family: 'Huninn', monospace;
+      font-size: 14px;
+      color: #aaccbb;
+    }
+  </style>
 </head>
 
 <body>
@@ -14,15 +73,26 @@
   <p class="subtitle">Проект для ГЕЙМ!ДЖЕМ!</p>
 
   <div class="game-wrapper">
-
     <div id="canvas-container">
-      <canvas id="canvas"></canvas>
+      <!-- PixiJS canvas is inserted here by main.js -->
       <div id="upgrade-popup"></div>
       <button id="fullscreen-btn" title="Полный экран">⛶</button>
       <div id="overlay">
         <h2 style="color:var(--accent)">ПАУЧЬЕ ГНЕЗДО</h2>
         <p>Найди выход. Не дай паукам добраться до тебя.</p>
         <button class="btn" id="start-btn">НАЧАТЬ ИГРУ</button>
+        <button class="btn" id="continue-btn" style="display:none">ПРОДОЛЖИТЬ</button>
+      </div>
+      <div id="level-complete-screen" class="hidden">
+        <div class="end-screen-title">УРОВЕНЬ ПРОЙДЕН!</div>
+        <div class="end-screen-sub">Путь на следующий этаж открыт.</div>
+        <button class="btn" id="next-level-btn">СЛЕДУЮЩИЙ УРОВЕНЬ</button>
+      </div>
+      <div id="loading-screen">
+        <span>ЗАГРУЗКА...</span>
+        <div id="loading-bar-bg">
+          <div id="loading-bar-fill"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -37,18 +107,10 @@
       <div class="rule-item"><strong>Q</strong> — чередовать слоты</div>
       <div class="rule-item"><strong>F</strong> — подобрать/переключить оружие</div>
       <div class="rule-item"><strong>Shift</strong> — рывок</div>
-      <!-- <div class="rule-item"><strong>Оружие 🔫</strong> — подберись вплотную чтобы подобрать. Пистолет — 1 точная пуля. Дробовик — 3 пули с разбросом. Револьвер — 1 пуля, урон 40. Карабин — очередь из 3 пуль</div> -->
-      <div class="rule-item"><strong class="danger"> Жизни</strong> Требуются для сноса стен между комнатами. Возвращаются при восстановлении стены
-      </div>
+      <div class="rule-item"><strong class="danger"> Жизни</strong> Требуются для сноса стен между комнатами. Возвращаются при восстановлении стены</div>
       <div class="rule-item"><strong>ПКМ</strong> по стене-перегородке — убрать её (–1 жизнь) и открыть смежную комнату. ПКМ по убранной стене — восстановить (+1 жизнь). Можно убирать только стены рядом с открытой комнатой</div>
-      <!-- <div class="rule-item"><strong>Содержимое</strong> — видно в соседних закрытых комнатах</div> -->
-      <!-- <div class="rule-item"><strong class="ok">Сердечки</strong> — собери для +3 жизней (коснись). Разное количество на каждом уровне
-      </div> -->
       <div class="rule-item"><strong>Ключи 🔑</strong> — собери все ключи, чтобы разблокировать выход с уровня</div>
-      <!-- <div class="rule-item"><strong class="danger">Пауки</strong> — в некоторых комнатах. Открытие выпускает их!
-        Уничтожай из дробовика!</div> -->
       <div class="rule-item">Собери все ключи и нажми <strong>F</strong> на клетке выхода, чтобы уйти. Но сперва придется победить босса уровня.</div>
-      <!-- <div class="rule-item"><strong>Чёрные клетки</strong> — закрыты навсегда, больше не открыть</div> -->
     </div>
   </div>
 
@@ -63,13 +125,24 @@
     <a href="https://abstractionmusic.com">Music by Abstraction - www.abstractionmusic.com</a>
   </div>
 
+  <!-- Matter.js (UMD bundle — exposes window.Matter) -->
+  <script src="https://cdn.jsdelivr.net/npm/matter-js@0.20/build/matter.js"></script>
+
+  <!-- PixiJS v8 + @pixi/sound v6 via ES importmap -->
+  <script type="importmap">
+  {
+    "imports": {
+      "pixi.js":     "https://cdn.jsdelivr.net/npm/pixi.js@8/dist/pixi.mjs",
+      "@pixi/sound": "https://cdn.jsdelivr.net/npm/@pixi/sound@6/dist/pixi-sound.mjs"
+    }
+  }
+  </script>
+
+  <!-- Game config (sets globals: CONFIG, WEAPON_DEFS, BOSS_DEFS, etc.) -->
   <script src="config.js"></script>
-  <script src="js/game-state.js"></script>
-  <script src="js/engine-utils.js"></script>
-  <script src="js/battle-setup.js"></script>
-  <script src="js/combat-and-battle.js"></script>
-  <script src="js/update-render-loop.js"></script>
-  <script src="js/save-input-start.js"></script>
+
+  <!-- Boot entry point -->
+  <script type="module" src="pixijs/main.js?v=2"></script>
 
 </body>
 

@@ -1,7 +1,7 @@
 // ============================================================
 // ENEMY AI — updateEnemyAI(), enemyCollisions(), spawnCorpse()
 // Works for both play-mode (scale=1) and battle-mode (BATTLE_SCALE).
-// CONFIG / PLEVAKA_ANIMS are globals from config.js.
+// CONFIG / SPRITE_SHEETS.plevaka.anims are globals from config.js.
 // ============================================================
 
 import { cellOf, cellKey, CELL_PX, getRoomBonus } from '../world/constants.js';
@@ -58,11 +58,11 @@ export function updateEnemyAI(state, playerProgress, dt, onPlayerDamaged) {
 // ── Particle helpers ──────────────────────────────────────────
 
 function _deathParticles(particles, x, y, scale) {
-  for (let k = 0; k < CONFIG.DEATH_PARTICLES_COUNT; k++) {
+  for (let k = 0; k < CONFIG.PARTICLES.death.count; k++) {
     const a   = Math.random() * Math.PI * 2;
-    const spd = CONFIG.DEATH_PARTICLES_SPEED_MIN + Math.random() * (CONFIG.DEATH_PARTICLES_SPEED_MAX - CONFIG.DEATH_PARTICLES_SPEED_MIN);
+    const spd = CONFIG.PARTICLES.death.speedMin + Math.random() * (CONFIG.PARTICLES.death.speedMax - CONFIG.PARTICLES.death.speedMin);
     particles.push({ x, y, vx: Math.cos(a) * spd * scale, vy: Math.sin(a) * spd * scale,
-      life: CONFIG.DEATH_PARTICLES_LIFE, maxLife: CONFIG.DEATH_PARTICLES_LIFE,
+      life: CONFIG.PARTICLES.death.life, maxLife: CONFIG.PARTICLES.death.life,
       color: Math.random() < 0.5 ? '#44cc22' : '#88ff44' });
   }
 }

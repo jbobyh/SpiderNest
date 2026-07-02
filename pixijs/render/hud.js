@@ -111,7 +111,7 @@ export function initHud(parentContainer) {
   dom.fpsCounter = new Text({ text: 'FPS: 60', style: STYLE_HINT });
   dom.fpsCounter.anchor.set(1, 1);
   dom.fpsCounter.position.set(VW - 8, VH - 8);
-  dom.fpsCounter.visible = CONFIG.SHOW_FPS === true;
+  dom.fpsCounter.visible = CONFIG.DEBUG.showFps === true;
   _parent.addChild(dom.fpsCounter);
 
   // Stats panel (centered)
@@ -853,7 +853,7 @@ export function updateBossHpBar(gameState) {
 
 export function updateFps(fps) {
   if (!dom.fpsCounter) return;
-  dom.fpsCounter.visible = CONFIG.SHOW_FPS === true;
+  dom.fpsCounter.visible = CONFIG.DEBUG.showFps === true;
   if (dom.fpsCounter.visible) {
     dom.fpsCounter.text = `FPS: ${Math.round(fps)}`;
   }

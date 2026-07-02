@@ -190,14 +190,14 @@ export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}
     let dx = state.mouse.x - state.player.x;
     let dy = state.mouse.y - state.player.y;
     const dist = Math.hypot(dx, dy);
-    if (dist > CONFIG.CAMERA_MAX_OFFSET) {
-      dx *= CONFIG.CAMERA_MAX_OFFSET / dist;
-      dy *= CONFIG.CAMERA_MAX_OFFSET / dist;
+    if (dist > CONFIG.CAMERA.maxOffset) {
+      dx *= CONFIG.CAMERA.maxOffset / dist;
+      dy *= CONFIG.CAMERA.maxOffset / dist;
     }
-    camera.setZoom(CONFIG.PLAY_MODE_ZOOM);
+    camera.setZoom(CONFIG.CAMERA.playZoom);
     camera.moveTo(
-      state.player.x + dx * CONFIG.CAMERA_CURSOR_WEIGHT,
-      state.player.y + dy * CONFIG.CAMERA_CURSOR_WEIGHT,
+      state.player.x + dx * CONFIG.CAMERA.cursorWeight,
+      state.player.y + dy * CONFIG.CAMERA.cursorWeight,
     );
   }
   camera.update(dt);
@@ -370,8 +370,8 @@ function _onEnemyKilled(state, playerProgress, g) {
     const pdy = state.player.y - g.y;
     const pdist = Math.hypot(pdx, pdy);
     if (pdist > 0) {
-      const ebx = (pdx / pdist) * CONFIG.BLOATED_DEATH_SHOT_SPEED;
-      const eby = (pdy / pdist) * CONFIG.BLOATED_DEATH_SHOT_SPEED;
+      const ebx = (pdx / pdist) * CONFIG.ENEMY_STATS.bloated.deathShotSpeed;
+      const eby = (pdy / pdist) * CONFIG.ENEMY_STATS.bloated.deathShotSpeed;
       bulletManager.spawn({
         x: g.x, y: g.y,
         vx: ebx, vy: eby,

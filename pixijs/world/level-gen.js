@@ -595,14 +595,14 @@ const ENEMY_POOL_TYPE_MAP = {
 function getEnemyStats(enemyType, level) {
   const hpMult = level >= 3 ? 4 : level === 2 ? 2 : 1;
   switch (enemyType) {
-    case 'bat':     return { hp: CONFIG.BAT_HP    * hpMult, radius: CONFIG.BAT_RADIUS,    visualScale: CONFIG.BAT_VISUAL_SCALE };
-    case 'cocoon':  return { hp: CONFIG.COCOON_HP  * hpMult, radius: CONFIG.COCOON_RADIUS,  visualScale: CONFIG.COCOON_VISUAL_SCALE };
-    case 'bloated': return { hp: CONFIG.BLOATED_HP * hpMult, radius: CONFIG.BLOATED_RADIUS, visualScale: CONFIG.BLOATED_VISUAL_SCALE };
-    case 'bull':    return { hp: CONFIG.BULL_HP    * hpMult, radius: CONFIG.BULL_RADIUS,    visualScale: CONFIG.BULL_VISUAL_SCALE };
-    case 'buldyga': return { hp: CONFIG.BULDYGA_HP * hpMult, radius: CONFIG.BULDYGA_RADIUS, visualScale: CONFIG.BULDYGA_VISUAL_SCALE };
-    case 'plevaka': return { hp: CONFIG.SHOOTER_HP * hpMult, radius: CONFIG.SPIDER_RADIUS,  visualScale: CONFIG.SHOOTER_VISUAL_SCALE };
-    case 'tank':    return { hp: CONFIG.TANK_HP    * hpMult, radius: CONFIG.TANK_RADIUS,    visualScale: CONFIG.TANK_VISUAL_SCALE };
-    default:        return { hp: CONFIG.SPIDER_HP  * hpMult, radius: CONFIG.SPIDER_RADIUS,  visualScale: CONFIG.SPIDER_VISUAL_SCALE };
+    case 'bat':     return { hp: CONFIG.ENEMY_STATS.bat.hp      * hpMult, radius: CONFIG.ENEMY_STATS.bat.radius,      visualScale: CONFIG.ENEMY_STATS.bat.visualScale };
+    case 'cocoon':  return { hp: CONFIG.ENEMY_STATS.cocoon.hp  * hpMult, radius: CONFIG.ENEMY_STATS.cocoon.radius,  visualScale: CONFIG.ENEMY_STATS.cocoon.visualScale };
+    case 'bloated': return { hp: CONFIG.ENEMY_STATS.bloated.hp * hpMult, radius: CONFIG.ENEMY_STATS.bloated.radius, visualScale: CONFIG.ENEMY_STATS.bloated.visualScale };
+    case 'bull':    return { hp: CONFIG.ENEMY_STATS.bull.hp    * hpMult, radius: CONFIG.ENEMY_STATS.bull.radius,    visualScale: CONFIG.ENEMY_STATS.bull.visualScale };
+    case 'buldyga': return { hp: CONFIG.ENEMY_STATS.buldyga.hp * hpMult, radius: CONFIG.ENEMY_STATS.buldyga.radius, visualScale: CONFIG.ENEMY_STATS.buldyga.visualScale };
+    case 'plevaka': return { hp: CONFIG.ENEMY_STATS.shooter.hp * hpMult, radius: CONFIG.ENEMY_STATS.spider.radius,  visualScale: CONFIG.ENEMY_STATS.shooter.visualScale };
+    case 'tank':    return { hp: CONFIG.ENEMY_STATS.tank.hp    * hpMult, radius: CONFIG.ENEMY_STATS.tank.radius,    visualScale: CONFIG.ENEMY_STATS.tank.visualScale };
+    default:        return { hp: CONFIG.ENEMY_STATS.spider.hp  * hpMult, radius: CONFIG.ENEMY_STATS.spider.radius,  visualScale: CONFIG.ENEMY_STATS.spider.visualScale };
   }
 }
 
@@ -615,7 +615,7 @@ function createTrappedEnemy(enemyType, gx, gy, homeX, homeY, level) {
     homeX, homeY,
     trapped: true,
     phase:   Math.random() * Math.PI * 2,
-    wobble:  CONFIG.SPIDER_WOBBLE_MIN + Math.random() * (CONFIG.SPIDER_WOBBLE_MAX - CONFIG.SPIDER_WOBBLE_MIN),
+    wobble:  CONFIG.ENEMY_STATS.spider.wobbleMin + Math.random() * (CONFIG.ENEMY_STATS.spider.wobbleMax - CONFIG.ENEMY_STATS.spider.wobbleMin),
     vx: 0, vy: 0,
     radius, hp, maxHp: hp, visualScale,
     type:         enemyType,
@@ -628,14 +628,14 @@ function createTrappedEnemy(enemyType, gx, gy, homeX, homeY, level) {
     animState:  isAnimated ? (enemyType === 'bat' ? 'fly' : 'idle') : null,
     animFrame:  isAnimated ? 0 : null,
     animTimer:  isAnimated ? 0 : null,
-    currentSpeed:      enemyType === 'buldyga' ? CONFIG.BULDYGA_SPEED         : undefined,
+    currentSpeed:      enemyType === 'buldyga' ? CONFIG.ENEMY_STATS.buldyga.speed         : undefined,
     speedAccumulator:  0,
-    spawnTimer:        enemyType === 'cocoon'  ? CONFIG.COCOON_SPAWN_INTERVAL : undefined,
+    spawnTimer:        enemyType === 'cocoon'  ? CONFIG.ENEMY_STATS.cocoon.spawnInterval : undefined,
   };
 }
 
 function spawnEnemiesFromPreset(preset, cellX, cellY, trappedSpiders, level) {
-  const margin = CONFIG.SPIDER_RADIUS + CONFIG.SPIDER_SPAWN_MARGIN;
+  const margin = CONFIG.ENEMY_STATS.spider.radius + CONFIG.ENEMY_STATS.spider.spawnMargin;
   for (const [configKey, count] of Object.entries(preset)) {
     if (!count) continue;
     const enemyType = ENEMY_POOL_TYPE_MAP[configKey];

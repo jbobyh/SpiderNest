@@ -163,10 +163,10 @@ class BulletManager {
     
     Sounds.wallhit?.();
     spawnParticles(particles, b.x, b.y,
-      CONFIG.WALL_HIT_PARTICLES_COUNT, 0, Math.PI * 2,
-      CONFIG.WALL_HIT_PARTICLES_SPEED * (isBattle ? CONFIG.BATTLE_SCALE : 1), 
-      CONFIG.WALL_HIT_PARTICLES_SPEED * (isBattle ? CONFIG.BATTLE_SCALE : 1),
-      CONFIG.WALL_HIT_PARTICLES_LIFE, color);
+      CONFIG.PARTICLES.wallHit.count, 0, Math.PI * 2,
+      CONFIG.PARTICLES.wallHit.speed * (isBattle ? CONFIG.BATTLE_SCALE : 1), 
+      CONFIG.PARTICLES.wallHit.speed * (isBattle ? CONFIG.BATTLE_SCALE : 1),
+      CONFIG.PARTICLES.wallHit.life, color);
       
     worldBullets.splice(i, 1);
     releaseBullet(b);
@@ -211,9 +211,9 @@ class BulletManager {
 
     b.hitEntities.clear();
     Sounds.wallhit?.();
-    spawnParticles(activeState.particles, b.x, b.y, CONFIG.WALL_HIT_PARTICLES_COUNT, 0, Math.PI * 2,
-      CONFIG.WALL_HIT_PARTICLES_SPEED * BS, CONFIG.WALL_HIT_PARTICLES_SPEED * BS,
-      CONFIG.WALL_HIT_PARTICLES_LIFE, '#22ffdd');
+    spawnParticles(activeState.particles, b.x, b.y, CONFIG.PARTICLES.wallHit.count, 0, Math.PI * 2,
+      CONFIG.PARTICLES.wallHit.speed * BS, CONFIG.PARTICLES.wallHit.speed * BS,
+      CONFIG.PARTICLES.wallHit.life, '#22ffdd');
   }
 
   _handleBattleRicochet(b, activeState, worldBullets, i) {
@@ -224,9 +224,9 @@ class BulletManager {
     b.hitEntities.clear();
     
     const BS = CONFIG.BATTLE_SCALE || 1;
-    spawnParticles(activeState.particles, b.x, b.y, CONFIG.WALL_HIT_PARTICLES_COUNT, 0, Math.PI * 2,
-      CONFIG.WALL_HIT_PARTICLES_SPEED * BS, CONFIG.WALL_HIT_PARTICLES_SPEED * BS,
-      CONFIG.WALL_HIT_PARTICLES_LIFE, '#22ffdd');
+    spawnParticles(activeState.particles, b.x, b.y, CONFIG.PARTICLES.wallHit.count, 0, Math.PI * 2,
+      CONFIG.PARTICLES.wallHit.speed * BS, CONFIG.PARTICLES.wallHit.speed * BS,
+      CONFIG.PARTICLES.wallHit.life, '#22ffdd');
   }
 
   _checkEnemyCollisions(b, state, activeState, onEnemyKilled, isBattle) {
@@ -238,7 +238,7 @@ class BulletManager {
       if (b.hitEntities.has(g)) continue;
       
       const dist = Math.hypot(b.x - g.x, b.y - g.y);
-      if (dist >= ((g.radius || CONFIG.SPIDER_RADIUS) + CONFIG.BULLET_RADIUS) * BS) continue;
+      if (dist >= ((g.radius || CONFIG.ENEMY_STATS.spider.radius) + CONFIG.BULLET_RADIUS) * BS) continue;
 
       // Hit!
       let damage = b.damage;
@@ -256,17 +256,17 @@ class BulletManager {
       }
 
       if (!isBattle) {
-        spawnDamageNumber(state, g.x, g.y - (g.radius || CONFIG.SPIDER_RADIUS), damage, b.isCrit, 1);
+        spawnDamageNumber(state, g.x, g.y - (g.radius || CONFIG.ENEMY_STATS.spider.radius), damage, b.isCrit, 1);
       }
 
       // Hit particles
       const bAngle = Math.atan2(b.vy, b.vx);
-      for (let k = 0; k < CONFIG.HIT_PARTICLES_COUNT; k++) {
-        const sp = bAngle + (Math.random() - 0.5) * CONFIG.HIT_PARTICLES_SPREAD;
-        const spd = (CONFIG.HIT_PARTICLES_SPEED_MIN + Math.random() * (CONFIG.HIT_PARTICLES_SPEED_MAX - CONFIG.HIT_PARTICLES_SPEED_MIN)) * BS;
+      for (let k = 0; k < CONFIG.PARTICLES.hit.count; k++) {
+        const sp = bAngle + (Math.random() - 0.5) * CONFIG.PARTICLES.hit.spread;
+        const spd = (CONFIG.PARTICLES.hit.speedMin + Math.random() * (CONFIG.PARTICLES.hit.speedMax - CONFIG.PARTICLES.hit.speedMin)) * BS;
         activeState.particles.push({ 
           x: g.x, y: g.y, vx: Math.cos(sp) * spd, vy: Math.sin(sp) * spd,
-          life: CONFIG.HIT_PARTICLES_LIFE, maxLife: CONFIG.HIT_PARTICLES_LIFE, color: CONFIG.HIT_PARTICLES_COLOR 
+          life: CONFIG.PARTICLES.hit.life, maxLife: CONFIG.PARTICLES.hit.life, color: CONFIG.PARTICLES.hit.color 
         });
       }
 

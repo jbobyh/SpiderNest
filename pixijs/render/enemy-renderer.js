@@ -8,7 +8,7 @@
 //
 // clearEnemySprites() — destroy all tracked sprites (level reset)
 //
-// Globals: CONFIG, PLEVAKA_ANIMS, COCOON_ANIM, BAT_ANIM (from config.js)
+// Globals: CONFIG, SPRITE_SHEETS.plevaka.anims, SPRITE_SHEETS.cocoon.anim, SPRITE_SHEETS.bat.anim (from config.js)
 // ============================================================
 
 import { Sprite, ColorMatrixFilter } from 'pixi.js';
@@ -148,8 +148,8 @@ function _updateEnemyTexture(g, sprite, gameTime) {
     }
     if (sprite.texture !== tex) sprite.texture = tex;
   } else if (isCocoon) {
-    const fps   = COCOON_ANIM.fps;
-    const total = COCOON_ANIM.frames;
+    const fps   = SPRITE_SHEETS.cocoon.anim.fps;
+    const total = SPRITE_SHEETS.cocoon.anim.frames;
     const frame = Math.floor((gameTime * fps) % total);
     const tex   = cocoonFrames[frame];
     if (sprite.texture !== tex) sprite.texture = tex;
@@ -167,7 +167,7 @@ function _updateEnemyTexture(g, sprite, gameTime) {
  * Camera zoom handles battle-mode magnification — no extra multiplier needed here.
  */
 function _applyEnemyScale(sprite, radius, visualScale) {
-  const drawSize = (radius ?? CONFIG.SPIDER_RADIUS) * (visualScale ?? CONFIG.SPIDER_VISUAL_SCALE);
+  const drawSize = (radius ?? CONFIG.ENEMY_STATS.spider.radius) * (visualScale ?? CONFIG.ENEMY_STATS.spider.visualScale);
   const texSize  = sprite.texture?.height || 500;
   const s        = drawSize / texSize;
   // Preserve x-sign (flip) while updating magnitude

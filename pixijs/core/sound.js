@@ -9,7 +9,7 @@ import { sound } from '@pixi/sound';
 
 // ── Volume ────────────────────────────────────────────────────
 
-let _volume = CONFIG.DEFAULT_VOLUME;
+let _volume = CONFIG.SOUND.defaultVolume;
 
 export function resumeAudioContext() {
   try {
@@ -64,7 +64,7 @@ export const Sounds = {
       revolver: 'shot_revolver',
     };
     const alias = map[weaponId] || 'shot_pistol';
-    this.play(alias, { mult: CONFIG.SHOT_VOLUME_MULT });
+    this.play(alias, { mult: CONFIG.SOUND.shotVolumeMult });
   },
 
   // ── Footstep timer ──────────────────────────────────────────
@@ -76,7 +76,7 @@ export const Sounds = {
     if (this._footstepTimer <= 0) {
       const n = Math.floor(Math.random() * 5);
       this.play(`footstep${n}`);
-      this._footstepTimer = CONFIG.FOOTSTEP_INTERVAL;
+      this._footstepTimer = CONFIG.SOUND.footstepInterval;
     }
   },
 
@@ -87,7 +87,7 @@ export const Sounds = {
       if (!sound.find('ambience').isPlaying) {
         sound.play('ambience', {
           loop:   true,
-          volume: _volume * CONFIG.AMBIENCE_VOLUME_MULT,
+          volume: _volume * CONFIG.SOUND.ambienceVolumeMult,
         });
       }
     } catch (e) {}
@@ -100,7 +100,7 @@ export const Sounds = {
   ambienceSyncVolume() {
     try {
       const s = sound.find('ambience');
-      if (s) s.volume = _volume * CONFIG.AMBIENCE_VOLUME_MULT;
+      if (s) s.volume = _volume * CONFIG.SOUND.ambienceVolumeMult;
     } catch (e) {}
   },
 

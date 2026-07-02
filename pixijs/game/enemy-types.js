@@ -20,7 +20,7 @@ export class ChaserEnemy extends Enemy {
     if (dist > 0) {
       const dir = getEnemyMoveDir(this.x, this.y, state.player.x, state.player.y, state.flowField, state.openCells, state.removedWalls);
       const speedMult = this.getRoomSpeedMult(state);
-      const speed = this.type === 'tank' ? CONFIG.TANK_SPEED : CONFIG.SPIDER_SPEED;
+      const speed = this.type === 'tank' ? CONFIG.ENEMY_STATS.tank.speed : CONFIG.ENEMY_STATS.spider.speed;
       setBodyVelocity(this.body, dir.dx * speed * speedMult, dir.dy * speed * speedMult);
     }
   }
@@ -40,7 +40,7 @@ export class ZigzagChaserEnemy extends Enemy {
 
     if (dist > 0) {
       const speedMult = this.getRoomSpeedMult(state);
-      const baseSpeed = CONFIG.BAT_SPEED;
+      const baseSpeed = CONFIG.ENEMY_STATS.bat.speed;
       
       // Use direct movement with zigzag if LoS, otherwise follow flow field
       const hasLos = hasLineOfSight(state.openCells, state.removedWalls, this.x, this.y, state.player.x, state.player.y);
@@ -56,8 +56,8 @@ export class ZigzagChaserEnemy extends Enemy {
         const perpY = dirX;
         
         // Sine-based oscillation
-        const freq = CONFIG.BAT_ZIGZAG_FREQ;
-        const amp = CONFIG.BAT_ZIGZAG_AMP;
+        const freq = CONFIG.ENEMY_STATS.bat.zigzagFreq;
+        const amp = CONFIG.ENEMY_STATS.bat.zigzagAmp;
         const offset = Math.sin(state.time * freq) * amp;
         
         // Final direction = direct + oscillating perpendicular
@@ -84,9 +84,9 @@ export class ZigzagChaserEnemy extends Enemy {
   }
 
   _updateBatAnim(dt) {
-    if (this.animState === null || typeof BAT_ANIM === 'undefined') return;
+    if (this.animState === null || typeof SPRITE_SHEETS.bat.anim === 'undefined') return;
     this.animTimer += dt;
-    const cfg = BAT_ANIM;
+    const cfg = SPRITE_SHEETS.bat.anim;
     if (this.animTimer >= 1 / cfg.fps) {
       this.animTimer = 0;
       this.animFrame = (this.animFrame + 1) % cfg.frames;
@@ -114,18 +114,18 @@ export class ShooterEnemy extends Enemy {
 
     if (this.shootCd > 0) this.shootCd -= dt;
 
-    const shootRange = CONFIG.SHOOTER_SHOOT_RANGE_CELLS * CELL_PX;
-    const stopDist = CONFIG.SHOOTER_STOP_DIST_CELLS * CELL_PX;
+    const shootRange = CONFIG.ENEMY_STATS.shooter.shootRangeCells * CELL_PX;
+    const stopDist = CONFIG.ENEMY_STATS.shooter.stopDistCells * CELL_PX;
 
     // Shooting logic
     if (hasLos && dist <= shootRange && this.shootCd <= 0 && dist > 0) {
-      this.shootCd = CONFIG.SHOOTER_SHOOT_CD;
+      this.shootCd = CONFIG.ENEMY_STATS.shooter.shootCd;
       this.animState = 'shoot';
       this.animFrame = 0;
       this.animTimer = 0;
 
-      const ebx = (dx / dist) * CONFIG.SHOOTER_BULLET_SPEED;
-      const eby = (dy / dist) * CONFIG.SHOOTER_BULLET_SPEED;
+      const ebx = (dx / dist) * CONFIG.ENEMY_STATS.shooter.bulletSpeed;
+      const eby = (dy / dist) * CONFIG.ENEMY_STATS.shooter.bulletSpeed;
       bulletManager.spawn({
         x: this.x, y: this.y,
         vx: ebx, vy: eby,
@@ -142,7 +142,7 @@ export class ShooterEnemy extends Enemy {
       if (dist > 0) {
         const dir = getEnemyMoveDir(this.x, this.y, state.player.x, state.player.y, state.flowField, state.openCells, state.removedWalls);
         const speedMult = this.getRoomSpeedMult(state);
-        setBodyVelocity(this.body, dir.dx * CONFIG.SHOOTER_SPEED * speedMult, dir.dy * CONFIG.SHOOTER_SPEED * speedMult);
+        setBodyVelocity(this.body, dir.dx * CONFIG.ENEMY_STATS.shooter.speed * speedMult, dir.dy * CONFIG.ENEMY_STATS.shooter.speed * speedMult);
         if (this.animState !== 'shoot') this.animState = 'run';
       }
     } else {
@@ -152,9 +152,9 @@ export class ShooterEnemy extends Enemy {
   }
 
   _updateShooterAnim(dt) {
-    if (this.animState === null || typeof PLEVAKA_ANIMS === 'undefined') return;
+    if (this.animState === null || typeof SPRITE_SHEETS.plevaka.anims === 'undefined') return;
     this.animTimer += dt;
-    const cfg = PLEVAKA_ANIMS[this.animState];
+    const cfg = SPRITE_SHEETS.plevaka.anims[this.animState];
     if (!cfg) return;
     if (this.animTimer >= 1 / cfg.fps) {
       this.animTimer = 0;
@@ -183,8 +183,8 @@ export class BullEnemy extends Enemy {
     const dy = state.player.y - this.y;
     const dist = Math.hypot(dx, dy);
     
-    const chargeDist = (CONFIG.BULL_CHARGE_DIST_CELLS ?? 1.5) * CELL_PX;
-    const dashDistMax = (CONFIG.BULL_DASH_DISTANCE_CELLS ?? 3) * CELL_PX;
+    const chargeDist = (CONFIG.ENEMY_STATS.bull.chargeDistCells ?? 1.5) * CELL_PX;
+    const dashDistMax = (CONFIG.ENEMY_STATS.bull.dashDistCells ?? 3) * CELL_PX;
     const hitDist = this.radius + CONFIG.PLAYER_RADIUS;
     const isStunned = this.stunTimer > 0;
 
@@ -195,10 +195,10 @@ export class BullEnemy extends Enemy {
         } else if (dist > chargeDist && dist > 0) {
           const dir = getEnemyMoveDir(this.x, this.y, state.player.x, state.player.y, state.flowField, state.openCells, state.removedWalls);
           const speedMult = this.getRoomSpeedMult(state);
-          setBodyVelocity(this.body, dir.dx * CONFIG.BULL_SPEED * speedMult, dir.dy * CONFIG.BULL_SPEED * speedMult);
+          setBodyVelocity(this.body, dir.dx * CONFIG.ENEMY_STATS.bull.speed * speedMult, dir.dy * CONFIG.ENEMY_STATS.bull.speed * speedMult);
         } else if (dist <= chargeDist) {
           this.state = 'prepare';
-          this.stateTimer = CONFIG.BULL_PREPARE_TIME;
+          this.stateTimer = CONFIG.ENEMY_STATS.bull.prepareTime;
           setBodyVelocity(this.body, 0, 0);
         }
         break;
@@ -221,7 +221,7 @@ export class BullEnemy extends Enemy {
         break;
 
       case 'dash': {
-        const dashSpeed = CONFIG.BULL_SPEED * 4;
+        const dashSpeed = CONFIG.ENEMY_STATS.bull.speed * 4;
         const speedMult = this.getRoomSpeedMult(state);
         setBodyVelocity(this.body, this.dashDirX * dashSpeed * speedMult, this.dashDirY * dashSpeed * speedMult);
         this.stateTimer += dashSpeed * speedMult * dt;
@@ -229,14 +229,14 @@ export class BullEnemy extends Enemy {
         const hitWall = this.body && Math.hypot(this.body.velocity.x, this.body.velocity.y) < dashSpeed * speedMult * 0.3;
         if (hitWall || this.stateTimer >= this.dashDistance) {
           this.state = 'rest';
-          this.stateTimer = CONFIG.BULL_REST_TIME;
+          this.stateTimer = CONFIG.ENEMY_STATS.bull.restTime;
           setBodyVelocity(this.body, 0, 0);
         }
         
         if (dist < hitDist) {
           // Contact damage handled by onCollision, but we stop dash
           this.state = 'rest';
-          this.stateTimer = CONFIG.BULL_REST_TIME;
+          this.stateTimer = CONFIG.ENEMY_STATS.bull.restTime;
           setBodyVelocity(this.body, 0, 0);
         }
         break;
@@ -255,7 +255,7 @@ export class BullEnemy extends Enemy {
 export class BuldygaEnemy extends Enemy {
   constructor(data) {
     super(data);
-    this.currentSpeed = data.currentSpeed ?? CONFIG.BULDYGA_SPEED;
+    this.currentSpeed = data.currentSpeed ?? CONFIG.ENEMY_STATS.buldyga.speed;
     this.speedAccumulator = data.speedAccumulator ?? 0;
   }
 
@@ -273,7 +273,7 @@ export class BuldygaEnemy extends Enemy {
     this.speedAccumulator += dt;
     if (this.speedAccumulator >= 1.0) {
       const secs = Math.floor(this.speedAccumulator);
-      this.currentSpeed += CONFIG.BULDYGA_SPEED_INCREMENT * secs;
+      this.currentSpeed += CONFIG.ENEMY_STATS.buldyga.speedIncrement * secs;
       this.speedAccumulator -= secs;
     }
 
@@ -283,7 +283,7 @@ export class BuldygaEnemy extends Enemy {
     if (dist > 0) {
       const tvx = (dx / dist) * effectiveSpeed;
       const tvy = (dy / dist) * effectiveSpeed;
-      const acc = (CONFIG.BULDYGA_ACCEL * 0.1) * dt;
+      const acc = (CONFIG.ENEMY_STATS.buldyga.accel * 0.1) * dt;
       const dvx = tvx - this.vx;
       const dvy = tvy - this.vy;
       const dLen = Math.hypot(dvx, dvy);
@@ -294,7 +294,7 @@ export class BuldygaEnemy extends Enemy {
         this.vy += (dvy / dLen) * step;
       }
     } else {
-      const friction = 1 - CONFIG.BULDYGA_FRICTION * dt;
+      const friction = 1 - CONFIG.ENEMY_STATS.buldyga.friction * dt;
       this.vx *= Math.max(0, friction);
       this.vy *= Math.max(0, friction);
     }
@@ -324,7 +324,7 @@ export class BloatedEnemy extends Enemy {
     if (this.stunTimer <= 0 && dist > 0) {
       const dir = getEnemyMoveDir(this.x, this.y, state.player.x, state.player.y, state.flowField, state.openCells, state.removedWalls);
       const speedMult = this.getRoomSpeedMult(state);
-      setBodyVelocity(this.body, dir.dx * CONFIG.BLOATED_SPEED * speedMult, dir.dy * CONFIG.BLOATED_SPEED * speedMult);
+      setBodyVelocity(this.body, dir.dx * CONFIG.ENEMY_STATS.bloated.speed * speedMult, dir.dy * CONFIG.ENEMY_STATS.bloated.speed * speedMult);
     } else {
       setBodyVelocity(this.body, 0, 0);
     }
@@ -335,7 +335,7 @@ export class BloatedEnemy extends Enemy {
 export class CocoonEnemy extends Enemy {
   constructor(data) {
     super(data);
-    this.spawnTimer = data.spawnTimer ?? CONFIG.COCOON_SPAWN_INTERVAL;
+    this.spawnTimer = data.spawnTimer ?? CONFIG.ENEMY_STATS.cocoon.spawnInterval;
   }
 
   updateBehavior(dt, state) {
@@ -347,9 +347,9 @@ export class CocoonEnemy extends Enemy {
 
     this.spawnTimer -= dt;
     if (this.spawnTimer <= 0) {
-      this.spawnTimer = CONFIG.COCOON_SPAWN_INTERVAL;
+      this.spawnTimer = CONFIG.ENEMY_STATS.cocoon.spawnInterval;
       const a = Math.random() * Math.PI * 2;
-      const d = this.radius + CONFIG.SPIDER_RADIUS + 5;
+      const d = this.radius + CONFIG.ENEMY_STATS.spider.radius + 5;
       const spawnX = this.x + Math.cos(a) * d;
       const spawnY = this.y + Math.sin(a) * d;
       
@@ -391,7 +391,7 @@ export class PhaseBoss extends Enemy {
 
     const phase = bossDef.phases[this.phaseIndex] || bossDef.phases[0];
     const roomMult = this.getRoomSpeedMult(state);
-    const bossSpd = CONFIG.SPIDER_SPEED * (bossDef.speedMult || 1.0) * roomMult;
+    const bossSpd = CONFIG.ENEMY_STATS.spider.speed * (bossDef.speedMult || 1.0) * roomMult;
     const dx = state.player.x - this.x;
     const dy = state.player.y - this.y;
     const dist = Math.hypot(dx, dy);
@@ -441,14 +441,14 @@ export class PhaseBoss extends Enemy {
   _updateBuldygaPhase(dt, state, phase, dx, dy, dist, freezeTimer, roomMult) {
     const accelMult = phase.accelMult || 1.0;
     const frictionMult = phase.frictionMult || 1.0;
-    if (this.currentSpeed === undefined) this.currentSpeed = CONFIG.BULDYGA_SPEED;
+    if (this.currentSpeed === undefined) this.currentSpeed = CONFIG.ENEMY_STATS.buldyga.speed;
     if (this.speedAccumulator === undefined) this.speedAccumulator = 0;
     if (this.vx === undefined) { this.vx = 0; this.vy = 0; }
 
     this.speedAccumulator += dt;
     if (this.speedAccumulator >= 1.0) {
       const s = Math.floor(this.speedAccumulator);
-      this.currentSpeed += CONFIG.BULDYGA_SPEED_INCREMENT * s;
+      this.currentSpeed += CONFIG.ENEMY_STATS.buldyga.speedIncrement * s;
       this.speedAccumulator -= s;
     }
 
@@ -456,12 +456,12 @@ export class PhaseBoss extends Enemy {
     if (!stunned && freezeTimer <= 0 && dist > 0) {
       const tvx = (dx / dist) * this.currentSpeed * roomMult;
       const tvy = (dy / dist) * this.currentSpeed * roomMult;
-      const acc = CONFIG.BULDYGA_ACCEL * accelMult * dt;
+      const acc = CONFIG.ENEMY_STATS.buldyga.accel * accelMult * dt;
       this.vx += (tvx - this.vx) * Math.min(1, acc / (this.currentSpeed || 1));
       this.vy += (tvy - this.vy) * Math.min(1, acc / (this.currentSpeed || 1));
     } else if (freezeTimer > 0) {
-      this.vx *= Math.max(0, 1 - CONFIG.BULDYGA_FRICTION * frictionMult * dt);
-      this.vy *= Math.max(0, 1 - CONFIG.BULDYGA_FRICTION * frictionMult * dt);
+      this.vx *= Math.max(0, 1 - CONFIG.ENEMY_STATS.buldyga.friction * frictionMult * dt);
+      this.vy *= Math.max(0, 1 - CONFIG.ENEMY_STATS.buldyga.friction * frictionMult * dt);
     }
 
     if (this.body) {
@@ -503,11 +503,11 @@ export class PhaseBoss extends Enemy {
     if (this.shootCd === undefined) this.shootCd = 0;
     if (this.shootCd > 0) this.shootCd -= dt;
     
-    const shootRange = CONFIG.SHOOTER_SHOOT_RANGE_CELLS * CELL_PX * 10;
+    const shootRange = CONFIG.ENEMY_STATS.shooter.shootRangeCells * CELL_PX * 10;
     if (dist <= shootRange && this.shootCd <= 0 && freezeTimer <= 0 && dist > 0) {
-      this.shootCd = CONFIG.SHOOTER_SHOOT_CD * shootCdMult;
-      const ebx = (dx / dist) * CONFIG.SHOOTER_BULLET_SPEED * bulletSpeedMult;
-      const eby = (dy / dist) * CONFIG.SHOOTER_BULLET_SPEED * bulletSpeedMult;
+      this.shootCd = CONFIG.ENEMY_STATS.shooter.shootCd * shootCdMult;
+      const ebx = (dx / dist) * CONFIG.ENEMY_STATS.shooter.bulletSpeed * bulletSpeedMult;
+      const eby = (dy / dist) * CONFIG.ENEMY_STATS.shooter.bulletSpeed * bulletSpeedMult;
       bulletManager.spawn({
         x: this.x, y: this.y,
         vx: ebx, vy: eby,
@@ -519,8 +519,8 @@ export class PhaseBoss extends Enemy {
   }
 
   _updateBullLimitedPhase(dt, state, phase, dx, dy, dist, freezeTimer, roomMult) {
-    const dashDistMax = (phase.dashCells || (CONFIG.BULL_DASH_DISTANCE_CELLS ?? 3)) * CELL_PX;
-    const chargeDist = (CONFIG.BULL_CHARGE_DIST_CELLS ?? 1.5) * CELL_PX * 8;
+    const dashDistMax = (phase.dashCells || (CONFIG.ENEMY_STATS.bull.dashDistCells ?? 3)) * CELL_PX;
+    const chargeDist = (CONFIG.ENEMY_STATS.bull.chargeDistCells ?? 1.5) * CELL_PX * 8;
     const hitDist = this.radius + CONFIG.PLAYER_RADIUS;
 
     if (!this.state) this.state = 'chase';
@@ -530,10 +530,10 @@ export class PhaseBoss extends Enemy {
       case 'chase':
         if (this.stunTimer <= 0 && freezeTimer <= 0 && dist > chargeDist && dist > 0) {
           const dir = getEnemyMoveDir(this.x, this.y, state.player.x, state.player.y, state.flowField, state.openCells, state.removedWalls);
-          setBodyVelocity(this.body, dir.dx * CONFIG.BULL_SPEED * roomMult, dir.dy * CONFIG.BULL_SPEED * roomMult);
+          setBodyVelocity(this.body, dir.dx * CONFIG.ENEMY_STATS.bull.speed * roomMult, dir.dy * CONFIG.ENEMY_STATS.bull.speed * roomMult);
         } else if (dist <= chargeDist) {
           this.state = 'prepare';
-          this.stateTimer = CONFIG.BULL_PREPARE_TIME;
+          this.stateTimer = CONFIG.ENEMY_STATS.bull.prepareTime;
           setBodyVelocity(this.body, 0, 0);
         }
         break;
@@ -548,7 +548,7 @@ export class PhaseBoss extends Enemy {
         }
         break;
       case 'dash': {
-        const dashSpeed = CONFIG.BULL_SPEED * 3 * roomMult;
+        const dashSpeed = CONFIG.ENEMY_STATS.bull.speed * 3 * roomMult;
         setBodyVelocity(this.body, this.dashDirX * dashSpeed, this.dashDirY * dashSpeed);
         this.stateTimer += dashSpeed * dt;
         const hitWall = this.body && Math.hypot(this.body.velocity.x, this.body.velocity.y) < dashSpeed * 0.3;
@@ -570,7 +570,7 @@ export class PhaseBoss extends Enemy {
 
   _onDashFinished(phase) {
     this.state = 'rest';
-    this.stateTimer = CONFIG.BULL_REST_TIME;
+    this.stateTimer = CONFIG.ENEMY_STATS.bull.restTime;
     setBodyVelocity(this.body, 0, 0);
     this.dashCount++;
     if (this.dashCount >= (phase.maxDashes || 3)) {
@@ -581,7 +581,7 @@ export class PhaseBoss extends Enemy {
 
   _fallbackDef() {
     return {
-      hp: 30, speedMult: 1.2, radius: CONFIG.SPIDER_RADIUS * 2,
+      hp: 30, speedMult: 1.2, radius: CONFIG.ENEMY_STATS.spider.radius * 2,
       visualScale: 4.0,
       phases: [{ id: 'soldier', duration: 6 }, { id: 'pause', duration: 1 }],
     };

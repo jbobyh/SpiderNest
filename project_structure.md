@@ -6,7 +6,6 @@
 pixijs/
 ├── main.js                 // точка входа (boot)
 ├── game-loop.js            // главный игровой цикл
-├── index.html              // HTML-страница с canvas, оверлеями и импортами
 ├── core/                   // движковые модули (рендерер, ввод, звук, ресурсы)
 ├── game/                   // игровая логика (AI, пули, враги, апгрейды, стены)
 ├── modes/                  // режимы: исследование, бой, переходы
@@ -36,14 +35,6 @@ pixijs/
   - `_render()` — синхронизация всех рендереров с состоянием.
   - Callbacks переходов: `_onEnterBattle`, `_onBattleWon`, `_onPlayerDead`, `_onLevelComplete`, `restartLevel()`, `nextLevel()`.
 - **Состояние модуля:** `_state`, `_camera`, `_currentLevel`, `_playerProgress`, `_levelStartProgress`.
-
-### `index.html`
-- **За что отвечает:** разметка страницы и подключение зависимостей.
-- **Содержит:**
-  - Заголовок, правила, блок авторов, контейнер для canvas.
-  - Оверлеи: стартовый экран, экран загрузки, экран прохождения уровня.
-  - Подключение `matter.js` (UMD), `pixi.js` и `@pixi/sound` через import map, `config.js`, `main.js`.
-
 ---
 
 ## `core/` — движок

@@ -53,7 +53,7 @@ export function createBattleState(state, openedCellKey) {
   const wallPad = CP * 0.125;
   const scaleX  = CONFIG.VIEW_W / (bCols * CP + wallPad * 2);
   const scaleY  = CONFIG.VIEW_H / (bRows * CP + wallPad * 2);
-  const zoom    = Math.min(scaleX, scaleY) * CONFIG.BATTLE_ZOOM_MULTIPLIER;
+  const zoom    = Math.min(scaleX, scaleY) * CONFIG.CAMERA.battleZoomMult;
   const centerX = (minX + bCols / 2) * CP;
   const centerY = (minY + bRows / 2) * CP;
 
@@ -154,7 +154,7 @@ export function createBossBattleState(state, currentLevel) {
   const wallPad = CP * 0.125;
   const scaleX  = CONFIG.VIEW_W / (bCols * CP + wallPad * 2);
   const scaleY  = CONFIG.VIEW_H / (bRows * CP + wallPad * 2);
-  const zoom    = Math.min(scaleX, scaleY) * CONFIG.BATTLE_ZOOM_MULTIPLIER;
+  const zoom    = Math.min(scaleX, scaleY) * CONFIG.CAMERA.battleZoomMult;
   const centerX = (minX + bCols / 2) * CP;
   const centerY = (minY + bRows / 2) * CP;
 
@@ -167,7 +167,7 @@ export function createBossBattleState(state, currentLevel) {
     if (d > maxDist) { maxDist = d; farthestCell = { x, y }; }
   }
 
-  const margin = CONFIG.SPIDER_RADIUS + 20;
+  const margin = CONFIG.ENEMY_STATS.spider.radius + 20;
   let bossX = centerX, bossY = centerY;
   if (farthestCell) {
     const relX = state.player.x - farthestCell.x * CP;
@@ -178,13 +178,13 @@ export function createBossBattleState(state, currentLevel) {
 
   const bossHp = bossDef.hp !== undefined
     ? bossDef.hp
-    : (bossDef.hpBase === 'buldyga' ? CONFIG.BULDYGA_HP : CONFIG.SPIDER_HP) * (bossDef.hpMult || 1);
+    : (bossDef.hpBase === 'buldyga' ? CONFIG.ENEMY_STATS.buldyga.hp : CONFIG.ENEMY_STATS.spider.hp) * (bossDef.hpMult || 1);
 
   state.activeSpiders.push(EnemyFactory.create(bossDef.type || 'boss_phase', bossX, bossY, {
     level: currentLevel,
     hp: bossHp,
     maxHp: bossHp,
-    radius: CONFIG.SPIDER_RADIUS * (bossDef.radiusMult || 1),
+    radius: CONFIG.ENEMY_STATS.spider.radius * (bossDef.radiusMult || 1),
     isBoss: true,
     phaseIndex: 0,
     phaseTimer: bossDef.phases?.[0]?.duration ?? 0,

@@ -4,8 +4,7 @@
 // Call initEntityPool() once after Assets are loaded.
 // Then use make*() factories to create display objects.
 //
-// HERO_ANIMS, PLEVAKA_ANIMS, COCOON_ANIM, HERO_SW, HERO_SH,
-// PLEVAKA_SW, PLEVAKA_SH, COCOON_SW, COCOON_SH — from config.js (global)
+// SPRITE_SHEETS (hero, plevaka, cocoon, bat) — from config.js (global)
 // ============================================================
 
 import { Sprite, Texture, Rectangle } from 'pixi.js';
@@ -90,12 +89,12 @@ export function getPlevakaFrame(animState, frame) {
 
 function _buildHeroFrames() {
   const heroTex = Assets.get('hero');
-  for (const [key, def] of Object.entries(HERO_ANIMS)) {
+  for (const [key, def] of Object.entries(SPRITE_SHEETS.hero.anims)) {
     heroFrames[key] = [];
     for (let f = 0; f < def.frames; f++) {
       heroFrames[key].push(new Texture({
         source: heroTex.source,
-        frame:  new Rectangle(f * HERO_SW, def.row * HERO_SH, HERO_SW, HERO_SH),
+        frame:  new Rectangle(f * SPRITE_SHEETS.hero.sw, def.row * SPRITE_SHEETS.hero.sh, SPRITE_SHEETS.hero.sw, SPRITE_SHEETS.hero.sh),
       }));
     }
   }
@@ -103,12 +102,12 @@ function _buildHeroFrames() {
 
 function _buildPlevakaFrames() {
   const plevakaTex = Assets.get('plevaka-anim');
-  for (const [key, def] of Object.entries(PLEVAKA_ANIMS)) {
+  for (const [key, def] of Object.entries(SPRITE_SHEETS.plevaka.anims)) {
     plevakaFrames[key] = [];
     for (let f = 0; f < def.frames; f++) {
       plevakaFrames[key].push(new Texture({
         source: plevakaTex.source,
-        frame:  new Rectangle(f * PLEVAKA_SW, def.row * PLEVAKA_SH, PLEVAKA_SW, PLEVAKA_SH),
+        frame:  new Rectangle(f * SPRITE_SHEETS.plevaka.sw, def.row * SPRITE_SHEETS.plevaka.sh, SPRITE_SHEETS.plevaka.sw, SPRITE_SHEETS.plevaka.sh),
       }));
     }
   }
@@ -116,10 +115,10 @@ function _buildPlevakaFrames() {
 
 function _buildCocoonFrames() {
   const cocoonTex = Assets.get('cocoon');
-  for (let f = 0; f < COCOON_ANIM.frames; f++) {
+  for (let f = 0; f < SPRITE_SHEETS.cocoon.anim.frames; f++) {
     cocoonFrames.push(new Texture({
       source: cocoonTex.source,
-      frame:  new Rectangle(f * COCOON_SW, 0, COCOON_SW, COCOON_SH),
+      frame:  new Rectangle(f * SPRITE_SHEETS.cocoon.sw, 0, SPRITE_SHEETS.cocoon.sw, SPRITE_SHEETS.cocoon.sh),
     }));
   }
 }
@@ -127,15 +126,15 @@ function _buildCocoonFrames() {
 function _buildBatFrames() {
   const batTex = Assets.get('bat');
   if (!batTex) return;
-  for (let f = 0; f < BAT_ANIM.frames; f++) {
+  for (let f = 0; f < SPRITE_SHEETS.bat.anim.frames; f++) {
     batFrames.push(new Texture({
       source: batTex.source,
-      frame:  new Rectangle(f * BAT_SW, 0, BAT_SW, BAT_SH),
+      frame:  new Rectangle(f * SPRITE_SHEETS.bat.sw, 0, SPRITE_SHEETS.bat.sw, SPRITE_SHEETS.bat.sh),
     }));
   }
   batHitTexture = new Texture({
     source: batTex.source,
-    frame:  new Rectangle(BAT_ANIM.hitFrame * BAT_SW, 0, BAT_SW, BAT_SH),
+    frame:  new Rectangle(SPRITE_SHEETS.bat.anim.hitFrame * SPRITE_SHEETS.bat.sw, 0, SPRITE_SHEETS.bat.sw, SPRITE_SHEETS.bat.sh),
   });
 }
 
