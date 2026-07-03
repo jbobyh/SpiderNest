@@ -13,6 +13,7 @@
 // ============================================================
 
 import { Container, Sprite, TilingSprite, Texture, Graphics, Assets, Text } from 'pixi.js';
+import { wallKey as _wk } from '../world/constants.js';
 import {
   CELL_PX, FLOOR_TILES_PER_CELL, FLOOR_TILE_PX, SUBCELL_PX, TILES_PER_CELL, CARDINAL_DIRECTIONS,
   cellKey, cellFromKey, wallKey,
@@ -21,6 +22,7 @@ import {
 const WALL_DEPTH  = CELL_PX * 0.125;
 const CORNER_SIZE = CELL_PX * 0.125;
 const PART_T      = CELL_PX * 0.05;   // partition wall thickness
+const WALL_HEIGHT = FLOOR_TILE_PX;   // north-face wall height = 1 floor tile
 
 // Direction vectors in the canonical order 0..3
 const DIR_VECS = [[1, 0], [0, 1], [-1, 0], [0, -1]];
@@ -323,7 +325,7 @@ function makeClosedCellSprites(blobCells, openCells, everRevealedCells, everOpen
 // Drawn for every boundary between two blobCells that is NOT in removedWalls
 // and where at least one of the two cells is visible (open or ever-revealed).
 
-function buildPartitions(blobCells, openCells, removedWalls, everRevealedCells, purified, cellToRoom, internalWalls) {
+function buildPartitions(blobCells, openCells, removedWalls, everRevealedCells, purified, cellToRoom, internalWalls, removedOnly = false) {
   const g  = new Graphics();
   const HT = PART_T / 2;
   const allVisible = openCells ? new Set([...openCells, ...everRevealedCells]) : everRevealedCells;
@@ -339,6 +341,7 @@ function buildPartitions(blobCells, openCells, removedWalls, everRevealedCells, 
 
       const wk = wallKey(x, y, nx, ny);
       const isRemoved = removedWalls.has(wk);
+      if (isRemoved !== removedOnly) continue;
       if (isRemoved && internalWalls && internalWalls.has(wk)) continue;
 
       // Check if at least one adjacent room is purified
@@ -475,6 +478,79 @@ function buildExternalWalls(blobCells, openCells, everRevealedCells) {
   return g;
 }
 
+// ── Wall heights (north face) ───────────────────────────────────
+// For every visible horizontal wall segment, draw a TilingSprite
+// rising upward from the wall line by WALL_HEIGHT.
+// Vertical walls (x-boundaries) are skipped — they stay as thin strips.
+
+function buildWallHeights(blobCells, openCells, removedWalls, everRevealedCells, internalWalls) {
+  const container = new Container();
+  const allVisible = openCells ? new Set([...openCells, ...everRevealedCells]) : everRevealedCells;
+
+  let tex;
+  try { tex = Texture.from('wall-brick-stone'); } catch { return container; }
+
+  // Scale texture (64px native) to match floor tile size (FLOOR_TILE_PX)
+  const tileScale = FLOOR_TILE_PX / tex.width;
+
+  // ── Partition horizontal walls: (x,y) → (x,y+1) ──
+  for (const k of blobCells) {
+    const { x, y } = cellFromKey(k);
+
+    // horizontal neighbour: (x, y+1)
+    const nk = cellKey(x, y + 1);
+    if (!blobCells.has(nk)) continue;
+    if (!allVisible.has(k) && !allVisible.has(nk)) continue;
+
+    const wk = wallKey(x, y, x, y + 1);
+    if (removedWalls.has(wk)) continue; // open passage — no wall face
+
+    // TilingSprite from the wall line upward
+    const spr = new TilingSprite({
+      texture: tex,
+      width: CELL_PX,
+      height: WALL_HEIGHT,
+    });
+    spr.tileScale.set(tileScale);
+    spr.position.set(x * CELL_PX, (y + 1) * CELL_PX - WALL_HEIGHT + PART_T / 2);
+    container.addChild(spr);
+  }
+
+  // ── External horizontal walls: top and bottom boundaries of blob cells ──
+  for (const k of allVisible) {
+    if (!blobCells.has(k)) continue;
+    const { x, y } = cellFromKey(k);
+
+    // Top boundary (dy = -1): neighbour (x, y-1) NOT in blob
+    const topNk = cellKey(x, y - 1);
+    if (!blobCells.has(topNk)) {
+      const spr = new TilingSprite({
+        texture: tex,
+        width: CELL_PX,
+        height: WALL_HEIGHT,
+      });
+      spr.tileScale.set(tileScale);
+      spr.position.set(x * CELL_PX, y * CELL_PX - WALL_HEIGHT + PART_T / 2);
+      container.addChild(spr);
+    }
+
+    // Bottom boundary (dy = +1): neighbour (x, y+1) NOT in blob
+    const botNk = cellKey(x, y + 1);
+    if (!blobCells.has(botNk)) {
+      const spr = new TilingSprite({
+        texture: tex,
+        width: CELL_PX,
+        height: WALL_HEIGHT,
+      });
+      spr.tileScale.set(tileScale);
+      spr.position.set(x * CELL_PX, (y + 1) * CELL_PX - WALL_HEIGHT + PART_T / 2);
+      container.addChild(spr);
+    }
+  }
+
+  return container;
+}
+
 // ── Public API ────────────────────────────────────────────────
 
 /**
@@ -551,14 +627,25 @@ export function buildTileLayer(targetContainer, worldData, level) {
 
   // ── 5. Partition walls between blob cells ──
   const { internalWalls } = worldData;
-  const partitions = buildPartitions(blobCells, openCells, removedWalls, everRevealedCells, purified, cellToRoom, internalWalls);
-  partitions.label = 'partitions';
+  const partitionsClosed = buildPartitions(blobCells, openCells, removedWalls, everRevealedCells, purified, cellToRoom, internalWalls, false);
+  partitionsClosed.label = 'partitions-closed';
+  partitionsClosed.position.y = -WALL_HEIGHT; // lift to top of wall height
+
+  const partitionsOpen = buildPartitions(blobCells, openCells, removedWalls, everRevealedCells, purified, cellToRoom, internalWalls, true);
+  partitionsOpen.label = 'partitions-open';
+  partitionsOpen.position.y = 0; // stay at floor level
 
   // ── 6. External walls (blobCell boundaries) ──
   const externalWalls = buildExternalWalls(blobCells, openCells, everRevealedCells);
   externalWalls.label = 'external-walls';
+  externalWalls.position.y = -WALL_HEIGHT; // lift to top of wall height
 
-  targetContainer.addChild(closedContainer, floorContainer, wallContainer, cornerContainer, partitions, externalWalls);
+  // ── 7. Wall heights (north face) ──
+  const wallHeights = buildWallHeights(blobCells, openCells, removedWalls, everRevealedCells, internalWalls);
+  wallHeights.label = 'wall-heights';
+
+  // Render order: open partitions on floor, then wall heights, then closed partitions + external walls as caps
+  targetContainer.addChild(closedContainer, floorContainer, wallContainer, cornerContainer, partitionsOpen, wallHeights, partitionsClosed, externalWalls);
 }
 
 // Alias — call whenever openCells or removedWalls change.
