@@ -4,6 +4,7 @@ import { Sounds } from '../core/sound.js';
 import { spawnParticles } from '../render/particles.js';
 import { spawnDamageNumber } from '../render/damage-numbers.js';
 import { spawnWallHitVfx } from '../render/wallhit-vfx.js';
+import { spawnEnemyHitVfx } from '../render/enemyhit-vfx.js';
 
 const _hitPoint = { x: 0, y: 0, nx: 0, ny: 0 };
 
@@ -316,6 +317,9 @@ class BulletManager {
       if (!isBattle) {
         spawnDamageNumber(state, g.x, g.y - (g.radius || CONFIG.ENEMY_STATS.soldier.radius), damage, b.isCrit, 1);
       }
+
+      // Hit VFX sprite animation
+      spawnEnemyHitVfx(g.x, g.y);
 
       // Hit particles
       const bAngle = Math.atan2(b.vy, b.vx);

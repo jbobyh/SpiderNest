@@ -113,6 +113,14 @@ const CONFIG = {
     normalOffset: 0.2,       // смещение спрайта вдоль нормали от стены (доля от drawSize)
   },
 
+  // Enemy hit VFX (bullet hits enemy)
+  ENEMY_HIT_VFX: {
+    frameSize: 64,           // размер кадра в спрайтшите (px)
+    frameCount: 8,           // кол-во кадров анимации (верхний ряд)
+    fps: 45,                 // скорость анимации
+    sizeMult: 0.4,          // множитель к CELL_PX для размера спрайта
+  },
+
   // Enemy stats
   ENEMY_STATS: {
     soldier:  { hp: 60, speed: 1, radius: 7, visualScale: 2.9, wobbleMin: 0.2, wobbleMax: 0.3, spawnMargin: 10 },
