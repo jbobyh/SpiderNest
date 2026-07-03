@@ -1,14 +1,16 @@
 import { Container, Text, TextStyle } from 'pixi.js';
 
+const D = CONFIG.DAMAGE_NUMBERS;
+
 let _container = null;
 const _pool = [];
 const _active = new Map();
 
-const MAX_ACTIVE = 64;
-const FONT_SIZE = 16;
-const LIFE = 0.8;
-const RISE_SPEED = 30;
-const DAMP = 0.95;
+function easeOutBack(t, s) {
+  const c1 = s;
+  const c3 = c1 + 1;
+  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+}
 
 export function initDamageNumbers(layer) {
   _container = new Container({ label: 'damageNumbers' });
@@ -17,16 +19,18 @@ export function initDamageNumbers(layer) {
 
 export function spawnDamageNumber(state, x, y, damage, isCrit, scale = 1) {
   const arr = state.damageNumbers;
-  if (arr.length >= MAX_ACTIVE) {
+  if (arr.length >= D.maxActive) {
     arr.shift();
   }
   arr.push({
     x,
     y,
-    vy: -RISE_SPEED * scale,
+    vx: (Math.random() - 0.5) * D.driftSpeed,
+    vy: -D.riseSpeed * scale,
     text: String(damage),
-    life: LIFE,
-    maxLife: LIFE,
+    life: D.life,
+    maxLife: D.life,
+    age: 0,
     color: isCrit ? '#ff4400' : '#ffffff',
     scale: isCrit ? 1.3 : 1.0,
   });
@@ -38,8 +42,11 @@ export function updateAndSyncDamageNumbers(state, dt, camera) {
   const arr = state.damageNumbers;
   for (let i = arr.length - 1; i >= 0; i--) {
     const dn = arr[i];
+    dn.x += dn.vx * dt;
     dn.y += dn.vy * dt;
-    dn.vy *= DAMP;
+    dn.vx *= D.damp;
+    dn.vy *= D.damp;
+    dn.age += dt;
     dn.life -= dt;
     if (dn.life <= 0) {
       arr.splice(i, 1);
@@ -61,15 +68,27 @@ export function updateAndSyncDamageNumbers(state, dt, camera) {
       _container.addChild(text);
     }
     text.text = dn.text;
-    text.style.fontSize = FONT_SIZE * dn.scale;
+    text.style.fontSize = D.fontSize * dn.scale;
     text.style.fill = dn.color;
-    
+
+    // Pop-in scale via easeOutBack
+    let popScale;
+    if (dn.age < D.popDuration) {
+      const t = dn.age / D.popDuration;
+      popScale = easeOutBack(t, D.popOvershoot);
+    } else {
+      popScale = 1;
+    }
+    text.scale.set(dn.scale * popScale);
+
     // Project world coords to screen
     const screenPos = camera.worldToScreen(dn.x, dn.y);
     text.x = screenPos.x;
     text.y = screenPos.y;
-    
-    text.alpha = dn.life / dn.maxLife;
+
+    // Nonlinear alpha: full until fadeStart, then fade out
+    const lifeFrac = dn.life / dn.maxLife;
+    text.alpha = lifeFrac > D.fadeStart ? 1 : lifeFrac / D.fadeStart;
   }
 }
 
@@ -92,7 +111,7 @@ function _acquireText() {
   }
   const style = new TextStyle({
     fontFamily: 'Huninn, monospace',
-    fontSize: FONT_SIZE,
+    fontSize: D.fontSize,
     fontWeight: 'bold',
     fill: '#ffffff',
     align: 'center',
@@ -105,7 +124,7 @@ function _acquireText() {
 
 function _returnText(text) {
   text.removeFromParent();
-  if (_pool.length < MAX_ACTIVE) {
+  if (_pool.length < D.maxActive) {
     _pool.push(text);
   } else {
     text.destroy();
