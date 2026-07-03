@@ -104,6 +104,15 @@ const CONFIG = {
     rotationOffset: Math.PI / 4,  // поправка угла спрайта (рад)
   },
 
+  // Wall hit VFX (bullet hits wall)
+  WALL_HIT_VFX: {
+    frameSize: 64,           // размер кадра в спрайтшите (px)
+    frameCount: 10,          // кол-во кадров анимации (верхний ряд)
+    fps: 60,                 // скорость анимации
+    sizeMult: 0.20,          // множитель к CELL_PX для размера спрайта
+    normalOffset: 0.2,       // смещение спрайта вдоль нормали от стены (доля от drawSize)
+  },
+
   // Enemy stats
   ENEMY_STATS: {
     soldier:  { hp: 60, speed: 1, radius: 7, visualScale: 2.9, wobbleMin: 0.2, wobbleMax: 0.3, spawnMargin: 10 },

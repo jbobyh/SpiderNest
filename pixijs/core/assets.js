@@ -94,6 +94,8 @@ const MANIFEST = {
         { alias: 'deathtext',         src: IMG + 'deathtext.png' },
         // Shoot VFX sprite sheet (9×9, 64×64px per frame)
         { alias: 'shoot-vfx',         src: IMG + 'shoot-vfx.png' },
+        // Wall hit VFX sprite sheet (top row, 10 frames × 64×64px)
+        { alias: 'wallhit-vfx',       src: IMG + 'wallhit-vfx.png' },
       ],
     },
 
