@@ -28,6 +28,7 @@ export class Bullet {
     this._ricocheted = false;
     this.isDead = false;
     this._trailTimer = 0;
+    this._rangeDecayMult = 1;
     
     // Future modifiers support
     this.modifiers = [];
@@ -58,6 +59,7 @@ export class Bullet {
     this.hitEntities.clear();
     this._lastRoomBonus = null;
     this._ricocheted = false;
+    this._rangeDecayMult = 1;
   }
 }
 

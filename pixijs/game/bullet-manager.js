@@ -34,7 +34,12 @@ class BulletManager {
       b.y += b.vy * dt;
       const dx = b.x - prevX;
       const dy = b.y - prevY;
-      b.distanceTraveled += Math.hypot(dx, dy);
+
+      // 2. Room Bonuses (Speed/Penetrate/Range) — must run before distance accumulation
+      this._applyRoomBonuses(b, state, isBattle);
+
+      // 3. Accumulate distance with room range modifier
+      b.distanceTraveled += Math.hypot(dx, dy) * (b._rangeDecayMult || 1);
 
       // Bullet trail for player and enemy bullets
       if (b._trailTimer <= 0) {
@@ -53,16 +58,13 @@ class BulletManager {
       }
       b._trailTimer -= dt;
 
-      // 2. Room Bonuses (Speed/Penetrate)
-      this._applyRoomBonuses(b, state, isBattle);
-
-      // 3. Range check
+      // 4. Range check
       if (b.distanceTraveled >= b.maxRange) {
         this._handleWallHit(b, state, isBattle, worldBullets, i);
         continue;
       }
 
-      // 4. Wall collisions (OOB and Static Walls)
+      // 5. Wall collisions (OOB and Static Walls)
       let bouncedThisFrame = false;
       if (isBattle) {
         const oob = b.x < 0 || b.x > activeState.width || b.y < 0 || b.y > activeState.height;
@@ -111,7 +113,7 @@ class BulletManager {
         }
       }
 
-      // 5. Entity collisions
+      // 6. Entity collisions
       if (b.owner === 'player') {
         if (this._checkEnemyCollisions(b, state, activeState, onEnemyKilled, isBattle, onStasisTriggered)) {
           worldBullets.splice(i, 1);
@@ -168,7 +170,13 @@ class BulletManager {
           b.penetrate = b._basePenetrate;
         }
       }
-      
+
+      if (roomBonus === 'longRange') {
+        b._rangeDecayMult = 0.1;
+      } else if (b._lastRoomBonus === 'longRange') {
+        b._rangeDecayMult = 1;
+      }
+
       b._lastRoomBonus = roomBonus;
     }
   }
