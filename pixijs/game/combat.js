@@ -60,7 +60,7 @@ export function getSpatialBonus(state, axis) {
 
 // ── Shoot (play-mode) ─────────────────────────────────────────
 
-export function shoot(state) {
+export function shoot(state, camera = null) {
   if (state.shootCooldown > 0) return;
 
   const weapon = getActiveWeapon(state);
@@ -127,6 +127,10 @@ export function shoot(state) {
     CONFIG.PARTICLES.muzzle.count, baseAngle, CONFIG.PARTICLES.muzzle.spread,
     CONFIG.PARTICLES.muzzle.speedMin, CONFIG.PARTICLES.muzzle.speedMax,
     CONFIG.PARTICLES.muzzle.life, '#ffff00');
+
+  if (camera && weapon.shakeAmount >= CONFIG.CAMERA.shakeMin) {
+    camera.shake(weapon.shakeAmount * CONFIG.CAMERA.shakeScale, baseAngle);
+  }
 
   _applyBurstCooldown(state, weapon, isBurstWeapon, burstTotal, burstDelay, cooldown);
 }

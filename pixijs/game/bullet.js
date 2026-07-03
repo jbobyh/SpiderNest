@@ -27,6 +27,7 @@ export class Bullet {
     this._lastRoomBonus = null;
     this._ricocheted = false;
     this.isDead = false;
+    this._trailTimer = 0;
     
     // Future modifiers support
     this.modifiers = [];

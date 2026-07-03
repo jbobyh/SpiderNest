@@ -36,6 +36,23 @@ class BulletManager {
       const dy = b.y - prevY;
       b.distanceTraveled += Math.hypot(dx, dy);
 
+      // Bullet trail for player and enemy bullets
+      if (b._trailTimer <= 0) {
+        const trailColor = b.owner === 'player'
+          ? (b.isCrit ? '#ff6600' : '#ffdd44')
+          : '#ff0000';
+        activeState.particles.push({
+          x: b.x - b.vx * 0.01,
+          y: b.y - b.vy * 0.01,
+          vx: 0, vy: 0,
+          life: CONFIG.BULLET_TRAIL.life,
+          maxLife: CONFIG.BULLET_TRAIL.life,
+          color: trailColor,
+        });
+        b._trailTimer = CONFIG.BULLET_TRAIL.interval;
+      }
+      b._trailTimer -= dt;
+
       // 2. Room Bonuses (Speed/Penetrate)
       this._applyRoomBonuses(b, state, isBattle);
 

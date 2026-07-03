@@ -102,7 +102,7 @@ export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}
                       state.burstRemaining > 0 &&
                       state.burstWeaponId === wDef.id;
   if ((mouse.held || burstActive) && state.shootCooldown <= 0) {
-    shoot(state);
+    shoot(state, camera);
   }
 
   // Interaction check (F key)

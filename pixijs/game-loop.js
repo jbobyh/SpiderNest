@@ -155,7 +155,7 @@ export function startGameLoop({
   initParticles(layers.particles);
   initDamageNumbers(layers.damageNumbers);
   initPlayerRenderer(layers.entities);
-  initBulletRenderer(layers.entities);
+  initBulletRenderer(layers.particles);
   initCollectibleRenderer(layers.entities);
   initFlyingHeartRenderer(layers.particles);
   initHud(layers.hud);

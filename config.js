@@ -40,6 +40,17 @@ const CONFIG = {
   ENEMY_HIT_FLASH_DURATION: 0.18,     // длительность белой вспышки при уроне (сек)
   ENEMY_STUN_DURATION: 0.05,           // длительность стана при получении урона (сек)
 
+  // Bullet render
+  BULLET_RENDER: {
+    radius:     2.5,    // радиус ядра пули (px)
+  },
+
+  // Bullet trail
+  BULLET_TRAIL: {
+    interval: 0.01,   // секунд между эмитом частиц трейла
+    life:     0.06,   // время жизни частицы трейла (сек)
+  },
+
   // Damage numbers
   DAMAGE_NUMBERS: {
     maxActive:    64,     // макс. одновременно активных цифр
@@ -72,6 +83,8 @@ const CONFIG = {
     maxOffset: 160,      // макс. сдвиг камеры от игрока в сторону курсора (px)
     playZoom: 1.5,              // зум камеры в play режиме
     battleZoomMult: 1,      // множитель к вычисленному зуму в battle режиме
+    shakeMin: 0.01,          // минимальный порог тряски (пистолет 0 не трясёт)
+    shakeScale: 5,          // множитель shakeAmount → пиксели (0.5 * 12 = 6px)
   },
 
   // Enemy stats
