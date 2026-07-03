@@ -364,7 +364,7 @@ function _processPendingSpawns(b, state, dt) {
 function _onEnemyKilled(state, playerProgress, g) {
   if (state.upgrades.killAccel) {
     state.upgrades.killAccelPercent =
-      Math.min(80, (state.upgrades.killAccelPercent || 0) + 5);
+      Math.min(80, (state.upgrades.killAccelPercent || 0) + 0.1);
     if (playerProgress && playerProgress.upgrades) {
       playerProgress.upgrades.killAccelPercent = state.upgrades.killAccelPercent;
     }

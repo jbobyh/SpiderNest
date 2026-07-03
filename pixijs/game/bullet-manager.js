@@ -235,7 +235,7 @@ class BulletManager {
     
     for (let j = spiders.length - 1; j >= 0; j--) {
       const g = spiders[j];
-      if (b.hitEntities.has(g)) continue;
+      if (b.hitEntities.has(g) || g.isDead || g.hp <= 0) continue;
       
       const dist = Math.hypot(b.x - g.x, b.y - g.y);
       if (dist >= ((g.radius || CONFIG.ENEMY_STATS.spider.radius) + CONFIG.BULLET_RADIUS) * BS) continue;
