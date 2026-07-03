@@ -11,7 +11,7 @@
 // Globals: CONFIG, SPRITE_SHEETS.plevaka.anims, SPRITE_SHEETS.cocoon.anim, SPRITE_SHEETS.bat.anim (from config.js)
 // ============================================================
 
-import { Sprite, ColorMatrixFilter } from 'pixi.js';
+import { Sprite, ColorMatrixFilter, Graphics } from 'pixi.js';
 import {
   makeEnemySprite,
   makeCorpseSprite,
@@ -42,10 +42,10 @@ const _FLASH_BRIGHTNESS = 6; // how bright the white flash is
  */
 export function syncEnemySprites(
   activeSpiders, deathCorpses, entitiesLayer,
-  gameTime, playerX, everRevealedCells = null,
+  gameTime, playerX, everRevealedCells = null, dt = 0,
 ) {
   _syncCorpses(deathCorpses, entitiesLayer);
-  _syncActive(activeSpiders, entitiesLayer, gameTime, playerX, everRevealedCells);
+  _syncActive(activeSpiders, entitiesLayer, gameTime, playerX, everRevealedCells, dt);
 }
 
 /**
@@ -53,7 +53,10 @@ export function syncEnemySprites(
  * Call when changing levels or resetting the game.
  */
 export function clearEnemySprites() {
-  for (const { sprite } of _enemyMap.values())  sprite.destroy();
+  for (const { sprite, hpBar } of _enemyMap.values()) {
+    sprite.destroy();
+    if (hpBar) hpBar.destroy();
+  }
   for (const spr of _corpseMap.values())         spr.destroy();
   _enemyMap.clear();
   _corpseMap.clear();
@@ -86,11 +89,12 @@ function _syncCorpses(deathCorpses, layer) {
 
 // ── Active enemy sync ─────────────────────────────────────────
 
-function _syncActive(activeSpiders, layer, gameTime, playerX, everRevealedCells = null) {
+function _syncActive(activeSpiders, layer, gameTime, playerX, everRevealedCells = null, dt = 0) {
   // Remove sprites for enemies no longer in state
   for (const [g, entry] of _enemyMap) {
     if (!activeSpiders.includes(g)) {
       entry.sprite.destroy();
+      if (entry.hpBar) entry.hpBar.destroy();
       _enemyMap.delete(g);
     }
   }
@@ -100,10 +104,11 @@ function _syncActive(activeSpiders, layer, gameTime, playerX, everRevealedCells 
       const sprite = makeEnemySprite(g.type);
       const filter = new ColorMatrixFilter();
       layer.addChild(sprite);
-      _enemyMap.set(g, { sprite, filter });
+      _enemyMap.set(g, { sprite, filter, hpBar: null });
     }
 
-    const { sprite, filter } = _enemyMap.get(g);
+    const entry = _enemyMap.get(g);
+    const { sprite, filter } = entry;
 
     // Position + scale
     sprite.x = g.x;
@@ -139,6 +144,9 @@ function _syncActive(activeSpiders, layer, gameTime, playerX, everRevealedCells 
 
     // Per-type texture updates
     _updateEnemyTexture(g, sprite, gameTime);
+
+    // HP bar (non-boss only)
+    _updateHpBar(g, entry, layer, dt);
   }
 }
 
@@ -188,4 +196,61 @@ function _applyEnemyScale(sprite, radius, visualScale) {
   // Preserve x-sign (flip) while updating magnitude
   const signX    = sprite.scale.x < 0 ? -1 : 1;
   sprite.scale.set(signX * s, s);
+}
+
+// ── HP bar ────────────────────────────────────────────────────
+
+function _updateHpBar(g, entry, layer, dt) {
+  if (g.isBoss) {
+    if (entry.hpBar) { entry.hpBar.visible = false; }
+    return;
+  }
+
+  if (!g.hpBarVisible) {
+    if (entry.hpBar) entry.hpBar.visible = false;
+    return;
+  }
+
+  if (!entry.hpBar) {
+    entry.hpBar = new Graphics();
+    layer.addChild(entry.hpBar);
+  }
+
+  const bar = entry.hpBar;
+  bar.visible = true;
+
+  const cfg = CONFIG.ENEMY_HP_BAR;
+  if (g.hpDamageTimer < cfg.animDuration) {
+    g.hpDamageTimer += dt;
+    const t = Math.min(1, g.hpDamageTimer / cfg.animDuration);
+    g.displayedHp = g.hpDamageStart + (g.hp - g.hpDamageStart) * t;
+    if (t >= 1) g.displayedHp = g.hp;
+  } else {
+    g.displayedHp = g.hp;
+  }
+
+  const maxHp = g.maxHp || g.hp;
+  const hpPct    = Math.max(0, g.hp / maxHp);
+  const dispPct  = Math.max(0, g.displayedHp / maxHp);
+
+  const drawSize = (g.radius ?? CONFIG.ENEMY_STATS.spider.radius) * (g.visualScale ?? CONFIG.ENEMY_STATS.spider.visualScale);
+  const barW = Math.min(cfg.width, drawSize * 0.8);
+  const barH = cfg.height;
+  const barX = -barW / 2;
+  const barY = -drawSize / 2 - cfg.offset;
+
+  bar.clear();
+  bar.x = g.x;
+  bar.y = g.y;
+
+  // Background
+  bar.rect(barX, barY, barW, barH).fill({ color: cfg.bgColor });
+
+  // White ghost (displayedHp → hp)
+  if (dispPct > hpPct) {
+    bar.rect(barX + hpPct * barW, barY, (dispPct - hpPct) * barW, barH).fill({ color: cfg.ghostColor });
+  }
+
+  // Red fill (current hp)
+  bar.rect(barX, barY, hpPct * barW, barH).fill({ color: cfg.hpColor });
 }

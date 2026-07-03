@@ -40,6 +40,17 @@ const CONFIG = {
   ENEMY_HIT_FLASH_DURATION: 0.18,     // длительность белой вспышки при уроне (сек)
   ENEMY_STUN_DURATION: 0.05,           // длительность стана при получении урона (сек)
 
+  // Enemy HP bar (non-boss)
+  ENEMY_HP_BAR: {
+    width: 30,           // макс. ширина полоски (px)
+    height: 2,           // толщина полоски (px)
+    offset: 8,           // отступ от верха спрайта врага (px)
+    animDuration: 1.0,   // длительность анимации отжора белой части (сек)
+    bgColor: 0x333333,   // цвет фона
+    hpColor: 0xff0000,   // цвет текущего ХП
+    ghostColor: 0xffffff,// цвет анимации отжора
+  },
+
   // Camera
   CAMERA: {
     shakeDecay: 0.9,       // затухание тряски (множитель за кадр)

@@ -385,6 +385,7 @@ function _render(dt) {
     _state.time,
     _state.player.x,
     _state.everRevealedCells,
+    dt,
   );
 
   syncBullets(bulletManager.bullets);

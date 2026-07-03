@@ -19,6 +19,11 @@ export class Enemy {
     this.stuckTimer = data.stuckTimer || 0;
     this.stunTimer = data.stunTimer || 0;
     this.hitFlash = data.hitFlash || 0;
+
+    this.hpBarVisible = false;
+    this.displayedHp = data.displayedHp ?? data.hp;
+    this.hpDamageTimer = 0;
+    this.hpDamageStart = data.hpDamageStart ?? data.hp;
   }
 
   update(dt, state) {
@@ -70,6 +75,11 @@ export class Enemy {
   }
 
   takeDamage(damage, isCrit = false) {
+    if (!this.isBoss) {
+      this.hpBarVisible = true;
+      this.hpDamageStart = this.displayedHp;
+      this.hpDamageTimer = 0;
+    }
     this.hp -= damage;
     this.hitFlash = (typeof CONFIG !== 'undefined') ? CONFIG.ENEMY_HIT_FLASH_DURATION : 0.1;
     if (!this.isBoss) {

@@ -249,6 +249,11 @@ class BulletManager {
       if (g.takeDamage) {
         g.takeDamage(damage, b.isCrit);
       } else {
+        if (!g.isBoss) {
+          g.hpBarVisible = true;
+          g.hpDamageStart = g.displayedHp ?? g.hp;
+          g.hpDamageTimer = 0;
+        }
         g.hp -= damage;
         g.hitFlash = CONFIG.ENEMY_HIT_FLASH_DURATION;
         if (!g.isBoss) g.stunTimer = CONFIG.ENEMY_STUN_DURATION;
