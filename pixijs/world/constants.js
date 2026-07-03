@@ -97,6 +97,13 @@ export function crossesWall(removedWalls, x0, y0, x1, y1) {
   const c0x = Math.floor(x0 / CELL_PX), c0y = Math.floor(y0 / CELL_PX);
   const c1x = Math.floor(x1 / CELL_PX), c1y = Math.floor(y1 / CELL_PX);
   if (c0x === c1x && c0y === c1y) return false;
+  if (c0x !== c1x && c0y !== c1y) {
+    const pathA = removedWalls.has(wallKey(c0x, c0y, c1x, c0y)) &&
+                  removedWalls.has(wallKey(c1x, c0y, c1x, c1y));
+    const pathB = removedWalls.has(wallKey(c0x, c0y, c0x, c1y)) &&
+                  removedWalls.has(wallKey(c0x, c1y, c1x, c1y));
+    return !(pathA || pathB);
+  }
   return !removedWalls.has(wallKey(c0x, c0y, c1x, c1y));
 }
 

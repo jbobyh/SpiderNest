@@ -390,9 +390,19 @@ class BulletManager {
     const c1x = Math.floor(x1 / CPB) + b.cellOffsetX;
     const c1y = Math.floor(y1 / CPB) + b.cellOffsetY;
     if (c0x === c1x && c0y === c1y) return false;
+    const rw = b.removedWalls;
+    if (!rw) return false;
+    if (c0x !== c1x && c0y !== c1y) {
+      const k00 = cellKey(c0x, c0y), k10 = cellKey(c1x, c0y), k01 = cellKey(c0x, c1y), k11 = cellKey(c1x, c1y);
+      const pathA = rw.has(k00 + '|' + k10) || rw.has(k10 + '|' + k00);
+      const pathA2 = rw.has(k10 + '|' + k11) || rw.has(k11 + '|' + k10);
+      const pathB = rw.has(k00 + '|' + k01) || rw.has(k01 + '|' + k00);
+      const pathB2 = rw.has(k01 + '|' + k11) || rw.has(k11 + '|' + k01);
+      return !(pathA && pathA2 || pathB && pathB2);
+    }
     const key0 = cellKey(c0x, c0y);
     const key1 = cellKey(c1x, c1y);
-    return b.removedWalls && !b.removedWalls.has(key0 + '|' + key1) && !b.removedWalls.has(key1 + '|' + key0);
+    return !rw.has(key0 + '|' + key1) && !rw.has(key1 + '|' + key0);
   }
 
   clear() {
