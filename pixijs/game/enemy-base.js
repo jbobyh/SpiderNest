@@ -9,7 +9,7 @@ export class Enemy {
     this.vx = data.vx || 0;
     this.vy = data.vy || 0;
     this.maxHp = data.maxHp || data.hp;
-    this.radius = data.radius || (typeof CONFIG !== 'undefined' ? CONFIG.ENEMY_STATS.spider.radius : 20);
+    this.radius = data.radius || (typeof CONFIG !== 'undefined' ? CONFIG.ENEMY_STATS.soldier.radius : 20);
     this.visualScale = data.visualScale || 3.2;
     this.lastX = data.lastX ?? data.x;
     this.lastY = data.lastY ?? data.y;
@@ -45,7 +45,7 @@ export class Enemy {
   }
 
   _updateStuckDetection(dt, state) {
-    if (this.type === 'cocoon' || this.type === 'plevaka' || this.type === 'shooter' || this.type === 'wallshooter' || this.type === 'bull' || this.isBoss) {
+    if (this.type === 'cocoon' || this.type === 'shooter' || this.type === 'wallshooter' || this.type === 'bull' || this.isBoss) {
       return;
     }
     const moved = Math.hypot(this.x - this.lastX, this.y - this.lastY);

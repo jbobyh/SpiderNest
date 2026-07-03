@@ -79,10 +79,10 @@ const MANIFEST = {
         { alias: 'buldyga-dead',      src: IMG + 'buldyga_dead.png' },
         { alias: 'bull',              src: IMG + 'bull.png' },
         { alias: 'bull-dead',         src: IMG + 'bull_dead.png' },
-        // Plevaka (shooter) — animated sprite sheet (1500×1500, 3 rows × 3 cols)
-        { alias: 'plevaka',           src: IMG + 'plevaka.png' },
-        { alias: 'plevaka-anim',      src: IMG + 'plevaka_anim.png' },
-        { alias: 'plevaka-dead',      src: IMG + 'plevaka_dead.png' },
+        // Shooter — animated sprite sheet (1500×1500, 3 rows × 3 cols)
+        { alias: 'shooter',           src: IMG + 'shooter.png' },
+        { alias: 'shooter-anim',      src: IMG + 'shooter_anim.png' },
+        { alias: 'shooter-dead',      src: IMG + 'shooter_dead.png' },
         // Cocoon — animated sprite sheet (3500×500, 7 frames horizontal)
         { alias: 'cocoon',            src: IMG + 'cocoon.png' },
         // Bat — 512×64 sprite sheet, 8 frames of 64×64 (7 move + 1 damage)

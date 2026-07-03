@@ -277,10 +277,8 @@ function _handlePlayerEnemyContact(player, enemy) {
   if (player.lives > 0) {
     const idx = _state.activeSpiders.indexOf(enemy);
     if (idx !== -1) {
-      // Shooter/Plevaka don't die on contact or deal contact damage usually? 
-      // Actually, in the old code plevaka/shooter didn't have contact damage block.
-      // But they are ranged. Let's keep it consistent with old logic.
-      if (enemy.type !== 'shooter' && enemy.type !== 'plevaka') {
+      // Shooter doesn't die on contact or deal contact damage.
+      if (enemy.type !== 'shooter') {
         spawnParticles(_state.particles, player.x, player.y, 8, 0, Math.PI*2, 20, 40, 0.5, '#ff4444');
 
         player.lives--;

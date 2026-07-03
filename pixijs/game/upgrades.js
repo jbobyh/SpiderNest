@@ -158,7 +158,7 @@ export function dealPlayerDamage(state, playerProgress, _unused, onDead) {
     for (let i = s.activeSpiders.length - 1; i >= 0; i--) {
       const e = s.activeSpiders[i];
       if (!e || e.isBoss) continue;
-      s.deathCorpses.push({ x: e.x, y: e.y, type: e.type, radius: e.radius || CONFIG.ENEMY_STATS.spider.radius,
+      s.deathCorpses.push({ x: e.x, y: e.y, type: e.type, radius: e.radius || CONFIG.ENEMY_STATS.soldier.radius,
         visualScale: e.visualScale || 3.2, life: 2, maxLife: 2 });
       for (let k = 0; k < CONFIG.PARTICLES.death.count; k++) {
         const a = Math.random() * Math.PI * 2;

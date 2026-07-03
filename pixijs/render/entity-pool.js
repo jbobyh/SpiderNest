@@ -4,7 +4,7 @@
 // Call initEntityPool() once after Assets are loaded.
 // Then use make*() factories to create display objects.
 //
-// SPRITE_SHEETS (hero, plevaka, cocoon, bat) — from config.js (global)
+// SPRITE_SHEETS (hero, shooter, cocoon, bat) — from config.js (global)
 // ============================================================
 
 import { Sprite, Texture, Rectangle } from 'pixi.js';
@@ -12,12 +12,12 @@ import { Assets } from 'pixi.js';
 
 // Cached frame arrays — populated by initEntityPool()
 export const heroFrames     = {};  // { idle_forward: Texture[], ... }
-export const plevakaFrames  = {};  // { run: Texture[], idle: Texture[], shoot: Texture[] }
+export const shooterFrames  = {};  // { run: Texture[], idle: Texture[], shoot: Texture[] }
 export const cocoonFrames   = [];  // Texture[7]
 export const batFrames      = [];  // Texture[7]
 export let   batHitTexture  = Texture.WHITE; // Texture
 export const enemyTextures  = {};  // { soldier, bat, bull, buldyga, bloated, tank }
-export const corpseTextures = {};  // { soldier, bat, bull, buldyga, bloated, plevaka, tank }
+export const corpseTextures = {};  // { soldier, bat, bull, buldyga, bloated, shooter, tank }
 export const weaponTextures = {};  // { pistol, shotgun, smg, rifle, revolver, carbine }
 let tankTexture = Texture.WHITE;
 let tankCorpseTexture = Texture.WHITE;
@@ -30,7 +30,7 @@ let wallShooterCorpseTexture = Texture.WHITE;
  */
 export function initEntityPool() {
   _buildHeroFrames();
-  _buildPlevakaFrames();
+  _buildShooterFrames();
   _buildCocoonFrames();
   _buildBatFrames();
   _buildTankTextures();
@@ -44,7 +44,7 @@ export function initEntityPool() {
 /**
  * Create a Sprite for a live enemy of the given type.
  * Caller is responsible for adding it to a layer and destroying it later.
- * @param {string} type — 'soldier' | 'bat' | 'bull' | 'buldyga' | 'bloated' | 'plevaka' | 'shooter' | 'cocoon'
+ * @param {string} type — 'soldier' | 'bat' | 'bull' | 'buldyga' | 'bloated' | 'shooter' | 'cocoon'
  * @returns {Sprite}
  */
 export function makeEnemySprite(type) {
@@ -75,21 +75,20 @@ export function makeCorpseSprite(type) {
     spr.anchor.set(0.5);
     return spr;
   }
-  const key = (type === 'shooter') ? 'plevaka' : type;
-  const tex = corpseTextures[key] ?? corpseTextures.soldier;
+  const tex = corpseTextures[type] ?? corpseTextures.soldier;
   const spr = new Sprite(tex);
   spr.anchor.set(0.5);
   return spr;
 }
 
 /**
- * Get the plevaka texture for a given animState + frame index.
+ * Get the shooter texture for a given animState + frame index.
  * @param {string} animState — 'run' | 'idle' | 'shoot'
  * @param {number} frame
  * @returns {Texture}
  */
-export function getPlevakaFrame(animState, frame) {
-  const arr = plevakaFrames[animState] ?? plevakaFrames.idle;
+export function getShooterFrame(animState, frame) {
+  const arr = shooterFrames[animState] ?? shooterFrames.idle;
   return arr[Math.min(frame, arr.length - 1)];
 }
 
@@ -108,14 +107,14 @@ function _buildHeroFrames() {
   }
 }
 
-function _buildPlevakaFrames() {
-  const plevakaTex = Assets.get('plevaka-anim');
-  for (const [key, def] of Object.entries(SPRITE_SHEETS.plevaka.anims)) {
-    plevakaFrames[key] = [];
+function _buildShooterFrames() {
+  const shooterTex = Assets.get('shooter-anim');
+  for (const [key, def] of Object.entries(SPRITE_SHEETS.shooter.anims)) {
+    shooterFrames[key] = [];
     for (let f = 0; f < def.frames; f++) {
-      plevakaFrames[key].push(new Texture({
-        source: plevakaTex.source,
-        frame:  new Rectangle(f * SPRITE_SHEETS.plevaka.sw, def.row * SPRITE_SHEETS.plevaka.sh, SPRITE_SHEETS.plevaka.sw, SPRITE_SHEETS.plevaka.sh),
+      shooterFrames[key].push(new Texture({
+        source: shooterTex.source,
+        frame:  new Rectangle(f * SPRITE_SHEETS.shooter.sw, def.row * SPRITE_SHEETS.shooter.sh, SPRITE_SHEETS.shooter.sw, SPRITE_SHEETS.shooter.sh),
       }));
     }
   }
@@ -204,7 +203,7 @@ function _buildEnemyTextures() {
   enemyTextures.wallshooter = wallShooterTexture;
 
   corpseTextures.soldier = Assets.get('soldier-dead');
-  corpseTextures.plevaka = Assets.get('plevaka-dead');
+  corpseTextures.shooter = Assets.get('shooter-dead');
   corpseTextures.bull    = Assets.get('bull-dead');
   corpseTextures.buldyga = Assets.get('buldyga-dead');
   corpseTextures.bloated = Assets.get('bloated-dead');
@@ -219,7 +218,7 @@ function _buildWeaponTextures() {
 }
 
 function _enemyTexForType(type) {
-  if (type === 'plevaka' || type === 'shooter') return plevakaFrames.idle?.[0] ?? Texture.WHITE;
+  if (type === 'shooter') return shooterFrames.idle?.[0] ?? Texture.WHITE;
   if (type === 'cocoon')                         return cocoonFrames[0]         ?? Texture.WHITE;
   if (type === 'bat')                            return batFrames[0]            ?? Texture.WHITE;
   if (type === 'tank')                           return enemyTextures.tank       ?? Texture.WHITE;

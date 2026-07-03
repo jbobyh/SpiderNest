@@ -255,7 +255,7 @@ class BulletManager {
       if (b.hitEntities.has(g) || g.isDead || g.hp <= 0) continue;
       
       const dist = Math.hypot(b.x - g.x, b.y - g.y);
-      if (dist >= ((g.radius || CONFIG.ENEMY_STATS.spider.radius) + CONFIG.BULLET_RADIUS) * BS) continue;
+      if (dist >= ((g.radius || CONFIG.ENEMY_STATS.soldier.radius) + CONFIG.BULLET_RADIUS) * BS) continue;
 
       // Hit!
       let damage = b.damage;
@@ -278,7 +278,7 @@ class BulletManager {
       }
 
       if (!isBattle) {
-        spawnDamageNumber(state, g.x, g.y - (g.radius || CONFIG.ENEMY_STATS.spider.radius), damage, b.isCrit, 1);
+        spawnDamageNumber(state, g.x, g.y - (g.radius || CONFIG.ENEMY_STATS.soldier.radius), damage, b.isCrit, 1);
       }
 
       // Hit particles
