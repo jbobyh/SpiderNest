@@ -333,7 +333,7 @@ function roomEnemyBudget(level, roomType, cellCount) {
 }
 
 // Жадный взвешенный выбор состава врагов под заданный бюджет.
-// Возвращает объект { enemyKey: count, ... } (ключи — как в ENEMY_COSTS / ENEMY_POOL_TYPE_MAP).
+// Возвращает объект { enemyKey: count, ... } (ключи — как в ENEMY_COSTS).
 function generateRoomEnemyComposition(level, roomType, cellCount) {
   const budget = roomEnemyBudget(level, roomType, cellCount);
   if (budget <= 0) return {};
@@ -584,12 +584,10 @@ function applyRoomContent(ri, type, level, rooms, levelState, playerProgress, we
 
 function getEnemyStats(enemyType, level) {
   const hpMult = CONFIG.ENEMY_HP_MULT[level] || 1;
-  const mapping = CONFIG.ENEMY_TYPE_STATS[enemyType] || { statsKey: 'spider' };
-  const stats = CONFIG.ENEMY_STATS[mapping.statsKey] || CONFIG.ENEMY_STATS.spider;
-  const radiusStats = mapping.radiusKey ? CONFIG.ENEMY_STATS[mapping.radiusKey] : stats;
+  const stats = CONFIG.ENEMY_STATS[enemyType] || CONFIG.ENEMY_STATS.soldier;
   return {
     hp: stats.hp * hpMult,
-    radius: radiusStats.radius,
+    radius: stats.radius,
     visualScale: stats.visualScale,
   };
 }
@@ -605,11 +603,10 @@ function createStasisEnemy(enemyType, gx, gy, level, roomIdx) {
 }
 
 function spawnEnemiesFromPreset(preset, cells, stasisEnemies, level, roomIdx) {
-  const margin = CONFIG.ENEMY_STATS.spider.radius + CONFIG.ENEMY_STATS.spider.spawnMargin;
+  const margin = CONFIG.ENEMY_STATS.soldier.radius + CONFIG.ENEMY_STATS.soldier.spawnMargin;
   for (const [configKey, count] of Object.entries(preset)) {
     if (!count) continue;
-    const enemyType = CONFIG.ENEMY_POOL_TYPE_MAP[configKey];
-    if (!enemyType) continue;
+    const enemyType = configKey;
     for (let i = 0; i < count; i++) {
       const cell = cells[Math.floor(Math.random() * cells.length)];
       const gx = cell.x * CELL_PX + margin + Math.random() * (CELL_PX - margin * 2);

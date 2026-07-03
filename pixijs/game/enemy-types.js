@@ -5,7 +5,7 @@ import { enemyBulletRange, ENEMY_BULLET_COLOR } from './combat.js';
 import { bulletManager } from './bullet-manager.js';
 import { CELL_PX, cellKey } from '../world/constants.js';
 
-// ── Chaser (Soldier, Bat, Chaser, Tank) ─────────────────────────────
+// ── Chaser (Soldier, Tank) ─────────────────────────────────────
 export class ChaserEnemy extends Enemy {
   updateBehavior(dt, state) {
     if (this.stunTimer > 0) {
@@ -20,7 +20,7 @@ export class ChaserEnemy extends Enemy {
     if (dist > 0) {
       const dir = getEnemyMoveDir(this.x, this.y, state.player.x, state.player.y, state.flowField, state.openCells, state.removedWalls);
       const speedMult = this.getRoomSpeedMult(state);
-      const speed = this.type === 'tank' ? CONFIG.ENEMY_STATS.tank.speed : CONFIG.ENEMY_STATS.spider.speed;
+      const speed = this.type === 'tank' ? CONFIG.ENEMY_STATS.tank.speed : CONFIG.ENEMY_STATS.soldier.speed;
       setBodyVelocity(this.body, dir.dx * speed * speedMult, dir.dy * speed * speedMult);
     }
   }
@@ -101,7 +101,7 @@ export class ZigzagChaserEnemy extends Enemy {
   }
 }
 
-// ── Shooter (Shooter, Plevaka) ─────────────────────────────────
+// ── Shooter ───────────────────────────────────────────────────
 export class ShooterEnemy extends Enemy {
   constructor(data) {
     super(data);
@@ -161,9 +161,9 @@ export class ShooterEnemy extends Enemy {
   }
 
   _updateShooterAnim(dt) {
-    if (this.animState == null || typeof SPRITE_SHEETS.plevaka.anims === 'undefined') return;
+    if (this.animState == null || typeof SPRITE_SHEETS.shooter.anims === 'undefined') return;
     this.animTimer += dt;
-    const cfg = SPRITE_SHEETS.plevaka.anims[this.animState];
+    const cfg = SPRITE_SHEETS.shooter.anims[this.animState];
     if (!cfg) return;
     if (this.animTimer >= 1 / cfg.fps) {
       this.animTimer = 0;
@@ -362,17 +362,13 @@ export class BuldygaEnemy extends Enemy {
       this.vy *= Math.max(0, friction);
     }
 
-    // Wall hit check (internal velocity sync)
-    if (this.body) {
-      const bv = this.body.velocity;
-      const bSpd = Math.hypot(bv.x, bv.y);
-      const vSpd = Math.hypot(this.vx, this.vy);
-      if (vSpd > 0.5 && bSpd < vSpd * 0.2) {
-        this.vx = bv.x;
-        this.vy = bv.y;
-      }
+    // Wall/enemy hit — reset inertia (flag set by collision events)
+    if (this._hitWall) {
+      this.vx = 0;
+      this.vy = 0;
+      this._hitWall = false;
     }
-    
+
     setBodyVelocity(this.body, this.vx, this.vy);
   }
 }
@@ -412,7 +408,7 @@ export class CocoonEnemy extends Enemy {
     if (this.spawnTimer <= 0) {
       this.spawnTimer = CONFIG.ENEMY_STATS.cocoon.spawnInterval;
       const a = Math.random() * Math.PI * 2;
-      const d = this.radius + CONFIG.ENEMY_STATS.spider.radius + 5;
+      const d = this.radius + CONFIG.ENEMY_STATS.soldier.radius + 5;
       const spawnX = this.x + Math.cos(a) * d;
       const spawnY = this.y + Math.sin(a) * d;
       
@@ -454,7 +450,7 @@ export class PhaseBoss extends Enemy {
 
     const phase = bossDef.phases[this.phaseIndex] || bossDef.phases[0];
     const roomMult = this.getRoomSpeedMult(state);
-    const bossSpd = CONFIG.ENEMY_STATS.spider.speed * (bossDef.speedMult || 1.0) * roomMult;
+    const bossSpd = CONFIG.ENEMY_STATS.soldier.speed * (bossDef.speedMult || 1.0) * roomMult;
     const dx = state.player.x - this.x;
     const dy = state.player.y - this.y;
     const dist = Math.hypot(dx, dy);
@@ -527,10 +523,10 @@ export class PhaseBoss extends Enemy {
       this.vy *= Math.max(0, 1 - CONFIG.ENEMY_STATS.buldyga.friction * frictionMult * dt);
     }
 
-    if (this.body) {
-      const prevSpd = Math.hypot(this.body.velocity.x, this.body.velocity.y);
-      const targSpd = Math.hypot(this.vx, this.vy);
-      if (targSpd > 10 && prevSpd < targSpd * 0.5) { this.vx *= -0.3; this.vy *= -0.3; }
+    if (this._hitWall) {
+      this.vx = 0;
+      this.vy = 0;
+      this._hitWall = false;
     }
     setBodyVelocity(this.body, this.vx, this.vy);
   }
@@ -644,7 +640,7 @@ export class PhaseBoss extends Enemy {
 
   _fallbackDef() {
     return {
-      hp: 30, speedMult: 1.2, radius: CONFIG.ENEMY_STATS.spider.radius * 2,
+      hp: 30, speedMult: 1.2, radius: CONFIG.ENEMY_STATS.soldier.radius * 2,
       visualScale: 4.0,
       phases: [{ id: 'soldier', duration: 6 }, { id: 'pause', duration: 1 }],
     };

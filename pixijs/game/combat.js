@@ -8,6 +8,7 @@ import { bulletManager } from './bullet-manager.js';
 import { cellOf, cellKey, CELL_PX } from '../world/constants.js';
 import { Sounds } from '../core/sound.js';
 import { spawnParticles } from '../render/particles.js';
+import { spawnShootVfx } from '../render/shoot-vfx.js';
 
 // ── Weapon helpers ────────────────────────────────────────────
 
@@ -122,12 +123,14 @@ export function shoot(state, camera = null) {
     _spawnPlayerBullet(state, weapon, baseAngle + spread, bulletSpeed, 1);
   }
 
-  // Muzzle flash particles
-  const muzzleCount = Math.round(CONFIG.PARTICLES.muzzle.count * (1 + (pellets - 1) * 0.3));
-  spawnParticles(state.particles, state.player.x, state.player.y,
-    muzzleCount, baseAngle, CONFIG.PARTICLES.muzzle.spread,
-    CONFIG.PARTICLES.muzzle.speedMin, CONFIG.PARTICLES.muzzle.speedMax,
-    CONFIG.PARTICLES.muzzle.life, '#ffff00');
+  // Shoot VFX sprite animation
+  const drawSize = CONFIG.PLAYER_SPRITE_RADIUS * 2;
+  const offsetDist = drawSize * CONFIG.SHOOT_VFX.offsetMult;
+  spawnShootVfx(
+    state.player.x + Math.cos(baseAngle) * offsetDist,
+    state.player.y + Math.sin(baseAngle) * offsetDist,
+    baseAngle
+  );
 
   if (camera && weapon.shakeAmount >= CONFIG.CAMERA.shakeMin) {
     camera.shake(weapon.shakeAmount * CONFIG.CAMERA.shakeScale, baseAngle);

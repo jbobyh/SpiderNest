@@ -3,6 +3,10 @@ import { cellOf, cellKey, CELL_PX, getRoomBonus, getRoomSpeedMultiplier, crosses
 import { Sounds } from '../core/sound.js';
 import { spawnParticles } from '../render/particles.js';
 import { spawnDamageNumber } from '../render/damage-numbers.js';
+import { spawnWallHitVfx } from '../render/wallhit-vfx.js';
+import { spawnEnemyHitVfx } from '../render/enemyhit-vfx.js';
+
+const _hitPoint = { x: 0, y: 0, nx: 0, ny: 0 };
 
 class BulletManager {
   constructor() {
@@ -34,13 +38,18 @@ class BulletManager {
       b.y += b.vy * dt;
       const dx = b.x - prevX;
       const dy = b.y - prevY;
-      b.distanceTraveled += Math.hypot(dx, dy);
+
+      // 2. Room Bonuses (Speed/Penetrate/Range) — must run before distance accumulation
+      this._applyRoomBonuses(b, state, isBattle);
+
+      // 3. Accumulate distance with room range modifier
+      b.distanceTraveled += Math.hypot(dx, dy) * (b._rangeDecayMult || 1);
 
       // Bullet trail for player and enemy bullets
       if (b._trailTimer <= 0) {
         const trailColor = b.owner === 'player'
-          ? (b.isCrit ? '#ff6600' : '#ffdd44')
-          : '#ff0000';
+          ? (b.isCrit ? CONFIG.BULLET_TRAIL.critColor : CONFIG.BULLET_TRAIL.playerColor)
+          : CONFIG.BULLET_TRAIL.enemyColor;
         activeState.particles.push({
           x: b.x - b.vx * 0.01,
           y: b.y - b.vy * 0.01,
@@ -53,16 +62,13 @@ class BulletManager {
       }
       b._trailTimer -= dt;
 
-      // 2. Room Bonuses (Speed/Penetrate)
-      this._applyRoomBonuses(b, state, isBattle);
-
-      // 3. Range check
+      // 4. Range check
       if (b.distanceTraveled >= b.maxRange) {
-        this._handleWallHit(b, state, isBattle, worldBullets, i);
+        this._handleRangeExpired(b, state, isBattle, worldBullets, i);
         continue;
       }
 
-      // 4. Wall collisions (OOB and Static Walls)
+      // 5. Wall collisions (OOB and Static Walls)
       let bouncedThisFrame = false;
       if (isBattle) {
         const oob = b.x < 0 || b.x > activeState.width || b.y < 0 || b.y > activeState.height;
@@ -71,7 +77,7 @@ class BulletManager {
             this._handleBattleRicochet(b, activeState, worldBullets, i);
             bouncedThisFrame = true;
           } else {
-            this._handleWallHit(b, state, isBattle, worldBullets, i);
+            this._handleWallHit(b, state, isBattle, worldBullets, i, prevX, prevY);
             continue;
           }
         }
@@ -103,7 +109,7 @@ class BulletManager {
           if (canRicochet) {
             this._handleRicochet(b, activeState, prevX, prevY, dt, isBattle, worldBullets, i);
           } else {
-            this._handleWallHit(b, state, isBattle, worldBullets, i);
+            this._handleWallHit(b, state, isBattle, worldBullets, i, prevX, prevY);
             continue;
           }
         } else {
@@ -111,7 +117,7 @@ class BulletManager {
         }
       }
 
-      // 5. Entity collisions
+      // 6. Entity collisions
       if (b.owner === 'player') {
         if (this._checkEnemyCollisions(b, state, activeState, onEnemyKilled, isBattle, onStasisTriggered)) {
           worldBullets.splice(i, 1);
@@ -168,25 +174,56 @@ class BulletManager {
           b.penetrate = b._basePenetrate;
         }
       }
-      
+
+      if (roomBonus === 'longRange') {
+        b._rangeDecayMult = 0.1;
+      } else if (b._lastRoomBonus === 'longRange') {
+        b._rangeDecayMult = 1;
+      }
+
       b._lastRoomBonus = roomBonus;
     }
   }
 
-  _handleWallHit(b, state, isBattle, worldBullets, i) {
+  _handleRangeExpired(b, state, isBattle, worldBullets, i) {
     const activeState = isBattle ? state.battle : state;
-    const particles = activeState.particles;
     const color = b.owner === 'player' ? '#88aaff' : '#ff6600';
-    
-    Sounds.wallhit?.();
-    spawnParticles(particles, b.x, b.y,
+    spawnParticles(activeState.particles, b.x, b.y,
       CONFIG.PARTICLES.wallHit.count, 0, Math.PI * 2,
-      CONFIG.PARTICLES.wallHit.speed * (isBattle ? CONFIG.BATTLE_SCALE : 1), 
+      CONFIG.PARTICLES.wallHit.speed * (isBattle ? CONFIG.BATTLE_SCALE : 1),
       CONFIG.PARTICLES.wallHit.speed * (isBattle ? CONFIG.BATTLE_SCALE : 1),
       CONFIG.PARTICLES.wallHit.life, color);
-      
     worldBullets.splice(i, 1);
     releaseBullet(b);
+  }
+
+  _handleWallHit(b, state, isBattle, worldBullets, i, prevX, prevY) {
+    Sounds.wallhit?.();
+    const BS = isBattle ? (CONFIG.BATTLE_SCALE || 1) : 1;
+    const hp = this._wallHitPoint(prevX, prevY, b.x, b.y, BS);
+    const normalAngle = Math.atan2(hp.ny, hp.nx);
+    spawnWallHitVfx(hp.x, hp.y, normalAngle);
+    worldBullets.splice(i, 1);
+    releaseBullet(b);
+  }
+
+  _wallHitPoint(prevX, prevY, curX, curY, BS) {
+    const CP = CELL_PX * BS;
+    const c0x = Math.floor(prevX / CP), c0y = Math.floor(prevY / CP);
+    const c1x = Math.floor(curX / CP), c1y = Math.floor(curY / CP);
+    const dx = curX - prevX, dy = curY - prevY;
+    let t = 1, nx = 0, ny = 0, tx;
+    if (c1x > c0x && dx !== 0) { tx = (c1x * CP - prevX) / dx; if (tx < t) { t = tx; nx = -1; ny = 0; } }
+    else if (c1x < c0x && dx !== 0) { tx = (c0x * CP - prevX) / dx; if (tx < t) { t = tx; nx = 1; ny = 0; } }
+    if (c1y > c0y && dy !== 0) { tx = (c1y * CP - prevY) / dy; if (tx < t) { t = tx; nx = 0; ny = -1; } }
+    else if (c1y < c0y && dy !== 0) { tx = (c0y * CP - prevY) / dy; if (tx < t) { t = tx; nx = 0; ny = 1; } }
+    if (t < 0) t = 0;
+    const HALF_WALL = CP * 0.025;
+    _hitPoint.x = prevX + t * dx + nx * HALF_WALL;
+    _hitPoint.y = prevY + t * dy + ny * HALF_WALL;
+    _hitPoint.nx = nx;
+    _hitPoint.ny = ny;
+    return _hitPoint;
   }
 
   _handleRicochet(b, activeState, prevX, prevY, dt, isBattle, worldBullets, i) {
@@ -255,7 +292,7 @@ class BulletManager {
       if (b.hitEntities.has(g) || g.isDead || g.hp <= 0) continue;
       
       const dist = Math.hypot(b.x - g.x, b.y - g.y);
-      if (dist >= ((g.radius || CONFIG.ENEMY_STATS.spider.radius) + CONFIG.BULLET_RADIUS) * BS) continue;
+      if (dist >= ((g.radius || CONFIG.ENEMY_STATS.soldier.radius) + CONFIG.BULLET_RADIUS) * BS) continue;
 
       // Hit!
       let damage = b.damage;
@@ -278,8 +315,11 @@ class BulletManager {
       }
 
       if (!isBattle) {
-        spawnDamageNumber(state, g.x, g.y - (g.radius || CONFIG.ENEMY_STATS.spider.radius), damage, b.isCrit, 1);
+        spawnDamageNumber(state, g.x, g.y - (g.radius || CONFIG.ENEMY_STATS.soldier.radius), damage, b.isCrit, 1);
       }
+
+      // Hit VFX sprite animation
+      spawnEnemyHitVfx(g.x, g.y);
 
       // Hit particles
       const bAngle = Math.atan2(b.vy, b.vx);
@@ -350,9 +390,19 @@ class BulletManager {
     const c1x = Math.floor(x1 / CPB) + b.cellOffsetX;
     const c1y = Math.floor(y1 / CPB) + b.cellOffsetY;
     if (c0x === c1x && c0y === c1y) return false;
+    const rw = b.removedWalls;
+    if (!rw) return false;
+    if (c0x !== c1x && c0y !== c1y) {
+      const k00 = cellKey(c0x, c0y), k10 = cellKey(c1x, c0y), k01 = cellKey(c0x, c1y), k11 = cellKey(c1x, c1y);
+      const pathA = rw.has(k00 + '|' + k10) || rw.has(k10 + '|' + k00);
+      const pathA2 = rw.has(k10 + '|' + k11) || rw.has(k11 + '|' + k10);
+      const pathB = rw.has(k00 + '|' + k01) || rw.has(k01 + '|' + k00);
+      const pathB2 = rw.has(k01 + '|' + k11) || rw.has(k11 + '|' + k01);
+      return !(pathA && pathA2 || pathB && pathB2);
+    }
     const key0 = cellKey(c0x, c0y);
     const key1 = cellKey(c1x, c1y);
-    return b.removedWalls && !b.removedWalls.has(key0 + '|' + key1) && !b.removedWalls.has(key1 + '|' + key0);
+    return !rw.has(key0 + '|' + key1) && !rw.has(key1 + '|' + key0);
   }
 
   clear() {

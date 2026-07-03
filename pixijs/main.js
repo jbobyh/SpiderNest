@@ -21,6 +21,12 @@ async function boot() {
   // 1. Init PixiJS renderer
   await initApp();
 
+  // 1b. Ensure custom font is loaded before any canvas text rendering
+  try {
+    await document.fonts.load('1em BoldPixels');
+    await document.fonts.ready;
+  } catch (e) { /* font load failed — fallback will be used */ }
+
   // 2. Load all textures + sfx with progress bar
   await loadAssets((progress) => {
     loadingFill.style.width = Math.round(progress * 100) + '%';

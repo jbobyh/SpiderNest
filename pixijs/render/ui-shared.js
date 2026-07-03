@@ -20,7 +20,7 @@ export const UI_COLORS = {
 // ── Shared Styles ─────────────────────────────────────────────
 
 export const BASE_STYLE = {
-  fontFamily: 'Huninn, monospace',
+  fontFamily: 'BoldPixels, sans-serif',
 };
 
 export const STYLE_LEVEL = new TextStyle({
@@ -57,7 +57,7 @@ export const STYLE_STATS_LABEL = new TextStyle({
 });
 
 export const STYLE_STATS_VALUE = new TextStyle({
-  fontFamily: 'Orbitron, sans-serif',
+  fontFamily: 'BoldPixels, sans-serif',
   fontSize: 14,
   fontWeight: 'bold',
 });

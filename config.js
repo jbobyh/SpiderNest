@@ -44,12 +44,18 @@ const CONFIG = {
   // Bullet render
   BULLET_RENDER: {
     radius:     2.5,    // радиус ядра пули (px)
+    playerColor: 0xffff00,
+    critColor:   0x00a2ff,
+    enemyColor:  0xff0000,
   },
 
   // Bullet trail
   BULLET_TRAIL: {
     interval: 0.01,   // секунд между эмитом частиц трейла
     life:     0.06,   // время жизни частицы трейла (сек)
+    playerColor: '#ffdd44',
+    critColor:   '#00a2ff',
+    enemyColor:  '#ff0000',
   },
 
   // Damage numbers
@@ -88,43 +94,44 @@ const CONFIG = {
     shakeScale: 5,          // множитель shakeAmount → пиксели (0.5 * 12 = 6px)
   },
 
+  // Shoot VFX (muzzle flash sprite animation)
+  SHOOT_VFX: {
+    frameSize: 64,           // размер кадра в спрайтшите (px)
+    frameCount: 9,           // кол-во кадров анимации (верхний ряд)
+    fps: 35,                 // скорость анимации
+    sizeMult: 1.5,           // множитель к drawSize игрока (PLAYER_SPRITE_RADIUS * 2)
+    offsetMult: 0.9,         // множитель к drawSize для смещения от центра игрока
+    rotationOffset: Math.PI / 4,  // поправка угла спрайта (рад)
+  },
+
+  // Wall hit VFX (bullet hits wall)
+  WALL_HIT_VFX: {
+    frameSize: 64,           // размер кадра в спрайтшите (px)
+    frameCount: 10,          // кол-во кадров анимации (верхний ряд)
+    fps: 60,                 // скорость анимации
+    sizeMult: 0.20,          // множитель к CELL_PX для размера спрайта
+    normalOffset: 0.2,       // смещение спрайта вдоль нормали от стены (доля от drawSize)
+  },
+
+  // Enemy hit VFX (bullet hits enemy)
+  ENEMY_HIT_VFX: {
+    frameSize: 64,           // размер кадра в спрайтшите (px)
+    frameCount: 8,           // кол-во кадров анимации (верхний ряд)
+    fps: 45,                 // скорость анимации
+    sizeMult: 0.4,          // множитель к CELL_PX для размера спрайта
+  },
+
   // Enemy stats
   ENEMY_STATS: {
-    spider:   { hp: 60, speed: 1, radius: 7, visualScale: 2.9, wobbleMin: 0.2, wobbleMax: 0.3, spawnMargin: 10 },
+    soldier:  { hp: 60, speed: 1, radius: 7, visualScale: 2.9, wobbleMin: 0.2, wobbleMax: 0.3, spawnMargin: 10 },
     bat:      { hp: 60, speed: 1, radius: 7, visualScale: 3.9, animFps: 15, zigzagFreq: 4, zigzagAmp: 0.8 },
     shooter:  { hp: 40, speed: 1, radius: 6, visualScale: 2.5, bulletSpeed: 100, shootRangeCells: 2, shootCd: 1.5, stopDistCells: 2 },
     bull:     { hp: 80, speed: 1, radius: 6, visualScale: 3.2, prepareTime: 1, restTime: 1.5, chargeDistCells: 0.75, dashDistCells: 0.02 },
-    buldyga:  { hp: 100, speed: 1, radius: 6, visualScale: 4.0, accel: 20, friction: 3.5, speedIncrement: 0.1 },
+    buldyga:  { hp: 100, speed: 1, radius: 6, visualScale: 4.0, accel: 40, friction: 3.5, speedIncrement: 0.1 },
     cocoon:   { hp: 200, radius: 10, visualScale: 3.2, spawnInterval: 3.0 },
     bloated:  { hp: 60, speed: 1, radius: 7, visualScale: 3.2, deathShotSpeed: 120 },
     tank:     { hp: 200, speed: 0.7, radius: 14, visualScale: 2 },
     wallshooter: { hp: 20, speed: 1, radius: 8, visualScale: 2.5, bulletSpeed: 50, shootRangeCells: 1.5, shootCd: 3.0, stopDistCells: 1.4, wallBulletCount: 5, wallBulletSpacing: 8 },
-  },
-
-  // Spawn table key → actual enemy type for EnemyFactory.create()
-  ENEMY_POOL_TYPE_MAP: {
-    bat:        'bat',
-    soldier:    'soldier',
-    shooter:    'plevaka',
-    bull:       'bull',
-    buldyga:    'buldyga',
-    cocoon:     'cocoon',
-    bloated:    'bloated',
-    tank:       'tank',
-    wallshooter:'wallshooter',
-  },
-
-  // Enemy type → stats key in ENEMY_STATS (with optional radiusKey override)
-  ENEMY_TYPE_STATS: {
-    bat:         { statsKey: 'bat' },
-    soldier:     { statsKey: 'spider' },
-    plevaka:     { statsKey: 'shooter', radiusKey: 'spider' },
-    bull:        { statsKey: 'bull' },
-    buldyga:     { statsKey: 'buldyga' },
-    cocoon:      { statsKey: 'cocoon' },
-    bloated:     { statsKey: 'bloated' },
-    tank:        { statsKey: 'tank' },
-    wallshooter: { statsKey: 'wallshooter' },
   },
 
   // HP multiplier by level
@@ -165,7 +172,7 @@ const CONFIG = {
   },
 
   // Доступные типы врагов по уровням + веса выбора (больше = чаще встречается).
-  // Ключи должны совпадать с ENEMY_COSTS и ENEMY_POOL_TYPE_MAP.
+  // Ключи должны совпадать с ENEMY_COSTS.
   ENEMY_SPAWN_TABLE: {
     1: { bat: 5, shooter: 2, bloated: 1, tank: 1, wallshooter: 1 },
     2: { soldier: 5, shooter: 2, bull: 2, buldyga: 1, bloated: 1, tank: 1, wallshooter: 2 },
@@ -374,9 +381,9 @@ const WEAPON_DEFS = {
 const BOSS_DEFS = {
   1: {
     type: 'boss_phase',
-    hpMult: 30,             // множитель к SPIDER_HP
-    radiusMult: 2.25,       // множитель к SPIDER_RADIUS
-    speedMult: 1.1,         // множитель к SPIDER_SPEED
+    hpMult: 30,             // множитель к SOLDIER_HP
+    radiusMult: 2.25,       // множитель к SOLDIER_RADIUS
+    speedMult: 1.1,         // множитель к SOLDIER_SPEED
     name: 'БОСС',
     phases: [
       { id: 'soldier', duration: 5 },
@@ -435,6 +442,7 @@ const ROOM_BONUS_TYPES = [
   { id: 'speedup',   label: 'Ускорение',      description: 'Персонаж, враги и пули ускоряются на 50%',                     color: '#ffff44', max: 100, icon: '⚡', speedMult: 1.5 },
   { id: 'speeddown',    label: 'Замедление',          description: 'Персонаж, враги и пули замедляются на 50%',                       color: '#ff0000', max: 100, icon: '⚔️', speedMult: 0.5 },
   { id: 'ricochet',    label: 'Рикошет',          description: 'Пули рикошетят от стен внутри комнаты',                       color: '#ff8922', max: 100, icon: '↩️' },
+  { id: 'longRange',   label: 'Дальнобой',         description: 'Дальность пуль +1000%',                                        color: '#0066ff', max: 100, icon: '🏹' },
 ];
 
 // ============================================================
@@ -800,7 +808,7 @@ const SPRITE_SHEETS = {
     sw: 64, sh: 64,
     anim: { frames: 7, fps: 15, hitFrame: 7 },
   },
-  plevaka: {
+  shooter: {
     sw: 500, sh: 500,
     anims: {
       run: { row: 0, frames: 3, fps: 3 },

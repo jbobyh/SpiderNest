@@ -33,6 +33,15 @@ import {
   initParticles, syncParticles, clearParticles,
 } from './render/particles.js';
 import {
+  initShootVfx, updateShootVfx, clearShootVfx,
+} from './render/shoot-vfx.js';
+import {
+  initWallHitVfx, updateWallHitVfx, clearWallHitVfx,
+} from './render/wallhit-vfx.js';
+import {
+  initEnemyHitVfx, updateEnemyHitVfx, clearEnemyHitVfx,
+} from './render/enemyhit-vfx.js';
+import {
   initDamageNumbers, updateAndSyncDamageNumbers, clearDamageNumbers,
 } from './render/damage-numbers.js';
 import { initHud, updateHud, updateBossHpBar, updateFps, showLevelComplete, hideLevelComplete, destroyHud }   from './render/hud.js';
@@ -153,10 +162,13 @@ export function startGameLoop({
   initLayers(_camera);
   initEntityPool();
   initParticles(layers.particles);
+  initShootVfx(layers.entities);
+  initWallHitVfx(layers.entities);
+  initEnemyHitVfx(layers.entities);
   initDamageNumbers(layers.damageNumbers);
   initPlayerRenderer(layers.entities);
   initBulletRenderer(layers.particles);
-  initCollectibleRenderer(layers.entities);
+  initCollectibleRenderer(layers.collectibles);
   initFlyingHeartRenderer(layers.particles);
   initHud(layers.hud);
   initOverlay(layers.hud);
@@ -215,6 +227,9 @@ export function stopGameLoop() {
   bulletManager.clear();
   clearBullets();
   clearParticles();
+  clearShootVfx();
+  clearWallHitVfx();
+  clearEnemyHitVfx();
   clearDamageNumbers();
   clearCollectibles();
   destroyFlyingHeartRenderer();
@@ -244,7 +259,16 @@ function _handlePhysicsCollision(pairs) {
     const entA = bodyA._entity;
     const entB = bodyB._entity;
 
-    if (!entA || !entB) continue;
+    // Enemy <-> Wall: flag buldyga for inertia reset
+    if (!entA || !entB) {
+      const enemyEnt = entA || entB;
+      const wallBody = entA ? bodyB : bodyA;
+      if (enemyEnt && (wallBody.label === 'wall' || wallBody.label === 'external_wall')
+          && (enemyEnt.type === 'buldyga' || enemyEnt.isBoss)) {
+        enemyEnt._hitWall = true;
+      }
+      continue;
+    }
 
     // Player <-> Enemy
     const player = (entA.lives !== undefined) ? entA : (entB.lives !== undefined ? entB : null);
@@ -253,6 +277,7 @@ function _handlePhysicsCollision(pairs) {
     if (player && enemy) {
       _handlePlayerEnemyContact(player, enemy);
     }
+
   }
 }
 
@@ -277,10 +302,8 @@ function _handlePlayerEnemyContact(player, enemy) {
   if (player.lives > 0) {
     const idx = _state.activeSpiders.indexOf(enemy);
     if (idx !== -1) {
-      // Shooter/Plevaka don't die on contact or deal contact damage usually? 
-      // Actually, in the old code plevaka/shooter didn't have contact damage block.
-      // But they are ranged. Let's keep it consistent with old logic.
-      if (enemy.type !== 'shooter' && enemy.type !== 'plevaka') {
+      // Shooter doesn't die on contact or deal contact damage.
+      if (enemy.type !== 'shooter') {
         spawnParticles(_state.particles, player.x, player.y, 8, 0, Math.PI*2, 20, 40, 0.5, '#ff4444');
 
         player.lives--;
@@ -390,6 +413,9 @@ function _render(dt) {
 
   syncBullets(bulletManager.bullets);
   syncParticles(_state.particles);
+  updateShootVfx(dt);
+  updateWallHitVfx(dt);
+  updateEnemyHitVfx(dt);
   updateAndSyncDamageNumbers(_state, dt, _camera);
   syncDebugColliders(_state.phase === 'battle');
   syncCollectibles(_state);

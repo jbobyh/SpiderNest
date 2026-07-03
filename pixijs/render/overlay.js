@@ -35,26 +35,26 @@ let _onEnterBattle = null; // callback for upgrade chest choice
 
 const ST_TITLE = new TextStyle({
   fill: '#cc66ff', fontSize: 18,
-  fontFamily: 'Huninn, monospace', fontWeight: 'bold', align: 'center',
+  fontFamily: 'BoldPixels, sans-serif', fontWeight: 'bold', align: 'center',
 });
 const ST_HINT = new TextStyle({
   fill: '#ccaae8', fontSize: 11,
-  fontFamily: 'Huninn, monospace', align: 'center',
+  fontFamily: 'BoldPixels, sans-serif', align: 'center',
   wordWrap: true, wordWrapWidth: 380,
 });
 
 // Game-over styles
 const ST_GO_TITLE = new TextStyle({
   fill: '#ff4444', fontSize: 32,
-  fontFamily: 'Huninn, monospace', fontWeight: 'bold', align: 'center',
+  fontFamily: 'BoldPixels, sans-serif', fontWeight: 'bold', align: 'center',
 });
 const ST_GO_SUB = new TextStyle({
   fill: '#aaccbb', fontSize: 14,
-  fontFamily: 'Huninn, monospace', align: 'center',
+  fontFamily: 'BoldPixels, sans-serif', align: 'center',
 });
 const ST_GO_BTN = new TextStyle({
   fill: '#ffffff', fontSize: 14, fontWeight: 'bold',
-  fontFamily: 'Huninn, monospace', align: 'center',
+  fontFamily: 'BoldPixels, sans-serif', align: 'center',
 });
 
 // ── Public API ────────────────────────────────────────────────
@@ -289,7 +289,7 @@ function _addChoiceBtn(cont, ch, bx, by) {
     text: ch.label ?? ch.id,
     style: new TextStyle({
       fill: '#ffffff', fontSize: 10, fontWeight: 'bold',
-      fontFamily: 'Huninn, monospace', align: 'center',
+      fontFamily: 'BoldPixels, sans-serif', align: 'center',
       wordWrap: true, wordWrapWidth: BTN_W - 8,
     }),
   });
@@ -302,7 +302,7 @@ function _addChoiceBtn(cont, ch, bx, by) {
     text: ch.description ?? '',
     style: new TextStyle({
       fill: '#ccaae8', fontSize: 8,
-      fontFamily: 'Huninn, monospace', align: 'center',
+      fontFamily: 'BoldPixels, sans-serif', align: 'center',
       wordWrap: true, wordWrapWidth: BTN_W - 8,
     }),
   });
@@ -410,7 +410,7 @@ function _addUpgradeChoiceBtn(cont, ch, bx, by) {
     text: ch.label ?? ch.id,
     style: new TextStyle({
       fill: '#ffffff', fontSize: 10, fontWeight: 'bold',
-      fontFamily: 'Huninn, monospace', align: 'center',
+      fontFamily: 'BoldPixels, sans-serif', align: 'center',
       wordWrap: true, wordWrapWidth: UPGRADE_BTN_W - 8,
     }),
   });
@@ -423,7 +423,7 @@ function _addUpgradeChoiceBtn(cont, ch, bx, by) {
     text: ch.description ?? '',
     style: new TextStyle({
       fill: '#aaccdd', fontSize: 8,
-      fontFamily: 'Huninn, monospace', align: 'center',
+      fontFamily: 'BoldPixels, sans-serif', align: 'center',
       wordWrap: true, wordWrapWidth: UPGRADE_BTN_W - 8,
     }),
   });
@@ -459,7 +459,7 @@ function _addDeclineBtn(cont, bx, by) {
     text: 'Отказаться',
     style: new TextStyle({
       fill: '#aaaaaa', fontSize: 12,
-      fontFamily: 'Huninn, monospace', align: 'center',
+      fontFamily: 'BoldPixels, sans-serif', align: 'center',
     }),
   });
   lbl.anchor.set(0.5, 0.5);
@@ -571,7 +571,7 @@ function _addRoomBonusChoiceBtn(cont, ch, bx, by) {
     text: ch.label ?? ch.id,
     style: new TextStyle({
       fill: '#ffffff', fontSize: 10, fontWeight: 'bold',
-      fontFamily: 'Huninn, monospace', align: 'center',
+      fontFamily: 'BoldPixels, sans-serif', align: 'center',
       wordWrap: true, wordWrapWidth: UPGRADE_BTN_W - 8,
     }),
   });
@@ -584,7 +584,7 @@ function _addRoomBonusChoiceBtn(cont, ch, bx, by) {
     text: ch.description ?? '',
     style: new TextStyle({
       fill: '#aaddcc', fontSize: 8,
-      fontFamily: 'Huninn, monospace', align: 'center',
+      fontFamily: 'BoldPixels, sans-serif', align: 'center',
       wordWrap: true, wordWrapWidth: UPGRADE_BTN_W - 8,
     }),
   });

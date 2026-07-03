@@ -8,14 +8,14 @@
 //
 // clearEnemySprites() — destroy all tracked sprites (level reset)
 //
-// Globals: CONFIG, SPRITE_SHEETS.plevaka.anims, SPRITE_SHEETS.cocoon.anim, SPRITE_SHEETS.bat.anim (from config.js)
+// Globals: CONFIG, SPRITE_SHEETS.shooter.anims, SPRITE_SHEETS.cocoon.anim, SPRITE_SHEETS.bat.anim (from config.js)
 // ============================================================
 
 import { Sprite, ColorMatrixFilter, Graphics } from 'pixi.js';
 import {
   makeEnemySprite,
   makeCorpseSprite,
-  getPlevakaFrame,
+  getShooterFrame,
   cocoonFrames,
   batFrames,
   batHitTexture,
@@ -161,13 +161,13 @@ function _syncActive(activeSpiders, layer, gameTime, playerX, everRevealedCells 
 // ── Per-type texture logic ────────────────────────────────────
 
 function _updateEnemyTexture(g, sprite, gameTime) {
-  const isPlevaka = g.type === 'plevaka' || g.type === 'shooter';
+  const isShooter = g.type === 'shooter';
   const isCocoon  = g.type === 'cocoon';
   const isBat     = g.type === 'bat';
   const isBoss    = g.isBoss;
 
-  if (isPlevaka && g.animState !== null) {
-    const tex = getPlevakaFrame(g.animState, g.animFrame ?? 0);
+  if (isShooter && g.animState !== null) {
+    const tex = getShooterFrame(g.animState, g.animFrame ?? 0);
     if (sprite.texture !== tex) sprite.texture = tex;
   } else if (isBat) {
     let tex;
@@ -198,7 +198,7 @@ function _updateEnemyTexture(g, sprite, gameTime) {
  * Camera zoom handles battle-mode magnification — no extra multiplier needed here.
  */
 function _applyEnemyScale(sprite, radius, visualScale) {
-  const drawSize = (radius ?? CONFIG.ENEMY_STATS.spider.radius) * (visualScale ?? CONFIG.ENEMY_STATS.spider.visualScale);
+  const drawSize = (radius ?? CONFIG.ENEMY_STATS.soldier.radius) * (visualScale ?? CONFIG.ENEMY_STATS.soldier.visualScale);
   const texSize  = sprite.texture?.height || 500;
   const s        = drawSize / texSize;
   // Preserve x-sign (flip) while updating magnitude
@@ -241,7 +241,7 @@ function _updateHpBar(g, entry, layer, dt) {
   const hpPct    = Math.max(0, g.hp / maxHp);
   const dispPct  = Math.max(0, g.displayedHp / maxHp);
 
-  const drawSize = (g.radius ?? CONFIG.ENEMY_STATS.spider.radius) * (g.visualScale ?? CONFIG.ENEMY_STATS.spider.visualScale);
+  const drawSize = (g.radius ?? CONFIG.ENEMY_STATS.soldier.radius) * (g.visualScale ?? CONFIG.ENEMY_STATS.soldier.visualScale);
   const barW = Math.min(cfg.width, drawSize * 0.8);
   const barH = cfg.height;
   const barX = -barW / 2;

@@ -1,7 +1,7 @@
 // ============================================================
 // ENEMY AI — updateEnemyAI(), enemyCollisions(), spawnCorpse()
 // Works for both play-mode (scale=1) and battle-mode (BATTLE_SCALE).
-// CONFIG / SPRITE_SHEETS.plevaka.anims are globals from config.js.
+// CONFIG / SPRITE_SHEETS.shooter.anims are globals from config.js.
 // ============================================================
 
 import { cellOf, cellKey, CELL_PX, getRoomBonus } from '../world/constants.js';
@@ -86,7 +86,7 @@ function _makeSoldier(x, y) {
 
 const CORPSE_DURATION = 2.0;
 
-const CORPSE_TYPES = new Set(['soldier', 'chaser', 'bat', 'plevaka', 'shooter', 'bull', 'buldyga', 'bloated', 'wallshooter']);
+const CORPSE_TYPES = new Set(['soldier', 'bat', 'shooter', 'bull', 'buldyga', 'bloated', 'wallshooter']);
 
 export function spawnCorpse(corpseArray, g, radius) {
   if (!CORPSE_TYPES.has(g.type || 'soldier')) return;

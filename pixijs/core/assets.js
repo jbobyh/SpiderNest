@@ -79,10 +79,10 @@ const MANIFEST = {
         { alias: 'buldyga-dead',      src: IMG + 'buldyga_dead.png' },
         { alias: 'bull',              src: IMG + 'bull.png' },
         { alias: 'bull-dead',         src: IMG + 'bull_dead.png' },
-        // Plevaka (shooter) — animated sprite sheet (1500×1500, 3 rows × 3 cols)
-        { alias: 'plevaka',           src: IMG + 'plevaka.png' },
-        { alias: 'plevaka-anim',      src: IMG + 'plevaka_anim.png' },
-        { alias: 'plevaka-dead',      src: IMG + 'plevaka_dead.png' },
+        // Shooter — animated sprite sheet (1500×1500, 3 rows × 3 cols)
+        { alias: 'shooter',           src: IMG + 'shooter.png' },
+        { alias: 'shooter-anim',      src: IMG + 'shooter_anim.png' },
+        { alias: 'shooter-dead',      src: IMG + 'shooter_dead.png' },
         // Cocoon — animated sprite sheet (3500×500, 7 frames horizontal)
         { alias: 'cocoon',            src: IMG + 'cocoon.png' },
         // Bat — 512×64 sprite sheet, 8 frames of 64×64 (7 move + 1 damage)
@@ -92,6 +92,12 @@ const MANIFEST = {
         { alias: 'gameover-screen',   src: IMG + 'gameover.png' },
         { alias: 'gameover-text',     src: IMG + 'gameover-text.png' },
         { alias: 'deathtext',         src: IMG + 'deathtext.png' },
+        // Shoot VFX sprite sheet (9×9, 64×64px per frame)
+        { alias: 'shoot-vfx',         src: IMG + 'shoot-vfx.png' },
+        // Wall hit VFX sprite sheet (top row, 10 frames × 64×64px)
+        { alias: 'wallhit-vfx',       src: IMG + 'wallhit-vfx.png' },
+        // Enemy hit VFX sprite sheet (top row, 8 frames × 64×64px)
+        { alias: 'enemyhit-vfx',      src: IMG + 'enemyhit-vfx.png' },
       ],
     },
 

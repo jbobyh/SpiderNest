@@ -9,14 +9,10 @@ export class Enemy {
     this.vx = data.vx || 0;
     this.vy = data.vy || 0;
     this.maxHp = data.maxHp || data.hp;
-    this.radius = data.radius || (typeof CONFIG !== 'undefined' ? CONFIG.ENEMY_STATS.spider.radius : 20);
+    this.radius = data.radius || (typeof CONFIG !== 'undefined' ? CONFIG.ENEMY_STATS.soldier.radius : 20);
     this.visualScale = data.visualScale || 3.2;
-    this.lastX = data.lastX ?? data.x;
-    this.lastY = data.lastY ?? data.y;
-
     this.body = data.body || null;
     this.isDead = false;
-    this.stuckTimer = data.stuckTimer || 0;
     this.stunTimer = data.stunTimer || 0;
     this.hitFlash = data.hitFlash || 0;
 
@@ -35,30 +31,12 @@ export class Enemy {
       this.body = createEnemyBody(this.x, this.y, this.radius, this);
     }
 
-    this._updateStuckDetection(dt, state);
     this.updateBehavior(dt, state);
     this._syncWithBody();
   }
 
   updateBehavior(dt, state) {
     // To be overridden by subclasses
-  }
-
-  _updateStuckDetection(dt, state) {
-    if (this.type === 'cocoon' || this.type === 'plevaka' || this.type === 'shooter' || this.type === 'wallshooter' || this.type === 'bull' || this.isBoss) {
-      return;
-    }
-    const moved = Math.hypot(this.x - this.lastX, this.y - this.lastY);
-    if (moved < 1) {
-      this.stuckTimer += dt;
-      if (this.stuckTimer >= 5) {
-        this.die(state, true); 
-      }
-    } else {
-      this.stuckTimer = 0;
-      this.lastX = this.x;
-      this.lastY = this.y;
-    }
   }
 
   _syncWithBody() {

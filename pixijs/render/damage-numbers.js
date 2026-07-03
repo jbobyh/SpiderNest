@@ -110,7 +110,7 @@ function _acquireText() {
     return _pool.pop();
   }
   const style = new TextStyle({
-    fontFamily: 'Huninn, monospace',
+    fontFamily: 'BoldPixels, sans-serif',
     fontSize: D.fontSize,
     fontWeight: 'bold',
     fill: '#ffffff',

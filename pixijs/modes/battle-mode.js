@@ -133,7 +133,7 @@ export function createBossBattleState(state, currentLevel) {
     if (d > maxDist) { maxDist = d; farthestCell = { x, y }; }
   }
 
-  const margin = CONFIG.ENEMY_STATS.spider.radius + 20;
+  const margin = CONFIG.ENEMY_STATS.soldier.radius + 20;
   let bossX = centerX, bossY = centerY;
   if (farthestCell) {
     const relX = state.player.x - farthestCell.x * CP;
@@ -144,13 +144,13 @@ export function createBossBattleState(state, currentLevel) {
 
   const bossHp = bossDef.hp !== undefined
     ? bossDef.hp
-    : (bossDef.hpBase === 'buldyga' ? CONFIG.ENEMY_STATS.buldyga.hp : CONFIG.ENEMY_STATS.spider.hp) * (bossDef.hpMult || 1);
+    : (bossDef.hpBase === 'buldyga' ? CONFIG.ENEMY_STATS.buldyga.hp : CONFIG.ENEMY_STATS.soldier.hp) * (bossDef.hpMult || 1);
 
   state.activeSpiders.push(EnemyFactory.create(bossDef.type || 'boss_phase', bossX, bossY, {
     level: currentLevel,
     hp: bossHp,
     maxHp: bossHp,
-    radius: CONFIG.ENEMY_STATS.spider.radius * (bossDef.radiusMult || 1),
+    radius: CONFIG.ENEMY_STATS.soldier.radius * (bossDef.radiusMult || 1),
     isBoss: true,
     phaseIndex: 0,
     phaseTimer: bossDef.phases?.[0]?.duration ?? 0,
@@ -282,9 +282,6 @@ function _getRoomCenterCell(state, ck) {
 
 function _enemyCopy(g, bx, by) {
   const copy = EnemyFactory.create(g.type, bx, by, g);
-  copy.stuckTimer = 0;
-  copy.lastX = bx;
-  copy.lastY = by;
   return copy;
 }
 
