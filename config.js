@@ -29,15 +29,16 @@ const CONFIG = {
 
   // Particles
   PARTICLES: {
-    muzzle:  { count: 4, spread: 0.3, speedMin: 200, speedMax: 400, life: 0.2 },
-    hit:     { count: 3, speedMin: 40, speedMax: 200, spread: 0.6, life: 0.5, color: '#a21515' },
-    death:   { count: 5, speedMin: 40, speedMax: 200, life: 0.6 },
-    wallHit: { count: 2, speed: 40, life: 0.3 },
+    muzzle:  { count: 8, spread: 0.5, speedMin: 150, speedMax: 350, life: 0.15 },
+    hit:     { count: 8, speedMin: 40, speedMax: 80, spread: 0.6, life: 0.25, color: '#e44101', critCount: 14 },
+    death:   { count: 14, speedMin: 40, speedMax: 80, life: 0.3 },
+    wallHit: { count: 3, speed: 80, life: 0.1 },
     pickup:  { count: 12, speed: 80, life: 0.6 },
   },
 
   // Combat effects
   ENEMY_HIT_FLASH_DURATION: 0.18,     // длительность белой вспышки при уроне (сек)
+  ENEMY_HIT_PUNCH: 0.15,              // макс. увеличение scale при попадании (15%)
   ENEMY_STUN_DURATION: 0.05,           // длительность стана при получении урона (сек)
 
   // Bullet render

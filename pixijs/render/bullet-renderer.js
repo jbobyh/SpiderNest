@@ -2,8 +2,6 @@ import { ParticleContainer, Particle, Graphics, Rectangle } from 'pixi.js';
 import { app } from '../core/app.js';
 
 const BULLET_R = CONFIG.BULLET_RENDER?.radius ?? 2.5;
-const GLOW_R  = CONFIG.BULLET_RENDER?.glowRadius ?? 4;
-const GLOW_A  = CONFIG.BULLET_RENDER?.glowAlpha ?? 0.2;
 
 const PLAYER_EDGE = 0xffff00;
 const ENEMY_EDGE  = 0xff0000;

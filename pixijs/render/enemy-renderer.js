@@ -115,6 +115,14 @@ function _syncActive(activeSpiders, layer, gameTime, playerX, everRevealedCells 
     sprite.y = g.y;
     _applyEnemyScale(sprite, g.radius, g.visualScale);
 
+    // Scale punch on hit — decays with hitFlash
+    if (g.hitFlash > 0) {
+      const t = Math.min(1, g.hitFlash / CONFIG.ENEMY_HIT_FLASH_DURATION);
+      const punch = 1 + CONFIG.ENEMY_HIT_PUNCH * t;
+      sprite.scale.x *= punch;
+      sprite.scale.y *= punch;
+    }
+
     // Stasis visibility: hide if in unrevealed cell
     if (g.stasis && everRevealedCells) {
       const ck = `${Math.floor(g.x / 126)},${Math.floor(g.y / 126)}`;

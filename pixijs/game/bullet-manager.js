@@ -283,7 +283,8 @@ class BulletManager {
 
       // Hit particles
       const bAngle = Math.atan2(b.vy, b.vx);
-      for (let k = 0; k < CONFIG.PARTICLES.hit.count; k++) {
+      const hitCount = b.isCrit ? CONFIG.PARTICLES.hit.critCount : CONFIG.PARTICLES.hit.count;
+      for (let k = 0; k < hitCount; k++) {
         const sp = bAngle + (Math.random() - 0.5) * CONFIG.PARTICLES.hit.spread;
         const spd = (CONFIG.PARTICLES.hit.speedMin + Math.random() * (CONFIG.PARTICLES.hit.speedMax - CONFIG.PARTICLES.hit.speedMin)) * BS;
         activeState.particles.push({ 

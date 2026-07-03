@@ -25,7 +25,7 @@ export function updateEnemyAI(state, playerProgress, dt, onPlayerDamaged) {
       if (g.isDead || g.hp <= 0) {
         if (!g.isDead) g.die(state, true);
         spawnCorpse(s.deathCorpses, g, g.radius);
-        _deathParticles(s.particles, g.x, g.y, 1);
+        _deathParticles(s.particles, g.x, g.y, 1, g.isBoss);
         if (g.body) { destroyBody(g.body); g.body = null; }
         s.activeSpiders.splice(i, 1);
       }
@@ -52,7 +52,7 @@ export function updateEnemyAI(state, playerProgress, dt, onPlayerDamaged) {
       if (!g.isDead) g.die(state, true); // Ensure die() is called if hp <= 0
       
       spawnCorpse(s.deathCorpses, g, g.radius);
-      _deathParticles(s.particles, g.x, g.y, 1);
+      _deathParticles(s.particles, g.x, g.y, 1, g.isBoss);
       
       if (g.body) {
         destroyBody(g.body);
@@ -69,13 +69,14 @@ export function updateEnemyAI(state, playerProgress, dt, onPlayerDamaged) {
 
 // ── Particle helpers ──────────────────────────────────────────
 
-function _deathParticles(particles, x, y, scale) {
-  for (let k = 0; k < CONFIG.PARTICLES.death.count; k++) {
+function _deathParticles(particles, x, y, scale, isBoss = false) {
+  const count = isBoss ? CONFIG.PARTICLES.death.count * 3 : CONFIG.PARTICLES.death.count;
+  for (let k = 0; k < count; k++) {
     const a   = Math.random() * Math.PI * 2;
     const spd = CONFIG.PARTICLES.death.speedMin + Math.random() * (CONFIG.PARTICLES.death.speedMax - CONFIG.PARTICLES.death.speedMin);
     particles.push({ x, y, vx: Math.cos(a) * spd * scale, vy: Math.sin(a) * spd * scale,
       life: CONFIG.PARTICLES.death.life, maxLife: CONFIG.PARTICLES.death.life,
-      color: Math.random() < 0.5 ? '#44cc22' : '#88ff44' });
+      color: Math.random() < 0.5 ? '#cc2822' : '#ff5a44' });
   }
 }
 

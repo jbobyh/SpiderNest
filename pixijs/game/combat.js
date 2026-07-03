@@ -123,8 +123,9 @@ export function shoot(state, camera = null) {
   }
 
   // Muzzle flash particles
+  const muzzleCount = Math.round(CONFIG.PARTICLES.muzzle.count * (1 + (pellets - 1) * 0.3));
   spawnParticles(state.particles, state.player.x, state.player.y,
-    CONFIG.PARTICLES.muzzle.count, baseAngle, CONFIG.PARTICLES.muzzle.spread,
+    muzzleCount, baseAngle, CONFIG.PARTICLES.muzzle.spread,
     CONFIG.PARTICLES.muzzle.speedMin, CONFIG.PARTICLES.muzzle.speedMax,
     CONFIG.PARTICLES.muzzle.life, '#ffff00');
 

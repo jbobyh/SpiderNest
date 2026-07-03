@@ -27,7 +27,7 @@ export function spawnDamageNumber(state, x, y, damage, isCrit, scale = 1) {
     y,
     vx: (Math.random() - 0.5) * D.driftSpeed,
     vy: -D.riseSpeed * scale,
-    text: String(damage),
+    text: String(Math.floor(damage)),
     life: D.life,
     maxLife: D.life,
     age: 0,
