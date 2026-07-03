@@ -52,15 +52,15 @@ const CONFIG = {
 
   // Enemy stats
   ENEMY_STATS: {
-    spider:   { hp: 6, speed: 1, radius: 7, visualScale: 2.9, wobbleMin: 0.2, wobbleMax: 0.3, spawnMargin: 10 },
-    bat:      { hp: 6, speed: 1, radius: 7, visualScale: 3.9, animFps: 15, zigzagFreq: 4, zigzagAmp: 0.8 },
-    shooter:  { hp: 4, speed: 1, radius: 6, visualScale: 2.5, bulletSpeed: 100, shootRangeCells: 2, shootCd: 1.5, stopDistCells: 2 },
-    bull:     { hp: 8, speed: 1, radius: 6, visualScale: 3.2, prepareTime: 1, restTime: 1.5, chargeDistCells: 0.75, dashDistCells: 0.02 },
-    buldyga:  { hp: 16, speed: 1, radius: 6, visualScale: 4.0, accel: 20, friction: 3.5, speedIncrement: 0.1 },
-    cocoon:   { hp: 32, radius: 10, visualScale: 3.2, spawnInterval: 3.0 },
-    bloated:  { hp: 8, speed: 1, radius: 7, visualScale: 3.2, deathShotSpeed: 120 },
-    tank:     { hp: 20, speed: 0.7, radius: 14, visualScale: 2 },
-    wallshooter: { hp: 4, speed: 1, radius: 8, visualScale: 2.5, bulletSpeed: 50, shootRangeCells: 1.5, shootCd: 3.0, stopDistCells: 1.4, wallBulletCount: 5, wallBulletSpacing: 8 },
+    spider:   { hp: 60, speed: 1, radius: 7, visualScale: 2.9, wobbleMin: 0.2, wobbleMax: 0.3, spawnMargin: 10 },
+    bat:      { hp: 60, speed: 1, radius: 7, visualScale: 3.9, animFps: 15, zigzagFreq: 4, zigzagAmp: 0.8 },
+    shooter:  { hp: 40, speed: 1, radius: 6, visualScale: 2.5, bulletSpeed: 100, shootRangeCells: 2, shootCd: 1.5, stopDistCells: 2 },
+    bull:     { hp: 80, speed: 1, radius: 6, visualScale: 3.2, prepareTime: 1, restTime: 1.5, chargeDistCells: 0.75, dashDistCells: 0.02 },
+    buldyga:  { hp: 100, speed: 1, radius: 6, visualScale: 4.0, accel: 20, friction: 3.5, speedIncrement: 0.1 },
+    cocoon:   { hp: 200, radius: 10, visualScale: 3.2, spawnInterval: 3.0 },
+    bloated:  { hp: 60, speed: 1, radius: 7, visualScale: 3.2, deathShotSpeed: 120 },
+    tank:     { hp: 200, speed: 0.7, radius: 14, visualScale: 2 },
+    wallshooter: { hp: 20, speed: 1, radius: 8, visualScale: 2.5, bulletSpeed: 50, shootRangeCells: 1.5, shootCd: 3.0, stopDistCells: 1.4, wallBulletCount: 5, wallBulletSpacing: 8 },
   },
 
   // Spawn table key → actual enemy type for EnemyFactory.create()
@@ -94,15 +94,15 @@ const CONFIG = {
 
   // Enemy costs for budget-based spawning
   ENEMY_COSTS: {
-    bat: 15,          // летающий, зигзаг
-    soldier: 20,      // преследует игрока
-    shooter: 30,      // стреляет
-    bull: 40,         // рывки
-    buldyga: 50,      // инерция, ускорение
-    cocoon: 60,       // спавнит солдат
-    bloated: 35,      // взрывается при смерти
-    tank: 40,         // танк: большой, медленный, много HP
-    wallshooter: 60,  // 4 пули стеной
+    bat: 30,          // hp 60, летающий, зигзаг
+    soldier: 30,      // hp 60, преследует игрока
+    shooter: 25,      // hp 40, стреляет (+5 за дальнобойность)
+    bull: 40,         // hp 80, рывки
+    buldyga: 50,      // hp 100, инерция, ускорение
+    cocoon: 110,      // hp 200, спавнит солдат (+10 за спавн)
+    bloated: 40,      // hp 60, взрывается при смерти
+    tank: 80,        // hp 200, танк: большой, медленный, много HP
+    wallshooter: 40,  // hp 20, 4 пули стеной (+5 за стену пуль)
   },
 
   // ── Бюджетная генерация врагов в комнатах ──────────────────
@@ -231,14 +231,14 @@ const LEVEL_CONFIG = {
 // WEAPON DEFINITIONS
 // ============================================================
 const WEAPON_DEFS = {
-  pistol: {
+  pistol: {//dps 50
     id: 'pistol',
     label: 'ПИСТОЛЕТ',
     description: 'Обычный пистолет',
     color: '#00d4ff',       // цвет пули/иконки
     pellets: 1,             // кол-во пуль за выстрел
     spread: 0.1,            // разброс (рад)
-    damage: 1*2,             // урон одной пули
+    damage: 20,             // урон одной пули
     cooldown: 0.4,         // задержка между выстрелами (сек)
     bulletSpeed: 400,       // скорость пули (пикс/сек)
     range: 13,              // дальность в клетках
@@ -246,14 +246,14 @@ const WEAPON_DEFS = {
     shakeAmount: 0,       // сила тряски камеры
     spriteAngle: 0.1,       // поправка угла спрайта (рад)
   },
-  shotgun: {
+  shotgun: {//dps 80
     id: 'shotgun',
     label: 'ДРОБОВИК',
     description: 'Стреляет дробью.',
     color: '#ffaa00',
     pellets: 3,
     spread: 0.35,
-    damage: 1*2,
+    damage: 20,
     cooldown: 0.75,
     bulletSpeed: 440,
     range: 10,
@@ -261,14 +261,14 @@ const WEAPON_DEFS = {
     shakeAmount: 0.5,
     spriteAngle: 0.55,
   },
-  smg: {
+  smg: {//dps 50
     id: 'smg',
     label: 'ПП',
     description: 'Высокая скорострельность.',
     color: '#ff44ff',
     pellets: 1,
     spread: 0.20,
-    damage: 0.5*2,
+    damage: 6,
     cooldown: 0.12,
     bulletSpeed: 500,
     range: 18,
@@ -276,14 +276,14 @@ const WEAPON_DEFS = {
     shakeAmount: 0,
     spriteAngle: 0.8,
   },
-  rifle: {
+  rifle: {//dps 42
     id: 'rifle',
     label: 'ВИНТОВКА',
     description: 'Высокая точность и урон. Пробивает 2 врагов.',
     color: '#44ff44',
     pellets: 1,
     spread: 0.05,
-    damage: 3*2,
+    damage: 60,
     cooldown: 1.4,
     bulletSpeed: 700,
     range: 40,
@@ -291,29 +291,29 @@ const WEAPON_DEFS = {
     shakeAmount: 0.8,
     spriteAngle: 0.7,
   },
-  revolver: {
+  revolver: {//dps 66
     id: 'revolver',
     label: 'РЕВОЛЬВЕР',
     description: 'Высокая точность. Пробивает 1 врага.',
     color: '#8b4513',
     pellets: 1,
     spread: 0.08,
-    damage: 1*2,
-    cooldown: 0.7,
+    damage: 40,
+    cooldown: 0.6,
     bulletSpeed: 500,
-    range: 27,
+    range: 20,
     penetrate: 1,
     shakeAmount: 0.2,
     spriteAngle: 0,
   },
-  carbine: {
+  carbine: {//dps 60
     id: 'carbine',
     label: 'КАРАБИН',
     description: 'Очередь из 3 пуль.',
     color: '#556b2f',
     pellets: 1,
     spread: 0.15,
-    damage: 1*2,
+    damage: 20,
     cooldown: 0.8,
     burstSize: 3,           // кол-во пуль в очереди (мультивыстрел: +1 за апгрейд pellets)
     burstDuration: 0.2,     // полное время очереди (сек); задержка между пулями = burstDuration / (размер очереди - 1)
@@ -379,7 +379,7 @@ const BOSS_DEFS = {
 // ============================================================
 const UPGRADE_TYPES = [
   { id: 'pellets',       label: '+1 пуля к выстрелу',     description: 'Каждый выстрел выпускает на 1 пулю больше',                   color: '#ffaa00', max: 2, icon: '🔫', effects: { pellets: 1 } },
-  { id: 'damage',        label: '+2 урона от пули',        description: 'Каждая пуля наносит на 2 урона больше',                        color: '#ff4444', max: 2, icon: '💥', effects: { damage: 2 } },
+  { id: 'damage',        label: '+20% урона от пули',        description: 'Каждая пуля наносит на 20% урона больше',                        color: '#ff4444', max: 2, icon: '💥', effects: { damageMult: 0.20 } },
   { id: 'penetrate',     label: '+1 пробитие врага',       description: 'Пуля пролетает сквозь одного дополнительного врага',          color: '#ff44ff', max: 2, icon: '🎯', effects: { penetrate: 1 } },
   { id: 'bulletSpeed',   label: '+30% скорость пули',      description: 'Пули летят быстрее на +30%',                     color: '#ffff44', max: 2, icon: '⚡', effects: { bulletSpeedMult: 0.30 } },
   { id: 'critChance',    label: '+5% шанс крита',          description: '+5% шанс нанести двойной урон',                       color: '#ff0000', max: 3, icon: '⚔️', effects: { critChance: 0.05 } },
@@ -387,7 +387,7 @@ const UPGRADE_TYPES = [
   { id: 'enhancedPierce',label: 'Усиленное пробитие',      description: 'Пуля, пробившая врага, имеет шанс 50% нанести удвоенный урон',               color: '#aa44ff', max: 1, icon: '🗡️', effects: { enhancedPierce: true } },
   { id: 'shield',        label: 'Щит',                     description: 'Поглощает один удар без потери жизни. Тратится.',                        color: '#00aaff', max: 2, icon: '🛡️', effects: { shield: 1 } },
   { id: 'retreat',       label: 'Отступление',             description: 'После получения урона получи неуязвимость на 1.5 секунды',                  color: '#00ffaa', max: 2, icon: '🏃‍♂️', effects: { retreat: 1 } },
-  { id: 'reflection',    label: 'Отражение',               description: 'При получении урона выпускает 3 пули в ближайших врагов',        color: '#ff00ff', max: 1, icon: '🔄', effects: { reflection: true } },
+  //{ id: 'reflection',    label: 'Отражение',               description: 'При получении урона выпускает 3 пули в ближайших врагов',        color: '#ff00ff', max: 1, icon: '🔄', effects: { reflection: true } },
   { id: 'cooldown',      label: 'Перезарядка -15%',        description: 'Уменьшает время между выстрелами на 15%',                    color: '#00ccff', max: 3, icon: '⏱️', effects: { cooldownMult: -0.15 } },
   { id: 'speed',         label: 'Скорость бега +10%',      description: 'Увеличивает скорость передвижения на 10%',                    color: '#44ff88', max: 3, icon: '💨', effects: { speedMult: 0.10 } },
 ];

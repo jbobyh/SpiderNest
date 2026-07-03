@@ -192,7 +192,7 @@ function _spawnPlayerBullet(state, weapon, angle, bulletSpeed, scale, battleStat
   const spatialCritChance = getSpatialBonus(state, 'critChance');
   const isCrit = Math.random() < (state.upgrades.critChance + spatialCritChance);
   
-  let damage = weapon.damage + state.upgrades.damage;
+  let damage = weapon.damage * (1 + state.upgrades.damageMult);
   if (isCrit) {
     const spatialCritDamage = getSpatialBonus(state, 'critDamage');
     const critMult = 2 + spatialCritDamage;

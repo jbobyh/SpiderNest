@@ -19,7 +19,7 @@ export function createDefaultProgress() {
     totalHeartsCollected: 0,
     upgrades: {
       pellets: 0,
-      damage: 0,
+      damageMult: 0,
       penetrate: 0,
       cooldownMult: 1.0,
       speedMult: 1.0,

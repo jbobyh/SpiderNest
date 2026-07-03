@@ -223,7 +223,7 @@ function _updateStatsPanel(s) {
   // Damage calculation
   const spatialCritChance = getSpatialBonus(s, 'critChance');
   const critChance = (s.upgrades.critChance + spatialCritChance);
-  const damage = (weapon?.damage || 2) + s.upgrades.damage;
+  const damage = Math.round((weapon?.damage || 2) * (1 + s.upgrades.damageMult));
 
   const spatialCritDamage = getSpatialBonus(s, 'critDamage');
   const critMult = 2 + spatialCritDamage;
@@ -396,7 +396,7 @@ function _updateUpgrades(s) {
     if (!REGULAR_UPGRADE_IDS.includes(upg.id)) continue;
     let level = 0;
     if (upg.id === 'pellets') level = s.upgrades.pellets || 0;
-    else if (upg.id === 'damage') level = s.upgrades.damage || 0;
+    else if (upg.id === 'damage') level = s.upgrades.damageMult > 0 ? Math.round(s.upgrades.damageMult / 0.20) : 0;
     else if (upg.id === 'penetrate') level = s.upgrades.penetrate || 0;
     else if (upg.id === 'bulletSpeed') level = s.upgrades.bulletSpeedMult > 1 ? 1 : 0;
     else if (upg.id === 'critChance') level = s.upgrades.critChance > 0 ? Math.ceil(s.upgrades.critChance * 20) : 0;
