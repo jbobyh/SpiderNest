@@ -26,5 +26,5 @@ start "Python HTTP Server" !PYTHON_CMD! -m http.server 8000
 REM Небольшая задержка для инициализации сервера
 timeout /t 2 /nobreak >nul
 
-echo Открываем браузер: http://localhost:8000/pixijs/
-start http://localhost:8000/pixijs/
+echo Открываем браузер: http://localhost:8000/
+start http://localhost:8000/

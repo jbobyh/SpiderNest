@@ -1,83 +1,116 @@
 import { ParticleContainer, Particle, Graphics, Rectangle } from 'pixi.js';
 import { app } from '../core/app.js';
 
-let _container = null;
-let _texture = null;
-const _particleMap = new Map(); // Bullet -> Particle
-const _pool = [];
+const BULLET_R = CONFIG.BULLET_RENDER?.radius ?? 2.5;
 
-const BULLET_R = CONFIG.BULLET_RADIUS || 3;
+const PLAYER_EDGE = 0xffff00;
+const ENEMY_EDGE  = 0xff0000;
 
-/**
- * Initialize the bullet renderer with a ParticleContainer.
- * @param {import('pixi.js').Container} parent - The layer to add the container to.
- */
-export function initBulletRenderer(parent) {
-  if (_container) {
-    if (_container.parent) _container.parent.removeChild(_container);
-    _container.destroy({ children: true });
+const _slots = {
+  playerCore: { container: null, texture: null, map: new Map(), pool: [] },
+  enemyCore:  { container: null, texture: null, map: new Map(), pool: [] },
+};
+
+function _slotFor(b) {
+  const isPlayer = b.owner === 'player' && !b.isCrit;
+  return isPlayer ? 'player' : 'enemy';
+}
+
+function _createCoreTexture(edgeColor, scale = 1) {
+  const br = BULLET_R * scale;
+  const g = new Graphics();
+  const steps = 6;
+  const er = (edgeColor >> 16) & 0xff;
+  const eg = (edgeColor >> 8) & 0xff;
+  const eb = edgeColor & 0xff;
+  for (let i = steps; i >= 1; i--) {
+    const r = (br * i) / steps;
+    const t = (i - 1) / (steps - 1);
+    const r2 = Math.round(0xff + (er - 0xff) * t);
+    const g2 = Math.round(0xff + (eg - 0xff) * t);
+    const b2 = Math.round(0xff + (eb - 0xff) * t);
+    g.circle(0, 0, r).fill({ color: (r2 << 16) | (g2 << 8) | b2 });
   }
-
-  // Create a simple circle texture for bullets
-  const g = new Graphics().circle(0, 0, BULLET_R).fill({ color: 0xffffff });
-  _texture = app.renderer.generateTexture(g);
+  const tex = app.renderer.generateTexture(g);
   g.destroy();
-
-  _container = new ParticleContainer({
-    texture: _texture,
-    dynamicProperties: {
-      position: true,
-      color: true,
-      rotation: false,
-      uvs: false,
-    },
-    // Set a large enough boundsArea to avoid culling
-    boundsArea: new Rectangle(-5000, -5000, 10000, 10000),
-  });
-
-  parent.addChild(_container);
+  return tex;
 }
 
-/**
- * Sync bullet objects from the manager to the ParticleContainer.
- * @param {object[]} bullets - Array of Bullet objects from the manager.
- */
+export function initBulletRenderer(parent) {
+  for (const key of Object.keys(_slots)) {
+    const s = _slots[key];
+    if (s.container) {
+      if (s.container.parent) s.container.parent.removeChild(s.container);
+      s.container.destroy({ children: true });
+    }
+    s.map.clear();
+    s.pool.length = 0;
+  }
+
+  _slots.playerCore.texture = _createCoreTexture(PLAYER_EDGE);
+  _slots.enemyCore.texture  = _createCoreTexture(ENEMY_EDGE);
+
+  const order = ['enemyCore', 'playerCore'];
+  for (const key of order) {
+    const s = _slots[key];
+    s.container = new ParticleContainer({
+      texture: s.texture,
+      dynamicProperties: {
+        position: true,
+        color: false,
+        rotation: false,
+        uvs: false,
+      },
+      boundsArea: new Rectangle(-5000, -5000, 10000, 10000),
+    });
+    s.container.blendMode = 'normal';
+    parent.addChild(s.container);
+  }
+}
+
 export function syncBullets(bullets) {
-  if (!_container) return;
+  for (const key of Object.keys(_slots)) {
+    const s = _slots[key];
+    if (!s.container) continue;
 
-  // 1. Remove particles for dead bullets
-  for (const [bullet, particle] of _particleMap) {
-    if (bullet.isDead || !bullets.includes(bullet)) {
-      _container.removeParticle(particle);
-      _pool.push(particle);
-      _particleMap.delete(bullet);
+    for (const [bullet, particle] of s.map) {
+      if (bullet.isDead || !bullets.includes(bullet)) {
+        s.container.removeParticle(particle);
+        s.pool.push(particle);
+        s.map.delete(bullet);
+      }
     }
   }
 
-  // 2. Add/Update particles
   for (const b of bullets) {
-    let p = _particleMap.get(b);
-    if (!p) {
-      p = _pool.pop() ?? new Particle({ texture: _texture });
-      p.anchorX = 0.5;
-      p.anchorY = 0.5;
-      _container.addParticle(p);
-      _particleMap.set(b, p);
-    }
+    const prefix = _slotFor(b);
+    for (const layer of ['Core']) {
+      const key = prefix + layer;
+      const s = _slots[key];
+      if (!s.container) continue;
 
-    p.x = b.x;
-    p.y = b.y;
-    p.tint = b.color;
+      let p = s.map.get(b);
+      if (!p) {
+        p = s.pool.pop() ?? new Particle({ texture: s.texture });
+        p.anchorX = 0.5;
+        p.anchorY = 0.5;
+        s.container.addParticle(p);
+        s.map.set(b, p);
+      }
+
+      p.x = b.x;
+      p.y = b.y;
+    }
   }
 }
 
-/**
- * Destroy all tracked particles and clear maps.
- */
 export function clearBullets() {
-  if (_container) {
-    _container.removeParticles();
+  for (const key of Object.keys(_slots)) {
+    const s = _slots[key];
+    if (s.container) {
+      s.container.removeParticles();
+    }
+    s.map.clear();
+    s.pool.length = 0;
   }
-  _particleMap.clear();
-  _pool.length = 0;
 }

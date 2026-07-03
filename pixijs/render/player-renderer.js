@@ -5,7 +5,7 @@
 // updatePlayerSprite(state, dt)     — sync to game state each frame
 // destroyPlayerRenderer()           — cleanup
 //
-// Globals used: CONFIG, HERO_ANIMS, WEAPON_DEFS, HERO_SW (from config.js)
+// Globals used: CONFIG, SPRITE_SHEETS.hero (from config.js)
 // ============================================================
 
 import { Sprite } from 'pixi.js';
@@ -69,7 +69,7 @@ export function updatePlayerSprite(state, dt) {
   }
   _anim.flip = flip;
 
-  const animDef  = HERO_ANIMS[key];
+  const animDef  = SPRITE_SHEETS.hero.anims[key];
   _anim.timer   += dt;
   const frameDur  = 1 / animDef.fps;
   while (_anim.timer >= frameDur) {
@@ -82,7 +82,7 @@ export function updatePlayerSprite(state, dt) {
   if (tex && _heroSprite.texture !== tex) _heroSprite.texture = tex;
 
   const drawSize = CONFIG.PLAYER_SPRITE_RADIUS * 2;
-  const s = drawSize / HERO_SW;
+  const s = drawSize / SPRITE_SHEETS.hero.sw;
   _heroSprite.scale.x  = (flip ? -1 : 1) * s;
   _heroSprite.scale.y  = s;
   _heroSprite.x = p.x;

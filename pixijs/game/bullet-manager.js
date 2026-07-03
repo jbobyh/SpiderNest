@@ -15,7 +15,7 @@ class BulletManager {
     return b;
   }
 
-  update(state, dt, onEnemyKilled, onPlayerHit, isBattle = false) {
+  update(state, dt, onEnemyKilled, onPlayerHit, isBattle = false, onStasisTriggered = null) {
     const BS = isBattle ? (CONFIG.BATTLE_SCALE || 1) : 1;
     const worldBullets = this.bullets;
     
@@ -35,6 +35,23 @@ class BulletManager {
       const dx = b.x - prevX;
       const dy = b.y - prevY;
       b.distanceTraveled += Math.hypot(dx, dy);
+
+      // Bullet trail for player and enemy bullets
+      if (b._trailTimer <= 0) {
+        const trailColor = b.owner === 'player'
+          ? (b.isCrit ? '#ff6600' : '#ffdd44')
+          : '#ff0000';
+        activeState.particles.push({
+          x: b.x - b.vx * 0.01,
+          y: b.y - b.vy * 0.01,
+          vx: 0, vy: 0,
+          life: CONFIG.BULLET_TRAIL.life,
+          maxLife: CONFIG.BULLET_TRAIL.life,
+          color: trailColor,
+        });
+        b._trailTimer = CONFIG.BULLET_TRAIL.interval;
+      }
+      b._trailTimer -= dt;
 
       // 2. Room Bonuses (Speed/Penetrate)
       this._applyRoomBonuses(b, state, isBattle);
@@ -65,13 +82,25 @@ class BulletManager {
           ? this._battleCrossesWall(activeState, CELL_PX * BS, prevX, prevY, b.x, b.y)
           : crossesWall(removedWalls, prevX, prevY, b.x, b.y);
 
+        const prevCell = cellOf(prevX / (isBattle ? BS : 1), prevY / (isBattle ? BS : 1));
+        const prevCellKey = isBattle
+          ? cellKey(prevCell.x + activeState.cellOffsetX, prevCell.y + activeState.cellOffsetY)
+          : cellKey(prevCell.x, prevCell.y);
+        const prevRoomBonus = getRoomBonus(state, prevCellKey);
+        const wasInRoom = isBattle 
+          ? openCells.has(prevCellKey)
+          : inRoom(prevX, prevY, openCells);
+
         const currentCell = cellOf(b.x / (isBattle ? BS : 1), b.y / (isBattle ? BS : 1));
         const cellIsBlocked = isBattle 
           ? !openCells.has(cellKey(currentCell.x + activeState.cellOffsetX, currentCell.y + activeState.cellOffsetY))
           : !inRoom(b.x, b.y, openCells);
 
-        if (cellIsBlocked || hitsPartition) {
-          if (b.ricochet && !b._ricocheted) {
+        const hitsWall = cellIsBlocked || hitsPartition;
+
+        if (hitsWall) {
+          const canRicochet = !b._ricocheted && wasInRoom && (b._baseRicochet || prevRoomBonus === 'ricochet');
+          if (canRicochet) {
             this._handleRicochet(b, activeState, prevX, prevY, dt, isBattle, worldBullets, i);
           } else {
             this._handleWallHit(b, state, isBattle, worldBullets, i);
@@ -84,7 +113,7 @@ class BulletManager {
 
       // 5. Entity collisions
       if (b.owner === 'player') {
-        if (this._checkEnemyCollisions(b, state, activeState, onEnemyKilled, isBattle)) {
+        if (this._checkEnemyCollisions(b, state, activeState, onEnemyKilled, isBattle, onStasisTriggered)) {
           worldBullets.splice(i, 1);
           releaseBullet(b);
           continue;
@@ -126,6 +155,12 @@ class BulletManager {
         b.vy = b._baseVy;
       }
       
+      if (roomBonus === 'ricochet') {
+        b.ricochet = true;
+      } else if (b._lastRoomBonus === 'ricochet') {
+        b.ricochet = b._baseRicochet;
+      }
+
       if (b.owner === 'player') {
         if (roomBonus === 'penetrate') {
           b.penetrate = Infinity;
@@ -145,10 +180,10 @@ class BulletManager {
     
     Sounds.wallhit?.();
     spawnParticles(particles, b.x, b.y,
-      CONFIG.WALL_HIT_PARTICLES_COUNT, 0, Math.PI * 2,
-      CONFIG.WALL_HIT_PARTICLES_SPEED * (isBattle ? CONFIG.BATTLE_SCALE : 1), 
-      CONFIG.WALL_HIT_PARTICLES_SPEED * (isBattle ? CONFIG.BATTLE_SCALE : 1),
-      CONFIG.WALL_HIT_PARTICLES_LIFE, color);
+      CONFIG.PARTICLES.wallHit.count, 0, Math.PI * 2,
+      CONFIG.PARTICLES.wallHit.speed * (isBattle ? CONFIG.BATTLE_SCALE : 1), 
+      CONFIG.PARTICLES.wallHit.speed * (isBattle ? CONFIG.BATTLE_SCALE : 1),
+      CONFIG.PARTICLES.wallHit.life, color);
       
     worldBullets.splice(i, 1);
     releaseBullet(b);
@@ -193,9 +228,9 @@ class BulletManager {
 
     b.hitEntities.clear();
     Sounds.wallhit?.();
-    spawnParticles(activeState.particles, b.x, b.y, CONFIG.WALL_HIT_PARTICLES_COUNT, 0, Math.PI * 2,
-      CONFIG.WALL_HIT_PARTICLES_SPEED * BS, CONFIG.WALL_HIT_PARTICLES_SPEED * BS,
-      CONFIG.WALL_HIT_PARTICLES_LIFE, '#22ffdd');
+    spawnParticles(activeState.particles, b.x, b.y, CONFIG.PARTICLES.wallHit.count, 0, Math.PI * 2,
+      CONFIG.PARTICLES.wallHit.speed * BS, CONFIG.PARTICLES.wallHit.speed * BS,
+      CONFIG.PARTICLES.wallHit.life, '#22ffdd');
   }
 
   _handleBattleRicochet(b, activeState, worldBullets, i) {
@@ -206,21 +241,21 @@ class BulletManager {
     b.hitEntities.clear();
     
     const BS = CONFIG.BATTLE_SCALE || 1;
-    spawnParticles(activeState.particles, b.x, b.y, CONFIG.WALL_HIT_PARTICLES_COUNT, 0, Math.PI * 2,
-      CONFIG.WALL_HIT_PARTICLES_SPEED * BS, CONFIG.WALL_HIT_PARTICLES_SPEED * BS,
-      CONFIG.WALL_HIT_PARTICLES_LIFE, '#22ffdd');
+    spawnParticles(activeState.particles, b.x, b.y, CONFIG.PARTICLES.wallHit.count, 0, Math.PI * 2,
+      CONFIG.PARTICLES.wallHit.speed * BS, CONFIG.PARTICLES.wallHit.speed * BS,
+      CONFIG.PARTICLES.wallHit.life, '#22ffdd');
   }
 
-  _checkEnemyCollisions(b, state, activeState, onEnemyKilled, isBattle) {
+  _checkEnemyCollisions(b, state, activeState, onEnemyKilled, isBattle, onStasisTriggered = null) {
     const BS = isBattle ? (CONFIG.BATTLE_SCALE || 1) : 1;
     const spiders = activeState.activeSpiders;
     
     for (let j = spiders.length - 1; j >= 0; j--) {
       const g = spiders[j];
-      if (b.hitEntities.has(g)) continue;
+      if (b.hitEntities.has(g) || g.isDead || g.hp <= 0) continue;
       
       const dist = Math.hypot(b.x - g.x, b.y - g.y);
-      if (dist >= ((g.radius || CONFIG.SPIDER_RADIUS) + CONFIG.BULLET_RADIUS) * BS) continue;
+      if (dist >= ((g.radius || CONFIG.ENEMY_STATS.spider.radius) + CONFIG.BULLET_RADIUS) * BS) continue;
 
       // Hit!
       let damage = b.damage;
@@ -231,6 +266,11 @@ class BulletManager {
       if (g.takeDamage) {
         g.takeDamage(damage, b.isCrit);
       } else {
+        if (!g.isBoss) {
+          g.hpBarVisible = true;
+          g.hpDamageStart = g.displayedHp ?? g.hp;
+          g.hpDamageTimer = 0;
+        }
         g.hp -= damage;
         g.hitFlash = CONFIG.ENEMY_HIT_FLASH_DURATION;
         if (!g.isBoss) g.stunTimer = CONFIG.ENEMY_STUN_DURATION;
@@ -238,23 +278,29 @@ class BulletManager {
       }
 
       if (!isBattle) {
-        spawnDamageNumber(state, g.x, g.y - (g.radius || CONFIG.SPIDER_RADIUS), damage, b.isCrit, 1);
+        spawnDamageNumber(state, g.x, g.y - (g.radius || CONFIG.ENEMY_STATS.spider.radius), damage, b.isCrit, 1);
       }
 
       // Hit particles
       const bAngle = Math.atan2(b.vy, b.vx);
-      for (let k = 0; k < CONFIG.HIT_PARTICLES_COUNT; k++) {
-        const sp = bAngle + (Math.random() - 0.5) * CONFIG.HIT_PARTICLES_SPREAD;
-        const spd = (CONFIG.HIT_PARTICLES_SPEED_MIN + Math.random() * (CONFIG.HIT_PARTICLES_SPEED_MAX - CONFIG.HIT_PARTICLES_SPEED_MIN)) * BS;
+      const hitCount = b.isCrit ? CONFIG.PARTICLES.hit.critCount : CONFIG.PARTICLES.hit.count;
+      for (let k = 0; k < hitCount; k++) {
+        const sp = bAngle + (Math.random() - 0.5) * CONFIG.PARTICLES.hit.spread;
+        const spd = (CONFIG.PARTICLES.hit.speedMin + Math.random() * (CONFIG.PARTICLES.hit.speedMax - CONFIG.PARTICLES.hit.speedMin)) * BS;
         activeState.particles.push({ 
           x: g.x, y: g.y, vx: Math.cos(sp) * spd, vy: Math.sin(sp) * spd,
-          life: CONFIG.HIT_PARTICLES_LIFE, maxLife: CONFIG.HIT_PARTICLES_LIFE, color: CONFIG.HIT_PARTICLES_COLOR 
+          life: CONFIG.PARTICLES.hit.life, maxLife: CONFIG.PARTICLES.hit.life, color: CONFIG.PARTICLES.hit.color 
         });
       }
 
       if (g.hp <= 0 && onEnemyKilled) {
         if (isBattle) onEnemyKilled(g, state, activeState, j);
         else onEnemyKilled(g, state);
+      }
+
+      // Trigger stasis room on damage
+      if (g.stasis && onStasisTriggered) {
+        onStasisTriggered(g);
       }
 
       b.hitCount++;

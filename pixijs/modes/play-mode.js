@@ -17,7 +17,7 @@ import { getCurrentLevel, saveCurrentGame } from '../game-loop.js';
 import {
   cellOf, cellKey, getWallAtPoint, getRoomBonus, getRoomSpeedMultiplier,
 } from '../world/constants.js';
-import { setBodyVelocity, setPlayerDashing } from '../world/physics.js';
+import { setBodyVelocity, updatePlayerCollision } from '../world/physics.js';
 import { bulletManager } from '../game/bullet-manager.js';
 import {
   shoot, pickupWeapon, enemyBulletRange, ENEMY_BULLET_COLOR, getSpatialBonus,
@@ -68,6 +68,9 @@ export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}
 
   // ── Invulnerability timer ─────────────────────────────────
   if (state.player.invulnerable > 0) state.player.invulnerable -= dt;
+  if (state.player.body) {
+    updatePlayerCollision(state.player.body, state.player.isDashing, state.player.invulnerable > 0);
+  }
 
   // ── Dash cooldown ─────────────────────────────────────────
   if (state.player.dashCooldown > 0) state.player.dashCooldown -= dt;
@@ -99,7 +102,7 @@ export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}
                       state.burstRemaining > 0 &&
                       state.burstWeaponId === wDef.id;
   if ((mouse.held || burstActive) && state.shootCooldown <= 0) {
-    shoot(state);
+    shoot(state, camera);
   }
 
   // Interaction check (F key)
@@ -159,7 +162,13 @@ export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}
   handleWeaponPickup(state, playerProgress, interactTriggered);
 
   // ── Bullets ───────────────────────────────────────────────
-  bulletManager.update(state, dt, _onEnemyKilled.bind(null, state, playerProgress), _onPlayerHit.bind(null, state, playerProgress, onPlayerDead));
+  const onStasisTriggered = isBattle ? null : (enemy) => {
+    if (state.phase !== 'play') return;
+    if (!enemy.stasis) return;
+    const room = state.rooms?.[enemy.stasisRoomIdx];
+    if (room && onEnterBattle) onEnterBattle(room.cells[0].k);
+  };
+  bulletManager.update(state, dt, _onEnemyKilled.bind(null, state, playerProgress), _onPlayerHit.bind(null, state, playerProgress, onPlayerDead), false, onStasisTriggered);
 
   // ── Particles ─────────────────────────────────────────────
   _stepParticles(state.particles, dt);
@@ -190,14 +199,14 @@ export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}
     let dx = state.mouse.x - state.player.x;
     let dy = state.mouse.y - state.player.y;
     const dist = Math.hypot(dx, dy);
-    if (dist > CONFIG.CAMERA_MAX_OFFSET) {
-      dx *= CONFIG.CAMERA_MAX_OFFSET / dist;
-      dy *= CONFIG.CAMERA_MAX_OFFSET / dist;
+    if (dist > CONFIG.CAMERA.maxOffset) {
+      dx *= CONFIG.CAMERA.maxOffset / dist;
+      dy *= CONFIG.CAMERA.maxOffset / dist;
     }
-    camera.setZoom(CONFIG.PLAY_MODE_ZOOM);
+    camera.setZoom(CONFIG.CAMERA.playZoom);
     camera.moveTo(
-      state.player.x + dx * CONFIG.CAMERA_CURSOR_WEIGHT,
-      state.player.y + dy * CONFIG.CAMERA_CURSOR_WEIGHT,
+      state.player.x + dx * CONFIG.CAMERA.cursorWeight,
+      state.player.y + dy * CONFIG.CAMERA.cursorWeight,
     );
   }
   camera.update(dt);
@@ -263,7 +272,7 @@ function _startDash(state) {
   state.player.dashCooldown = CONFIG.PLAYER_DASH_COOLDOWN;
   Sounds.dash?.();
   if (state.player.body) {
-    setPlayerDashing(state.player.body, true);
+    updatePlayerCollision(state.player.body, true, state.player.invulnerable > 0);
     setBodyVelocity(state.player.body,
       state.player.dashDirX * CONFIG.PLAYER_DASH_SPEED,
       state.player.dashDirY * CONFIG.PLAYER_DASH_SPEED);
@@ -278,7 +287,7 @@ function _stepDash(state, dt) {
 
   if (state.player.dashProgress >= CONFIG.PLAYER_DASH_DISTANCE || hitWall) {
     state.player.isDashing = false;
-    if (body) { setPlayerDashing(body, false); setBodyVelocity(body, 0, 0); }
+    if (body) { updatePlayerCollision(body, false, state.player.invulnerable > 0); setBodyVelocity(body, 0, 0); }
   }
 }
 
@@ -355,7 +364,7 @@ function _processPendingSpawns(b, state, dt) {
 function _onEnemyKilled(state, playerProgress, g) {
   if (state.upgrades.killAccel) {
     state.upgrades.killAccelPercent =
-      Math.min(80, (state.upgrades.killAccelPercent || 0) + 5);
+      Math.min(80, (state.upgrades.killAccelPercent || 0) + 0.1);
     if (playerProgress && playerProgress.upgrades) {
       playerProgress.upgrades.killAccelPercent = state.upgrades.killAccelPercent;
     }
@@ -370,8 +379,8 @@ function _onEnemyKilled(state, playerProgress, g) {
     const pdy = state.player.y - g.y;
     const pdist = Math.hypot(pdx, pdy);
     if (pdist > 0) {
-      const ebx = (pdx / pdist) * CONFIG.BLOATED_DEATH_SHOT_SPEED;
-      const eby = (pdy / pdist) * CONFIG.BLOATED_DEATH_SHOT_SPEED;
+      const ebx = (pdx / pdist) * CONFIG.ENEMY_STATS.bloated.deathShotSpeed;
+      const eby = (pdy / pdist) * CONFIG.ENEMY_STATS.bloated.deathShotSpeed;
       bulletManager.spawn({
         x: g.x, y: g.y,
         vx: ebx, vy: eby,

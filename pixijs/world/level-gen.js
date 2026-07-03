@@ -2,8 +2,8 @@
 // LEVEL GENERATION — pure data, no rendering
 // Ported from js/game-state.js :: initState()
 // Globals used (loaded by index.html):
-//   CONFIG, LEVEL_CONFIG, ROOM_POOLS, UPGRADE_TYPES,
-//   LEVEL_WEAPON_COUNTS, LEVEL_UPGRADE_COUNTS, LEVEL_CHEST_COUNTS
+//   CONFIG (incl. ENEMY_COSTS, ROOM_ENEMY_BUDGET, ROOM_CONTENT_BUDGET_MULT,
+//           ENEMY_SPAWN_TABLE), LEVEL_CONFIG, UPGRADE_TYPES
 // ============================================================
 
 import {
@@ -11,6 +11,7 @@ import {
   cellKey, cellFromKey, wallKey,
   shuffleInPlace, inBounds,
 } from './constants.js';
+import { EnemyFactory } from '../game/enemy-factory.js';
 
 // ── Room content types ───────────────────────────────────────
 
@@ -302,28 +303,79 @@ function generateRoomsGrid(targetRoomCount, roomQuotas) {
 }
 
 // ── Difficulty helpers ───────────────────────────────────────
+//
+// Сложность комнаты теперь считается по бюджету врагов:
+//   budget(cells) = base * growthRate^(cells-1), затем * levelMult * contentMult
+// Это выпуклая (нелинейная) кривая — большие комнаты ощутимо опаснее.
+// Дистанция от старта больше не влияет (раньше был easy/medium/hard тир).
 
-function cellDistanceFromStart(x, y, startX, startY) {
-  return Math.max(Math.abs(x - startX), Math.abs(y - startY));
+// Сопоставление типа содержимого комнаты → ключ множителя бюджета.
+// weapon/empty/start здесь нет намеренно (там нет врагов → множитель 0).
+const CONTENT_BUDGET_KEY = {
+  [ROOM_TYPES.SUMMON_SPHERE]: 'summonSphere',
+  [ROOM_TYPES.ROOM_BONUS]:    'roomBonus',
+  [ROOM_TYPES.HEART]:         'heart',
+  [ROOM_TYPES.CHEST]:         'chest',
+  [ROOM_TYPES.SPATIAL_CHEST]: 'spatial',
+  [ROOM_TYPES.ENEMY]:         'enemies',
+};
+
+function roomEnemyBudget(level, roomType, cellCount) {
+  const multKey = CONTENT_BUDGET_KEY[roomType];
+  if (!multKey) return 0; // start / weapon / empty — без врагов
+
+  const cfg = CONFIG.ROOM_ENEMY_BUDGET;
+  const levelMult = (cfg.levelMult[level] ?? cfg.levelMult[3]) || 1;
+  const contentMult = CONFIG.ROOM_CONTENT_BUDGET_MULT[multKey] ?? 1;
+
+  const raw = cfg.base * Math.pow(cfg.growthRate, Math.max(0, cellCount - 1));
+  return Math.round(raw * levelMult * contentMult);
 }
 
-function getDifficultyTier(dist, maxDist) {
-  if (maxDist <= 0) return 'easy';
-  const third = maxDist / 3;
-  if (dist <= third)     return 'easy';
-  if (dist <= third * 2) return 'medium';
-  return 'hard';
-}
+// Жадный взвешенный выбор состава врагов под заданный бюджет.
+// Возвращает объект { enemyKey: count, ... } (ключи — как в ENEMY_COSTS / ENEMY_POOL_TYPE_MAP).
+function generateRoomEnemyComposition(level, roomType, cellCount) {
+  const budget = roomEnemyBudget(level, roomType, cellCount);
+  if (budget <= 0) return {};
 
-function tierForRoom(rooms, ri, startX, startY, maxCellDist) {
-  const cell = rooms[ri].cells[0];
-  return getDifficultyTier(cellDistanceFromStart(cell.x, cell.y, startX, startY), maxCellDist);
-}
+  const costs  = CONFIG.ENEMY_COSTS;
+  const table  = CONFIG.ENEMY_SPAWN_TABLE[level] || CONFIG.ENEMY_SPAWN_TABLE[3];
+  const maxByCells = cellCount * (CONFIG.ROOM_ENEMY_BUDGET.maxEnemiesPerCell || 8);
+  const maxTotal   =  CONFIG.ROOM_ENEMY_BUDGET.maxEnemiesTotal || 32;
+  const maxEnemies = Math.min(maxByCells, maxTotal);
 
-function pickRoomPreset(level, poolName) {
-  const pools = ROOM_POOLS[level] || ROOM_POOLS[1];
-  const pool  = pools[poolName]   || pools.easy;
-  return { ...pool[Math.floor(Math.random() * pool.length)] };
+  // Доступные типы (цена ≤ бюджета), отсортированные по цене (дорогие — в конце).
+  const candidates = Object.keys(table)
+    .filter(k => costs[k] != null && costs[k] > 0 && table[k] > 0)
+    .map(k => ({ key: k, cost: costs[k], weight: table[k] }))
+    .filter(c => c.cost <= budget)
+    .sort((a, b) => a.cost - b.cost);
+  if (candidates.length === 0) return {};
+
+  let remaining = budget;
+  let total     = 0;
+  const out     = {};
+
+  while (total < maxEnemies) {
+    // Берём только тех, кого ещё можно себе позволить.
+    const affordable = candidates.filter(c => c.cost <= remaining);
+    if (affordable.length === 0) break;
+
+    // Взвешенный случайный выбор: дешёвые «базовые» враги выпадают чаще, элита — реже.
+    const totalWeight = affordable.reduce((s, c) => s + c.weight, 0);
+    let roll = Math.random() * totalWeight;
+    let picked = affordable[affordable.length - 1];
+    for (const c of affordable) {
+      roll -= c.weight;
+      if (roll <= 0) { picked = c; break; }
+    }
+
+    out[picked.key] = (out[picked.key] || 0) + 1;
+    remaining -= picked.cost;
+    total++;
+  }
+
+  return out;
 }
 
 function countEnemiesInPreset(preset) {
@@ -447,16 +499,19 @@ function assignRoomContents(level, rooms, availableRooms, playerProgress, cx, cy
   return assignments;
 }
 
-function applyRoomContent(ri, type, level, rooms, levelState, playerProgress, weaponPool, maxCellDist, cx, cy) {
+function applyRoomContent(ri, type, level, rooms, levelState, playerProgress, weaponPool) {
   const room = rooms[ri];
   const center = getRoomCenter(room);
   const centerKey = getCenterCellKey(room);
-  const tier = tierForRoom(rooms, ri, cx, cy, maxCellDist);
+
+  // Единая композиция врагов по бюджету (ячейки × уровень × тип содержимого).
+  // Для start/weapon/empty вернёт {} — врагов не будет.
+  const preset = generateRoomEnemyComposition(level, type, room.cells.length);
 
   // Default cell contents setup
-  const setCells = (contentFields, preset) => {
+  const setCells = (contentFields) => {
     for (const cell of room.cells) {
-      if (preset) {
+      if (Object.keys(preset).length > 0) {
         setCellEnemies(levelState.cellContents, cell.k, { ...contentFields, type }, preset);
       } else {
         levelState.cellContents.set(cell.k, { ...contentFields, type });
@@ -470,15 +525,13 @@ function applyRoomContent(ri, type, level, rooms, levelState, playerProgress, we
       break;
 
     case ROOM_TYPES.SUMMON_SPHERE: {
-      const preset = pickRoomPreset(level, tier);
-      setCells({}, preset);
+      setCells({});
       levelState.summonSphere = { x: center.x, y: center.y, cellKey: centerKey, collected: false, spawned: false };
       break;
     }
 
     case ROOM_TYPES.ROOM_BONUS: {
-      const preset = pickRoomPreset(level, 'simpleupgrade');
-      setCells({}, preset);
+      setCells({});
       levelState.roomBonusAltars.push({
         roomIdx: ri, x: center.x, y: center.y, cellKey: centerKey, activated: false, bonusType: null,
       });
@@ -498,29 +551,25 @@ function applyRoomContent(ri, type, level, rooms, levelState, playerProgress, we
     }
 
     case ROOM_TYPES.HEART: {
-      const preset = pickRoomPreset(level, tier);
-      setCells({}, preset);
+      setCells({});
       levelState.hearts.push({ x: center.x, y: center.y, cellKey: centerKey, collected: false, spawned: false });
       break;
     }
 
     case ROOM_TYPES.CHEST: {
-      const preset = pickRoomPreset(level, 'simpleupgrade');
-      setCells({}, preset);
+      setCells({});
       levelState.upgradeChests.push({ x: center.x, y: center.y, cellKey: centerKey, collected: false, spawned: true });
       break;
     }
 
     case ROOM_TYPES.SPATIAL_CHEST: {
-      const preset = pickRoomPreset(level, 'cursedupgrade');
-      setCells({}, preset);
+      setCells({});
       levelState.spatialChests.push({ x: center.x, y: center.y, cellKey: centerKey, collected: false, spawned: true });
       break;
     }
 
     case ROOM_TYPES.ENEMY: {
-      const preset = pickRoomPreset(level, tier);
-      setCells({}, preset);
+      setCells({});
       break;
     }
 
@@ -533,67 +582,39 @@ function applyRoomContent(ri, type, level, rooms, levelState, playerProgress, we
 
 // ── Enemy creation ───────────────────────────────────────────
 
-const ENEMY_POOL_TYPE_MAP = {
-  bat:     'bat',
-  soldier: 'soldier',
-  shooter: 'plevaka',
-  bull:    'bull',
-  buldyga: 'buldyga',
-  cocoon:  'cocoon',
-  bloated: 'bloated',
-};
-
 function getEnemyStats(enemyType, level) {
-  const hpMult = level >= 3 ? 4 : level === 2 ? 2 : 1;
-  switch (enemyType) {
-    case 'bat':     return { hp: CONFIG.BAT_HP    * hpMult, radius: CONFIG.BAT_RADIUS,    visualScale: CONFIG.BAT_VISUAL_SCALE };
-    case 'cocoon':  return { hp: CONFIG.COCOON_HP  * hpMult, radius: CONFIG.COCOON_RADIUS,  visualScale: CONFIG.COCOON_VISUAL_SCALE };
-    case 'bloated': return { hp: CONFIG.BLOATED_HP * hpMult, radius: CONFIG.BLOATED_RADIUS, visualScale: CONFIG.BLOATED_VISUAL_SCALE };
-    case 'bull':    return { hp: CONFIG.BULL_HP    * hpMult, radius: CONFIG.BULL_RADIUS,    visualScale: CONFIG.BULL_VISUAL_SCALE };
-    case 'buldyga': return { hp: CONFIG.BULDYGA_HP * hpMult, radius: CONFIG.BULDYGA_RADIUS, visualScale: CONFIG.BULDYGA_VISUAL_SCALE };
-    case 'plevaka': return { hp: CONFIG.SHOOTER_HP * hpMult, radius: CONFIG.SPIDER_RADIUS,  visualScale: CONFIG.SHOOTER_VISUAL_SCALE };
-    default:        return { hp: CONFIG.SPIDER_HP  * hpMult, radius: CONFIG.SPIDER_RADIUS,  visualScale: CONFIG.SPIDER_VISUAL_SCALE };
-  }
-}
-
-function createTrappedEnemy(enemyType, gx, gy, homeX, homeY, level) {
-  const { hp, radius, visualScale } = getEnemyStats(enemyType, level);
-  const isPlevaka = enemyType === 'plevaka' || enemyType === 'shooter';
-  const isAnimated = isPlevaka || enemyType === 'bat';
+  const hpMult = CONFIG.ENEMY_HP_MULT[level] || 1;
+  const mapping = CONFIG.ENEMY_TYPE_STATS[enemyType] || { statsKey: 'spider' };
+  const stats = CONFIG.ENEMY_STATS[mapping.statsKey] || CONFIG.ENEMY_STATS.spider;
+  const radiusStats = mapping.radiusKey ? CONFIG.ENEMY_STATS[mapping.radiusKey] : stats;
   return {
-    x: gx, y: gy,
-    homeX, homeY,
-    trapped: true,
-    phase:   Math.random() * Math.PI * 2,
-    wobble:  CONFIG.SPIDER_WOBBLE_MIN + Math.random() * (CONFIG.SPIDER_WOBBLE_MAX - CONFIG.SPIDER_WOBBLE_MIN),
-    vx: 0, vy: 0,
-    radius, hp, maxHp: hp, visualScale,
-    type:         enemyType,
-    shootCd:      0,
-    state:        'chase',
-    stateTimer:   0,
-    dashTargetX:  0, dashTargetY:  0,
-    dashDirX:     0, dashDirY:     0,
-    dashDistance: 0,
-    animState:  isAnimated ? (enemyType === 'bat' ? 'fly' : 'idle') : null,
-    animFrame:  isAnimated ? 0 : null,
-    animTimer:  isAnimated ? 0 : null,
-    currentSpeed:      enemyType === 'buldyga' ? CONFIG.BULDYGA_SPEED         : undefined,
-    speedAccumulator:  0,
-    spawnTimer:        enemyType === 'cocoon'  ? CONFIG.COCOON_SPAWN_INTERVAL : undefined,
+    hp: stats.hp * hpMult,
+    radius: radiusStats.radius,
+    visualScale: stats.visualScale,
   };
 }
 
-function spawnEnemiesFromPreset(preset, cellX, cellY, trappedSpiders, level) {
-  const margin = CONFIG.SPIDER_RADIUS + CONFIG.SPIDER_SPAWN_MARGIN;
+function createStasisEnemy(enemyType, gx, gy, level, roomIdx) {
+  const { hp, radius, visualScale } = getEnemyStats(enemyType, level);
+  const enemy = EnemyFactory.create(enemyType, gx, gy, {
+    hp, maxHp: hp, radius, visualScale, level,
+  });
+  enemy.stasis = true;
+  enemy.stasisRoomIdx = roomIdx;
+  return enemy;
+}
+
+function spawnEnemiesFromPreset(preset, cells, stasisEnemies, level, roomIdx) {
+  const margin = CONFIG.ENEMY_STATS.spider.radius + CONFIG.ENEMY_STATS.spider.spawnMargin;
   for (const [configKey, count] of Object.entries(preset)) {
     if (!count) continue;
-    const enemyType = ENEMY_POOL_TYPE_MAP[configKey];
+    const enemyType = CONFIG.ENEMY_POOL_TYPE_MAP[configKey];
     if (!enemyType) continue;
     for (let i = 0; i < count; i++) {
-      const gx = cellX * CELL_PX + margin + Math.random() * (CELL_PX - margin * 2);
-      const gy = cellY * CELL_PX + margin + Math.random() * (CELL_PX - margin * 2);
-      trappedSpiders.push(createTrappedEnemy(enemyType, gx, gy, cellX, cellY, level));
+      const cell = cells[Math.floor(Math.random() * cells.length)];
+      const gx = cell.x * CELL_PX + margin + Math.random() * (CELL_PX - margin * 2);
+      const gy = cell.y * CELL_PX + margin + Math.random() * (CELL_PX - margin * 2);
+      stasisEnemies.push(createStasisEnemy(enemyType, gx, gy, level, roomIdx));
     }
   }
 }
@@ -641,15 +662,6 @@ export function generateLevel(level, playerProgress) {
   for (let i = 1; i < rooms.length; i++) availableRooms.push(i);
   shuffleInPlace(availableRooms);
 
-  // Max distance for difficulty tiers (from start room)
-  let maxCellDist = 0;
-  for (const ri of availableRooms) {
-    for (const cell of rooms[ri].cells) {
-      const d = cellDistanceFromStart(cell.x, cell.y, cx, cy);
-      if (d > maxCellDist) maxCellDist = d;
-    }
-  }
-
   // ── Room content assignment ──
   const allWeapons = ['shotgun', 'smg', 'rifle', 'revolver', 'carbine'];
   const weaponPool = allWeapons.filter(w => !playerProgress.spawnedWeapons.includes(w));
@@ -667,15 +679,15 @@ export function generateLevel(level, playerProgress) {
   };
 
   const assignments = assignRoomContents(level, rooms, [...availableRooms], playerProgress, cx, cy, cellToRoom);
-  
+
   for (const [ri, type] of assignments.entries()) {
-    applyRoomContent(ri, type, level, rooms, levelState, playerProgress, weaponPool, maxCellDist, cx, cy);
+    applyRoomContent(ri, type, level, rooms, levelState, playerProgress, weaponPool);
   }
 
   // ── Only the start room is purified initially ──
   const purified = new Set([0]);
 
-  // ── Spawn trapped enemies ──
+  // ── Spawn stasis enemies ──
   const trappedSpiders   = [];
   const processedRooms   = new Set();
   for (const [k, content] of cellContents) {
@@ -683,8 +695,7 @@ export function generateLevel(level, playerProgress) {
     const ri = cellToRoom.get(k);
     if (ri === undefined || processedRooms.has(ri)) continue;
     processedRooms.add(ri);
-    const { x: spawnX, y: spawnY } = cellFromKey(getCenterCellKey(rooms[ri]));
-    spawnEnemiesFromPreset(content.enemyPreset, spawnX, spawnY, trappedSpiders, level);
+    spawnEnemiesFromPreset(content.enemyPreset, rooms[ri].cells, trappedSpiders, level, ri);
   }
 
   // ── Initial visibility ──

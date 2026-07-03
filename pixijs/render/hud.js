@@ -111,7 +111,7 @@ export function initHud(parentContainer) {
   dom.fpsCounter = new Text({ text: 'FPS: 60', style: STYLE_HINT });
   dom.fpsCounter.anchor.set(1, 1);
   dom.fpsCounter.position.set(VW - 8, VH - 8);
-  dom.fpsCounter.visible = CONFIG.SHOW_FPS === true;
+  dom.fpsCounter.visible = CONFIG.DEBUG.showFps === true;
   _parent.addChild(dom.fpsCounter);
 
   // Stats panel (centered)
@@ -141,8 +141,8 @@ export function updateHud(gameState, currentLevel, nearWeapon = false, nearAltar
   // Show/hide pickup hint (reuse panel, swap text)
   // Priority: room bonus altar > spatial chest > chest > altar > weapon
   const showHint = nearWeapon || nearAltar || nearChest || nearSpatialChest || nearRoomBonusAltar;
-  dom.pickupHint.visible = showHint;
-  if (showHint) {
+  dom.pickupHint.visible = showHint && !bossSummonReady;
+  if (showHint && !bossSummonReady) {
     let hintText = 'подобрать';
     if (nearRoomBonusAltar) hintText = 'Активировать алтарь комнаты';
     else if (nearSpatialChest) hintText = 'Открыть пространственный сундук';
@@ -150,6 +150,9 @@ export function updateHud(gameState, currentLevel, nearWeapon = false, nearAltar
     else if (nearAltar) hintText = 'Призвать врагов';
     _setPickupHintText(hintText);
   }
+
+  // Show boss summon hint
+  dom.bossSummonHint.visible = bossSummonReady;
 
   // Stats panel (Tab key)
   const showStats = keys['tab'];
@@ -220,7 +223,7 @@ function _updateStatsPanel(s) {
   // Damage calculation
   const spatialCritChance = getSpatialBonus(s, 'critChance');
   const critChance = (s.upgrades.critChance + spatialCritChance);
-  const damage = (weapon?.damage || 2) + s.upgrades.damage;
+  const damage = Math.round((weapon?.damage || 2) * (1 + s.upgrades.damageMult));
 
   const spatialCritDamage = getSpatialBonus(s, 'critDamage');
   const critMult = 2 + spatialCritDamage;
@@ -393,7 +396,7 @@ function _updateUpgrades(s) {
     if (!REGULAR_UPGRADE_IDS.includes(upg.id)) continue;
     let level = 0;
     if (upg.id === 'pellets') level = s.upgrades.pellets || 0;
-    else if (upg.id === 'damage') level = s.upgrades.damage || 0;
+    else if (upg.id === 'damage') level = s.upgrades.damageMult > 0 ? Math.round(s.upgrades.damageMult / 0.20) : 0;
     else if (upg.id === 'penetrate') level = s.upgrades.penetrate || 0;
     else if (upg.id === 'bulletSpeed') level = s.upgrades.bulletSpeedMult > 1 ? 1 : 0;
     else if (upg.id === 'critChance') level = s.upgrades.critChance > 0 ? Math.ceil(s.upgrades.critChance * 20) : 0;
@@ -850,7 +853,7 @@ export function updateBossHpBar(gameState) {
 
 export function updateFps(fps) {
   if (!dom.fpsCounter) return;
-  dom.fpsCounter.visible = CONFIG.SHOW_FPS === true;
+  dom.fpsCounter.visible = CONFIG.DEBUG.showFps === true;
   if (dom.fpsCounter.visible) {
     dom.fpsCounter.text = `FPS: ${Math.round(fps)}`;
   }

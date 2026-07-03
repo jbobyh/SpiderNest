@@ -127,7 +127,7 @@ function _shuffleInPlace(arr) {
 export function dealPlayerDamage(state, playerProgress, _unused, onDead) {
   const s = state;
 
-  if (s.player.invulnerable > 0 || CONFIG.DEBUG_INVULNERABLE) return false;
+  if (s.player.invulnerable > 0 || CONFIG.DEBUG.invulnerable) return false;
 
   // Shield absorbs
   if (s.upgrades.shield > 0) {
@@ -158,13 +158,13 @@ export function dealPlayerDamage(state, playerProgress, _unused, onDead) {
     for (let i = s.activeSpiders.length - 1; i >= 0; i--) {
       const e = s.activeSpiders[i];
       if (!e || e.isBoss) continue;
-      s.deathCorpses.push({ x: e.x, y: e.y, type: e.type, radius: e.radius || CONFIG.SPIDER_RADIUS,
+      s.deathCorpses.push({ x: e.x, y: e.y, type: e.type, radius: e.radius || CONFIG.ENEMY_STATS.spider.radius,
         visualScale: e.visualScale || 3.2, life: 2, maxLife: 2 });
-      for (let k = 0; k < CONFIG.DEATH_PARTICLES_COUNT; k++) {
+      for (let k = 0; k < CONFIG.PARTICLES.death.count; k++) {
         const a = Math.random() * Math.PI * 2;
-        const spd = CONFIG.DEATH_PARTICLES_SPEED_MIN + Math.random() * (CONFIG.DEATH_PARTICLES_SPEED_MAX - CONFIG.DEATH_PARTICLES_SPEED_MIN);
+        const spd = CONFIG.PARTICLES.death.speedMin + Math.random() * (CONFIG.PARTICLES.death.speedMax - CONFIG.PARTICLES.death.speedMin);
         s.particles.push({ x: e.x, y: e.y, vx: Math.cos(a)*spd, vy: Math.sin(a)*spd,
-          life: CONFIG.DEATH_PARTICLES_LIFE, maxLife: CONFIG.DEATH_PARTICLES_LIFE, color: '#ff4444' });
+          life: CONFIG.PARTICLES.death.life, maxLife: CONFIG.PARTICLES.death.life, color: '#ff4444' });
       }
       s.activeSpiders.splice(i, 1);
     }

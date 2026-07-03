@@ -13,7 +13,7 @@ export function syncDebugColliders(isBattle = false) {
 
   _debugGraphics.clear();
 
-  if (!CONFIG.DEBUG_COLLISIONS) return;
+  if (!CONFIG.DEBUG.collisions) return;
 
   const bodies = getAllBodies();
   const BS = isBattle ? (CONFIG.BATTLE_SCALE || 1) : 1;

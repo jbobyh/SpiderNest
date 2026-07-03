@@ -9,7 +9,7 @@ export class Enemy {
     this.vx = data.vx || 0;
     this.vy = data.vy || 0;
     this.maxHp = data.maxHp || data.hp;
-    this.radius = data.radius || (typeof CONFIG !== 'undefined' ? CONFIG.SPIDER_RADIUS : 20);
+    this.radius = data.radius || (typeof CONFIG !== 'undefined' ? CONFIG.ENEMY_STATS.spider.radius : 20);
     this.visualScale = data.visualScale || 3.2;
     this.lastX = data.lastX ?? data.x;
     this.lastY = data.lastY ?? data.y;
@@ -19,6 +19,11 @@ export class Enemy {
     this.stuckTimer = data.stuckTimer || 0;
     this.stunTimer = data.stunTimer || 0;
     this.hitFlash = data.hitFlash || 0;
+
+    this.hpBarVisible = false;
+    this.displayedHp = data.displayedHp ?? data.hp;
+    this.hpDamageTimer = 0;
+    this.hpDamageStart = data.hpDamageStart ?? data.hp;
   }
 
   update(dt, state) {
@@ -40,7 +45,7 @@ export class Enemy {
   }
 
   _updateStuckDetection(dt, state) {
-    if (this.type === 'cocoon' || this.type === 'plevaka' || this.type === 'shooter' || this.type === 'bull' || this.isBoss) {
+    if (this.type === 'cocoon' || this.type === 'plevaka' || this.type === 'shooter' || this.type === 'wallshooter' || this.type === 'bull' || this.isBoss) {
       return;
     }
     const moved = Math.hypot(this.x - this.lastX, this.y - this.lastY);
@@ -70,6 +75,11 @@ export class Enemy {
   }
 
   takeDamage(damage, isCrit = false) {
+    if (!this.isBoss) {
+      this.hpBarVisible = true;
+      this.hpDamageStart = this.displayedHp;
+      this.hpDamageTimer = 0;
+    }
     this.hp -= damage;
     this.hitFlash = (typeof CONFIG !== 'undefined') ? CONFIG.ENEMY_HIT_FLASH_DURATION : 0.1;
     if (!this.isBoss) {

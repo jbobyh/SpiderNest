@@ -155,7 +155,7 @@ export function startGameLoop({
   initParticles(layers.particles);
   initDamageNumbers(layers.damageNumbers);
   initPlayerRenderer(layers.entities);
-  initBulletRenderer(layers.entities);
+  initBulletRenderer(layers.particles);
   initCollectibleRenderer(layers.entities);
   initFlyingHeartRenderer(layers.particles);
   initHud(layers.hud);
@@ -257,6 +257,7 @@ function _handlePhysicsCollision(pairs) {
 }
 
 function _handlePlayerEnemyContact(player, enemy) {
+  if (enemy.stasis) return;
   if (player.invulnerable > 0 || player.isDashing) return;
 
   // Damage player
@@ -280,16 +281,12 @@ function _handlePlayerEnemyContact(player, enemy) {
       // Actually, in the old code plevaka/shooter didn't have contact damage block.
       // But they are ranged. Let's keep it consistent with old logic.
       if (enemy.type !== 'shooter' && enemy.type !== 'plevaka') {
-        spawnCorpse(_state.deathCorpses, enemy, enemy.radius || CONFIG.SPIDER_RADIUS);
-        destroyBody(enemy.body);
-        _state.activeSpiders.splice(idx, 1);
-        
         spawnParticles(_state.particles, player.x, player.y, 8, 0, Math.PI*2, 20, 40, 0.5, '#ff4444');
-        
+
         player.lives--;
         player.invulnerable = CONFIG.PLAYER_INVULNERABLE_TIME;
         Sounds.playerhit?.();
-        
+
         if (player.lives <= 0) onPlayerDead(_state, _playerProgress);
       }
     }
@@ -387,6 +384,8 @@ function _render(dt) {
     layers.entities,
     _state.time,
     _state.player.x,
+    _state.everRevealedCells,
+    dt,
   );
 
   syncBullets(bulletManager.bullets);

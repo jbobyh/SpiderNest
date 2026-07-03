@@ -28,7 +28,7 @@ export function updateCollectibles(state, playerProgress, onParticles, onUpgrade
       s.player.lives += CONFIG.LIVES_PER_HEART;
       s.heartsCollected++;
       Sounds.heartcollect();
-      onParticles(heart.x, heart.y, CONFIG.PICKUP_PARTICLES_COUNT, '#ff6b9d');
+      onParticles(heart.x, heart.y, CONFIG.PARTICLES.pickup.count, '#ff6b9d');
     }
   }
 
@@ -39,7 +39,7 @@ export function updateCollectibles(state, playerProgress, onParticles, onUpgrade
       s.summonSphereCollected  = true;
       s.cellContents.delete(s.summonSphere.cellKey);
       Sounds.keycollect();
-      onParticles(s.summonSphere.x, s.summonSphere.y, CONFIG.PICKUP_PARTICLES_COUNT, '#ff6600');
+      onParticles(s.summonSphere.x, s.summonSphere.y, CONFIG.PARTICLES.pickup.count, '#ff6600');
     }
   }
 
@@ -75,7 +75,7 @@ export function updateBattleCollectibles(state, playerProgress, onParticles) {
       heart.collected = true;
       state.player.lives += CONFIG.LIVES_PER_HEART;
       Sounds.heartcollect();
-      onParticles(heart.x, heart.y, CONFIG.PICKUP_PARTICLES_COUNT, '#ff6b9d');
+      onParticles(heart.x, heart.y, CONFIG.PARTICLES.pickup.count, '#ff6b9d');
       // Sync to world
       const worldHeart = state.hearts.find(h => h.cellKey === heart.originalCellKey);
       if (worldHeart) worldHeart.collected = true;
@@ -90,7 +90,7 @@ export function updateBattleCollectibles(state, playerProgress, onParticles) {
       state.summonSphereCollected     = true;
       state.cellContents.delete(b.summonSphere.originalCellKey);
       Sounds.keycollect();
-      onParticles(b.summonSphere.x, b.summonSphere.y, CONFIG.PICKUP_PARTICLES_COUNT, '#ff6600');
+      onParticles(b.summonSphere.x, b.summonSphere.y, CONFIG.PARTICLES.pickup.count, '#ff6600');
     }
   }
 
@@ -103,7 +103,7 @@ export function updateBattleCollectibles(state, playerProgress, onParticles) {
       Sounds.upgradecollect();
       const def   = (UPGRADE_TYPES || []).find(u => u.id === upg.upgradeType);
       const color = def ? def.color : '#ffcc00';
-      onParticles(upg.x, upg.y, CONFIG.PICKUP_PARTICLES_COUNT, color);
+      onParticles(upg.x, upg.y, CONFIG.PARTICLES.pickup.count, color);
       // Sync
     }
   }
@@ -231,8 +231,9 @@ export function applySpecialChoice(state, playerProgress, choiceId) {
   }
   applyUpgrade(state, playerProgress, choiceId);
 
-  // Enter battle mode after choice (for chests)
-  if (onEnterBattle) onEnterBattle(chest?.cellKey);
+  // Enter battle mode after choice only if enemies not already released
+  const content = chest ? state.cellContents.get(chest.cellKey) : null;
+  if (onEnterBattle && !(content && content.enemiesReleased)) onEnterBattle(chest?.cellKey);
 }
 
 // ── Upgrade chest choice (regular upgrades) ───────────
@@ -297,8 +298,9 @@ export function applyUpgradeChoice(state, playerProgress, choiceId) {
     applyUpgrade(state, playerProgress, choiceId);
   }
 
-  // Enter battle mode
-  if (cb) cb(chest?.cellKey);
+  // Enter battle mode only if enemies not already released
+  const content = chest ? state.cellContents.get(chest.cellKey) : null;
+  if (cb && !(content && content.enemiesReleased)) cb(chest?.cellKey);
 }
 
 // ── Spatial chest F-key activation ───────────
@@ -413,6 +415,7 @@ export function applyRoomBonusChoice(state, playerProgress, choiceId) {
     roomBonusAltars:     state.roomBonusAltars,
   }, currentLevel);
 
-  // Enter battle mode after choice
-  if (cb) cb(altar?.cellKey);
+  // Enter battle mode after choice only if enemies not already released
+  const altarContent = altar ? state.cellContents.get(altar.cellKey) : null;
+  if (cb && !(altarContent && altarContent.enemiesReleased)) cb(altar?.cellKey);
 }

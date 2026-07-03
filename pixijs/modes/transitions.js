@@ -79,7 +79,7 @@ export function startZoomOut(state, camera) {
   _transition = {
     type:       'zoom_out',
     fromZoom:   camera.zoom,
-    toZoom:     1,
+    toZoom:     CONFIG.CAMERA.playZoom,
     fromWorldX: camera.worldX,
     fromWorldY: camera.worldY,
     toWorldX:   state.player.x,

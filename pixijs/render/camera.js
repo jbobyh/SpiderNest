@@ -63,10 +63,10 @@ export class Camera {
 
   // Call every frame (dt in seconds) to decay shake and advance smooth follow.
   update(dt) {
-    const t = 1 - Math.exp(-CONFIG.CAMERA_DAMPING * dt);
+    const t = 1 - Math.exp(-CONFIG.CAMERA.damping * dt);
     this._currentX += (this._worldX - this._currentX) * t;
     this._currentY += (this._worldY - this._currentY) * t;
-    this._shakeAmount *= CONFIG.SHAKE_DECAY;
+    this._shakeAmount *= CONFIG.CAMERA.shakeDecay;
     if (this._shakeAmount < 0.5) this._shakeAmount = 0;
     this._apply();
   }

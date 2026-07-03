@@ -16,9 +16,9 @@
 import { keys, mouse }                    from '../core/input.js';
 import { Sounds }                         from '../core/sound.js';
 import {
-  cellOf, cellKey, cellFromKey,
+  cellKey, cellFromKey,
   getConnectedCells, getCellBounds,
-  CELL_PX,
+  CELL_PX, cellOf,
 } from '../world/constants.js';
 import { spawnRoomRewards } from '../game/collectibles.js';
 import { spawnPurifyWave } from '../render/particles.js';
@@ -53,7 +53,7 @@ export function createBattleState(state, openedCellKey) {
   const wallPad = CP * 0.125;
   const scaleX  = CONFIG.VIEW_W / (bCols * CP + wallPad * 2);
   const scaleY  = CONFIG.VIEW_H / (bRows * CP + wallPad * 2);
-  const zoom    = Math.min(scaleX, scaleY) * CONFIG.BATTLE_ZOOM_MULTIPLIER;
+  const zoom    = Math.min(scaleX, scaleY) * CONFIG.CAMERA.battleZoomMult;
   const centerX = (minX + bCols / 2) * CP;
   const centerY = (minY + bRows / 2) * CP;
 
@@ -63,58 +63,24 @@ export function createBattleState(state, openedCellKey) {
   console.log('Battle triggered for cell:', openedCellKey, 'Room center:', roomCenterKey);
   const openedContent = state.cellContents.get(roomCenterKey);
 
-  // Spawn pending room enemies into world-space
+  // Activate stasis enemies in all connected rooms
   const pendingSpawns = [];
-  if (openedContent?.enemyCount && !openedContent.enemiesReleased) {
-    // Mark ALL cells of the triggered room as released for consistency
-    const triggeredRoom = state.rooms?.find(r => r.cells.some(c => c.k === openedCellKey));
-    if (triggeredRoom) {
-      for (const cell of triggeredRoom.cells) {
-        const content = state.cellContents.get(cell.k);
-        if (content) content.enemiesReleased = true;
-      }
-    } else {
-      openedContent.enemiesReleased = true;
-    }
 
-    const enemiesToSpawn = [];
-    for (let i = state.spiders.length - 1; i >= 0; i--) {
-      const g = state.spiders[i];
-      if (g.homeX === roomCenter.x && g.homeY === roomCenter.y) {
-        enemiesToSpawn.push(g);
-        state.spiders.splice(i, 1);
-      }
+  // Mark enemiesReleased for ALL cells in battleCells that have enemy content
+  for (const k of battleCells) {
+    const content = state.cellContents.get(k);
+    if (content && content.enemyCount && content.enemyCount > 0) {
+      content.enemiesReleased = true;
     }
-    console.log('Found enemies to spawn for room:', enemiesToSpawn.length, 'Remaining trapped:', state.spiders.length);
+  }
 
-    // Collect open cells belonging to the opened room
-    const roomOpenCells = [];
-    const openedRoom = state.rooms?.find(r => r.cells.some(c => c.k === openedCellKey));
-    if (openedRoom) {
-      for (const cell of openedRoom.cells) {
-        if (battleCells.has(cell.k)) {
-          roomOpenCells.push(cell);
-        }
-      }
-    }
-    // Fallback to battleCells if room not found
-    if (roomOpenCells.length === 0) {
-      for (const k of battleCells) {
-        roomOpenCells.push({ x: cellFromKey(k).x, y: cellFromKey(k).y, k });
-      }
-    }
-
-    const margin = CP * 0.15;
-    for (let i = 0; i < enemiesToSpawn.length; i++) {
-      const g = enemiesToSpawn[i];
-      const cell = roomOpenCells[Math.floor(Math.random() * roomOpenCells.length)];
-      const off = CP * 0.1;
-      const spawnX = cell.x * CP + margin + Math.random() * (CP - margin * 2);
-      const spawnY = cell.y * CP + margin + Math.random() * (CP - margin * 2);
-      pendingSpawns.push({
-        enemy: _enemyCopy(g, spawnX + (Math.random() - 0.5) * off, spawnY + (Math.random() - 0.5) * off),
-        spawnDelay: 1.0 + i * 0.5,
-      });
+  // Unset stasis for all enemies in all connected open rooms
+  for (const g of state.activeSpiders) {
+    if (!g.stasis) continue;
+    const gc = cellOf(g.x, g.y);
+    const gk = cellKey(gc.x, gc.y);
+    if (battleCells.has(gk)) {
+      g.stasis = false;
     }
   }
 
@@ -154,7 +120,7 @@ export function createBossBattleState(state, currentLevel) {
   const wallPad = CP * 0.125;
   const scaleX  = CONFIG.VIEW_W / (bCols * CP + wallPad * 2);
   const scaleY  = CONFIG.VIEW_H / (bRows * CP + wallPad * 2);
-  const zoom    = Math.min(scaleX, scaleY) * CONFIG.BATTLE_ZOOM_MULTIPLIER;
+  const zoom    = Math.min(scaleX, scaleY) * CONFIG.CAMERA.battleZoomMult;
   const centerX = (minX + bCols / 2) * CP;
   const centerY = (minY + bRows / 2) * CP;
 
@@ -167,7 +133,7 @@ export function createBossBattleState(state, currentLevel) {
     if (d > maxDist) { maxDist = d; farthestCell = { x, y }; }
   }
 
-  const margin = CONFIG.SPIDER_RADIUS + 20;
+  const margin = CONFIG.ENEMY_STATS.spider.radius + 20;
   let bossX = centerX, bossY = centerY;
   if (farthestCell) {
     const relX = state.player.x - farthestCell.x * CP;
@@ -178,13 +144,13 @@ export function createBossBattleState(state, currentLevel) {
 
   const bossHp = bossDef.hp !== undefined
     ? bossDef.hp
-    : (bossDef.hpBase === 'buldyga' ? CONFIG.BULDYGA_HP : CONFIG.SPIDER_HP) * (bossDef.hpMult || 1);
+    : (bossDef.hpBase === 'buldyga' ? CONFIG.ENEMY_STATS.buldyga.hp : CONFIG.ENEMY_STATS.spider.hp) * (bossDef.hpMult || 1);
 
   state.activeSpiders.push(EnemyFactory.create(bossDef.type || 'boss_phase', bossX, bossY, {
     level: currentLevel,
     hp: bossHp,
     maxHp: bossHp,
-    radius: CONFIG.SPIDER_RADIUS * (bossDef.radiusMult || 1),
+    radius: CONFIG.ENEMY_STATS.spider.radius * (bossDef.radiusMult || 1),
     isBoss: true,
     phaseIndex: 0,
     phaseTimer: bossDef.phases?.[0]?.duration ?? 0,
@@ -231,7 +197,7 @@ export function updateBattleMode(state, playerProgress, camera, dt, callbacks = 
 
   // Win check
   const b = state.battle;
-  if (b.pendingSpawns.length === 0 && state.activeSpiders.length === 0) {
+  if (b.pendingSpawns.length === 0 && state.activeSpiders.filter(g => !g.stasis).length === 0) {
     if (onBattleWon) onBattleWon(state, playerProgress);
   }
 }
@@ -245,44 +211,44 @@ export function exitBattleMode(state) {
   if (!state.battle) return;
   const b = state.battle;
 
-  // Spawn room rewards
-  if (b.roomCellKey) {
-    spawnRoomRewards(state, b.roomCellKey);
-  }
+  // Spawn rewards + purify ALL rooms that had enemies in battleCells
+  if (b.battleCells && state.rooms && state.purified) {
+    for (let ri = 0; ri < state.rooms.length; ri++) {
+      const room = state.rooms[ri];
+      const hasEnemyContent = room.cells.some(c => {
+        const content = state.cellContents.get(c.k);
+        return content && content.enemyCount && content.enemyCount > 0;
+      });
+      if (!hasEnemyContent) continue;
+      const inBattle = room.cells.some(c => b.battleCells.has(c.k));
+      if (!inBattle) continue;
+      if (state.purified.has(ri)) continue;
 
-  // Mark room as purified after battle victory
-  let purifiedRoomIdx = null;
-  if (b.roomCellKey && state.rooms && state.purified) {
-    for (let i = 0; i < state.rooms.length; i++) {
-      if (state.rooms[i].cells.some(c => c.k === b.roomCellKey)) {
-        state.purified.add(i);
-        purifiedRoomIdx = i;
-        break;
+      // Spawn rewards for this room
+      spawnRoomRewards(state, room.cells[0].k);
+
+      // Mark as purified
+      state.purified.add(ri);
+
+      // Reveal adjacent rooms
+      updateRevealedRoomsOnPurify(state, ri);
+
+      // Purify wave
+      if (!state.purifyWaveFired?.has(ri)) {
+        state.purifyWaveFired?.add(ri);
+        const altar = state.roomAltars?.find(a => a.roomIdx === ri);
+        let ox, oy;
+        if (altar) {
+          ox = altar.x;
+          oy = altar.y;
+        } else {
+          let sx = 0, sy = 0;
+          for (const c of room.cells) { sx += (c.x + 0.5) * CELL_PX; sy += (c.y + 0.5) * CELL_PX; }
+          ox = sx / room.cells.length;
+          oy = sy / room.cells.length;
+        }
+        spawnPurifyWave(state.particles, ox, oy, room.cells, CELL_PX);
       }
-    }
-  }
-
-  // Reveal adjacent rooms when a room becomes purified
-  if (purifiedRoomIdx !== null) {
-    updateRevealedRoomsOnPurify(state, purifiedRoomIdx);
-
-    // Purify wave from altar position or room geometric center
-    const room = state.rooms[purifiedRoomIdx];
-    if (!state.purifyWaveFired?.has(purifiedRoomIdx)) {
-      state.purifyWaveFired?.add(purifiedRoomIdx);
-      const altar = state.roomAltars?.find(a => a.roomIdx === purifiedRoomIdx);
-      let ox, oy;
-      if (altar) {
-        ox = altar.x;
-        oy = altar.y;
-      } else {
-        // Geometric center of room cells
-        let sx = 0, sy = 0;
-        for (const c of room.cells) { sx += (c.x + 0.5) * CELL_PX; sy += (c.y + 0.5) * CELL_PX; }
-        ox = sx / room.cells.length;
-        oy = sy / room.cells.length;
-      }
-      spawnPurifyWave(state.particles, ox, oy, room.cells, CELL_PX);
     }
   }
 

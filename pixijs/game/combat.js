@@ -60,7 +60,7 @@ export function getSpatialBonus(state, axis) {
 
 // ── Shoot (play-mode) ─────────────────────────────────────────
 
-export function shoot(state) {
+export function shoot(state, camera = null) {
   if (state.shootCooldown > 0) return;
 
   const weapon = getActiveWeapon(state);
@@ -123,10 +123,15 @@ export function shoot(state) {
   }
 
   // Muzzle flash particles
+  const muzzleCount = Math.round(CONFIG.PARTICLES.muzzle.count * (1 + (pellets - 1) * 0.3));
   spawnParticles(state.particles, state.player.x, state.player.y,
-    CONFIG.MUZZLE_PARTICLES_COUNT, baseAngle, CONFIG.MUZZLE_PARTICLES_SPREAD,
-    CONFIG.MUZZLE_PARTICLES_SPEED_MIN, CONFIG.MUZZLE_PARTICLES_SPEED_MAX,
-    CONFIG.MUZZLE_PARTICLES_LIFE, '#ffff00');
+    muzzleCount, baseAngle, CONFIG.PARTICLES.muzzle.spread,
+    CONFIG.PARTICLES.muzzle.speedMin, CONFIG.PARTICLES.muzzle.speedMax,
+    CONFIG.PARTICLES.muzzle.life, '#ffff00');
+
+  if (camera && weapon.shakeAmount >= CONFIG.CAMERA.shakeMin) {
+    camera.shake(weapon.shakeAmount * CONFIG.CAMERA.shakeScale, baseAngle);
+  }
 
   _applyBurstCooldown(state, weapon, isBurstWeapon, burstTotal, burstDelay, cooldown);
 }
@@ -181,9 +186,9 @@ export function pickupWeapon(state, weaponId, particles, px, py, scale, dropPlay
   Sounds.weaponcollect();
   const wDef = WEAPON_DEFS[weaponId];
   spawnParticles(particles, px, py,
-    CONFIG.PICKUP_PARTICLES_COUNT, 0, Math.PI * 2,
-    CONFIG.PICKUP_PARTICLES_SPEED * scale, CONFIG.PICKUP_PARTICLES_SPEED * scale,
-    CONFIG.PICKUP_PARTICLES_LIFE, wDef ? wDef.color : '#ffffff');
+    CONFIG.PARTICLES.pickup.count, 0, Math.PI * 2,
+    CONFIG.PARTICLES.pickup.speed * scale, CONFIG.PARTICLES.pickup.speed * scale,
+    CONFIG.PARTICLES.pickup.life, wDef ? wDef.color : '#ffffff');
 }
 
 // ── Internal helpers ──────────────────────────────────────────
@@ -192,7 +197,7 @@ function _spawnPlayerBullet(state, weapon, angle, bulletSpeed, scale, battleStat
   const spatialCritChance = getSpatialBonus(state, 'critChance');
   const isCrit = Math.random() < (state.upgrades.critChance + spatialCritChance);
   
-  let damage = weapon.damage + state.upgrades.damage;
+  let damage = weapon.damage * (1 + state.upgrades.damageMult);
   if (isCrit) {
     const spatialCritDamage = getSpatialBonus(state, 'critDamage');
     const critMult = 2 + spatialCritDamage;

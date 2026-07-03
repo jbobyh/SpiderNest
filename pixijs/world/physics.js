@@ -74,11 +74,12 @@ export function setBodyVelocity(body, vx, vy) {
   if (body) Body.setVelocity(body, { x: vx, y: vy });
 }
 
-// Switch player collision mask: during dash player passes through enemies but not walls.
-export function setPlayerDashing(body, isDashing) {
+// Update player collision mask: pass through enemies when dashing or invulnerable.
+export function updatePlayerCollision(body, isDashing, isInvulnerable) {
+  const skipEnemies = isDashing || isInvulnerable;
   Body.set(body, 'collisionFilter', {
     category: CAT_PLAYER,
-    mask: isDashing ? CAT_WALL : CAT_WALL | CAT_ENEMY,
+    mask: skipEnemies ? CAT_WALL : CAT_WALL | CAT_ENEMY,
   });
 }
 

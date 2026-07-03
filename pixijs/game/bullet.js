@@ -16,6 +16,7 @@ export class Bullet {
     this.penetrate = 0;
     this._basePenetrate = 0;
     this.ricochet = false;
+    this._baseRicochet = false;
     this.color = 0xffffff;
     this.maxRange = 1000;
     this.distanceTraveled = 0;
@@ -26,6 +27,7 @@ export class Bullet {
     this._lastRoomBonus = null;
     this._ricocheted = false;
     this.isDead = false;
+    this._trailTimer = 0;
     
     // Future modifiers support
     this.modifiers = [];
@@ -44,6 +46,7 @@ export class Bullet {
     this.penetrate = data.penetrate ?? 0;
     this._basePenetrate = this.penetrate;
     this.ricochet = !!data.ricochet;
+    this._baseRicochet = this.ricochet;
     this.color = data.color || 0xffffff;
     this.maxRange = data.maxRange || 1000;
     this.isCrit = !!data.isCrit;

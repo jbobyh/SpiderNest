@@ -24,154 +24,156 @@ const CONFIG = {
   PLAYER_DASH_COOLDOWN: 2.0,    // кулдаун деша (сек)
 
   // Shooting (default values, weapon-specific in WEAPON_DEFS)
-  SHOOTING_ENABLED: true, // включить стрельбу
-  BULLET_SPEED: 100,      // скорость пули по умолчанию (пикс/сек)
-  BULLET_DAMAGE: 1,      // урон пули по умолчанию
   BULLET_RADIUS: 3,       // радиус пули
   BULLET_LIFE: 1.5,                 // время жизни пули (сек)
 
-  // Muzzle flash particles
-  MUZZLE_PARTICLES_COUNT: 4,          // кол-во частиц вспышки дула
-  MUZZLE_PARTICLES_SPREAD: 0.3,       // угол разлёта (рад)
-  MUZZLE_PARTICLES_SPEED_MIN: 200,     // мин. скорость частиц вспышки
-  MUZZLE_PARTICLES_SPEED_MAX: 400,     // макс. скорость частиц вспышки
-  MUZZLE_PARTICLES_LIFE: 0.2,         // время жизни частиц вспышки (сек)
+  // Particles
+  PARTICLES: {
+    muzzle:  { count: 8, spread: 0.5, speedMin: 150, speedMax: 350, life: 0.15 },
+    hit:     { count: 8, speedMin: 40, speedMax: 80, spread: 0.6, life: 0.25, color: '#e44101', critCount: 14 },
+    death:   { count: 14, speedMin: 40, speedMax: 80, life: 0.3 },
+    wallHit: { count: 3, speed: 80, life: 0.1 },
+    pickup:  { count: 12, speed: 80, life: 0.6 },
+  },
 
-  // Hit particles (when bullet hits enemy) - green blood
-  HIT_PARTICLES_COUNT: 3,             // кол-во частиц при попадании в врага
-  HIT_PARTICLES_SPEED_MIN: 40,        // мин. скорость частиц крови
-  HIT_PARTICLES_SPEED_MAX: 200,       // макс. скорость частиц крови
-  HIT_PARTICLES_SPREAD: 0.6,          // угол разлёта крови (рад)
-  HIT_PARTICLES_LIFE: 0.5,            // время жизни частиц крови (сек)
-  HIT_PARTICLES_COLOR: '#a21515',     // цвет крови врага
+  // Combat effects
   ENEMY_HIT_FLASH_DURATION: 0.18,     // длительность белой вспышки при уроне (сек)
-  ENEMY_STUN_DURATION: 0.3,           // длительность стана при получении урона (сек)
+  ENEMY_HIT_PUNCH: 0.15,              // макс. увеличение scale при попадании (15%)
+  ENEMY_STUN_DURATION: 0.05,           // длительность стана при получении урона (сек)
 
-  // Death particles (when enemy dies)
-  DEATH_PARTICLES_COUNT: 5,          // кол-во частиц при смерти врага
-  DEATH_PARTICLES_SPEED_MIN: 40,      // мин. скорость частиц смерти
-  DEATH_PARTICLES_SPEED_MAX: 200,      // макс. скорость частиц смерти
-  DEATH_PARTICLES_LIFE: 0.6,          // время жизни частиц смерти (сек)
+  // Bullet render
+  BULLET_RENDER: {
+    radius:     2.5,    // радиус ядра пули (px)
+  },
 
-  // Wall hit particles
-  WALL_HIT_PARTICLES_COUNT: 2,        // кол-во частиц при попадании в стену
-  WALL_HIT_PARTICLES_SPEED: 40,       // скорость частиц от стены
-  WALL_HIT_PARTICLES_LIFE: 0.3,       // время жизни частиц от стены (сек)
+  // Bullet trail
+  BULLET_TRAIL: {
+    interval: 0.01,   // секунд между эмитом частиц трейла
+    life:     0.06,   // время жизни частицы трейла (сек)
+  },
 
-  // Enemy bullet hit particles
-  ENEMY_BULLET_HIT_PARTICLES_COUNT: 5,    // кол-во частиц при попадании пули врага в игрока
-  ENEMY_BULLET_HIT_PARTICLES_LIFE: 0.25,  // время жизни этих частиц (сек)
+  // Damage numbers
+  DAMAGE_NUMBERS: {
+    maxActive:    64,     // макс. одновременно активных цифр
+    fontSize:     13,     // базовый размер шрифта
+    life:         0.7,    // время жизни (сек)
+    riseSpeed:    30,     // скорость вертикального подъёма (px/сек)
+    damp:         0.95,   // затухание скорости (множитель за кадр)
+    driftSpeed:   80,     // макс. горизонтальный импульс при спавне (px/сек)
+    popDuration:  0.12,   // длительность pop-in анимации (сек)
+    popOvershoot: 4.8,    // сила overshoot для easeOutBack
+    fadeStart:    0.4,    // доля жизни, с которой начинается fade (0..1)
+  },
 
-  // Player hit particles (when player takes damage)
-  PLAYER_HIT_PARTICLES_COUNT: 12,     // кол-во частиц при уроне по игроку
-  PLAYER_HIT_PARTICLES_SPEED: 80,     // скорость этих частиц
-  PLAYER_HIT_PARTICLES_LIFE: 0.5,     // время жизни этих частиц (сек)
+  // Enemy HP bar (non-boss)
+  ENEMY_HP_BAR: {
+    width: 30,           // макс. ширина полоски (px)
+    height: 2,           // толщина полоски (px)
+    offset: 3,           // отступ от верха спрайта врага (px)
+    animDuration: 1.0,   // длительность анимации отжора белой части (сек)
+    bgColor: 0x333333,   // цвет фона
+    hpColor: 0xff0000,   // цвет текущего ХП
+    ghostColor: 0xffffff,// цвет анимации отжора
+  },
 
-  // Collectible pickup particles
-  PICKUP_PARTICLES_COUNT: 12,         // кол-во частиц при подборе предмета
-  PICKUP_PARTICLES_SPEED: 80,         // скорость этих частиц
-  PICKUP_PARTICLES_LIFE: 0.6,         // время жизни этих частиц (сек)
+  // Camera
+  CAMERA: {
+    shakeDecay: 0.9,       // затухание тряски (множитель за кадр)
+    cursorWeight: 0.3,  // 0 = только игрок, 1 = только курсор
+    damping: 2.0,         // λ экспоненциального сглаживания (выше = быстрее)
+    maxOffset: 160,      // макс. сдвиг камеры от игрока в сторону курсора (px)
+    playZoom: 1.5,              // зум камеры в play режиме
+    battleZoomMult: 1,      // множитель к вычисленному зуму в battle режиме
+    shakeMin: 0.01,          // минимальный порог тряски (пистолет 0 не трясёт)
+    shakeScale: 5,          // множитель shakeAmount → пиксели (0.5 * 12 = 6px)
+  },
 
-  // Camera shake on shoot
-  SHAKE_AMOUNT: 0,      // сила тряски камеры при выстреле
-  SHAKE_DECAY: 0.9,       // затухание тряски (множитель за кадр)
+  // Enemy stats
+  ENEMY_STATS: {
+    spider:   { hp: 60, speed: 1, radius: 7, visualScale: 2.9, wobbleMin: 0.2, wobbleMax: 0.3, spawnMargin: 10 },
+    bat:      { hp: 60, speed: 1, radius: 7, visualScale: 3.9, animFps: 15, zigzagFreq: 4, zigzagAmp: 0.8 },
+    shooter:  { hp: 40, speed: 1, radius: 6, visualScale: 2.5, bulletSpeed: 100, shootRangeCells: 2, shootCd: 1.5, stopDistCells: 2 },
+    bull:     { hp: 80, speed: 1, radius: 6, visualScale: 3.2, prepareTime: 1, restTime: 1.5, chargeDistCells: 0.75, dashDistCells: 0.02 },
+    buldyga:  { hp: 100, speed: 1, radius: 6, visualScale: 4.0, accel: 20, friction: 3.5, speedIncrement: 0.1 },
+    cocoon:   { hp: 200, radius: 10, visualScale: 3.2, spawnInterval: 3.0 },
+    bloated:  { hp: 60, speed: 1, radius: 7, visualScale: 3.2, deathShotSpeed: 120 },
+    tank:     { hp: 200, speed: 0.7, radius: 14, visualScale: 2 },
+    wallshooter: { hp: 20, speed: 1, radius: 8, visualScale: 2.5, bulletSpeed: 50, shootRangeCells: 1.5, shootCd: 3.0, stopDistCells: 1.4, wallBulletCount: 5, wallBulletSpacing: 8 },
+  },
 
-  // Camera smooth follow (play mode)
-  CAMERA_CURSOR_WEIGHT: 0.3,  // 0 = только игрок, 1 = только курсор
-  CAMERA_DAMPING: 2.0,         // λ экспоненциального сглаживания (выше = быстрее)
-  CAMERA_MAX_OFFSET: 160,      // макс. сдвиг камеры от игрока в сторону курсора (px)
+  // Spawn table key → actual enemy type for EnemyFactory.create()
+  ENEMY_POOL_TYPE_MAP: {
+    bat:        'bat',
+    soldier:    'soldier',
+    shooter:    'plevaka',
+    bull:       'bull',
+    buldyga:    'buldyga',
+    cocoon:     'cocoon',
+    bloated:    'bloated',
+    tank:       'tank',
+    wallshooter:'wallshooter',
+  },
 
-  // Spiders
-  SPIDER_HP: 3*2,         // здоровье паука
-  SPIDER_SPEED: 1,       // скорость паука (пикс/сек)
-  SPIDER_RADIUS: 7,       // радиус коллизии паука
-  SPIDER_VISUAL_SCALE: 2.9,       // множитель визуального размера спрайта
-  SPIDER_PHASE_SPEED: 2,          // скорость анимации парения
-  SPIDER_WOBBLE_MIN: 0.2, // мин. амплитуда покачивания
-  SPIDER_WOBBLE_MAX: 0.3, // макс. амплитуда покачивания
-  SPIDER_SPAWN_MARGIN: 10,        // отступ от стен при спавне
+  // Enemy type → stats key in ENEMY_STATS (with optional radiusKey override)
+  ENEMY_TYPE_STATS: {
+    bat:         { statsKey: 'bat' },
+    soldier:     { statsKey: 'spider' },
+    plevaka:     { statsKey: 'shooter', radiusKey: 'spider' },
+    bull:        { statsKey: 'bull' },
+    buldyga:     { statsKey: 'buldyga' },
+    cocoon:      { statsKey: 'cocoon' },
+    bloated:     { statsKey: 'bloated' },
+    tank:        { statsKey: 'tank' },
+    wallshooter: { statsKey: 'wallshooter' },
+  },
 
-  // Bat (level 1 only)
-  BAT_HP: 3*2,            // здоровье летучей мыши
-  BAT_SPEED: 1,          // скорость летучей мыши
-  BAT_RADIUS: 7,          // радиус коллизии летучей мыши
-  BAT_VISUAL_SCALE: 3.9,          // множитель визуального размера
-  BAT_ANIM_FPS: 15,        // скорость анимации полёта
-  BAT_ZIGZAG_FREQ: 4,    // частота зигзага (рад/сек)
-  BAT_ZIGZAG_AMP: 0.8,    // амплитуда зигзага (нормализованный перпендикуляр)
-
-  // Shooters
-  SHOOTER_HP: 2*2,             // здоровье плеваки
-  SHOOTER_SPEED: 1,          // скорость плеваки (пикс/сек)
-  SHOOTER_RADIUS: 6,          // радиус коллизии плеваки
-  SHOOTER_VISUAL_SCALE: 2.5,          // множитель визуального размера спрайта
-  SHOOTER_BULLET_SPEED: 100,  // скорость пули плеваки
-  SHOOTER_SHOOT_RANGE_CELLS: 2, // дальность стрельбы плеваки (в клетках)
-  SHOOTER_SHOOT_CD: 1.5,     // кулдаун выстрела плеваки (сек)
-  SHOOTER_STOP_DIST_CELLS: 2,   // дистанция остановки плеваки (в клетках)
-  // Spawn chances by level
-  // Level 1: only soldier/shooter
-  SHOOTER_CHANCE: 0.20,           // шанс что враг будет плевакой (остальное - солдат)
-  // Level 2: bull/buldyga + soldier/shooter
-  BULL_CHANCE: 0.20,              // шанс что враг будет быком
-  BULDYGA_CHANCE: 0.30,           // шанс что враг будет булдыгой (после быка)
-  // Level 3: cocoon/bloated/bull/buldyga + soldier/shooter
-  COCOON_CHANCE: 0.30,           // шанс что враг будет коконом
-  BLOATED_CHANCE: 0.30,           // шанс что враг будет распухшим (после кокона)
-  BULL_CHANCE_LVL3: 0.20,         // шанс что враг будет быком на 3 уровне (после распухшего)
-  BULDYGA_CHANCE_LVL3: 0.20,      // шанс что враг будет булдыгой на 3 уровне (после быка)
-
-  // Bull
-  BULL_HP: 4*2,           // здоровье быка
-  BULL_SPEED: 1,         // скорость быка (пикс/сек)
-  BULL_RADIUS: 6,         // радиус коллизии быка
-  BULL_VISUAL_SCALE: 3.2,         // множитель визуального размера спрайта
-  BULL_PREPARE_TIME: 1,         // время подготовки рывка (сек)
-  BULL_DASH_DISTANCE_CELLS: 0.02,  // дистанция рывка быка (в клетках)
-  BULL_REST_TIME: 1.5,            // время отдыха после рывка (сек)
-  BULL_CHARGE_DIST_CELLS: 0.75,    // дистанция начала атаки быка (в клетках)
-  BULL_ATTACK_DIST_CELLS: 1.0,    // дистанция удара быка (в клетках)
-
-  // Buldyga
-  BULDYGA_HP: 8*2,        // здоровье булдыги
-  BULDYGA_SPEED: 1,              // начальная скорость
-  BULDYGA_SPEED_INCREMENT: 0.1,    // ускорение каждую секунду
-  BULDYGA_RADIUS: 6,     // радиус коллизии булдыги
-  BULDYGA_VISUAL_SCALE: 4.0,     // множитель визуального размера спрайта
-  BULDYGA_ACCEL: 20,             // ускорение инерции (пикс/с²)
-  BULDYGA_FRICTION: 3.5,          // коэффициент торможения (затухание скорости)
-
-  // Cocoon (spawner)
-  COCOON_HP: 16*2,         // здоровье кокона
-  COCOON_RADIUS: 10,      // радиус коллизии кокона
-  COCOON_VISUAL_SCALE: 3.2,      // множитель визуального размера спрайта
-  COCOON_SPAWN_INTERVAL: 3.0,     // секунд между спавнами солдат
-  COCOON_CHANCE: 0.30,            // шанс спавна кокона на уровне 3
-
-  // Bloated (explodes on death)
-  BLOATED_HP: 4*2,        // здоровье распухшего
-  BLOATED_SPEED: 1,      // скорость распухшего (пикс/сек)
-  BLOATED_RADIUS: 7,      // радиус коллизии распухшего
-  BLOATED_VISUAL_SCALE: 3.2,      // множитель визуального размера спрайта
-  BLOATED_DEATH_SHOT_SPEED: 120,  // скорость пули при смерти (как у плеваки)
-  BLOATED_CHANCE: 0.30,           // шанс спавна распухшего на уровне 3 (после кокона)
+  // HP multiplier by level
+  ENEMY_HP_MULT: { 1: 1, 2: 2, 3: 4 },
 
   // Enemy costs for budget-based spawning
   ENEMY_COSTS: {
-    bat: 15,          // летающий, зигзаг
-    soldier: 20,      // преследует игрока
-    shooter: 30,      // стреляет
-    bull: 40,         // рывки
-    buldyga: 50,      // инерция, ускорение
-    cocoon: 60,       // спавнит солдат
-    bloated: 35,      // взрывается при смерти
+    bat: 30,          // hp 60, летающий, зигзаг
+    soldier: 30,      // hp 60, преследует игрока
+    shooter: 25,      // hp 40, стреляет (+5 за дальнобойность)
+    bull: 40,         // hp 80, рывки
+    buldyga: 50,      // hp 100, инерция, ускорение
+    cocoon: 110,      // hp 200, спавнит солдат (+10 за спавн)
+    bloated: 40,      // hp 60, взрывается при смерти
+    tank: 80,        // hp 200, танк: большой, медленный, много HP
+    wallshooter: 40,  // hp 20, 4 пули стеной (+5 за стену пуль)
+  },
+
+  // ── Бюджетная генерация врагов в комнатах ──────────────────
+  // budget(cells) = base * growthRate^(cells-1), затем * levelMult * contentMult
+  // growthRate > 1 → выпуклая (нелинейная) кривая: большие комнаты опаснее.
+  ROOM_ENEMY_BUDGET: {
+    base: 100,                 // бюджет 1-клеточной комнаты (до множителей)
+    growthRate: 1.4,           // >1 = выпуклая (нелинейная) кривая; 1.0 = линейно
+    levelMult: { 1: 1.0, 2: 1.2, 3: 1.5 },
+    maxEnemiesPerCell: 8,      // потолок врагов на ячейку (анти-переполнение)
+    maxEnemiesTotal:   32,     // абсолютный потолок врагов в комнате
+  },
+
+  // Множитель бюджета по содержимому комнаты. weapon/empty/start — без врагов (множитель 0).
+  ROOM_CONTENT_BUDGET_MULT: {
+    enemies:      1.0,
+    heart:        1.5,
+    summonSphere: 1.4,   // ключевая комната (мини-босс)
+    chest:        1.15,
+    spatial:      1.15,
+    roomBonus:    1.15,
+  },
+
+  // Доступные типы врагов по уровням + веса выбора (больше = чаще встречается).
+  // Ключи должны совпадать с ENEMY_COSTS и ENEMY_POOL_TYPE_MAP.
+  ENEMY_SPAWN_TABLE: {
+    1: { bat: 5, shooter: 2, bloated: 1, tank: 1, wallshooter: 1 },
+    2: { soldier: 5, shooter: 2, bull: 2, buldyga: 1, bloated: 1, tank: 1, wallshooter: 2 },
+    3: { soldier: 4, shooter: 2, bull: 2, buldyga: 1, bloated: 1, cocoon: 1, tank: 1, wallshooter: 2 },
   },
 
   // Level generation
-  DISABLED_CELLS_COUNT: 15,       // кол-во заблокированных клеток по умолчанию
-  BLOCK_CELLS_FOREVER: false,     // блокировать клетки навсегда (дебаг)
   MAX_GENERATION_ATTEMPTS: 1000,  // макс. попыток генерации уровня
-  ENEMY_SPAWN_CHANCE: 0.5,        // шанс спавна врагов в клетке
 
   // Pickup distances
   PICKUP_DISTANCE: 10,            // расстояние до предметов (добавляется к радиусу)
@@ -182,23 +184,17 @@ const CONFIG = {
 
   // Battle mode
   BATTLE_SCALE: 1,                // unified coords — no separate battle space
-  BATTLE_TRANSITION_DURATION: 1.0, // секунд на zoom
-
-  // Camera zoom
-  PLAY_MODE_ZOOM: 1,              // зум камеры в play режиме
-  BATTLE_ZOOM_MULTIPLIER: 1,      // множитель к вычисленному зуму в battle режиме
-
-  // Zoom/Transitions
-  ZOOM_DURATION: 1.0,             // секунд
 
   // Particle pool
   PARTICLE_POOL_MAX_SIZE: 200,    // максимум частиц в пуле
 
   // Sound
-  DEFAULT_VOLUME: 0.3,    // громкость по умолчанию (0..1)
-  AMBIENCE_VOLUME_MULT: 0.6,      // громкость амбиента относительно основной
-  SHOT_VOLUME_MULT: 0.4,          // громкость выстрелов относительно основной
-  FOOTSTEP_INTERVAL: 0.25,        // секунд между шагами
+  SOUND: {
+    defaultVolume: 0.3,    // громкость по умолчанию (0..1)
+    ambienceVolumeMult: 0.6,      // громкость амбиента относительно основной
+    shotVolumeMult: 0.4,          // громкость выстрелов относительно основной
+    footstepInterval: 0.25,        // секунд между шагами
+  },
 
   // Music
   MUSIC: {
@@ -209,13 +205,13 @@ const CONFIG = {
   },
   FADE_DURATION_LEVEL_TO_BOSS: 0.5,  // seconds
   FADE_DURATION_BOSS_TO_LEVEL: 0.5,  // seconds
-  FADE_DURATION_LEVEL_END: 2.0,      // seconds
 
   // Debug
-  DEBUG_INVULNERABLE: false,      // дебаг: неуязвимость игрока от врагов
-  DEBUG_SPREAD_INDICATOR: false,  // дебаг: отображать индикатор угла разброса
-  DEBUG_COLLISIONS: false,        // дебаг: отображать коллайдеры
-  SHOW_FPS: true,                 // дебаг: отображать счетчик FPS
+  DEBUG: {
+    invulnerable: false,      // неуязвимость игрока от врагов
+    collisions: false,        // отображать коллайдеры
+    showFps: true,            // отображать счетчик FPS
+  },
 
   // Boss phase AI
   BOSS_STRAFE_SPEED: 1,          // скорость стрейфа босса в фазе плеваки (пикс/сек)
@@ -269,233 +265,63 @@ const LEVEL_CONFIG = {
   },
 };
 
-// Legacy counts (can be removed once refactoring is complete, but keeping for now if needed elsewhere)
-const LEVEL_WEAPON_COUNTS  = { 1: 1, 2: 2, 3: 2 };
-const LEVEL_UPGRADE_COUNTS = { 1: 4, 2: 10, 3: 16 };
-const LEVEL_CHEST_COUNTS   = { 1: 3, 2: 2, 3: 3 };
-const LEVEL_ROOM_BONUS_COUNTS = { 1: 3, 2: 3, 3: 3 };
-
-// ============================================================
-// ROOM ENEMY POOLS
-// Пресеты врагов для каждого типа комнаты по уровням.
-// Ключи: bat, soldier, shooter, bull, buldyga, cocoon, bloated
-// Типы комнат: easy, medium, hard, key, simpleupgrade, cursedupgrade, enemy
-// ============================================================
-const ROOM_POOLS = {
-  1: {
-    easy: [
-      { bat: 3, shooter: 2 },
-      { bat: 2, shooter: 3 },
-      { shooter: 4 },
-      { bat: 4, bloated: 1 },
-      { bat: 5, bloated: 1 },
-    ],
-    medium: [
-      { bloated: 2 },
-      { bat: 3, shooter: 2, bloated: 1 },
-      { bat: 4, shooter: 2, bloated: 1 },
-      { bat: 3, shooter: 2 },
-      { bloated: 2, bat: 2, shooter: 1 },
-    ],
-    hard: [
-      { bat: 3, bloated: 2 },
-      { bat: 3, bloated: 2, shooter: 3 },
-      { bat: 2, bloated: 3, shooter: 3 },
-      { bat: 6, shooter: 2 },
-      { bloated: 2, bat: 4, shooter: 2 },
-    ],
-    key: [
-      { bloated: 4 },
-      { bloated: 3, shooter: 2 },
-      { bloated: 4, shooter: 2 },
-      { bat: 7, shooter: 2 },
-      { bloated: 3, bat: 4, shooter: 2 },
-    ],
-    simpleupgrade: [
-      { bat: 3, bloated: 4 },
-      { bat: 3, bloated: 3, shooter: 2 },
-      { bat: 3, bloated: 4, shooter: 2 },
-      { bat: 7, shooter: 2 },
-      { bloated: 3, bat: 4, shooter: 2 },
-    ],
-    cursedupgrade: [
-      { bat: 3, bloated: 4 },
-      { bat: 3, bloated: 3, shooter: 2 },
-      { bat: 3, bloated: 4, shooter: 2 },
-      { bat: 5, shooter: 2 },
-      { bloated: 3, bat: 4, shooter: 2 },
-    ],
-    enemy: [
-      { bat: 3, shooter: 0 },
-      { bat: 2, shooter: 2 },
-      { bat: 4, shooter: 0 },
-    ],
-  },
-
-  2: {
-    easy: [
-      { soldier: 3, shooter: 2, bull: 1 },
-      { soldier: 2, shooter: 3, bull: 1 },
-      { shooter: 4, bull: 1 },
-      { soldier: 4, bull: 2 },
-      { bloated: 2, bull: 1 },
-      { soldier: 3, shooter: 2, buldyga: 1 },
-    ],
-    medium: [
-      { soldier: 4, shooter: 3, bull: 1, buldyga: 1 },
-      { soldier: 3, shooter: 4, bull: 1, buldyga: 1 },
-      { shooter: 4, bull: 2, buldyga: 1 },
-      { soldier: 5, bull: 2, buldyga: 1 },
-      { bloated: 3, bull: 1, buldyga: 1 },
-      { soldier: 4, shooter: 2, buldyga: 2 },
-    ],
-    hard: [
-      { soldier: 6, shooter: 2, bull: 2, buldyga: 1 },
-      { soldier: 5, shooter: 3, bull: 2, buldyga: 2 },
-      { shooter: 4, bull: 3, buldyga: 2 },
-      { soldier: 4, bull: 4, buldyga: 2 },
-      { bloated: 4, bull: 2, buldyga: 1 },
-      { buldyga: 4, shooter: 2, bull: 1 },
-    ],
-    key: [
-      { soldier: 6, shooter: 3, bull: 2, buldyga: 2 },
-      { soldier: 5, shooter: 4, bull: 2, buldyga: 2 },
-      { shooter: 5, bull: 3, buldyga: 2 },
-      { soldier: 7, bull: 3, buldyga: 2 },
-      { bloated: 4, bull: 2, buldyga: 2 },
-      { buldyga: 5, shooter: 3, bull: 2 },
-    ],
-    simpleupgrade: [
-      { soldier: 6, shooter: 3, bull: 2, buldyga: 2 },
-      { soldier: 5, shooter: 4, bull: 2, buldyga: 2 },
-      { shooter: 5, bull: 3, buldyga: 2 },
-      { soldier: 7, bull: 3, buldyga: 2 },
-      { bloated: 4, bull: 2, buldyga: 2 },
-      { buldyga: 5, shooter: 3, bull: 2 },
-    ],
-    cursedupgrade: [
-      { soldier: 6, shooter: 3, bull: 2, buldyga: 2 },
-      { soldier: 5, shooter: 4, bull: 2, buldyga: 2 },
-      { shooter: 5, bull: 3, buldyga: 2 },
-      { soldier: 7, bull: 3, buldyga: 2 },
-      { bloated: 4, bull: 2, buldyga: 2 },
-      { buldyga: 5, shooter: 3, bull: 2 },
-    ],
-    enemy: [
-      { soldier: 3, shooter: 1, bull: 1, buldyga: 1 },
-      { soldier: 2, shooter: 2, bull: 2, buldyga: 1 },
-      { soldier: 3, shooter: 0, bull: 1, buldyga: 2 },
-    ],
-  },
-
-  3: {
-    easy: [
-      { soldier: 5, shooter: 2, bull: 1, cocoon: 1, bloated: 1 },
-      { soldier: 4, shooter: 3, bull: 1, cocoon: 1, bloated: 1 },
-      { shooter: 4, bull: 2, cocoon: 1, bloated: 1 },
-      { soldier: 6, bull: 1, cocoon: 1, bloated: 1 },
-      { bloated: 3, bull: 1, cocoon: 1 },
-    ],
-    medium: [
-      { soldier: 6, shooter: 3, bull: 2, cocoon: 1, bloated: 1 },
-      { soldier: 5, shooter: 4, bull: 2, cocoon: 1, bloated: 1 },
-      { shooter: 5, bull: 3, cocoon: 1, bloated: 1 },
-      { soldier: 7, bull: 2, cocoon: 1, buldyga: 1 },
-      { bloated: 4, bull: 2, cocoon: 1, buldyga: 1 },
-    ],
-    hard: [
-      { soldier: 7, shooter: 4, bull: 3, cocoon: 2, bloated: 2, buldyga: 1 },
-      { soldier: 6, shooter: 5, bull: 3, cocoon: 2, bloated: 2, buldyga: 1 },
-      { shooter: 6, bull: 4, cocoon: 2, bloated: 2, buldyga: 2 },
-      { soldier: 8, bull: 3, cocoon: 2, bloated: 2, buldyga: 2 },
-      { bloated: 5, bull: 3, cocoon: 2, buldyga: 2 },
-    ],
-    key: [
-      { soldier: 7, shooter: 4, bull: 3, cocoon: 4, bloated: 2, buldyga: 2 },
-      { soldier: 6, shooter: 5, bull: 3, cocoon: 4, bloated: 2, buldyga: 2 },
-      { shooter: 6, bull: 4, cocoon: 5, bloated: 2, buldyga: 2 },
-      { soldier: 8, bull: 3, cocoon: 4, bloated: 2, buldyga: 2 },
-      { bloated: 5, bull: 3, cocoon: 4, buldyga: 2 },
-    ],
-    simpleupgrade: [
-      { soldier: 7, shooter: 4, bull: 3, cocoon: 4, bloated: 2, buldyga: 2 },
-      { soldier: 6, shooter: 5, bull: 3, cocoon: 4, bloated: 2, buldyga: 2 },
-      { shooter: 6, bull: 4, cocoon: 5, bloated: 2, buldyga: 2 },
-      { soldier: 8, bull: 3, cocoon: 4, bloated: 2, buldyga: 2 },
-      { bloated: 5, bull: 3, cocoon: 4, buldyga: 2 },
-    ],
-    cursedupgrade: [
-      { soldier: 7, shooter: 4, bull: 3, cocoon: 4, bloated: 2, buldyga: 2 },
-      { soldier: 6, shooter: 5, bull: 3, cocoon: 4, bloated: 2, buldyga: 2 },
-      { shooter: 6, bull: 4, cocoon: 5, bloated: 2, buldyga: 2 },
-      { soldier: 8, bull: 3, cocoon: 4, bloated: 2, buldyga: 2 },
-      { bloated: 5, bull: 3, cocoon: 4, buldyga: 2 },
-    ],
-    enemy: [
-      { soldier: 3, shooter: 1, bull: 1, buldyga: 1, cocoon: 1, bloated: 1 },
-      { soldier: 2, shooter: 2, bull: 2, buldyga: 1, cocoon: 0, bloated: 2 },
-      { soldier: 3, shooter: 0, bull: 1, buldyga: 2, cocoon: 1, bloated: 1 },
-    ],
-  },
-};
-
 // ============================================================
 // WEAPON DEFINITIONS
 // ============================================================
 const WEAPON_DEFS = {
-  pistol: {
+  pistol: {//dps 50
     id: 'pistol',
     label: 'ПИСТОЛЕТ',
     description: 'Обычный пистолет',
     color: '#00d4ff',       // цвет пули/иконки
     pellets: 1,             // кол-во пуль за выстрел
     spread: 0.1,            // разброс (рад)
-    damage: 1*2,             // урон одной пули
+    damage: 20,             // урон одной пули
     cooldown: 0.4,         // задержка между выстрелами (сек)
-    bulletSpeed: 300,       // скорость пули (пикс/сек)
+    bulletSpeed: 400,       // скорость пули (пикс/сек)
     range: 13,              // дальность в клетках
     penetrate: 0,           // кол-во врагов, которых пробивает пуля
     shakeAmount: 0,       // сила тряски камеры
     spriteAngle: 0.1,       // поправка угла спрайта (рад)
   },
-  shotgun: {
+  shotgun: {//dps 80
     id: 'shotgun',
     label: 'ДРОБОВИК',
     description: 'Стреляет дробью.',
     color: '#ffaa00',
     pellets: 3,
     spread: 0.35,
-    damage: 1*2,
+    damage: 20,
     cooldown: 0.75,
-    bulletSpeed: 320,
+    bulletSpeed: 440,
     range: 10,
     penetrate: 0,
     shakeAmount: 0.5,
     spriteAngle: 0.55,
   },
-  smg: {
+  smg: {//dps 50
     id: 'smg',
     label: 'ПП',
     description: 'Высокая скорострельность.',
     color: '#ff44ff',
     pellets: 1,
     spread: 0.20,
-    damage: 0.5*2,
+    damage: 6,
     cooldown: 0.12,
-    bulletSpeed: 400,
+    bulletSpeed: 500,
     range: 18,
     penetrate: 0,
     shakeAmount: 0,
     spriteAngle: 0.8,
   },
-  rifle: {
+  rifle: {//dps 42
     id: 'rifle',
     label: 'ВИНТОВКА',
     description: 'Высокая точность и урон. Пробивает 2 врагов.',
     color: '#44ff44',
     pellets: 1,
     spread: 0.05,
-    damage: 3*2,
+    damage: 60,
     cooldown: 1.4,
     bulletSpeed: 700,
     range: 40,
@@ -503,33 +329,33 @@ const WEAPON_DEFS = {
     shakeAmount: 0.8,
     spriteAngle: 0.7,
   },
-  revolver: {
+  revolver: {//dps 66
     id: 'revolver',
     label: 'РЕВОЛЬВЕР',
     description: 'Высокая точность. Пробивает 1 врага.',
     color: '#8b4513',
     pellets: 1,
     spread: 0.08,
-    damage: 1*2,
-    cooldown: 0.7,
-    bulletSpeed: 450,
-    range: 27,
+    damage: 40,
+    cooldown: 0.6,
+    bulletSpeed: 500,
+    range: 20,
     penetrate: 1,
     shakeAmount: 0.2,
     spriteAngle: 0,
   },
-  carbine: {
+  carbine: {//dps 60
     id: 'carbine',
     label: 'КАРАБИН',
     description: 'Очередь из 3 пуль.',
     color: '#556b2f',
     pellets: 1,
     spread: 0.15,
-    damage: 1*2,
+    damage: 20,
     cooldown: 0.8,
     burstSize: 3,           // кол-во пуль в очереди (мультивыстрел: +1 за апгрейд pellets)
     burstDuration: 0.2,     // полное время очереди (сек); задержка между пулями = burstDuration / (размер очереди - 1)
-    bulletSpeed: 400,
+    bulletSpeed: 450,
     range: 25,
     penetrate: 0,
     shakeAmount: 0.3,
@@ -591,7 +417,7 @@ const BOSS_DEFS = {
 // ============================================================
 const UPGRADE_TYPES = [
   { id: 'pellets',       label: '+1 пуля к выстрелу',     description: 'Каждый выстрел выпускает на 1 пулю больше',                   color: '#ffaa00', max: 2, icon: '🔫', effects: { pellets: 1 } },
-  { id: 'damage',        label: '+2 урона от пули',        description: 'Каждая пуля наносит на 2 урона больше',                        color: '#ff4444', max: 2, icon: '💥', effects: { damage: 2 } },
+  { id: 'damage',        label: '+20% урона от пули',        description: 'Каждая пуля наносит на 20% урона больше',                        color: '#ff4444', max: 2, icon: '💥', effects: { damageMult: 0.20 } },
   { id: 'penetrate',     label: '+1 пробитие врага',       description: 'Пуля пролетает сквозь одного дополнительного врага',          color: '#ff44ff', max: 2, icon: '🎯', effects: { penetrate: 1 } },
   { id: 'bulletSpeed',   label: '+30% скорость пули',      description: 'Пули летят быстрее на +30%',                     color: '#ffff44', max: 2, icon: '⚡', effects: { bulletSpeedMult: 0.30 } },
   { id: 'critChance',    label: '+5% шанс крита',          description: '+5% шанс нанести двойной урон',                       color: '#ff0000', max: 3, icon: '⚔️', effects: { critChance: 0.05 } },
@@ -599,15 +425,16 @@ const UPGRADE_TYPES = [
   { id: 'enhancedPierce',label: 'Усиленное пробитие',      description: 'Пуля, пробившая врага, имеет шанс 50% нанести удвоенный урон',               color: '#aa44ff', max: 1, icon: '🗡️', effects: { enhancedPierce: true } },
   { id: 'shield',        label: 'Щит',                     description: 'Поглощает один удар без потери жизни. Тратится.',                        color: '#00aaff', max: 2, icon: '🛡️', effects: { shield: 1 } },
   { id: 'retreat',       label: 'Отступление',             description: 'После получения урона получи неуязвимость на 1.5 секунды',                  color: '#00ffaa', max: 2, icon: '🏃‍♂️', effects: { retreat: 1 } },
-  { id: 'reflection',    label: 'Отражение',               description: 'При получении урона выпускает 3 пули в ближайших врагов',        color: '#ff00ff', max: 1, icon: '🔄', effects: { reflection: true } },
+  //{ id: 'reflection',    label: 'Отражение',               description: 'При получении урона выпускает 3 пули в ближайших врагов',        color: '#ff00ff', max: 1, icon: '🔄', effects: { reflection: true } },
   { id: 'cooldown',      label: 'Перезарядка -15%',        description: 'Уменьшает время между выстрелами на 15%',                    color: '#00ccff', max: 3, icon: '⏱️', effects: { cooldownMult: -0.15 } },
   { id: 'speed',         label: 'Скорость бега +10%',      description: 'Увеличивает скорость передвижения на 10%',                    color: '#44ff88', max: 3, icon: '💨', effects: { speedMult: 0.10 } },
 ];
 
 const ROOM_BONUS_TYPES = [
-  { id: 'penetrate',     label: 'Пробитие',       description: 'Пули пробивают врагов насквозь',          color: '#ff44ff', max: 2, icon: '🎯' },
-  { id: 'speedup',   label: 'Ускорение',      description: 'Персонаж, враги и пули ускоряются на 50%',                     color: '#ffff44', max: 2, icon: '⚡', speedMult: 1.5 },
-  { id: 'speeddown',    label: 'Замедление',          description: 'Персонаж, враги и пули замедляются на 50%',                       color: '#ff0000', max: 3, icon: '⚔️', speedMult: 0.5 },
+  { id: 'penetrate',     label: 'Пробитие',       description: 'Пули пробивают врагов насквозь',          color: '#ff44ff', max: 100, icon: '🎯' },
+  { id: 'speedup',   label: 'Ускорение',      description: 'Персонаж, враги и пули ускоряются на 50%',                     color: '#ffff44', max: 100, icon: '⚡', speedMult: 1.5 },
+  { id: 'speeddown',    label: 'Замедление',          description: 'Персонаж, враги и пули замедляются на 50%',                       color: '#ff0000', max: 100, icon: '⚔️', speedMult: 0.5 },
+  { id: 'ricochet',    label: 'Рикошет',          description: 'Пули рикошетят от стен внутри комнаты',                       color: '#ff8922', max: 100, icon: '↩️' },
 ];
 
 // ============================================================
@@ -951,59 +778,34 @@ const SPATIAL_UPGRADE_TYPES = [
 ];
 
 // ============================================================
-// PLAYER SPRITE SHEET
-// Sprite sheet: 2500x3000, each sprite 500x500 (5 cols x 6 rows)
-// Row 0: idle face-forward (5 frames)
-// Row 1: idle face-left    (5 frames)
-// Row 2: idle face-back    (5 frames)
-// Row 3: run  face-forward (4 frames)
-// Row 4: run  face-left    (4 frames)
-// Row 5: run  face-back    (4 frames)
+// SPRITE SHEETS
 // ============================================================
-const HERO_SW = 500, HERO_SH = 500; // размер одного спрайта в исходном листе (пикс)
-const HERO_ANIMS = {
-  // row: строка в спрайт-листе; frames: кол-во кадров; fps: скорость анимации
-  idle_forward: { row: 0, frames: 5, fps: 8 },  // стоя лицом вперёд
-  idle_left:    { row: 1, frames: 5, fps: 8 },  // стоя лицом влево
-  idle_back:    { row: 2, frames: 5, fps: 8 },  // стоя спиной
-  run_forward:  { row: 3, frames: 4, fps: 10 }, // бег лицом вперёд
-  run_left:     { row: 4, frames: 4, fps: 10 }, // бег лицом влево
-  run_back:     { row: 5, frames: 4, fps: 10 }, // бег спиной
-};
-
-// ============================================================
-// COCOON ENEMY SPRITE SHEET
-// Sprite sheet: 3500x500, each sprite 500x500 (7 frames horizontal)
-// 7 animation frames for idle/pulsing animation
-// ============================================================
-const COCOON_SW = 500, COCOON_SH = 500; // размер одного спрайта (пикс)
-const COCOON_ANIM = {
-  frames: 7,
-  fps: 8,
-};
-
-// ============================================================
-// BAT ENEMY SPRITE SHEET
-// Sprite sheet: 512x64, each sprite 64x64 (8 frames horizontal)
-// Frames 0-6: movement loop; frame 7: damage
-// ============================================================
-const BAT_SW = 64, BAT_SH = 64; // размер одного спрайта (пикс)
-const BAT_ANIM = {
-  frames: 7, // movement frames
-  fps: CONFIG?.BAT_ANIM_FPS ?? 8,
-  hitFrame: 7,
-};
-
-// ============================================================
-// PLEVAKA ENEMY SPRITE SHEET
-// Sprite sheet: 1500x1500, each sprite 500x500 (3 rows x 3 cols)
-// Row 0: run (3 frames) - when moving
-// Row 1: idle (3 frames) - when stationary
-// Row 2: shoot (3 frames) - when shooting
-// ============================================================
-const PLEVAKA_SW = 500, PLEVAKA_SH = 500; // размер одного спрайта (пикс)
-const PLEVAKA_ANIMS = {
-  run: { row: 0, frames: 3, fps: 3 },
-  idle: { row: 1, frames: 2, fps: 2 },
-  shoot: { row: 2, frames: 3, fps: 3 },
+const SPRITE_SHEETS = {
+  hero: {
+    sw: 500, sh: 500,
+    anims: {
+      idle_forward: { row: 0, frames: 5, fps: 8 },
+      idle_left:    { row: 1, frames: 5, fps: 8 },
+      idle_back:    { row: 2, frames: 5, fps: 8 },
+      run_forward:  { row: 3, frames: 4, fps: 10 },
+      run_left:     { row: 4, frames: 4, fps: 10 },
+      run_back:     { row: 5, frames: 4, fps: 10 },
+    },
+  },
+  cocoon: {
+    sw: 500, sh: 500,
+    anim: { frames: 7, fps: 8 },
+  },
+  bat: {
+    sw: 64, sh: 64,
+    anim: { frames: 7, fps: 15, hitFrame: 7 },
+  },
+  plevaka: {
+    sw: 500, sh: 500,
+    anims: {
+      run: { row: 0, frames: 3, fps: 3 },
+      idle: { row: 1, frames: 2, fps: 2 },
+      shoot: { row: 2, frames: 3, fps: 3 },
+    },
+  },
 };
