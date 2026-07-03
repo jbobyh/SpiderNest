@@ -282,9 +282,6 @@ function _getRoomCenterCell(state, ck) {
 
 function _enemyCopy(g, bx, by) {
   const copy = EnemyFactory.create(g.type, bx, by, g);
-  copy.stuckTimer = 0;
-  copy.lastX = bx;
-  copy.lastY = by;
   return copy;
 }
 
