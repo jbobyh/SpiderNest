@@ -244,7 +244,16 @@ function _handlePhysicsCollision(pairs) {
     const entA = bodyA._entity;
     const entB = bodyB._entity;
 
-    if (!entA || !entB) continue;
+    // Enemy <-> Wall: flag buldyga for inertia reset
+    if (!entA || !entB) {
+      const enemyEnt = entA || entB;
+      const wallBody = entA ? bodyB : bodyA;
+      if (enemyEnt && (wallBody.label === 'wall' || wallBody.label === 'external_wall')
+          && (enemyEnt.type === 'buldyga' || enemyEnt.isBoss)) {
+        enemyEnt._hitWall = true;
+      }
+      continue;
+    }
 
     // Player <-> Enemy
     const player = (entA.lives !== undefined) ? entA : (entB.lives !== undefined ? entB : null);
@@ -253,6 +262,7 @@ function _handlePhysicsCollision(pairs) {
     if (player && enemy) {
       _handlePlayerEnemyContact(player, enemy);
     }
+
   }
 }
 

@@ -362,17 +362,13 @@ export class BuldygaEnemy extends Enemy {
       this.vy *= Math.max(0, friction);
     }
 
-    // Wall hit check (internal velocity sync)
-    if (this.body) {
-      const bv = this.body.velocity;
-      const bSpd = Math.hypot(bv.x, bv.y);
-      const vSpd = Math.hypot(this.vx, this.vy);
-      if (vSpd > 0.5 && bSpd < vSpd * 0.2) {
-        this.vx = bv.x;
-        this.vy = bv.y;
-      }
+    // Wall/enemy hit — reset inertia (flag set by collision events)
+    if (this._hitWall) {
+      this.vx = 0;
+      this.vy = 0;
+      this._hitWall = false;
     }
-    
+
     setBodyVelocity(this.body, this.vx, this.vy);
   }
 }
@@ -527,10 +523,10 @@ export class PhaseBoss extends Enemy {
       this.vy *= Math.max(0, 1 - CONFIG.ENEMY_STATS.buldyga.friction * frictionMult * dt);
     }
 
-    if (this.body) {
-      const prevSpd = Math.hypot(this.body.velocity.x, this.body.velocity.y);
-      const targSpd = Math.hypot(this.vx, this.vy);
-      if (targSpd > 10 && prevSpd < targSpd * 0.5) { this.vx *= -0.3; this.vy *= -0.3; }
+    if (this._hitWall) {
+      this.vx = 0;
+      this.vy = 0;
+      this._hitWall = false;
     }
     setBodyVelocity(this.body, this.vx, this.vy);
   }

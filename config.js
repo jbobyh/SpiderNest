@@ -100,7 +100,7 @@ const CONFIG = {
     bat:      { hp: 60, speed: 1, radius: 7, visualScale: 3.9, animFps: 15, zigzagFreq: 4, zigzagAmp: 0.8 },
     shooter:  { hp: 40, speed: 1, radius: 6, visualScale: 2.5, bulletSpeed: 100, shootRangeCells: 2, shootCd: 1.5, stopDistCells: 2 },
     bull:     { hp: 80, speed: 1, radius: 6, visualScale: 3.2, prepareTime: 1, restTime: 1.5, chargeDistCells: 0.75, dashDistCells: 0.02 },
-    buldyga:  { hp: 100, speed: 1, radius: 6, visualScale: 4.0, accel: 20, friction: 3.5, speedIncrement: 0.1 },
+    buldyga:  { hp: 100, speed: 1, radius: 6, visualScale: 4.0, accel: 40, friction: 3.5, speedIncrement: 0.1 },
     cocoon:   { hp: 200, radius: 10, visualScale: 3.2, spawnInterval: 3.0 },
     bloated:  { hp: 60, speed: 1, radius: 7, visualScale: 3.2, deathShotSpeed: 120 },
     tank:     { hp: 200, speed: 0.7, radius: 14, visualScale: 2 },
