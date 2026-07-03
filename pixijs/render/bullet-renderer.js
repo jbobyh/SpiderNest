@@ -3,17 +3,19 @@ import { app } from '../core/app.js';
 
 const BULLET_R = CONFIG.BULLET_RENDER?.radius ?? 2.5;
 
-const PLAYER_EDGE = 0xffff00;
-const ENEMY_EDGE  = 0xff0000;
+const PLAYER_EDGE = CONFIG.BULLET_RENDER.playerColor;
+const CRIT_EDGE   = CONFIG.BULLET_RENDER.critColor;
+const ENEMY_EDGE  = CONFIG.BULLET_RENDER.enemyColor;
 
 const _slots = {
   playerCore: { container: null, texture: null, map: new Map(), pool: [] },
+  critCore:   { container: null, texture: null, map: new Map(), pool: [] },
   enemyCore:  { container: null, texture: null, map: new Map(), pool: [] },
 };
 
 function _slotFor(b) {
-  const isPlayer = b.owner === 'player' && !b.isCrit;
-  return isPlayer ? 'player' : 'enemy';
+  if (b.owner === 'player') return b.isCrit ? 'crit' : 'player';
+  return 'enemy';
 }
 
 function _createCoreTexture(edgeColor, scale = 1) {
@@ -48,9 +50,10 @@ export function initBulletRenderer(parent) {
   }
 
   _slots.playerCore.texture = _createCoreTexture(PLAYER_EDGE);
+  _slots.critCore.texture   = _createCoreTexture(CRIT_EDGE);
   _slots.enemyCore.texture  = _createCoreTexture(ENEMY_EDGE);
 
-  const order = ['enemyCore', 'playerCore'];
+  const order = ['enemyCore', 'critCore', 'playerCore'];
   for (const key of order) {
     const s = _slots[key];
     s.container = new ParticleContainer({

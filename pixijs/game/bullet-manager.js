@@ -39,8 +39,8 @@ class BulletManager {
       // Bullet trail for player and enemy bullets
       if (b._trailTimer <= 0) {
         const trailColor = b.owner === 'player'
-          ? (b.isCrit ? '#ff6600' : '#ffdd44')
-          : '#ff0000';
+          ? (b.isCrit ? CONFIG.BULLET_TRAIL.critColor : CONFIG.BULLET_TRAIL.playerColor)
+          : CONFIG.BULLET_TRAIL.enemyColor;
         activeState.particles.push({
           x: b.x - b.vx * 0.01,
           y: b.y - b.vy * 0.01,

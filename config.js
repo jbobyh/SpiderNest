@@ -44,12 +44,18 @@ const CONFIG = {
   // Bullet render
   BULLET_RENDER: {
     radius:     2.5,    // радиус ядра пули (px)
+    playerColor: 0xffff00,
+    critColor:   0x00a2ff,
+    enemyColor:  0xff0000,
   },
 
   // Bullet trail
   BULLET_TRAIL: {
     interval: 0.01,   // секунд между эмитом частиц трейла
     life:     0.06,   // время жизни частицы трейла (сек)
+    playerColor: '#ffdd44',
+    critColor:   '#00a2ff',
+    enemyColor:  '#ff0000',
   },
 
   // Damage numbers
