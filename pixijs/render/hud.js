@@ -276,7 +276,7 @@ function _updateStatsPanel(s) {
     style: new TextStyle({
       fill: '#00d4ff',
       fontSize: 16,
-      fontFamily: 'Orbitron, sans-serif',
+      fontFamily: 'BoldPixels, sans-serif',
       fontWeight: 'bold'
     })
   });
@@ -300,7 +300,7 @@ function _updateStatsPanel(s) {
       style: new TextStyle({
         fill: row.color,
         fontSize: 14,
-        fontFamily: 'Orbitron, sans-serif',
+        fontFamily: 'BoldPixels, sans-serif',
         fontWeight: 'bold'
       })
     });
@@ -574,7 +574,7 @@ function _updateWeaponSlots(s) {
     const lbl = new Text({ text: String(i + 1), style: new TextStyle({
       fill:       active ? '#00d4ff' : 'rgba(42,74,106,1)',
       fontSize:   9,
-      fontFamily: 'Huninn, monospace',
+      fontFamily: 'BoldPixels, sans-serif',
       fontWeight: 'bold',
     })});
     lbl.anchor.set(0.5, 0);
@@ -658,7 +658,7 @@ function _buildHintsPanel() {
         style: new TextStyle({
           fill: '#00d4ff',
           fontSize: 10,
-          fontFamily: 'Huninn, monospace',
+          fontFamily: 'BoldPixels, sans-serif',
           fontWeight: 'bold',
         })
       });
@@ -744,7 +744,7 @@ function _buildBossSummonHint() {
   const keyLbl = new Text({ text: 'SPC', style: new TextStyle({
     fill: '#00d4ff',
     fontSize: 10,
-    fontFamily: 'Huninn, monospace',
+    fontFamily: 'BoldPixels, sans-serif',
     fontWeight: 'bold',
   })});
   keyLbl.anchor.set(0.5, 0.5);
@@ -755,7 +755,7 @@ function _buildBossSummonHint() {
   const lbl = new Text({ text: 'ПРИЗВАТЬ БОССА', style: new TextStyle({
     fill: '#ff6600',
     fontSize: 11,
-    fontFamily: 'Huninn, monospace',
+    fontFamily: 'BoldPixels, sans-serif',
     fontWeight: 'bold',
   })});
   lbl.anchor.set(0, 0.5);
@@ -798,7 +798,7 @@ function _buildBossHpBar() {
   const hpText = new Text({ text: '1000/1000', style: new TextStyle({
     fill: '#ffffff',
     fontSize: 11,
-    fontFamily: 'Huninn, monospace',
+    fontFamily: 'BoldPixels, sans-serif',
     fontWeight: 'bold',
   })});
   hpText.anchor.set(0.5, 0.5);
@@ -810,7 +810,7 @@ function _buildBossHpBar() {
   const bossLabel = new Text({ text: 'BOSS', style: new TextStyle({
     fill: '#ff6666',
     fontSize: 12,
-    fontFamily: 'Huninn, monospace',
+    fontFamily: 'BoldPixels, sans-serif',
     fontWeight: 'bold',
   })});
   bossLabel.anchor.set(0.5, 1);
@@ -879,7 +879,7 @@ function _buildLevelComplete() {
   const title = new Text({ text: 'УРОВЕНЬ ПРОЙДЕН!', style: new TextStyle({
     fill: '#44ff88',
     fontSize: 32,
-    fontFamily: 'Huninn, monospace',
+    fontFamily: 'BoldPixels, sans-serif',
     fontWeight: 'bold',
     letterSpacing: 4,
   })});
@@ -892,7 +892,7 @@ function _buildLevelComplete() {
   const subtitle = new Text({ text: 'Путь на следующий этаж открыт.', style: new TextStyle({
     fill: '#aaccbb',
     fontSize: 14,
-    fontFamily: 'Huninn, monospace',
+    fontFamily: 'BoldPixels, sans-serif',
   })});
   subtitle.anchor.set(0.5, 0.5);
   subtitle.position.set(VW / 2, VH / 2 + 10);
@@ -918,7 +918,7 @@ function _buildLevelComplete() {
   const btnText = new Text({ text: 'СЛЕДУЮЩИЙ УРОВЕНЬ', style: new TextStyle({
     fill: '#00d4ff',
     fontSize: 14,
-    fontFamily: 'Huninn, monospace',
+    fontFamily: 'BoldPixels, sans-serif',
     fontWeight: 'bold',
   })});
   btnText.anchor.set(0.5, 0.5);
