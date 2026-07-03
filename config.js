@@ -94,6 +94,16 @@ const CONFIG = {
     shakeScale: 5,          // множитель shakeAmount → пиксели (0.5 * 12 = 6px)
   },
 
+  // Shoot VFX (muzzle flash sprite animation)
+  SHOOT_VFX: {
+    frameSize: 64,           // размер кадра в спрайтшите (px)
+    frameCount: 9,           // кол-во кадров анимации (верхний ряд)
+    fps: 35,                 // скорость анимации
+    sizeMult: 1.5,           // множитель к drawSize игрока (PLAYER_SPRITE_RADIUS * 2)
+    offsetMult: 0.9,         // множитель к drawSize для смещения от центра игрока
+    rotationOffset: Math.PI / 4,  // поправка угла спрайта (рад)
+  },
+
   // Enemy stats
   ENEMY_STATS: {
     soldier:  { hp: 60, speed: 1, radius: 7, visualScale: 2.9, wobbleMin: 0.2, wobbleMax: 0.3, spawnMargin: 10 },

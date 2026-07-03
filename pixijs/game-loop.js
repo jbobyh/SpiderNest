@@ -33,6 +33,9 @@ import {
   initParticles, syncParticles, clearParticles,
 } from './render/particles.js';
 import {
+  initShootVfx, updateShootVfx, clearShootVfx,
+} from './render/shoot-vfx.js';
+import {
   initDamageNumbers, updateAndSyncDamageNumbers, clearDamageNumbers,
 } from './render/damage-numbers.js';
 import { initHud, updateHud, updateBossHpBar, updateFps, showLevelComplete, hideLevelComplete, destroyHud }   from './render/hud.js';
@@ -153,6 +156,7 @@ export function startGameLoop({
   initLayers(_camera);
   initEntityPool();
   initParticles(layers.particles);
+  initShootVfx(layers.entities);
   initDamageNumbers(layers.damageNumbers);
   initPlayerRenderer(layers.entities);
   initBulletRenderer(layers.particles);
@@ -215,6 +219,7 @@ export function stopGameLoop() {
   bulletManager.clear();
   clearBullets();
   clearParticles();
+  clearShootVfx();
   clearDamageNumbers();
   clearCollectibles();
   destroyFlyingHeartRenderer();
@@ -398,6 +403,7 @@ function _render(dt) {
 
   syncBullets(bulletManager.bullets);
   syncParticles(_state.particles);
+  updateShootVfx(dt);
   updateAndSyncDamageNumbers(_state, dt, _camera);
   syncDebugColliders(_state.phase === 'battle');
   syncCollectibles(_state);

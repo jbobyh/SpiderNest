@@ -134,10 +134,10 @@ function _updateWeapon(state, p, mouseDx, mouseDy, heroDrawSize) {
   const offsetDist   = heroDrawSize * 0.3;
   _weaponSprite.x    = p.x + Math.cos(aimAngle) * offsetDist;
   _weaponSprite.y    = p.y + Math.sin(aimAngle) * offsetDist;
-  _weaponSprite.rotation = aimAngle + spriteAngle;
 
   // Flip vertically when aiming left half
   const flipY = aimAngle > Math.PI / 2 || aimAngle < -Math.PI / 2;
+  _weaponSprite.rotation = aimAngle + (flipY ? -spriteAngle : spriteAngle);
   _weaponSprite.scale.set(ws, flipY ? -ws : ws);
   _weaponSprite.visible = _heroSprite.visible;
 }

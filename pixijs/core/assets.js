@@ -92,6 +92,8 @@ const MANIFEST = {
         { alias: 'gameover-screen',   src: IMG + 'gameover.png' },
         { alias: 'gameover-text',     src: IMG + 'gameover-text.png' },
         { alias: 'deathtext',         src: IMG + 'deathtext.png' },
+        // Shoot VFX sprite sheet (9×9, 64×64px per frame)
+        { alias: 'shoot-vfx',         src: IMG + 'shoot-vfx.png' },
       ],
     },
 
