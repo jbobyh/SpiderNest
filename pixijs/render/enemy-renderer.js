@@ -181,7 +181,7 @@ function _updateEnemyTexture(g, sprite, gameTime) {
   } else if (isCocoon) {
     const fps   = SPRITE_SHEETS.cocoon.anim.fps;
     const total = SPRITE_SHEETS.cocoon.anim.frames;
-    const frame = Math.floor((gameTime * fps) % total);
+    const frame = Math.floor((g.animTime * fps) % total);
     const tex   = cocoonFrames[frame];
     if (sprite.texture !== tex) sprite.texture = tex;
   } else if (isBoss) {

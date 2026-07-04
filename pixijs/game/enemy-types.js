@@ -36,7 +36,8 @@ export class ZigzagChaserEnemy extends Enemy {
   }
 
   updateBehavior(dt, state) {
-    this._updateBatAnim(dt);
+    const speedMult = this.getRoomSpeedMult(state);
+    this._updateBatAnim(dt * speedMult);
 
     if (this.stunTimer > 0) {
       setBodyVelocity(this.body, 0, 0);
@@ -48,7 +49,6 @@ export class ZigzagChaserEnemy extends Enemy {
     const dist = Math.hypot(dx, dy);
 
     if (dist > 0) {
-      const speedMult = this.getRoomSpeedMult(state);
       const baseSpeed = CONFIG.ENEMY_STATS.bat.speed;
       
       // Use direct movement with zigzag if LoS, otherwise follow flow field
@@ -116,7 +116,8 @@ export class ShooterEnemy extends Enemy {
     const dy = state.player.y - this.y;
     const dist = Math.hypot(dx, dy);
 
-    this._updateShooterAnim(dt);
+    const speedMult = this.getRoomSpeedMult(state);
+    this._updateShooterAnim(dt * speedMult);
 
     const hasLos = hasLineOfSight(state.openCells, state.removedWalls, this.x, this.y, state.player.x, state.player.y);
     const isStunned = this.stunTimer > 0;
@@ -150,7 +151,6 @@ export class ShooterEnemy extends Enemy {
     } else if (!hasLos || dist > stopDist) {
       if (dist > 0) {
         const dir = getEnemyMoveDir(this.x, this.y, state.player.x, state.player.y, state.flowField, state.openCells, state.removedWalls);
-        const speedMult = this.getRoomSpeedMult(state);
         setBodyVelocity(this.body, dir.dx * CONFIG.ENEMY_STATS.shooter.speed * speedMult, dir.dy * CONFIG.ENEMY_STATS.shooter.speed * speedMult);
         if (this.animState !== 'shoot') this.animState = 'run';
       }
@@ -395,9 +395,11 @@ export class CocoonEnemy extends Enemy {
   constructor(data) {
     super(data);
     this.spawnTimer = data.spawnTimer ?? CONFIG.ENEMY_STATS.cocoon.spawnInterval;
+    this.animTime = data.animTime ?? 0;
   }
 
   updateBehavior(dt, state) {
+    this.animTime += dt * this.getRoomSpeedMult(state);
     const cx = Math.floor(this.x / CELL_PX), cy = Math.floor(this.y / CELL_PX);
     if (!state.openCells.has(cellKey(cx, cy))) {
       this.die(state, true);
