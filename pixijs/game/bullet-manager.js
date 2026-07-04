@@ -334,7 +334,7 @@ class BulletManager {
       }
 
       // Hit VFX sprite animation
-      spawnEnemyHitVfx(g.x, g.y);
+      // spawnEnemyHitVfx(g.x, g.y);
 
       // Hit particles
       const bAngle = Math.atan2(b.vy, b.vx);
