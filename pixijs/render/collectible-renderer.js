@@ -35,7 +35,7 @@ export function clearCollectibles() {
   for (const s of _chests.values())         s.destroy({ children: true });
   for (const s of _upgradeChests.values()) s.destroy({ children: true });
   for (const s of _weapons.values())       s.destroy({ children: true });
-  for (const e of _altars.values())        { e.spr.destroy(); e.label.destroy(); }
+  for (const e of _altars.values())        { e.spr.destroy(); e.label?.destroy(); }
   for (const s of _roomBonusAltars.values()) s.destroy({ children: true });
   if (_sphere) { _sphere.destroy(); _sphere = null; }
   _hearts.clear();

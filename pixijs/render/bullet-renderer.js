@@ -77,7 +77,7 @@ export function syncBullets(bullets) {
     if (!s.container) continue;
 
     for (const [bullet, particle] of s.map) {
-      if (bullet.isDead || !bullets.includes(bullet)) {
+      if (bullet.isDead || !bullets.includes(bullet) || _slotFor(bullet) + 'Core' !== key) {
         s.container.removeParticle(particle);
         s.pool.push(particle);
         s.map.delete(bullet);

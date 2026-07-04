@@ -533,15 +533,15 @@ const CURSED_UPGRADE_TYPES = [
     max: 1,
     icon: '🎲'
   },
-  {
-    id: 'farSight',
-    label: 'Далеко гляжу',
-    description: 'Видно содержимое смежных комнат по диагонали',
-    color: '#00e5ff',
-    max: 1,
-    icon: '👁️',
-    effects: { farSight: true }
-  },
+  // {
+  //   id: 'farSight',
+  //   label: 'Далеко гляжу',
+  //   description: 'Видно содержимое смежных комнат по диагонали',
+  //   color: '#00e5ff',
+  //   max: 1,
+  //   icon: '👁️',
+  //   effects: { farSight: true }
+  // },
   {
     id: 'longRange',
     label: 'Дальнобойщик',
