@@ -45,6 +45,9 @@ import {
   initBurnVfx, syncBurnVfx, clearBurnVfx,
 } from './render/burn-vfx.js';
 import {
+  initFreezeVfx, syncFreezeVfx, clearFreezeVfx,
+} from './render/freeze-vfx.js';
+import {
   initDamageNumbers, updateAndSyncDamageNumbers, clearDamageNumbers,
 } from './render/damage-numbers.js';
 import { initHud, updateHud, updateBossHpBar, updateFps, showLevelComplete, hideLevelComplete, destroyHud }   from './render/hud.js';
@@ -173,6 +176,7 @@ export function startGameLoop({
   initWallHitVfx(layers.entities);
   initEnemyHitVfx(layers.entities);
   initBurnVfx(layers.entities);
+  initFreezeVfx(layers.entities);
   initDamageNumbers(layers.damageNumbers);
   initPlayerRenderer(layers.entities);
   initBulletRenderer(layers.particles);
@@ -240,6 +244,7 @@ export function stopGameLoop() {
   clearWallHitVfx();
   clearEnemyHitVfx();
   clearBurnVfx();
+  clearFreezeVfx();
   clearDamageNumbers();
   clearCollectibles();
   destroyFlyingHeartRenderer();
@@ -411,6 +416,8 @@ function _render(dt) {
   );
 
   syncBurnVfx(_state.activeSpiders, dt);
+
+  syncFreezeVfx(_state.activeSpiders, dt);
 
   syncBullets(bulletManager.bullets);
   syncParticles(_state.particles);

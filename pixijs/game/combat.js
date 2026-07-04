@@ -236,6 +236,7 @@ function _spawnPlayerBullet(state, weapon, angle, bulletSpeed, scale, battleStat
   const player = battleState ? battleState.player : state.player;
 
   const isIncendiary = state.upgrades.incendiaryChance > 0 && Math.random() < state.upgrades.incendiaryChance;
+  const isFreeze = state.upgrades.freezeChance > 0 && Math.random() < state.upgrades.freezeChance;
 
   bulletManager.spawn({
     x: player.x, y: player.y,
@@ -249,6 +250,7 @@ function _spawnPlayerBullet(state, weapon, angle, bulletSpeed, scale, battleStat
     color: PLAYER_BULLET_COLOR,
     isCrit: isCrit,
     isIncendiary: isIncendiary,
+    isFreeze: isFreeze,
     aimCritTarget: aimCritTarget,
     aimCritMult: critMult
   });

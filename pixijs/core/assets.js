@@ -100,6 +100,8 @@ const MANIFEST = {
         { alias: 'enemyhit-vfx',      src: IMG + 'enemyhit-vfx.png' },
         // Burn status VFX sprite sheet (top row, 16 frames × 64×64px)
         { alias: 'firestatus-vfx',    src: IMG + 'firestatus-vfx.png' },
+        // Freeze status VFX sprite sheet (row 3, 12 frames × 64×64px)
+        { alias: 'freeze-vfx',        src: IMG + 'freeze-vfx.png' },
       ],
     },
 
