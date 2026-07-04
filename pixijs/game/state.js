@@ -44,6 +44,7 @@ export function createDefaultProgress() {
       sniper: false,
       hitStun: 0,
       incendiaryChance: 0,
+      freezeChance: 0,
       // Spatial upgrades
       spatialReloadRooms: false,
       spatialReloadHearts: false,

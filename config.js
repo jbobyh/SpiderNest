@@ -47,6 +47,7 @@ const CONFIG = {
     playerColor: 0xffff00,
     critColor:       0x00a2ff,
     incendiaryColor: 0xff6600,
+    freezeColor:     0x44ddff,
     enemyColor:      0xff0000,
   },
 
@@ -57,6 +58,7 @@ const CONFIG = {
     playerColor:    '#ffdd44',
     critColor:      '#00a2ff',
     incendiaryColor:'#ff6600',
+    freezeColor:    '#44ddff',
     enemyColor:     '#ff0000',
   },
 
@@ -127,6 +129,14 @@ const CONFIG = {
   BURN_VFX: {
     frameSize: 64,           // размер кадра в спрайтшите (px)
     frameCount: 16,          // кол-во кадров анимации (верхний ряд)
+    fps: 48,                 // скорость анимации (кадров/сек)
+  },
+
+  // Freeze status VFX (ice animation overlay on frozen enemies)
+  FREEZE_VFX: {
+    frameSize: 64,           // размер кадра в спрайтшите (px)
+    frameCount: 12,          // кол-во кадров анимации (3-й ряд)
+    row: 2,                  // ряд спрайтшита (0-indexed)
     fps: 48,                 // скорость анимации (кадров/сек)
   },
 
@@ -454,6 +464,7 @@ const UPGRADE_TYPES = [
   { id: 'speed',         label: 'Скорость бега +10%',      description: 'Увеличивает скорость передвижения на 10%',                    color: '#44ff88', max: 3, icon: '💨', effects: { speedMult: 0.10 } },
   { id: 'hitStun',       label: 'Стан при попадании',      description: 'Враги застывают на 0.05с при попадании.',                     color: '#88ddff', max: 5, icon: '⏳', effects: { hitStun: 0.05 } },
   { id: 'incendiary',    label: '+5% поджигающая пуля',     description: '5% шанс что пуля подожжёт врага. Горение наносит урон каждые 0.2с в течение 2с.', color: '#ff6600', max: 3, icon: '🔥', effects: { incendiaryChance: 0.05 } },
+  { id: 'freeze',        label: '+5% охлаждающая пуля',     description: '5% шанс заморозить врага. Замедление в 2 раза на 2с.', color: '#44ddff', max: 3, icon: '❄️', effects: { freezeChance: 0.05 } },
 ];
 
 const ROOM_BONUS_TYPES = [

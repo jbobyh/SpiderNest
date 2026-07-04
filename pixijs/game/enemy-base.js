@@ -1,7 +1,7 @@
 import { createEnemyBody, destroyBody, setBodyVelocity } from '../world/physics.js';
 import { cellOf, cellKey, CELL_PX, getRoomBonus, getRoomSpeedMultiplier } from '../world/constants.js';
 import { Sounds } from '../core/sound.js';
-import { updateStatuses } from './status-system.js';
+import { updateStatuses, hasStatus } from './status-system.js';
 import { spawnDamageNumber } from '../render/damage-numbers.js';
 
 export class Enemy {
@@ -62,7 +62,9 @@ export class Enemy {
   getRoomSpeedMult(state) {
     const cell = cellOf(this.x, this.y);
     const ck = cellKey(cell.x, cell.y);
-    return getRoomSpeedMultiplier(state, ck);
+    let mult = getRoomSpeedMultiplier(state, ck);
+    if (hasStatus(this, 'freeze')) mult *= 0.5;
+    return mult;
   }
 
   takeDamage(damage, isCrit = false, options = {}) {

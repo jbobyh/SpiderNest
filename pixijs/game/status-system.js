@@ -11,6 +11,10 @@ import { Sounds } from '../core/sound.js';
 // Each def: { duration, tickInterval, onApply(enemy, state, opts), onTick(enemy, state, status), onExpire(enemy, state) }
 
 export const STATUS_DEFS = {
+  freeze: {
+    duration: 2.0,
+    tickInterval: 0,
+  },
   burn: {
     duration: 2.0,
     tickInterval: 0.2,

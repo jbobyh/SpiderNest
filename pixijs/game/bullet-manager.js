@@ -49,7 +49,7 @@ class BulletManager {
       // Bullet trail for player and enemy bullets
       if (b._trailTimer <= 0) {
         const trailColor = b.owner === 'player'
-          ? (b.isCrit ? CONFIG.BULLET_TRAIL.critColor : b.isIncendiary ? CONFIG.BULLET_TRAIL.incendiaryColor : CONFIG.BULLET_TRAIL.playerColor)
+          ? (b.isCrit ? CONFIG.BULLET_TRAIL.critColor : b.isIncendiary ? CONFIG.BULLET_TRAIL.incendiaryColor : b.isFreeze ? CONFIG.BULLET_TRAIL.freezeColor : CONFIG.BULLET_TRAIL.playerColor)
           : CONFIG.BULLET_TRAIL.enemyColor;
         activeState.particles.push({
           x: b.x - b.vx * 0.01,
@@ -327,6 +327,10 @@ class BulletManager {
 
       if (b.isIncendiary) {
         applyStatus(g, 'burn', 2, { damagePerTick: b.damage / 10 });
+      }
+
+      if (b.isFreeze) {
+        applyStatus(g, 'freeze', 2);
       }
 
       // Hit VFX sprite animation
