@@ -5,6 +5,7 @@ import { spawnParticles } from '../render/particles.js';
 import { spawnDamageNumber } from '../render/damage-numbers.js';
 import { spawnWallHitVfx } from '../render/wallhit-vfx.js';
 import { spawnEnemyHitVfx } from '../render/enemyhit-vfx.js';
+import { applyStatus } from './status-system.js';
 
 const _hitPoint = { x: 0, y: 0, nx: 0, ny: 0 };
 
@@ -48,7 +49,7 @@ class BulletManager {
       // Bullet trail for player and enemy bullets
       if (b._trailTimer <= 0) {
         const trailColor = b.owner === 'player'
-          ? (b.isCrit ? CONFIG.BULLET_TRAIL.critColor : CONFIG.BULLET_TRAIL.playerColor)
+          ? (b.isCrit ? CONFIG.BULLET_TRAIL.critColor : b.isIncendiary ? CONFIG.BULLET_TRAIL.incendiaryColor : CONFIG.BULLET_TRAIL.playerColor)
           : CONFIG.BULLET_TRAIL.enemyColor;
         activeState.particles.push({
           x: b.x - b.vx * 0.01,
@@ -295,13 +296,17 @@ class BulletManager {
       if (dist >= ((g.radius || CONFIG.ENEMY_STATS.soldier.radius) + CONFIG.BULLET_RADIUS) * BS) continue;
 
       // Hit!
+      const isCritHit = b.isCrit || (!b.isCrit && b.aimCritTarget === g);
       let damage = b.damage;
+      if (!b.isCrit && isCritHit) {
+        damage *= b.aimCritMult;
+      }
       if (b.hitCount > 0 && state.upgrades.enhancedPierce && b.enhancedPierceActive) {
         damage *= 2;
       }
 
       if (g.takeDamage) {
-        g.takeDamage(damage, b.isCrit);
+        g.takeDamage(damage, isCritHit, { state, showDamageNumber: !isBattle });
       } else {
         if (!g.isBoss) {
           g.hpBarVisible = true;
@@ -310,12 +315,18 @@ class BulletManager {
         }
         g.hp -= damage;
         g.hitFlash = CONFIG.ENEMY_HIT_FLASH_DURATION;
-        if (!g.isBoss) g.stunTimer = CONFIG.ENEMY_STUN_DURATION;
         Sounds.hit?.();
+        if (!isBattle) {
+          spawnDamageNumber(state, g.x, g.y - (g.radius || CONFIG.ENEMY_STATS.soldier.radius), damage, isCritHit, 1);
+        }
       }
 
-      if (!isBattle) {
-        spawnDamageNumber(state, g.x, g.y - (g.radius || CONFIG.ENEMY_STATS.soldier.radius), damage, b.isCrit, 1);
+      if (!g.isBoss && state.upgrades.hitStun > 0) {
+        g.stunTimer = state.upgrades.hitStun;
+      }
+
+      if (b.isIncendiary) {
+        applyStatus(g, 'burn', 2, { damagePerTick: b.damage / 10 });
       }
 
       // Hit VFX sprite animation
@@ -323,7 +334,7 @@ class BulletManager {
 
       // Hit particles
       const bAngle = Math.atan2(b.vy, b.vx);
-      const hitCount = b.isCrit ? CONFIG.PARTICLES.hit.critCount : CONFIG.PARTICLES.hit.count;
+      const hitCount = isCritHit ? CONFIG.PARTICLES.hit.critCount : CONFIG.PARTICLES.hit.count;
       for (let k = 0; k < hitCount; k++) {
         const sp = bAngle + (Math.random() - 0.5) * CONFIG.PARTICLES.hit.spread;
         const spd = (CONFIG.PARTICLES.hit.speedMin + Math.random() * (CONFIG.PARTICLES.hit.speedMax - CONFIG.PARTICLES.hit.speedMin)) * BS;

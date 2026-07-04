@@ -59,6 +59,33 @@ export function getSpatialBonus(state, axis) {
   return total;
 }
 
+// ── Total spread calculation (shared) ─────────────────────────
+
+export function getTotalSpread(state) {
+  const weapon = getActiveWeapon(state);
+  if (!weapon) return 0;
+
+  const spatialAccuracy = getSpatialBonus(state, 'accuracy');
+  let totalSpread = weapon.spread * state.upgrades.spreadMult * Math.max(0, 1 - spatialAccuracy);
+
+  if (state.upgrades.sniper) {
+    let roomCount = 1;
+    if (state.battle && state.battle.battleCells && state.rooms) {
+      let participatingRooms = 0;
+      for (const room of state.rooms) {
+        if (room.cells.some(c => state.battle.battleCells.has(c.k))) {
+          participatingRooms++;
+        }
+      }
+      roomCount = participatingRooms;
+    }
+    if (roomCount <= 2) totalSpread = 0;
+    else                totalSpread *= 1 + 0.10 * (roomCount - 2);
+  }
+
+  return totalSpread;
+}
+
 // ── Shoot (play-mode) ─────────────────────────────────────────
 
 export function shoot(state, camera = null) {
@@ -93,34 +120,27 @@ export function shoot(state, camera = null) {
   const burstTotal    = isBurstWeapon ? weapon.burstSize + state.upgrades.pellets : weapon.burstSize;
   const burstDelay    = _burstStepDelay(weapon, burstTotal) * state.upgrades.cooldownMult * killAccelMult;
   
-  // Spatial Accuracy Bonus
-  const spatialAccuracy = getSpatialBonus(state, 'accuracy');
-  let   totalSpread   = weapon.spread * state.upgrades.spreadMult * Math.max(0, 1 - spatialAccuracy);
+  const totalSpread = getTotalSpread(state);
 
   const spatialBulletSpeed = getSpatialBonus(state, 'bulletSpeed');
   const bulletSpeed   = weapon.bulletSpeed * state.upgrades.bulletSpeedMult * (1 + spatialBulletSpeed);
 
-  // Sniper upgrade: perfect accuracy when ≤2 rooms
-  if (state.upgrades.sniper) {
-    let roomCount = 1;
-    if (state.battle && state.battle.battleCells && state.rooms) {
-      let participatingRooms = 0;
-      for (const room of state.rooms) {
-        if (room.cells.some(c => state.battle.battleCells.has(c.k))) {
-          participatingRooms++;
-        }
-      }
-      roomCount = participatingRooms;
-    }
-    if (roomCount <= 2)   totalSpread = 0;
-    else                  totalSpread *= 1 + 0.10 * (roomCount - 2);
-  }
-
   Sounds.shot(weapon.id);
+
+  // Aim crit: find enemy under cursor at moment of shot
+  let aimCritTarget = null;
+  for (const g of state.activeSpiders) {
+    if (g.isDead || g.hp <= 0) continue;
+    const dist = Math.hypot(state.mouse.x - g.x, state.mouse.y - g.y);
+    if (dist <= (g.radius || CONFIG.ENEMY_STATS.soldier.radius)) {
+      aimCritTarget = g;
+      break;
+    }
+  }
 
   for (let i = 0; i < pellets; i++) {
     const spread = (Math.random() - 0.5) * totalSpread;
-    _spawnPlayerBullet(state, weapon, baseAngle + spread, bulletSpeed, 1);
+    _spawnPlayerBullet(state, weapon, baseAngle + spread, bulletSpeed, 1, null, aimCritTarget);
   }
 
   // Shoot VFX sprite animation
@@ -196,14 +216,15 @@ export function pickupWeapon(state, weaponId, particles, px, py, scale, dropPlay
 
 // ── Internal helpers ──────────────────────────────────────────
 
-function _spawnPlayerBullet(state, weapon, angle, bulletSpeed, scale, battleState = null) {
+function _spawnPlayerBullet(state, weapon, angle, bulletSpeed, scale, battleState = null, aimCritTarget = null) {
   const spatialCritChance = getSpatialBonus(state, 'critChance');
   const isCrit = Math.random() < (state.upgrades.critChance + spatialCritChance);
   
+  const spatialCritDamage = getSpatialBonus(state, 'critDamage');
+  const critMult = 2 + spatialCritDamage;
+
   let damage = weapon.damage * (1 + state.upgrades.damageMult);
   if (isCrit) {
-    const spatialCritDamage = getSpatialBonus(state, 'critDamage');
-    const critMult = 2 + spatialCritDamage;
     damage *= critMult;
   }
 
@@ -213,6 +234,8 @@ function _spawnPlayerBullet(state, weapon, angle, bulletSpeed, scale, battleStat
   const vy = Math.sin(angle) * bulletSpeed;
   
   const player = battleState ? battleState.player : state.player;
+
+  const isIncendiary = state.upgrades.incendiaryChance > 0 && Math.random() < state.upgrades.incendiaryChance;
 
   bulletManager.spawn({
     x: player.x, y: player.y,
@@ -224,7 +247,10 @@ function _spawnPlayerBullet(state, weapon, angle, bulletSpeed, scale, battleStat
     ricochet: !!state.upgrades.ricochet,
     maxRange: getBulletRange(state, weapon, scale),
     color: PLAYER_BULLET_COLOR,
-    isCrit: isCrit
+    isCrit: isCrit,
+    isIncendiary: isIncendiary,
+    aimCritTarget: aimCritTarget,
+    aimCritMult: critMult
   });
 }
 

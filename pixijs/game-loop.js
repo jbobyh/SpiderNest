@@ -42,6 +42,9 @@ import {
   initEnemyHitVfx, updateEnemyHitVfx, clearEnemyHitVfx,
 } from './render/enemyhit-vfx.js';
 import {
+  initBurnVfx, syncBurnVfx, clearBurnVfx,
+} from './render/burn-vfx.js';
+import {
   initDamageNumbers, updateAndSyncDamageNumbers, clearDamageNumbers,
 } from './render/damage-numbers.js';
 import { initHud, updateHud, updateBossHpBar, updateFps, showLevelComplete, hideLevelComplete, destroyHud }   from './render/hud.js';
@@ -61,6 +64,9 @@ import {
 import {
   initDebugRenderer, syncDebugColliders, clearDebugRenderer,
 } from './render/debug-renderer.js';
+import {
+  initAccuracyIndicator, updateAccuracyIndicator, destroyAccuracyIndicator,
+} from './render/accuracy-indicator.js';
 import { initInput, destroyInput } from './core/input.js';
 import { Sounds }               from './core/sound.js';
 import {
@@ -81,6 +87,7 @@ import {
 } from './world/physics.js';
 import { computeFlowField, FLOW_SUB_PX } from './game/flow-field.js';
 import { spawnCorpse } from './game/enemy-ai.js';
+import { dealPlayerDamage } from './game/upgrades.js';
 import { spawnParticles } from './render/particles.js';
 
 // ── Module state ──────────────────────────────────────────────
@@ -165,12 +172,14 @@ export function startGameLoop({
   initShootVfx(layers.entities);
   initWallHitVfx(layers.entities);
   initEnemyHitVfx(layers.entities);
+  initBurnVfx(layers.entities);
   initDamageNumbers(layers.damageNumbers);
   initPlayerRenderer(layers.entities);
   initBulletRenderer(layers.particles);
   initCollectibleRenderer(layers.collectibles);
   initFlyingHeartRenderer(layers.particles);
   initHud(layers.hud);
+  initAccuracyIndicator(layers.hud);
   initOverlay(layers.hud);
   initTooltip(layers.hud);
   initDebugRenderer(layers.debug);
@@ -230,11 +239,13 @@ export function stopGameLoop() {
   clearShootVfx();
   clearWallHitVfx();
   clearEnemyHitVfx();
+  clearBurnVfx();
   clearDamageNumbers();
   clearCollectibles();
   destroyFlyingHeartRenderer();
   destroyOverlay();
   destroyHud();
+  destroyAccuracyIndicator();
   destroyTooltip();
   clearDebugRenderer();
   clearWorldLayers();
@@ -285,16 +296,9 @@ function _handlePlayerEnemyContact(player, enemy) {
   if (enemy.stasis) return;
   if (player.invulnerable > 0 || player.isDashing) return;
 
-  // Damage player
-  const onPlayerDead = _onPlayerDead;
-  
   if (enemy.isBoss) {
-    // Boss contact damage
-    player.lives--;
-    player.invulnerable = CONFIG.PLAYER_INVULNERABLE_TIME;
-    Sounds.playerhit?.();
     spawnParticles(_state.particles, player.x, player.y, 12, 0, Math.PI*2, 20, 60, 0.5, '#ff4444');
-    if (player.lives <= 0) onPlayerDead(_state, _playerProgress);
+    dealPlayerDamage(_state, _playerProgress, null, _onPlayerDead);
     return;
   }
 
@@ -305,12 +309,7 @@ function _handlePlayerEnemyContact(player, enemy) {
       // Shooter doesn't die on contact or deal contact damage.
       if (enemy.type !== 'shooter') {
         spawnParticles(_state.particles, player.x, player.y, 8, 0, Math.PI*2, 20, 40, 0.5, '#ff4444');
-
-        player.lives--;
-        player.invulnerable = CONFIG.PLAYER_INVULNERABLE_TIME;
-        Sounds.playerhit?.();
-
-        if (player.lives <= 0) onPlayerDead(_state, _playerProgress);
+        dealPlayerDamage(_state, _playerProgress, null, _onPlayerDead);
       }
     }
   }
@@ -411,6 +410,8 @@ function _render(dt) {
     dt,
   );
 
+  syncBurnVfx(_state.activeSpiders, dt);
+
   syncBullets(bulletManager.bullets);
   syncParticles(_state.particles);
   updateShootVfx(dt);
@@ -428,6 +429,8 @@ function _render(dt) {
   const nearRoomBonusAltar = _state.phase === 'play' ? isNearRoomBonusAltar(_state) : false;
   const bossSummonReady = _state.phase === 'play' ? _state.bossSummonReady : false;
   updateHud(_state, _currentLevel, nearWeapon, nearAltar, bossSummonReady, nearChest, nearSpatialChest, nearRoomBonusAltar);
+
+  updateAccuracyIndicator(_state, _camera);
 
   // Update boss HP bar during boss battle
   if (_state.battle?.isBossBattle) {

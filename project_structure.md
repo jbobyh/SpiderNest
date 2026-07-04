@@ -102,9 +102,10 @@ pixijs/
 ### `game/enemy-base.js`
 - **За что отвечает:** базовый класс врага.
 - **Содержит:**
-  - `class Enemy` — поля: `x`, `y`, `hp`, `maxHp`, `radius`, `visualScale`, `type`, `isBoss`, `hitFlash`, `stunTimer`, `body`.
-  - `update(dt, state)` — обновление таймеров, создание тела, обнаружение "застревания", вызов `updateBehavior()`, синхронизация с телом.
-  - `takeDamage()`, `die()`, `serialize()`, `getRoomSpeedMult()`.
+  - `class Enemy` — поля: `x`, `y`, `hp`, `maxHp`, `radius`, `visualScale`, `type`, `isBoss`, `hitFlash`, `stunTimer`, `body`, `statuses`.
+  - `update(dt, state)` — обновление таймеров, создание тела, обнаружение "застревания", вызов `updateBehavior()`, синхронизация с телом, тик статусов через `updateStatuses()`.
+  - `takeDamage(damage, isCrit, options)` — единое место урона: hp-bar анимация, hitFlash, звук, `spawnDamageNumber`, death-check. Опции: `state`, `silent`, `showDamageNumber`.
+  - `die()`, `serialize()`, `getRoomSpeedMult()`.
 
 ### `game/enemy-types.js`
 - **За что отвечает:** конкретные типы врагов и босс.
@@ -133,7 +134,7 @@ pixijs/
 ### `game/bullet.js`
 - **За что отвечает:** объект пули и пул пуль.
 - **Содержит:**
-  - `class Bullet` — поля: позиция, скорость, урон, владелец, пробитие, рикошет, цвет, дальность, крит, сет попавших сущностей.
+  - `class Bullet` — поля: позиция, скорость, урон, владелец, пробитие, рикошет, цвет, дальность, крит, `isIncendiary`, сет попавших сущностей.
   - `acquireBullet(data)` / `releaseBullet(b)` — объектный пул.
 
 ### `game/bullet-manager.js`
@@ -142,6 +143,8 @@ pixijs/
   - `class BulletManager` — массив `bullets`, методы `spawn()` и `update()`.
   - `update()` — движение, проверка дальности, столкновения со стенами (play/battle), рикошет, попадания по врагам/игроку.
   - Применение комнатных бонусов (скорость/пробитие) для пуль.
+  - При попадании incendiary-пули — `applyStatus(g, 'burn', ...)`.
+  - Цвет трейла пули зависит от типа (player/crit/incendiary/enemy).
   - `export const bulletManager` — единственный глобальный менеджер.
 
 ### `game/combat.js`
@@ -153,7 +156,7 @@ pixijs/
   - `fireReflectionBullets()` — отражающие пули (апгрейд щита).
   - `pickupWeapon()` — подбор/замена оружия в слотах.
   - `getBulletRange()` — расчёт дальности пули с учётом апгрейдов.
-  - `_spawnPlayerBullet()` — внутренний спавн пули с учётом бонусов.
+  - `_spawnPlayerBullet()` — внутренний спавн пули с учётом бонусов, крита и поджигающего шанса (`incendiaryChance`).
   - `ENEMY_BULLET_COLOR`, `ENEMY_BULLET_TIME`, `enemyBulletRange()`.
 
 ### `game/collectibles.js`
@@ -191,6 +194,15 @@ pixijs/
   - `canTraverse()` — проверка проходимости sub-клетки с учётом диагональных проходов.
   - `getEnemyMoveDir()` — получение направления движения для конкретной точки.
   - `hasLineOfSight()` — DDA-проверка прямой видимости между двумя точками.
+
+### `game/status-system.js`
+- **За что отвечает:** общая система статусов для врагов (горение, и др.).
+- **Содержит:**
+  - `STATUS_DEFS` — реестр определений статусов (длительность, интервал тика, `onTick`, `onApply`, `onExpire`).
+  - `burn` — горение: 2с длительность, тик каждые 0.2с, урон = `damagePerTick`, спавн fire-частиц, вызывает `enemy.takeDamage()`.
+  - `applyStatus(enemy, type, duration, options)` — наложение статуса. При повторном — только обновляет таймер, не стакается.
+  - `updateStatuses(enemy, dt, state)` — тик всех статусов, вызов `onTick` по интервалу.
+  - `hasStatus()`, `clearStatuses()`.
 
 ---
 
@@ -287,7 +299,9 @@ pixijs/
 - **За что отвечает:** отрисовка пуль через `ParticleContainer`.
 - **Содержит:**
   - `initBulletRenderer()`, `syncBullets()`, `clearBullets()`.
-  - Генерация белой круглой текстуры, пул частиц.
+  - Слоты: `playerCore`, `critCore`, `incendiaryCore`, `enemyCore` — каждый со своей текстурой и `ParticleContainer`.
+  - `_slotFor(b)` — выбор слота по типу пули (player/crit/incendiary/enemy).
+  - Генерация градиентных круглых текстур, пул частиц.
 
 ### `render/collectible-renderer.js`
 - **За что отвечает:** отрисовка собираемых предметов в мире.
@@ -302,6 +316,22 @@ pixijs/
   - `spawnDamageNumber()`, `updateAndSyncDamageNumbers()`, `clearDamageNumbers()`.
   - Пул `Text`-объектов, проекция world-координат в экранные через `camera.worldToScreen()`.
   - Поддержка критов (цвет, масштаб).
+
+### `render/shoot-vfx.js`
+- **За что отвечает:** VFX-спрайт вспышки при выстреле.
+- **Содержит:** `initShootVfx()`, `updateShootVfx()`, `clearShootVfx()`.
+
+### `render/wallhit-vfx.js`
+- **За что отвечает:** VFX-спрайт попадания пули в стену.
+- **Содержит:** `initWallHitVfx()`, `updateWallHitVfx()`, `clearWallHitVfx()`.
+
+### `render/enemyhit-vfx.js`
+- **За что отвечает:** VFX-спрайт попадания пули во врага.
+- **Содержит:** `initEnemyHitVfx()`, `updateEnemyHitVfx()`, `clearEnemyHitVfx()`.
+
+### `render/accuracy-indicator.js`
+- **За что отвечает:** индикатор точности прицеливания.
+- **Содержит:** `initAccuracyIndicator()`, `updateAccuracyIndicator()`, `destroyAccuracyIndicator()`.
 
 ### `render/particles.js`
 - **За что отвечает:** система частиц.

@@ -15,7 +15,7 @@ import {
   Container, Sprite, Texture, Text, TextStyle, Graphics, Rectangle,
 } from 'pixi.js';
 import { keys } from '../core/input.js';
-import { getActiveWeapon, getBulletRange, getSpatialBonus } from '../game/combat.js';
+import { getActiveWeapon, getBulletRange, getSpatialBonus, getTotalSpread } from '../game/combat.js';
 import { getRoomSpeedMultiplier, cellOf, cellKey } from '../world/constants.js';
 import { showTooltip, hideTooltip } from './tooltip.js';
 import {
@@ -185,24 +185,7 @@ function _updateStatsPanel(s) {
 
   const weapon = getActiveWeapon(s);
   
-  // Accuracy calculation (Spread in degrees)
-  const spatialAccuracy = getSpatialBonus(s, 'accuracy');
-  let totalSpread = (weapon?.spread || 0) * (s.upgrades.spreadMult || 1) * Math.max(0, 1 - spatialAccuracy);
-  
-  if (s.upgrades.sniper) {
-    let roomCount = 1;
-    if (s.battle && s.battle.battleCells && s.rooms) {
-      let participatingRooms = 0;
-      for (const room of s.rooms) {
-        if (room.cells.some(c => s.battle.battleCells.has(c.k))) {
-          participatingRooms++;
-        }
-      }
-      roomCount = participatingRooms;
-    }
-    if (roomCount <= 2) totalSpread = 0;
-    else totalSpread *= (1 + 0.10 * (roomCount - 2));
-  }
+  const totalSpread = getTotalSpread(s);
   const spreadDeg = Math.round(totalSpread * (180 / Math.PI));
 
   // Range calculation
@@ -376,7 +359,7 @@ function _updateShields(s) {
 const REGULAR_UPGRADE_IDS = [
   'pellets', 'damage', 'penetrate', 'bulletSpeed', 'critChance',
   'killAccel', 'enhancedPierce', 'shield', 'retreat', 'reflection',
-  'cooldown', 'speed'
+  'cooldown', 'speed', 'hitStun', 'incendiary'
 ];
 
 function _updateUpgrades(s) {
@@ -407,6 +390,8 @@ function _updateUpgrades(s) {
     else if (upg.id === 'reflection') level = s.upgrades.reflection ? 1 : 0;
     else if (upg.id === 'cooldown') level = s.upgrades.cooldownMult < 1 ? Math.ceil((1 - s.upgrades.cooldownMult) * 6.67) : 0;
     else if (upg.id === 'speed') level = s.upgrades.speedMult > 1 ? Math.ceil((s.upgrades.speedMult - 1) * 10) : 0;
+    else if (upg.id === 'hitStun') level = s.upgrades.hitStun > 0 ? Math.round(s.upgrades.hitStun / 0.05) : 0;
+    else if (upg.id === 'incendiary') level = s.upgrades.incendiaryChance > 0 ? Math.ceil(s.upgrades.incendiaryChance * 20) : 0;
     
     if (level > 0) {
       activeRegular.push({ ...upg, level: Math.min(level, upg.max || 1) });
