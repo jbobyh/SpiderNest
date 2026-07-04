@@ -45,17 +45,19 @@ const CONFIG = {
   BULLET_RENDER: {
     radius:     2.5,    // радиус ядра пули (px)
     playerColor: 0xffff00,
-    critColor:   0x00a2ff,
-    enemyColor:  0xff0000,
+    critColor:       0x00a2ff,
+    incendiaryColor: 0xff6600,
+    enemyColor:      0xff0000,
   },
 
   // Bullet trail
   BULLET_TRAIL: {
     interval: 0.01,   // секунд между эмитом частиц трейла
     life:     0.06,   // время жизни частицы трейла (сек)
-    playerColor: '#ffdd44',
-    critColor:   '#00a2ff',
-    enemyColor:  '#ff0000',
+    playerColor:    '#ffdd44',
+    critColor:      '#00a2ff',
+    incendiaryColor:'#ff6600',
+    enemyColor:     '#ff0000',
   },
 
   // Damage numbers
@@ -121,6 +123,13 @@ const CONFIG = {
     sizeMult: 0.4,          // множитель к CELL_PX для размера спрайта
   },
 
+  // Burn status VFX (fire animation overlay on burning enemies)
+  BURN_VFX: {
+    frameSize: 64,           // размер кадра в спрайтшите (px)
+    frameCount: 16,          // кол-во кадров анимации (верхний ряд)
+    fps: 48,                 // скорость анимации (кадров/сек)
+  },
+
   // Accuracy indicator (spread visualization near cursor)
   ACCURACY_INDICATOR: {
     lineLength: 12,          // длина полоски (px, screen-space)
@@ -131,15 +140,15 @@ const CONFIG = {
 
   // Enemy stats
   ENEMY_STATS: {
-    soldier:  { hp: 60, speed: 1, radius: 7, visualScale: 2.9, wobbleMin: 0.2, wobbleMax: 0.3, spawnMargin: 10 },
-    bat:      { hp: 60, speed: 1, radius: 7, visualScale: 3.9, animFps: 15, zigzagFreq: 4, zigzagAmp: 0.8 },
-    shooter:  { hp: 40, speed: 1, radius: 6, visualScale: 2.5, bulletSpeed: 100, shootRangeCells: 2, shootCd: 1.5, stopDistCells: 2 },
-    bull:     { hp: 80, speed: 1, radius: 6, visualScale: 3.2, prepareTime: 1, restTime: 1.5, chargeDistCells: 0.75, dashDistCells: 0.02 },
-    buldyga:  { hp: 100, speed: 1, radius: 6, visualScale: 4.0, accel: 40, friction: 3.5, speedIncrement: 0.1 },
-    cocoon:   { hp: 200, radius: 10, visualScale: 3.2, spawnInterval: 3.0 },
-    bloated:  { hp: 60, speed: 1, radius: 7, visualScale: 3.2, deathShotSpeed: 120 },
-    tank:     { hp: 200, speed: 0.7, radius: 14, visualScale: 2 },
-    wallshooter: { hp: 20, speed: 1, radius: 8, visualScale: 2.5, bulletSpeed: 50, shootRangeCells: 1.5, shootCd: 3.0, stopDistCells: 1.4, wallBulletCount: 5, wallBulletSpacing: 8 },
+    soldier:  { hp: 120, speed: 1, radius: 7, visualScale: 2.9, wobbleMin: 0.2, wobbleMax: 0.3, spawnMargin: 10 },
+    bat:      { hp: 120, speed: 1, radius: 7, visualScale: 3.9, animFps: 15, zigzagFreq: 4, zigzagAmp: 0.8 },
+    shooter:  { hp: 80, speed: 1, radius: 6, visualScale: 2.5, bulletSpeed: 100, shootRangeCells: 2, shootCd: 1.5, stopDistCells: 2 },
+    bull:     { hp: 160, speed: 1, radius: 6, visualScale: 3.2, prepareTime: 1, restTime: 1.5, chargeDistCells: 0.75, dashDistCells: 0.02 },
+    buldyga:  { hp: 200, speed: 1, radius: 6, visualScale: 4.0, accel: 40, friction: 3.5, speedIncrement: 0.1 },
+    cocoon:   { hp: 400, radius: 10, visualScale: 3.2, spawnInterval: 3.0 },
+    bloated:  { hp: 120, speed: 1, radius: 7, visualScale: 3.2, deathShotSpeed: 120 },
+    tank:     { hp: 400, speed: 0.7, radius: 14, visualScale: 2 },
+    wallshooter: { hp: 40, speed: 1, radius: 8, visualScale: 2.5, bulletSpeed: 50, shootRangeCells: 1.5, shootCd: 3.0, stopDistCells: 1.4, wallBulletCount: 5, wallBulletSpacing: 8 },
   },
 
   // HP multiplier by level
@@ -444,6 +453,7 @@ const UPGRADE_TYPES = [
   { id: 'cooldown',      label: 'Перезарядка -15%',        description: 'Уменьшает время между выстрелами на 15%',                    color: '#00ccff', max: 3, icon: '⏱️', effects: { cooldownMult: -0.15 } },
   { id: 'speed',         label: 'Скорость бега +10%',      description: 'Увеличивает скорость передвижения на 10%',                    color: '#44ff88', max: 3, icon: '💨', effects: { speedMult: 0.10 } },
   { id: 'hitStun',       label: 'Стан при попадании',      description: 'Враги застывают на 0.05с при попадании.',                     color: '#88ddff', max: 5, icon: '⏳', effects: { hitStun: 0.05 } },
+  { id: 'incendiary',    label: '+5% поджигающая пуля',     description: '5% шанс что пуля подожжёт врага. Горение наносит урон каждые 0.2с в течение 2с.', color: '#ff6600', max: 3, icon: '🔥', effects: { incendiaryChance: 0.05 } },
 ];
 
 const ROOM_BONUS_TYPES = [

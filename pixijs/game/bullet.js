@@ -22,6 +22,7 @@ export class Bullet {
     this.distanceTraveled = 0;
     this.hitCount = 0;
     this.isCrit = false;
+    this.isIncendiary = false;
     this.aimCritTarget = null;
     this.aimCritMult = 1;
     this.enhancedPierceActive = false;
@@ -53,6 +54,7 @@ export class Bullet {
     this.color = data.color || 0xffffff;
     this.maxRange = data.maxRange || 1000;
     this.isCrit = !!data.isCrit;
+    this.isIncendiary = !!data.isIncendiary;
     this.aimCritTarget = data.aimCritTarget || null;
     this.aimCritMult = data.aimCritMult || 1;
     this.isDead = false;

@@ -359,7 +359,7 @@ function _updateShields(s) {
 const REGULAR_UPGRADE_IDS = [
   'pellets', 'damage', 'penetrate', 'bulletSpeed', 'critChance',
   'killAccel', 'enhancedPierce', 'shield', 'retreat', 'reflection',
-  'cooldown', 'speed'
+  'cooldown', 'speed', 'hitStun', 'incendiary'
 ];
 
 function _updateUpgrades(s) {
@@ -390,6 +390,8 @@ function _updateUpgrades(s) {
     else if (upg.id === 'reflection') level = s.upgrades.reflection ? 1 : 0;
     else if (upg.id === 'cooldown') level = s.upgrades.cooldownMult < 1 ? Math.ceil((1 - s.upgrades.cooldownMult) * 6.67) : 0;
     else if (upg.id === 'speed') level = s.upgrades.speedMult > 1 ? Math.ceil((s.upgrades.speedMult - 1) * 10) : 0;
+    else if (upg.id === 'hitStun') level = s.upgrades.hitStun > 0 ? Math.round(s.upgrades.hitStun / 0.05) : 0;
+    else if (upg.id === 'incendiary') level = s.upgrades.incendiaryChance > 0 ? Math.ceil(s.upgrades.incendiaryChance * 20) : 0;
     
     if (level > 0) {
       activeRegular.push({ ...upg, level: Math.min(level, upg.max || 1) });

@@ -1,6 +1,8 @@
 import { createEnemyBody, destroyBody, setBodyVelocity } from '../world/physics.js';
 import { cellOf, cellKey, CELL_PX, getRoomBonus, getRoomSpeedMultiplier } from '../world/constants.js';
 import { Sounds } from '../core/sound.js';
+import { updateStatuses } from './status-system.js';
+import { spawnDamageNumber } from '../render/damage-numbers.js';
 
 export class Enemy {
   constructor(data) {
@@ -20,6 +22,7 @@ export class Enemy {
     this.displayedHp = data.displayedHp ?? data.hp;
     this.hpDamageTimer = 0;
     this.hpDamageStart = data.hpDamageStart ?? data.hp;
+    this.statuses = {};
   }
 
   update(dt, state) {
@@ -39,6 +42,10 @@ export class Enemy {
 
     this.updateBehavior(dt, state);
     this._syncWithBody();
+
+    if (!this.isDead) {
+      updateStatuses(this, dt, state);
+    }
   }
 
   updateBehavior(dt, state) {
@@ -58,7 +65,7 @@ export class Enemy {
     return getRoomSpeedMultiplier(state, ck);
   }
 
-  takeDamage(damage, isCrit = false) {
+  takeDamage(damage, isCrit = false, options = {}) {
     if (!this.isBoss) {
       this.hpBarVisible = true;
       this.hpDamageStart = this.displayedHp;
@@ -66,7 +73,10 @@ export class Enemy {
     }
     this.hp -= damage;
     this.hitFlash = (typeof CONFIG !== 'undefined') ? CONFIG.ENEMY_HIT_FLASH_DURATION : 0.1;
-    Sounds.hit();
+    if (!options.silent) Sounds.hit();
+    if (options.state && options.showDamageNumber !== false) {
+      spawnDamageNumber(options.state, this.x, this.y - (this.radius || CONFIG.ENEMY_STATS.soldier.radius), damage, isCrit, 1);
+    }
     if (this.hp <= 0) {
       this.die();
     }
