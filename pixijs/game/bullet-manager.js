@@ -295,13 +295,17 @@ class BulletManager {
       if (dist >= ((g.radius || CONFIG.ENEMY_STATS.soldier.radius) + CONFIG.BULLET_RADIUS) * BS) continue;
 
       // Hit!
+      const isCritHit = b.isCrit || (!b.isCrit && b.aimCritTarget === g);
       let damage = b.damage;
+      if (!b.isCrit && isCritHit) {
+        damage *= b.aimCritMult;
+      }
       if (b.hitCount > 0 && state.upgrades.enhancedPierce && b.enhancedPierceActive) {
         damage *= 2;
       }
 
       if (g.takeDamage) {
-        g.takeDamage(damage, b.isCrit);
+        g.takeDamage(damage, isCritHit);
       } else {
         if (!g.isBoss) {
           g.hpBarVisible = true;
@@ -315,7 +319,7 @@ class BulletManager {
       }
 
       if (!isBattle) {
-        spawnDamageNumber(state, g.x, g.y - (g.radius || CONFIG.ENEMY_STATS.soldier.radius), damage, b.isCrit, 1);
+        spawnDamageNumber(state, g.x, g.y - (g.radius || CONFIG.ENEMY_STATS.soldier.radius), damage, isCritHit, 1);
       }
 
       // Hit VFX sprite animation
@@ -323,7 +327,7 @@ class BulletManager {
 
       // Hit particles
       const bAngle = Math.atan2(b.vy, b.vx);
-      const hitCount = b.isCrit ? CONFIG.PARTICLES.hit.critCount : CONFIG.PARTICLES.hit.count;
+      const hitCount = isCritHit ? CONFIG.PARTICLES.hit.critCount : CONFIG.PARTICLES.hit.count;
       for (let k = 0; k < hitCount; k++) {
         const sp = bAngle + (Math.random() - 0.5) * CONFIG.PARTICLES.hit.spread;
         const spd = (CONFIG.PARTICLES.hit.speedMin + Math.random() * (CONFIG.PARTICLES.hit.speedMax - CONFIG.PARTICLES.hit.speedMin)) * BS;

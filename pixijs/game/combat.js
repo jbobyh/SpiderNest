@@ -127,9 +127,20 @@ export function shoot(state, camera = null) {
 
   Sounds.shot(weapon.id);
 
+  // Aim crit: find enemy under cursor at moment of shot
+  let aimCritTarget = null;
+  for (const g of state.activeSpiders) {
+    if (g.isDead || g.hp <= 0) continue;
+    const dist = Math.hypot(state.mouse.x - g.x, state.mouse.y - g.y);
+    if (dist <= (g.radius || CONFIG.ENEMY_STATS.soldier.radius)) {
+      aimCritTarget = g;
+      break;
+    }
+  }
+
   for (let i = 0; i < pellets; i++) {
     const spread = (Math.random() - 0.5) * totalSpread;
-    _spawnPlayerBullet(state, weapon, baseAngle + spread, bulletSpeed, 1);
+    _spawnPlayerBullet(state, weapon, baseAngle + spread, bulletSpeed, 1, null, aimCritTarget);
   }
 
   // Shoot VFX sprite animation
@@ -205,14 +216,15 @@ export function pickupWeapon(state, weaponId, particles, px, py, scale, dropPlay
 
 // ── Internal helpers ──────────────────────────────────────────
 
-function _spawnPlayerBullet(state, weapon, angle, bulletSpeed, scale, battleState = null) {
+function _spawnPlayerBullet(state, weapon, angle, bulletSpeed, scale, battleState = null, aimCritTarget = null) {
   const spatialCritChance = getSpatialBonus(state, 'critChance');
   const isCrit = Math.random() < (state.upgrades.critChance + spatialCritChance);
   
+  const spatialCritDamage = getSpatialBonus(state, 'critDamage');
+  const critMult = 2 + spatialCritDamage;
+
   let damage = weapon.damage * (1 + state.upgrades.damageMult);
   if (isCrit) {
-    const spatialCritDamage = getSpatialBonus(state, 'critDamage');
-    const critMult = 2 + spatialCritDamage;
     damage *= critMult;
   }
 
@@ -233,7 +245,9 @@ function _spawnPlayerBullet(state, weapon, angle, bulletSpeed, scale, battleStat
     ricochet: !!state.upgrades.ricochet,
     maxRange: getBulletRange(state, weapon, scale),
     color: PLAYER_BULLET_COLOR,
-    isCrit: isCrit
+    isCrit: isCrit,
+    aimCritTarget: aimCritTarget,
+    aimCritMult: critMult
   });
 }
 
