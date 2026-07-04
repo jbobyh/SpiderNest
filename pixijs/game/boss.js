@@ -31,11 +31,3 @@ export function createBossEntity(level, cx, cy) {
   return EnemyFactory.create('boss_phase', cx, cy, { level });
 }
 
-// ── Freeze upgrade ────────────────────────────────────────────
-
-export function applyFreezeUpgrade(b, state) {
-  if (!state.upgrades.freeze) return;
-  if (b?.freezeTimer > 0) return;
-  if (b) b.freezeTimer = CONFIG.FREEZE_DURATION ?? 3;
-  Sounds.play?.('shield');
-}

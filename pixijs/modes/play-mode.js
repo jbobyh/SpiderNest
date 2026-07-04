@@ -23,7 +23,7 @@ import {
   shoot, pickupWeapon, enemyBulletRange, ENEMY_BULLET_COLOR, getSpatialBonus,
 } from '../game/combat.js';
 import { updateEnemyAI } from '../game/enemy-ai.js';
-import { handleBossKilled, applyFreezeUpgrade } from '../game/boss.js';
+import { handleBossKilled } from '../game/boss.js';
 import { dealPlayerDamage } from '../game/upgrades.js';
 import {
   updateCollectibles, checkAltarActivation, isNearAltar,

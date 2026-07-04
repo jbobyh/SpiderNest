@@ -31,6 +31,12 @@ export class Enemy {
       this.body = createEnemyBody(this.x, this.y, this.radius, this);
     }
 
+    if ((state.battle?.freezeTimer ?? 0) > 0) {
+      setBodyVelocity(this.body, 0, 0);
+      this._syncWithBody();
+      return;
+    }
+
     this.updateBehavior(dt, state);
     this._syncWithBody();
   }

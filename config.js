@@ -520,7 +520,7 @@ const CURSED_UPGRADE_TYPES = [
   {
     id: 'freeze',
     label: 'Заморозка',
-    description: 'В начале боя враги не могут двигаться 1.5 секунд',
+    description: 'В начале боя враги не могут двигаться 1 секунду',
     color: '#ffa200',
     max: 1,
     icon: '❄️',

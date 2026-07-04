@@ -84,6 +84,7 @@ import {
 } from './world/physics.js';
 import { computeFlowField, FLOW_SUB_PX } from './game/flow-field.js';
 import { spawnCorpse } from './game/enemy-ai.js';
+import { dealPlayerDamage } from './game/upgrades.js';
 import { spawnParticles } from './render/particles.js';
 
 // ── Module state ──────────────────────────────────────────────
@@ -290,16 +291,9 @@ function _handlePlayerEnemyContact(player, enemy) {
   if (enemy.stasis) return;
   if (player.invulnerable > 0 || player.isDashing) return;
 
-  // Damage player
-  const onPlayerDead = _onPlayerDead;
-  
   if (enemy.isBoss) {
-    // Boss contact damage
-    player.lives--;
-    player.invulnerable = CONFIG.PLAYER_INVULNERABLE_TIME;
-    Sounds.playerhit?.();
     spawnParticles(_state.particles, player.x, player.y, 12, 0, Math.PI*2, 20, 60, 0.5, '#ff4444');
-    if (player.lives <= 0) onPlayerDead(_state, _playerProgress);
+    dealPlayerDamage(_state, _playerProgress, null, _onPlayerDead);
     return;
   }
 
@@ -310,12 +304,7 @@ function _handlePlayerEnemyContact(player, enemy) {
       // Shooter doesn't die on contact or deal contact damage.
       if (enemy.type !== 'shooter') {
         spawnParticles(_state.particles, player.x, player.y, 8, 0, Math.PI*2, 20, 40, 0.5, '#ff4444');
-
-        player.lives--;
-        player.invulnerable = CONFIG.PLAYER_INVULNERABLE_TIME;
-        Sounds.playerhit?.();
-
-        if (player.lives <= 0) onPlayerDead(_state, _playerProgress);
+        dealPlayerDamage(_state, _playerProgress, null, _onPlayerDead);
       }
     }
   }
