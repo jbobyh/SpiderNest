@@ -121,6 +121,14 @@ const CONFIG = {
     sizeMult: 0.4,          // множитель к CELL_PX для размера спрайта
   },
 
+  // Accuracy indicator (spread visualization near cursor)
+  ACCURACY_INDICATOR: {
+    lineLength: 12,          // длина полоски (px, screen-space)
+    lineWidth: 2,            // толщина полоски (px)
+    alpha: 0.7,              // прозрачность
+    minSpread: 0.001,        // минимальный разброс (рад) для показа индикатора
+  },
+
   // Enemy stats
   ENEMY_STATS: {
     soldier:  { hp: 60, speed: 1, radius: 7, visualScale: 2.9, wobbleMin: 0.2, wobbleMax: 0.3, spawnMargin: 10 },

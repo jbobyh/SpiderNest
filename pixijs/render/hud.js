@@ -15,7 +15,7 @@ import {
   Container, Sprite, Texture, Text, TextStyle, Graphics, Rectangle,
 } from 'pixi.js';
 import { keys } from '../core/input.js';
-import { getActiveWeapon, getBulletRange, getSpatialBonus } from '../game/combat.js';
+import { getActiveWeapon, getBulletRange, getSpatialBonus, getTotalSpread } from '../game/combat.js';
 import { getRoomSpeedMultiplier, cellOf, cellKey } from '../world/constants.js';
 import { showTooltip, hideTooltip } from './tooltip.js';
 import {
@@ -185,24 +185,7 @@ function _updateStatsPanel(s) {
 
   const weapon = getActiveWeapon(s);
   
-  // Accuracy calculation (Spread in degrees)
-  const spatialAccuracy = getSpatialBonus(s, 'accuracy');
-  let totalSpread = (weapon?.spread || 0) * (s.upgrades.spreadMult || 1) * Math.max(0, 1 - spatialAccuracy);
-  
-  if (s.upgrades.sniper) {
-    let roomCount = 1;
-    if (s.battle && s.battle.battleCells && s.rooms) {
-      let participatingRooms = 0;
-      for (const room of s.rooms) {
-        if (room.cells.some(c => s.battle.battleCells.has(c.k))) {
-          participatingRooms++;
-        }
-      }
-      roomCount = participatingRooms;
-    }
-    if (roomCount <= 2) totalSpread = 0;
-    else totalSpread *= (1 + 0.10 * (roomCount - 2));
-  }
+  const totalSpread = getTotalSpread(s);
   const spreadDeg = Math.round(totalSpread * (180 / Math.PI));
 
   // Range calculation

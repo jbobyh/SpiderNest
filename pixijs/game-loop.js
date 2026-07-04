@@ -61,6 +61,9 @@ import {
 import {
   initDebugRenderer, syncDebugColliders, clearDebugRenderer,
 } from './render/debug-renderer.js';
+import {
+  initAccuracyIndicator, updateAccuracyIndicator, destroyAccuracyIndicator,
+} from './render/accuracy-indicator.js';
 import { initInput, destroyInput } from './core/input.js';
 import { Sounds }               from './core/sound.js';
 import {
@@ -171,6 +174,7 @@ export function startGameLoop({
   initCollectibleRenderer(layers.collectibles);
   initFlyingHeartRenderer(layers.particles);
   initHud(layers.hud);
+  initAccuracyIndicator(layers.hud);
   initOverlay(layers.hud);
   initTooltip(layers.hud);
   initDebugRenderer(layers.debug);
@@ -235,6 +239,7 @@ export function stopGameLoop() {
   destroyFlyingHeartRenderer();
   destroyOverlay();
   destroyHud();
+  destroyAccuracyIndicator();
   destroyTooltip();
   clearDebugRenderer();
   clearWorldLayers();
@@ -428,6 +433,8 @@ function _render(dt) {
   const nearRoomBonusAltar = _state.phase === 'play' ? isNearRoomBonusAltar(_state) : false;
   const bossSummonReady = _state.phase === 'play' ? _state.bossSummonReady : false;
   updateHud(_state, _currentLevel, nearWeapon, nearAltar, bossSummonReady, nearChest, nearSpatialChest, nearRoomBonusAltar);
+
+  updateAccuracyIndicator(_state, _camera);
 
   // Update boss HP bar during boss battle
   if (_state.battle?.isBossBattle) {

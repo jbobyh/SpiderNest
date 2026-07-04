@@ -59,6 +59,33 @@ export function getSpatialBonus(state, axis) {
   return total;
 }
 
+// ── Total spread calculation (shared) ─────────────────────────
+
+export function getTotalSpread(state) {
+  const weapon = getActiveWeapon(state);
+  if (!weapon) return 0;
+
+  const spatialAccuracy = getSpatialBonus(state, 'accuracy');
+  let totalSpread = weapon.spread * state.upgrades.spreadMult * Math.max(0, 1 - spatialAccuracy);
+
+  if (state.upgrades.sniper) {
+    let roomCount = 1;
+    if (state.battle && state.battle.battleCells && state.rooms) {
+      let participatingRooms = 0;
+      for (const room of state.rooms) {
+        if (room.cells.some(c => state.battle.battleCells.has(c.k))) {
+          participatingRooms++;
+        }
+      }
+      roomCount = participatingRooms;
+    }
+    if (roomCount <= 2) totalSpread = 0;
+    else                totalSpread *= 1 + 0.10 * (roomCount - 2);
+  }
+
+  return totalSpread;
+}
+
 // ── Shoot (play-mode) ─────────────────────────────────────────
 
 export function shoot(state, camera = null) {
@@ -93,28 +120,10 @@ export function shoot(state, camera = null) {
   const burstTotal    = isBurstWeapon ? weapon.burstSize + state.upgrades.pellets : weapon.burstSize;
   const burstDelay    = _burstStepDelay(weapon, burstTotal) * state.upgrades.cooldownMult * killAccelMult;
   
-  // Spatial Accuracy Bonus
-  const spatialAccuracy = getSpatialBonus(state, 'accuracy');
-  let   totalSpread   = weapon.spread * state.upgrades.spreadMult * Math.max(0, 1 - spatialAccuracy);
+  const totalSpread = getTotalSpread(state);
 
   const spatialBulletSpeed = getSpatialBonus(state, 'bulletSpeed');
   const bulletSpeed   = weapon.bulletSpeed * state.upgrades.bulletSpeedMult * (1 + spatialBulletSpeed);
-
-  // Sniper upgrade: perfect accuracy when ≤2 rooms
-  if (state.upgrades.sniper) {
-    let roomCount = 1;
-    if (state.battle && state.battle.battleCells && state.rooms) {
-      let participatingRooms = 0;
-      for (const room of state.rooms) {
-        if (room.cells.some(c => state.battle.battleCells.has(c.k))) {
-          participatingRooms++;
-        }
-      }
-      roomCount = participatingRooms;
-    }
-    if (roomCount <= 2)   totalSpread = 0;
-    else                  totalSpread *= 1 + 0.10 * (roomCount - 2);
-  }
 
   Sounds.shot(weapon.id);
 
