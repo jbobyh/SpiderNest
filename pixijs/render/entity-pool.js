@@ -104,7 +104,7 @@ function _buildHeroFrames() {
     for (let f = 0; f < def.frames; f++) {
       heroFrames[key].push(new Texture({
         source: heroTex.source,
-        frame:  new Rectangle(f * SPRITE_SHEETS.hero.sw, def.row * SPRITE_SHEETS.hero.sh, SPRITE_SHEETS.hero.sw, SPRITE_SHEETS.hero.sh),
+        frame:  new Rectangle((def.col + f) * SPRITE_SHEETS.hero.sw, 0, SPRITE_SHEETS.hero.sw, SPRITE_SHEETS.hero.sh),
       }));
     }
   }

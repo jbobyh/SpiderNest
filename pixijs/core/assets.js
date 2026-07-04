@@ -68,8 +68,8 @@ const MANIFEST = {
     {
       name: 'entities',
       assets: [
-        // Hero sprite sheet (2500×3000, 500×500 frames, 5 cols × 6 rows)
-        { alias: 'hero',              src: IMG + 'hero.png' },
+        // Hero sprite sheet (192×64, 3 frames of 64×64: front, back, left)
+        { alias: 'hero',              src: '../arts/player_spritesheet.png' },
         // Enemies — static sprites
         { alias: 'soldier',           src: IMG + 'soldier.png' },
         { alias: 'soldier-dead',      src: IMG + 'soldier_dead.png' },

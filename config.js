@@ -176,7 +176,7 @@ const CONFIG = {
     bloated: 40,      // hp 60, взрывается при смерти
     tank: 80,        // hp 200, танк: большой, медленный, много HP
     wallshooter: 40,  // hp 20, 4 пули стеной (+5 за стену пуль)
-    ghost: 35,        // hp 150, проходит сквозь стены, прямая навигация
+    ghost: 20,        // hp 150, проходит сквозь стены, прямая навигация
   },
 
   // ── Бюджетная генерация врагов в комнатах ──────────────────
@@ -822,14 +822,14 @@ const SPATIAL_UPGRADE_TYPES = [
 // ============================================================
 const SPRITE_SHEETS = {
   hero: {
-    sw: 500, sh: 500,
+    sw: 64, sh: 64,
     anims: {
-      idle_forward: { row: 0, frames: 5, fps: 8 },
-      idle_left:    { row: 1, frames: 5, fps: 8 },
-      idle_back:    { row: 2, frames: 5, fps: 8 },
-      run_forward:  { row: 3, frames: 4, fps: 10 },
-      run_left:     { row: 4, frames: 4, fps: 10 },
-      run_back:     { row: 5, frames: 4, fps: 10 },
+      idle_forward: { col: 0, frames: 1, fps: 1 },
+      idle_left:    { col: 2, frames: 1, fps: 1 },
+      idle_back:    { col: 1, frames: 1, fps: 1 },
+      run_forward:  { col: 0, frames: 1, fps: 1 },
+      run_left:     { col: 2, frames: 1, fps: 1 },
+      run_back:     { col: 1, frames: 1, fps: 1 },
     },
   },
   cocoon: {
