@@ -159,6 +159,7 @@ const CONFIG = {
     bloated:  { hp: 120, speed: 1, radius: 7, visualScale: 3.2, deathShotSpeed: 120 },
     tank:     { hp: 400, speed: 0.7, radius: 14, visualScale: 2 },
     wallshooter: { hp: 40, speed: 1, radius: 8, visualScale: 2.5, bulletSpeed: 50, shootRangeCells: 1.5, shootCd: 3.0, stopDistCells: 1.4, wallBulletCount: 5, wallBulletSpacing: 8 },
+    ghost:     { hp: 40, speed: 1.2, radius: 6, visualScale: 3.0 },
   },
 
   // HP multiplier by level
@@ -175,6 +176,7 @@ const CONFIG = {
     bloated: 40,      // hp 60, взрывается при смерти
     tank: 80,        // hp 200, танк: большой, медленный, много HP
     wallshooter: 40,  // hp 20, 4 пули стеной (+5 за стену пуль)
+    ghost: 35,        // hp 150, проходит сквозь стены, прямая навигация
   },
 
   // ── Бюджетная генерация врагов в комнатах ──────────────────
@@ -201,9 +203,9 @@ const CONFIG = {
   // Доступные типы врагов по уровням + веса выбора (больше = чаще встречается).
   // Ключи должны совпадать с ENEMY_COSTS.
   ENEMY_SPAWN_TABLE: {
-    1: { bat: 5, shooter: 2, bloated: 1, tank: 1, wallshooter: 1 },
-    2: { soldier: 5, shooter: 2, bull: 2, buldyga: 1, bloated: 1, tank: 1, wallshooter: 2 },
-    3: { soldier: 4, shooter: 2, bull: 2, buldyga: 1, bloated: 1, cocoon: 1, tank: 1, wallshooter: 2 },
+    1: { bat: 5, shooter: 2, bloated: 1, tank: 1, wallshooter: 1, ghost: 2 },
+    2: { soldier: 5, shooter: 2, bull: 2, buldyga: 1, bloated: 1, tank: 1, wallshooter: 2, ghost: 2 },
+    3: { soldier: 4, shooter: 2, bull: 2, buldyga: 1, bloated: 1, cocoon: 1, tank: 1, wallshooter: 2, ghost: 2 },
   },
 
   // Level generation
@@ -464,7 +466,7 @@ const UPGRADE_TYPES = [
   { id: 'speed',         label: 'Скорость бега +10%',      description: 'Увеличивает скорость передвижения на 10%',                    color: '#44ff88', max: 3, icon: '💨', effects: { speedMult: 0.10 } },
   { id: 'hitStun',       label: 'Стан при попадании',      description: 'Враги застывают на 0.05с при попадании.',                     color: '#88ddff', max: 5, icon: '⏳', effects: { hitStun: 0.05 } },
   { id: 'incendiary',    label: '+5% поджигающая пуля',     description: '5% шанс что пуля подожжёт врага. Горение наносит урон каждые 0.2с в течение 2с.', color: '#ff6600', max: 3, icon: '🔥', effects: { incendiaryChance: 0.05 } },
-  { id: 'freeze',        label: '+5% охлаждающая пуля',     description: '5% шанс заморозить врага. Замедление в 2 раза на 2с.', color: '#44ddff', max: 3, icon: '❄️', effects: { freezeChance: 0.05 } },
+  { id: 'freezeBullet',  label: '+5% охлаждающая пуля',     description: '5% шанс заморозить врага. Замедление в 2 раза на 2с.', color: '#44ddff', max: 3, icon: '❄️', effects: { freezeChance: 0.05 } },
 ];
 
 const ROOM_BONUS_TYPES = [
