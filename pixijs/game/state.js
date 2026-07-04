@@ -42,6 +42,7 @@ export function createDefaultProgress() {
       farSight: false,
       longRange: false,
       sniper: false,
+      hitStun: 0,
       // Spatial upgrades
       spatialReloadRooms: false,
       spatialReloadHearts: false,

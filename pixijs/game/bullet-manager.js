@@ -314,8 +314,11 @@ class BulletManager {
         }
         g.hp -= damage;
         g.hitFlash = CONFIG.ENEMY_HIT_FLASH_DURATION;
-        if (!g.isBoss) g.stunTimer = CONFIG.ENEMY_STUN_DURATION;
         Sounds.hit?.();
+      }
+
+      if (!g.isBoss && state.upgrades.hitStun > 0) {
+        g.stunTimer = state.upgrades.hitStun;
       }
 
       if (!isBattle) {
