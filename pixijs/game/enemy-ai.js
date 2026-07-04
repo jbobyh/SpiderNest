@@ -86,7 +86,7 @@ function _makeSoldier(x, y) {
 
 const CORPSE_DURATION = 2.0;
 
-const CORPSE_TYPES = new Set(['soldier', 'bat', 'shooter', 'bull', 'buldyga', 'bloated', 'wallshooter']);
+const CORPSE_TYPES = new Set(['soldier', 'bat', 'shooter', 'bull', 'buldyga', 'bloated', 'wallshooter', 'ghost']);
 
 export function spawnCorpse(corpseArray, g, radius) {
   if (!CORPSE_TYPES.has(g.type || 'soldier')) return;

@@ -65,6 +65,19 @@ export function createEnemyBody(x, y, radius, entity, label = 'enemy') {
   return body;
 }
 
+export function createGhostBody(x, y, radius, entity, label = 'enemy') {
+  const body = Bodies.circle(x, y, radius, {
+    label,
+    frictionAir: 0,
+    restitution: 0.1,
+    friction: 0,
+    collisionFilter: { category: CAT_ENEMY, mask: CAT_PLAYER | CAT_ENEMY },
+  });
+  body._entity = entity;
+  Composite.add(_engine.world, body);
+  return body;
+}
+
 export function destroyBody(body) {
   if (body && _engine) Composite.remove(_engine.world, body);
 }

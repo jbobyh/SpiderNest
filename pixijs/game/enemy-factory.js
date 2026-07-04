@@ -1,4 +1,4 @@
-import { ChaserEnemy, ZigzagChaserEnemy, ShooterEnemy, WallShooterEnemy, BullEnemy, BuldygaEnemy, BloatedEnemy, CocoonEnemy, PhaseBoss } from './enemy-types.js';
+import { ChaserEnemy, ZigzagChaserEnemy, ShooterEnemy, WallShooterEnemy, BullEnemy, BuldygaEnemy, BloatedEnemy, CocoonEnemy, PhaseBoss, GhostEnemy } from './enemy-types.js';
 
 export class EnemyFactory {
   static create(type, x, y, options = {}) {
@@ -32,6 +32,8 @@ export class EnemyFactory {
         return new ChaserEnemy(data);
       case 'bat':
         return new ZigzagChaserEnemy(data);
+      case 'ghost':
+        return new GhostEnemy(data);
       default:
         return new ChaserEnemy(data);
     }

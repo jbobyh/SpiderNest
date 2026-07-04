@@ -1,6 +1,7 @@
 import { Enemy } from './enemy-base.js';
 import { getEnemyMoveDir, hasLineOfSight } from './flow-field.js';
-import { setBodyVelocity } from '../world/physics.js';
+import { setBodyVelocity, createGhostBody } from '../world/physics.js';
+import { updateStatuses } from './status-system.js';
 import { enemyBulletRange, ENEMY_BULLET_COLOR } from './combat.js';
 import { bulletManager } from './bullet-manager.js';
 import { CELL_PX, cellKey } from '../world/constants.js';
@@ -386,6 +387,49 @@ export class BloatedEnemy extends Enemy {
       setBodyVelocity(this.body, dir.dx * CONFIG.ENEMY_STATS.bloated.speed * speedMult, dir.dy * CONFIG.ENEMY_STATS.bloated.speed * speedMult);
     } else {
       setBodyVelocity(this.body, 0, 0);
+    }
+  }
+}
+
+// ── Ghost (passes through walls, direct chase) ────────────────
+export class GhostEnemy extends Enemy {
+  update(dt, state) {
+    if (this.isDead) return;
+    if (this.hitFlash > 0) this.hitFlash -= dt;
+    if (this.stunTimer > 0) this.stunTimer -= dt;
+
+    if (!this.body) {
+      this.body = createGhostBody(this.x, this.y, this.radius, this);
+    }
+
+    if ((state.battle?.freezeTimer ?? 0) > 0) {
+      setBodyVelocity(this.body, 0, 0);
+      this._syncWithBody();
+      return;
+    }
+
+    this.updateBehavior(dt, state);
+    this._syncWithBody();
+
+    if (!this.isDead) {
+      updateStatuses(this, dt, state);
+    }
+  }
+
+  updateBehavior(dt, state) {
+    if (this.stunTimer > 0) {
+      setBodyVelocity(this.body, 0, 0);
+      return;
+    }
+
+    const dx = state.player.x - this.x;
+    const dy = state.player.y - this.y;
+    const dist = Math.hypot(dx, dy);
+
+    if (dist > 0) {
+      const speedMult = this.getRoomSpeedMult(state);
+      const speed = CONFIG.ENEMY_STATS.ghost.speed;
+      setBodyVelocity(this.body, (dx / dist) * speed * speedMult, (dy / dist) * speed * speedMult);
     }
   }
 }
