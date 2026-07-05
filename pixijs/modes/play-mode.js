@@ -20,7 +20,7 @@ import {
 import { setBodyVelocity, updatePlayerCollision } from '../world/physics.js';
 import { bulletManager } from '../game/bullet-manager.js';
 import {
-  shoot, pickupWeapon, enemyBulletRange, ENEMY_BULLET_COLOR, getSpatialBonus,
+  shoot, pickupWeapon, startReload, finishReload, enemyBulletRange, ENEMY_BULLET_COLOR, getSpatialBonus,
 } from '../game/combat.js';
 import { updateEnemyAI } from '../game/enemy-ai.js';
 import { handleBossKilled } from '../game/boss.js';
@@ -97,11 +97,33 @@ export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}
   state.shootCooldown  = Math.max(0, state.shootCooldown  - dt);
   state.burstCooldown  = Math.max(0, state.burstCooldown  - dt);
 
+  // ── Reload tick ───────────────────────────────────────────
+  if (state.isReloading) {
+    state.reloadCooldown -= dt;
+    if (state.reloadCooldown <= 0) {
+      finishReload(state);
+    }
+  }
+
+  // ── Manual reload (R key) ─────────────────────────────────
+  const rPressed = keys['r'] || keys['к'];
+  if (rPressed && !keys._rWas) {
+    keys._rWas = true;
+    if (!state.isReloading) {
+      const slot = state.activeSlot;
+      const wId = state.weaponSlots[slot];
+      if (wId && WEAPON_DEFS[wId] && state.ammo[slot] < WEAPON_DEFS[wId].magazineSize) {
+        startReload(state);
+      }
+    }
+  }
+  if (!rPressed) keys._rWas = false;
+
   const wDef       = _getActiveWeapon(state);
   const burstActive = wDef && wDef.burstSize > 1 &&
                       state.burstRemaining > 0 &&
                       state.burstWeaponId === wDef.id;
-  if ((mouse.held || burstActive) && state.shootCooldown <= 0) {
+  if ((mouse.held || burstActive) && state.shootCooldown <= 0 && !state.isReloading) {
     shoot(state, camera);
   }
 
@@ -317,6 +339,12 @@ function _handleWeaponSwitch(state) {
     if (!keys._qWas) {
       state.activeSlot = (state.activeSlot + 1) % state.maxSlots;
       keys._qWas = true;
+      // Cancel reload on weapon switch
+      state.isReloading = false;
+      state.reloadingSlot = -1;
+      state.reloadCooldown = 0;
+      state.burstRemaining = 0;
+      state.burstWeaponId = null;
     }
   } else {
     keys._qWas = false;
@@ -447,6 +475,7 @@ export function handleWeaponPickup(state, playerProgress, triggered) {
       playerProgress.weaponSlots = [...state.weaponSlots];
       playerProgress.activeSlot  = state.activeSlot;
       playerProgress.maxSlots    = state.maxSlots;
+      playerProgress.ammo        = [...state.ammo];
       saveCurrentGame();
       break;
     }

@@ -70,6 +70,7 @@ export function createDefaultProgress() {
     weaponSlots: ['pistol', null],
     activeSlot: 0,
     maxSlots: 1,
+    ammo: [12, 0],
   };
 }
 
@@ -186,6 +187,9 @@ export function createGameState(level, playerProgress) {
     burstCooldown: 0,
     burstRemaining: 0,
     burstWeaponId: null,
+    reloadCooldown: 0,
+    isReloading: false,
+    reloadingSlot: -1,
     particles: [],
     damageNumbers: [],
     time: 0,
@@ -197,6 +201,7 @@ export function createGameState(level, playerProgress) {
     weaponSlots: [...playerProgress.weaponSlots],
     activeSlot: playerProgress.activeSlot,
     maxSlots: playerProgress.maxSlots,
+    ammo: _initAmmo(playerProgress),
     roomAltars,
     roomBonusAltars,
     roomBonuses,
@@ -248,6 +253,13 @@ export function loadGame() {
     if (!progress.spawnedUpgrades) progress.spawnedUpgrades = {};
     if (!progress.spawnedWeapons)  progress.spawnedWeapons  = [];
     if (progress.souls === undefined) progress.souls = 0;
+    if (!progress.ammo) {
+      progress.ammo = [];
+      for (let i = 0; i < (progress.weaponSlots || []).length; i++) {
+        const wId = progress.weaponSlots[i];
+        progress.ammo[i] = (wId && WEAPON_DEFS[wId]) ? WEAPON_DEFS[wId].magazineSize : 0;
+      }
+    }
 
     return {
       currentLevel: save.currentLevel,
@@ -282,6 +294,7 @@ export function savePlayerProgress(state, playerProgress) {
   playerProgress.activeSlot           = state.activeSlot || 0;
   playerProgress.maxSlots             = state.maxSlots || 1;
   playerProgress.souls                = state.souls || 0;
+  playerProgress.ammo                 = [...(state.ammo || [])];
 }
 
 // ── Revealed rooms helpers ───────────────────────────────────
@@ -382,6 +395,21 @@ export function doCloseWall(state, wk) {
 
 // ── Internal serialization ────────────────────────────────────
 
+function _initAmmo(playerProgress) {
+  const slots = playerProgress.weaponSlots || ['pistol', null];
+  const savedAmmo = playerProgress.ammo || [];
+  const ammo = [];
+  for (let i = 0; i < slots.length; i++) {
+    const wId = slots[i];
+    if (wId && WEAPON_DEFS[wId]) {
+      ammo[i] = (savedAmmo[i] !== undefined) ? savedAmmo[i] : WEAPON_DEFS[wId].magazineSize;
+    } else {
+      ammo[i] = 0;
+    }
+  }
+  return ammo;
+}
+
 function _serializeState(s) {
   return {
     level:            s.level,
@@ -426,6 +454,10 @@ function _serializeState(s) {
     weaponSlots:   s.weaponSlots ? [...s.weaponSlots] : ['pistol', null],
     activeSlot:    s.activeSlot || 0,
     maxSlots:      s.maxSlots || 1,
+    ammo:          s.ammo ? [...s.ammo] : [],
+    reloadCooldown: s.reloadCooldown || 0,
+    isReloading:   s.isReloading || false,
+    reloadingSlot: s.reloadingSlot ?? -1,
     time:          s.time,
     roomAltars:    s.roomAltars || [],
     roomBonusAltars: s.roomBonusAltars || [],
@@ -478,6 +510,10 @@ function _deserializeState(data) {
     weaponSlots:   data.weaponSlots ? [...data.weaponSlots] : ['pistol', null],
     activeSlot:    data.activeSlot || 0,
     maxSlots:      data.maxSlots || 1,
+    ammo:          data.ammo ? [...data.ammo] : [],
+    reloadCooldown: data.reloadCooldown || 0,
+    isReloading:   data.isReloading || false,
+    reloadingSlot: data.reloadingSlot ?? -1,
     deathCorpses:  [],
     particles:     [],
     damageNumbers: [],

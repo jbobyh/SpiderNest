@@ -90,9 +90,17 @@ export function getTotalSpread(state) {
 
 export function shoot(state, camera = null) {
   if (state.shootCooldown > 0) return;
+  if (state.isReloading) return;
 
   const weapon = getActiveWeapon(state);
   if (!weapon) return;
+
+  // Ammo check
+  const slot = state.activeSlot;
+  if (state.ammo[slot] <= 0) {
+    startReload(state);
+    return;
+  }
 
   // Burst continuation check
   if (state.burstRemaining > 0 && state.burstWeaponId === weapon.id) {
@@ -157,6 +165,50 @@ export function shoot(state, camera = null) {
   }
 
   _applyBurstCooldown(state, weapon, isBurstWeapon, burstTotal, burstDelay, cooldown);
+
+  // Decrement ammo after shot
+  state.ammo[slot]--;
+
+  // Auto-reload if empty
+  if (state.ammo[slot] <= 0) {
+    startReload(state);
+  }
+}
+
+// ── Reload ──────────────────────────────────────────────────────
+
+export function startReload(state) {
+  const slot = state.activeSlot;
+  const wId = state.weaponSlots[slot];
+  if (!wId) return;
+  const weapon = WEAPON_DEFS[wId];
+  if (!weapon || !weapon.magazineSize) return;
+  if (state.isReloading) return;
+  if (state.ammo[slot] >= weapon.magazineSize) return;
+
+  const killAccelMult = state.upgrades.killAccel
+    ? Math.max(0.1, 1 - state.upgrades.killAccelPercent / 100)
+    : 1.0;
+  const spatialReload = getSpatialBonus(state, 'reload');
+  const reloadTime = weapon.reloadTime * state.upgrades.cooldownMult * killAccelMult * Math.max(0.1, 1 - spatialReload);
+
+  state.isReloading = true;
+  state.reloadingSlot = slot;
+  state.reloadCooldown = reloadTime;
+  state.burstRemaining = 0;
+  state.burstWeaponId = null;
+}
+
+export function finishReload(state) {
+  const slot = state.reloadingSlot;
+  if (slot < 0) return;
+  const wId = state.weaponSlots[slot];
+  if (wId && WEAPON_DEFS[wId]) {
+    state.ammo[slot] = WEAPON_DEFS[wId].magazineSize;
+  }
+  state.isReloading = false;
+  state.reloadingSlot = -1;
+  state.reloadCooldown = 0;
 }
 
 
@@ -204,6 +256,13 @@ export function pickupWeapon(state, weaponId, particles, px, py, scale, dropPlay
       state.droppedWeapons.push({ x: dox, y: doy, weaponId: droppedId, cellKey: cellKey(wc.x, wc.y) });
     }
     state.weaponSlots[state.activeSlot] = weaponId;
+  }
+
+  // Initialize ammo for the picked-up weapon slot
+  const pickedWDef = WEAPON_DEFS[weaponId];
+  const targetSlot = state.activeSlot;
+  if (pickedWDef && pickedWDef.magazineSize) {
+    state.ammo[targetSlot] = pickedWDef.magazineSize;
   }
 
   Sounds.weaponcollect();

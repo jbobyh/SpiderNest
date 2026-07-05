@@ -541,8 +541,8 @@ function _buildUpgradePanel(container, upgrades, startY, theme) {
 function _updateWeaponSlots(s) {
   clearContainer(dom.weaponPanel);
 
-  const SLOT  = 44, SGAP = 6, PAD = 8, LABEL_H = 14;
-  const totalH = SLOT + LABEL_H + PAD * 2;
+  const SLOT  = 44, SGAP = 6, PAD = 8, LABEL_H = 14, AMMO_H = 12;
+  const totalH = SLOT + LABEL_H + AMMO_H + PAD * 2;
   const maxSlots = s.maxSlots || 1;
   const totalW  = maxSlots * SLOT + (maxSlots - 1) * SGAP + PAD * 2;
   const MARGIN  = 8;
@@ -562,6 +562,7 @@ function _updateWeaponSlots(s) {
     const sy     = panelY + PAD;
     const wId    = s.weaponSlots[i];
     const active = i === s.activeSlot;
+    const isReloadingThis = s.isReloading && s.reloadingSlot === i;
 
     const slotBg = createPanel({
       x: sx, y: sy,
@@ -588,6 +589,7 @@ function _updateWeaponSlots(s) {
       } catch { /* texture not loaded yet */ }
     }
 
+    // Slot number label
     const lbl = new Text({ text: String(i + 1), style: new TextStyle({
       fill:       active ? '#00d4ff' : 'rgba(42,74,106,1)',
       fontSize:   9,
@@ -597,6 +599,52 @@ function _updateWeaponSlots(s) {
     lbl.anchor.set(0.5, 0);
     lbl.position.set(sx + SLOT / 2, sy + SLOT + 2);
     dom.weaponPanel.addChild(lbl);
+
+    // Ammo counter or reload indicator
+    if (wId && WEAPON_DEFS[wId]) {
+      const wDef = WEAPON_DEFS[wId];
+      const ammoY = sy + SLOT + 2 + LABEL_H;
+
+      if (isReloadingThis) {
+        // Reload progress bar
+        const barW = SLOT - 4;
+        const barH = 4;
+        const barX = sx + 2;
+        const barY = ammoY + 2;
+        const progress = wDef.reloadTime > 0 ? 1 - (s.reloadCooldown / wDef.reloadTime) : 1;
+
+        const barBg = new Graphics();
+        barBg.rect(barX, barY, barW, barH).fill({ color: 0x333333, alpha: 0.8 });
+        dom.weaponPanel.addChild(barBg);
+
+        const barFill = new Graphics();
+        barFill.rect(barX, barY, barW * Math.max(0, Math.min(1, progress)), barH)
+               .fill({ color: 0x00d4ff, alpha: 0.9 });
+        dom.weaponPanel.addChild(barFill);
+
+        const reloadTxt = new Text({ text: 'RELOAD', style: new TextStyle({
+          fill: '#00d4ff',
+          fontSize: 7,
+          fontFamily: 'BoldPixels, sans-serif',
+          fontWeight: 'bold',
+        })});
+        reloadTxt.anchor.set(0.5, 0);
+        reloadTxt.position.set(sx + SLOT / 2, barY + barH + 1);
+        dom.weaponPanel.addChild(reloadTxt);
+      } else {
+        const ammo = s.ammo?.[i] ?? 0;
+        const ammoColor = ammo === 0 ? '#ff4444' : (ammo <= wDef.magazineSize * 0.25 ? '#ff8800' : '#ffffff');
+        const ammoTxt = new Text({ text: `${ammo}/${wDef.magazineSize}`, style: new TextStyle({
+          fill: ammoColor,
+          fontSize: 9,
+          fontFamily: 'BoldPixels, sans-serif',
+          fontWeight: 'bold',
+        })});
+        ammoTxt.anchor.set(0.5, 0);
+        ammoTxt.position.set(sx + SLOT / 2, ammoY);
+        dom.weaponPanel.addChild(ammoTxt);
+      }
+    }
   }
 }
 
@@ -606,6 +654,7 @@ const HINTS = [
   { alias: 'ctrl-f',     label: 'подобрать' },
   { alias: 'ctrl-shift', label: 'рывок' },
   { alias: 'ctrl-q',     label: 'оружие' },
+  { alias: 'ctrl-r',     label: 'перезаряд' },
   { alias: 'ctrl-tab',   label: 'характ.' },
   { alias: 'mouse-left', label: 'выстрел' },
   { alias: 'mouse-right',label: 'откр/закр' },
@@ -622,8 +671,8 @@ function _buildHintsPanel() {
   const totalH = PAD_Y + ICON + 3 + LABEL_H + PAD_Y;
 
   // Weapon panel height (approx) to sit above it
-  const SLOT = 44, LABEL_SLOT_H = 14, PAD_SLOT = 8, SCREEN_MARGIN = 8;
-  const weaponPanelH = SLOT + LABEL_SLOT_H + PAD_SLOT * 2 + SCREEN_MARGIN;
+  const SLOT = 44, LABEL_SLOT_H = 14, AMMO_SLOT_H = 12, PAD_SLOT = 8, SCREEN_MARGIN = 8;
+  const weaponPanelH = SLOT + LABEL_SLOT_H + AMMO_SLOT_H + PAD_SLOT * 2 + SCREEN_MARGIN;
 
   const panelX = VW - totalW - MARGIN_R;
   const panelY = VH - totalH - weaponPanelH - 4;
@@ -657,6 +706,7 @@ function _buildHintsPanel() {
       // Draw text-based icon if texture missing (e.g. for Q)
       let keyText = 'F';
       if (alias.includes('q')) keyText = 'Q';
+      else if (alias.includes('r') && !alias.includes('right')) keyText = 'R';
       else if (alias.includes('tab')) keyText = 'TAB';
       else if (alias.includes('shift')) keyText = 'SHFT';
       else if (alias.includes('left')) keyText = 'LMB';

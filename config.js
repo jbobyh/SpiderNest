@@ -322,6 +322,8 @@ const WEAPON_DEFS = {
     penetrate: 0,           // кол-во врагов, которых пробивает пуля
     shakeAmount: 0,       // сила тряски камеры
     spriteAngle: 0.1,       // поправка угла спрайта (рад)
+    magazineSize: 12,       // размер обоймы
+    reloadTime: 2,          // время перезарядки (сек)
   },
   shotgun: {//dps 80
     id: 'shotgun',
@@ -337,6 +339,8 @@ const WEAPON_DEFS = {
     penetrate: 0,
     shakeAmount: 0.5,
     spriteAngle: 0.55,
+    magazineSize: 4,
+    reloadTime: 3,
   },
   smg: {//dps 50
     id: 'smg',
@@ -352,6 +356,8 @@ const WEAPON_DEFS = {
     penetrate: 0,
     shakeAmount: 0,
     spriteAngle: 0.8,
+    magazineSize: 30,
+    reloadTime: 3,
   },
   rifle: {//dps 42
     id: 'rifle',
@@ -367,6 +373,8 @@ const WEAPON_DEFS = {
     penetrate: 2,
     shakeAmount: 0.8,
     spriteAngle: 0.7,
+    magazineSize: 5,
+    reloadTime: 4,
   },
   revolver: {//dps 66
     id: 'revolver',
@@ -382,6 +390,8 @@ const WEAPON_DEFS = {
     penetrate: 1,
     shakeAmount: 0.2,
     spriteAngle: 0,
+    magazineSize: 6,
+    reloadTime: 3,
   },
   carbine: {//dps 60
     id: 'carbine',
@@ -399,6 +409,8 @@ const WEAPON_DEFS = {
     penetrate: 0,
     shakeAmount: 0.3,
     spriteAngle: 0.7,
+    magazineSize: 15,
+    reloadTime: 4,
   },
 };
 
@@ -465,7 +477,7 @@ const UPGRADE_TYPES = [
   { id: 'shield',        label: 'Щит',                     description: 'Поглощает один удар без потери жизни. Тратится.',                        color: '#00aaff', max: 2, icon: '🛡️', effects: { shield: 1 } },
   { id: 'retreat',       label: 'Отступление',             description: 'После получения урона получи неуязвимость на 1.5 секунды',                  color: '#00ffaa', max: 2, icon: '🏃‍♂️', effects: { retreat: 1 } },
   //{ id: 'reflection',    label: 'Отражение',               description: 'При получении урона выпускает 3 пули в ближайших врагов',        color: '#ff00ff', max: 1, icon: '🔄', effects: { reflection: true } },
-  { id: 'cooldown',      label: 'Перезарядка -15%',        description: 'Уменьшает время между выстрелами на 15%',                    color: '#00ccff', max: 3, icon: '⏱️', effects: { cooldownMult: -0.15 } },
+  { id: 'cooldown',      label: 'Перезарядка -10%',        description: 'Уменьшает время между выстрелами на 10%',                    color: '#00ccff', max: 5, icon: '⏱️', effects: { cooldownMult: -0.10 } },
   { id: 'speed',         label: 'Скорость бега +10%',      description: 'Увеличивает скорость передвижения на 10%',                    color: '#44ff88', max: 3, icon: '💨', effects: { speedMult: 0.10 } },
   { id: 'hitStun',       label: 'Стан при попадании',      description: 'Враги застывают на 0.05с при попадании.',                     color: '#88ddff', max: 5, icon: '⏳', effects: { hitStun: 0.05 } },
   { id: 'incendiary',    label: '+5% поджигающая пуля',     description: '5% шанс что пуля подожжёт врага. Горение наносит урон каждые 0.2с в течение 2с.', color: '#ff6600', max: 3, icon: '🔥', effects: { incendiaryChance: 0.05 } },
