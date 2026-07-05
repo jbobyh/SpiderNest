@@ -167,7 +167,7 @@ export function showGameOver(state, playerProgress, onRestart) {
   });
   cont.addChild(btn);
 
-  const btnText = new Text({ text: 'НАЧАТЬ ЗАНОВО', style: ST_GO_BTN });
+  const btnText = new Text({ text: 'начать уровень заново', style: ST_GO_BTN });
   btnText.anchor.set(0.5, 0.5);
   btnText.position.set(VW / 2, btnY + btnH / 2);
   cont.addChild(btnText);

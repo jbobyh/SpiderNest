@@ -24,6 +24,7 @@ export function updateEnemyAI(state, playerProgress, dt, onPlayerDamaged) {
     if (g.stasis) {
       if (g.isDead || g.hp <= 0) {
         if (!g.isDead) g.die(state, true);
+        _awardSouls(state, playerProgress, g);
         spawnCorpse(s.deathCorpses, g, g.radius);
         _deathParticles(s.particles, g.x, g.y, 1, g.isBoss);
         if (g.body) { destroyBody(g.body); g.body = null; }
@@ -50,7 +51,8 @@ export function updateEnemyAI(state, playerProgress, dt, onPlayerDamaged) {
 
     if (g.isDead || g.hp <= 0) {
       if (!g.isDead) g.die(state, true); // Ensure die() is called if hp <= 0
-      
+
+      _awardSouls(state, playerProgress, g);
       spawnCorpse(s.deathCorpses, g, g.radius);
       _deathParticles(s.particles, g.x, g.y, 1, g.isBoss);
       
@@ -66,6 +68,18 @@ export function updateEnemyAI(state, playerProgress, dt, onPlayerDamaged) {
 }
 
 // ── Private helpers ───────────────────────────────────────────
+
+// Award souls currency for a killed enemy (ENEMY_COSTS). Bosses share
+// type 'boss_phase', so their reward is keyed by level: boss_<level>.
+function _awardSouls(state, playerProgress, g) {
+  const costs = CONFIG.ENEMY_COSTS || {};
+  const reward = g.isBoss
+    ? (costs['boss_' + state.level] || 0)
+    : (costs[g.type] || 0);
+  if (reward <= 0) return;
+  state.souls = (state.souls || 0) + reward;
+  if (playerProgress) playerProgress.souls = state.souls;
+}
 
 // ── Particle helpers ──────────────────────────────────────────
 

@@ -31,6 +31,7 @@ const dom = {
   levelLabel:   null,
   heartsRow:    null,
   shieldsRow:   null,
+  soulsCounter: null,
   upgradePanel: null,
   spatialPanel: null,
   cursedPanel:  null,
@@ -62,6 +63,15 @@ export function initHud(parentContainer) {
   // Shields row
   dom.shieldsRow = new Container({ label: 'shields-row' });
   _parent.addChild(dom.shieldsRow);
+
+  // Souls counter (below shields, top-left)
+  dom.soulsCounter = new Text({ text: '👻 0', style: new TextStyle({
+    fill: '#b28cff',
+    fontSize: 15,
+    fontFamily: 'BoldPixels, sans-serif',
+    fontWeight: 'bold',
+  })});
+  _parent.addChild(dom.soulsCounter);
 
   // Upgrade icon panel (top-right)
   dom.upgradePanel = new Container({ label: 'upgrades' });
@@ -135,6 +145,7 @@ export function updateHud(gameState, currentLevel, nearWeapon = false, nearAltar
 
   _updateHearts(gameState);
   _updateShields(gameState);
+  _updateSouls(gameState);
   _updateUpgrades(gameState);
   _updateWeaponSlots(gameState);
 
@@ -352,6 +363,25 @@ function _updateShields(s) {
       dom.shieldsRow.addChild(spr);
     } catch { /* */ }
   }
+}
+
+// ── Souls counter ─────────────────────────────────────────────
+
+function _updateSouls(s) {
+  if (!dom.soulsCounter) return;
+  const ICON = 20;
+  const filled    = s.player.lives;
+  const removedWt = s.playerRemovedWalls || 0;
+  const total     = Math.max(filled + removedWt, filled);
+  const shieldCount = s.upgrades?.shield || 0;
+
+  // Base Y: below hearts row (30 + ICON + 4). Push down again if shields shown.
+  let y = 30 + ICON + 4;
+  if (total > 0) y += ICON + 4; // hearts occupy their row visually
+  if (shieldCount > 0) y += ICON + 4; // shields row below hearts
+
+  dom.soulsCounter.text = `👻 ${s.souls || 0}`;
+  dom.soulsCounter.position.set(8, y);
 }
 
 // ── Upgrade icon panels ──────────────────────────────────────

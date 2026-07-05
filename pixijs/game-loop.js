@@ -138,6 +138,7 @@ export function startGameLoop({
   _levelStartProgress = {
     totalLives: _playerProgress.totalLives,
     totalHeartsCollected: _playerProgress.totalHeartsCollected,
+    souls: _playerProgress.souls || 0,
     upgrades: { ..._playerProgress.upgrades },
     spawnedUpgrades: { ..._playerProgress.spawnedUpgrades },
     spawnedWeapons: [...(_playerProgress.spawnedWeapons || [])],
@@ -148,6 +149,9 @@ export function startGameLoop({
 
   // Build or restore game state
   _state = savedState ?? createGameState(_currentLevel, _playerProgress);
+  // Ensure level/souls are set (back-compat for older saves)
+  _state.level = _currentLevel;
+  if (_state.souls === undefined) _state.souls = _playerProgress.souls || 0;
 
   // Initialize lazy-rebuild tracking
   _state._lastPurifiedSize = _state.purified?.size ?? 0;

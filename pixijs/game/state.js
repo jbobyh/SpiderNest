@@ -17,6 +17,7 @@ export function createDefaultProgress() {
   return {
     totalLives: 3,
     totalHeartsCollected: 0,
+    souls: 0,
     upgrades: {
       pellets: 0,
       damageMult: 0,
@@ -136,6 +137,8 @@ export function createGameState(level, playerProgress) {
   }
 
   return {
+    level,
+    souls: playerProgress.souls || 0,
     gridSize: CONFIG.GRID_SIZE,
     rooms,
     blobCells,
@@ -244,6 +247,7 @@ export function loadGame() {
     }
     if (!progress.spawnedUpgrades) progress.spawnedUpgrades = {};
     if (!progress.spawnedWeapons)  progress.spawnedWeapons  = [];
+    if (progress.souls === undefined) progress.souls = 0;
 
     return {
       currentLevel: save.currentLevel,
@@ -277,6 +281,7 @@ export function savePlayerProgress(state, playerProgress) {
   playerProgress.weaponSlots          = [...(state.weaponSlots || ['pistol', null])];
   playerProgress.activeSlot           = state.activeSlot || 0;
   playerProgress.maxSlots             = state.maxSlots || 1;
+  playerProgress.souls                = state.souls || 0;
 }
 
 // ── Revealed rooms helpers ───────────────────────────────────
@@ -379,6 +384,8 @@ export function doCloseWall(state, wk) {
 
 function _serializeState(s) {
   return {
+    level:            s.level,
+    souls:            s.souls || 0,
     gridSize:         s.gridSize,
     rooms:            s.rooms || [],
     blobCells:        [...s.blobCells],
@@ -432,6 +439,8 @@ function _serializeState(s) {
 
 function _deserializeState(data) {
   return {
+    level:              data.level,
+    souls:              data.souls || 0,
     gridSize:           data.gridSize || 5,
     rooms:              data.rooms || [],
     blobCells:          new Set(data.blobCells || []),
