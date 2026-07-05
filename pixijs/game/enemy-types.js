@@ -287,16 +287,24 @@ export class BullEnemy extends Enemy {
       case 'dash': {
         const dashSpeed = CONFIG.ENEMY_STATS.bull.speed * 4;
         const speedMult = this.getRoomSpeedMult(state);
+
+        if (this._hitWall) {
+          this._hitWall = false;
+          this.state = 'rest';
+          this.stateTimer = CONFIG.ENEMY_STATS.bull.restTime;
+          setBodyVelocity(this.body, 0, 0);
+          break;
+        }
+
         setBodyVelocity(this.body, this.dashDirX * dashSpeed * speedMult, this.dashDirY * dashSpeed * speedMult);
         this.stateTimer += dashSpeed * speedMult * dt;
-        
-        const hitWall = this.body && Math.hypot(this.body.velocity.x, this.body.velocity.y) < dashSpeed * speedMult * 0.3;
-        if (hitWall || this.stateTimer >= this.dashDistance) {
+
+        if (this.stateTimer >= this.dashDistance) {
           this.state = 'rest';
           this.stateTimer = CONFIG.ENEMY_STATS.bull.restTime;
           setBodyVelocity(this.body, 0, 0);
         }
-        
+
         if (dist < hitDist) {
           // Contact damage handled by onCollision, but we stop dash
           this.state = 'rest';
@@ -649,10 +657,16 @@ export class PhaseBoss extends Enemy {
         break;
       case 'dash': {
         const dashSpeed = CONFIG.ENEMY_STATS.bull.speed * 3 * roomMult;
+
+        if (this._hitWall) {
+          this._hitWall = false;
+          this._onDashFinished(phase);
+          break;
+        }
+
         setBodyVelocity(this.body, this.dashDirX * dashSpeed, this.dashDirY * dashSpeed);
         this.stateTimer += dashSpeed * dt;
-        const hitWall = this.body && Math.hypot(this.body.velocity.x, this.body.velocity.y) < dashSpeed * 0.3;
-        if (hitWall || this.stateTimer >= this.dashDistance) {
+        if (this.stateTimer >= this.dashDistance) {
           this._onDashFinished(phase);
         }
         if (Math.hypot(state.player.x - this.x, state.player.y - this.y) < hitDist) {

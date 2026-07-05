@@ -290,7 +290,7 @@ function _handlePhysicsCollision(pairs) {
       const enemyEnt = entA || entB;
       const wallBody = entA ? bodyB : bodyA;
       if (enemyEnt && (wallBody.label === 'wall' || wallBody.label === 'external_wall')
-          && (enemyEnt.type === 'buldyga' || enemyEnt.isBoss)) {
+          && (enemyEnt.type === 'buldyga' || enemyEnt.type === 'bull' || enemyEnt.isBoss)) {
         enemyEnt._hitWall = true;
       }
       continue;
