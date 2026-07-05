@@ -24,6 +24,7 @@ import { spawnRoomRewards } from '../game/collectibles.js';
 import { spawnPurifyWave } from '../render/particles.js';
 import { updateRevealedRoomsOnPurify } from '../game/state.js';
 import { updatePlayMode, handleWeaponPickup } from './play-mode.js';
+import { app } from '../core/app.js';
 import { EnemyFactory } from '../game/enemy-factory.js';
 
 // ── Battle state creation ─────────────────────────────────────
@@ -194,6 +195,9 @@ export function updateBattleMode(state, playerProgress, camera, dt, callbacks = 
 
   // Run shared game logic via play-mode update
   updatePlayMode(state, playerProgress, camera, dt, callbacks, { isBattle: true });
+
+  // Custom crosshair cursor (battle mode skips _updateCursor in play-mode)
+  if (app?.canvas) app.canvas.style.cursor = "url('img/crosshairs_white.png') 4 4, crosshair";
 
   // Win check
   const b = state.battle;

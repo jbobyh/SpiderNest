@@ -447,7 +447,7 @@ function _updateCursor(state, camera) {
       return;
     }
   }
-  app.canvas.style.cursor = 'crosshair';
+  app.canvas.style.cursor = "url('img/crosshairs_white.png') 4 4, crosshair";
 }
 
 // ── Weapon pickup via F key ──────────────────────────────────
