@@ -250,6 +250,7 @@ const CONFIG = {
     invulnerable: false,      // неуязвимость игрока от врагов
     collisions: false,        // отображать коллайдеры
     showFps: true,            // отображать счетчик FPS
+    showWeapon: false,         // отображать оружие поверх персонажа
   },
 
   // Boss phase AI
@@ -849,6 +850,10 @@ const SPRITE_SHEETS = {
       run_left:     { col: 2, frames: 1, fps: 1 },
       run_back:     { col: 1, frames: 1, fps: 1 },
     },
+  },
+  heroHands: {
+    sw: 64, sh: 64,
+    rows: 3, cols: 5,
   },
   cocoon: {
     sw: 500, sh: 500,

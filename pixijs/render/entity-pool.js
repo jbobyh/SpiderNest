@@ -12,6 +12,7 @@ import { Assets } from 'pixi.js';
 
 // Cached frame arrays — populated by initEntityPool()
 export const heroFrames     = {};  // { idle_forward: Texture[], ... }
+export const heroHandsFrames = [];  // [row][col] — 3×5 Texture grid
 export const shooterFrames  = {};  // { run: Texture[], idle: Texture[], shoot: Texture[] }
 export const cocoonFrames   = [];  // Texture[7]
 export const batFrames      = [];  // Texture[7]
@@ -31,6 +32,7 @@ let wallShooterCorpseTexture = Texture.WHITE;
  */
 export function initEntityPool() {
   _buildHeroFrames();
+  _buildHeroHandsFrames();
   _buildShooterFrames();
   _buildCocoonFrames();
   _buildBatFrames();
@@ -116,6 +118,21 @@ function _buildHeroFrames() {
         source: heroTex.source,
         frame:  new Rectangle((def.col + f) * SPRITE_SHEETS.hero.sw, 0, SPRITE_SHEETS.hero.sw, SPRITE_SHEETS.hero.sh),
       }));
+    }
+  }
+}
+
+function _buildHeroHandsFrames() {
+  const tex = Assets.get('hero-hands');
+  if (!tex) return;
+  const { sw, sh, rows, cols } = SPRITE_SHEETS.heroHands;
+  for (let r = 0; r < rows; r++) {
+    heroHandsFrames[r] = [];
+    for (let c = 0; c < cols; c++) {
+      heroHandsFrames[r][c] = new Texture({
+        source: tex.source,
+        frame:  new Rectangle(c * sw, r * sh, sw, sh),
+      });
     }
   }
 }
