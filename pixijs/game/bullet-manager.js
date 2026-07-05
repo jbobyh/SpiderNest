@@ -1,5 +1,5 @@
 import { acquireBullet, releaseBullet } from './bullet.js';
-import { cellOf, cellKey, CELL_PX, getRoomBonus, getRoomSpeedMultiplier, crossesWall, inRoom } from '../world/constants.js';
+import { cellOf, cellKey, CELL_PX, getRoomBonus, getRoomSpeedMultiplier, getRoomSpeedVectorMultiplier, isWindBonus, crossesWall, inRoom } from '../world/constants.js';
 import { Sounds } from '../core/sound.js';
 import { spawnParticles } from '../render/particles.js';
 import { spawnDamageNumber } from '../render/damage-numbers.js';
@@ -153,13 +153,15 @@ class BulletManager {
     const roomBonus = getRoomBonus(state, bulletCellKey);
     
     if (roomBonus !== b._lastRoomBonus) {
-      if (roomBonus === 'speedup' || roomBonus === 'speeddown') {
-        const mult = getRoomSpeedMultiplier(state, bulletCellKey);
+      if (roomBonus === 'speeddown' || isWindBonus(roomBonus)) {
+        const mult = getRoomSpeedVectorMultiplier(state, bulletCellKey, b._baseVx, b._baseVy);
         b.vx = b._baseVx * mult;
         b.vy = b._baseVy * mult;
-      } else if (b._lastRoomBonus === 'speedup' || b._lastRoomBonus === 'speeddown') {
+        b._lastSpeedMult = mult;
+      } else if (b._lastRoomBonus === 'speeddown' || isWindBonus(b._lastRoomBonus)) {
         b.vx = b._baseVx;
         b.vy = b._baseVy;
+        b._lastSpeedMult = 1.0;
       }
       
       if (roomBonus === 'ricochet') {
@@ -308,11 +310,9 @@ class BulletManager {
       if (g.takeDamage) {
         g.takeDamage(damage, isCritHit, { state, showDamageNumber: !isBattle });
       } else {
-        if (!g.isBoss) {
-          g.hpBarVisible = true;
-          g.hpDamageStart = g.displayedHp ?? g.hp;
-          g.hpDamageTimer = 0;
-        }
+        g.hpBarVisible = true;
+        g.hpDamageStart = g.displayedHp ?? g.hp;
+        g.hpDamageTimer = 0;
         g.hp -= damage;
         g.hitFlash = CONFIG.ENEMY_HIT_FLASH_DURATION;
         Sounds.hit?.();
@@ -334,7 +334,7 @@ class BulletManager {
       }
 
       // Hit VFX sprite animation
-      spawnEnemyHitVfx(g.x, g.y);
+      // spawnEnemyHitVfx(g.x, g.y);
 
       // Hit particles
       const bAngle = Math.atan2(b.vy, b.vx);
@@ -388,9 +388,8 @@ class BulletManager {
 
   _syncBaseVelocity(b) {
     const rb = b._lastRoomBonus;
-    if (rb === 'speedup' || rb === 'speeddown') {
-      const bonusDef = ROOM_BONUS_TYPES.find(bt => bt.id === rb);
-      const mult = bonusDef?.speedMult || (rb === 'speedup' ? 1.3 : 0.7);
+    if (rb === 'speeddown' || isWindBonus(rb)) {
+      const mult = b._lastSpeedMult || 1.0;
       b._baseVx = b.vx / mult;
       b._baseVy = b.vy / mult;
     } else {

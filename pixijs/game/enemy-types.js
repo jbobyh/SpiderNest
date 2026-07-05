@@ -20,7 +20,7 @@ export class ChaserEnemy extends Enemy {
 
     if (dist > 0) {
       const dir = getEnemyMoveDir(this.x, this.y, state.player.x, state.player.y, state.flowField, state.openCells, state.removedWalls);
-      const speedMult = this.getRoomSpeedMult(state);
+      const speedMult = this.getRoomSpeedVectorMult(state, dir.dx, dir.dy);
       const speed = this.type === 'tank' ? CONFIG.ENEMY_STATS.tank.speed : CONFIG.ENEMY_STATS.soldier.speed;
       setBodyVelocity(this.body, dir.dx * speed * speedMult, dir.dy * speed * speedMult);
     }
@@ -87,7 +87,8 @@ export class ZigzagChaserEnemy extends Enemy {
         moveDir = getEnemyMoveDir(this.x, this.y, state.player.x, state.player.y, state.flowField, state.openCells, state.removedWalls);
       }
       
-      setBodyVelocity(this.body, moveDir.dx * baseSpeed * speedMult, moveDir.dy * baseSpeed * speedMult);
+      const moveSpeedMult = this.getRoomSpeedVectorMult(state, moveDir.dx, moveDir.dy);
+      setBodyVelocity(this.body, moveDir.dx * baseSpeed * moveSpeedMult, moveDir.dy * baseSpeed * moveSpeedMult);
     }
   }
 
@@ -222,7 +223,7 @@ export class WallShooterEnemy extends ShooterEnemy {
     } else if (!hasLos || dist > stopDist) {
       if (dist > 0) {
         const dir = getEnemyMoveDir(this.x, this.y, state.player.x, state.player.y, state.flowField, state.openCells, state.removedWalls);
-        const speedMult = this.getRoomSpeedMult(state);
+        const speedMult = this.getRoomSpeedVectorMult(state, dir.dx, dir.dy);
         setBodyVelocity(this.body, dir.dx * stats.speed * speedMult, dir.dy * stats.speed * speedMult);
       }
     } else {
@@ -258,7 +259,7 @@ export class BullEnemy extends Enemy {
           setBodyVelocity(this.body, 0, 0);
         } else if (dist > chargeDist && dist > 0) {
           const dir = getEnemyMoveDir(this.x, this.y, state.player.x, state.player.y, state.flowField, state.openCells, state.removedWalls);
-          const speedMult = this.getRoomSpeedMult(state);
+          const speedMult = this.getRoomSpeedVectorMult(state, dir.dx, dir.dy);
           setBodyVelocity(this.body, dir.dx * CONFIG.ENEMY_STATS.bull.speed * speedMult, dir.dy * CONFIG.ENEMY_STATS.bull.speed * speedMult);
         } else if (dist <= chargeDist) {
           this.state = 'prepare';
@@ -286,17 +287,25 @@ export class BullEnemy extends Enemy {
 
       case 'dash': {
         const dashSpeed = CONFIG.ENEMY_STATS.bull.speed * 4;
-        const speedMult = this.getRoomSpeedMult(state);
+        const speedMult = this.getRoomSpeedVectorMult(state, this.dashDirX, this.dashDirY);
+
+        if (this._hitWall) {
+          this._hitWall = false;
+          this.state = 'rest';
+          this.stateTimer = CONFIG.ENEMY_STATS.bull.restTime;
+          setBodyVelocity(this.body, 0, 0);
+          break;
+        }
+
         setBodyVelocity(this.body, this.dashDirX * dashSpeed * speedMult, this.dashDirY * dashSpeed * speedMult);
         this.stateTimer += dashSpeed * speedMult * dt;
-        
-        const hitWall = this.body && Math.hypot(this.body.velocity.x, this.body.velocity.y) < dashSpeed * speedMult * 0.3;
-        if (hitWall || this.stateTimer >= this.dashDistance) {
+
+        if (this.stateTimer >= this.dashDistance) {
           this.state = 'rest';
           this.stateTimer = CONFIG.ENEMY_STATS.bull.restTime;
           setBodyVelocity(this.body, 0, 0);
         }
-        
+
         if (dist < hitDist) {
           // Contact damage handled by onCollision, but we stop dash
           this.state = 'rest';
@@ -341,7 +350,7 @@ export class BuldygaEnemy extends Enemy {
       this.speedAccumulator -= secs;
     }
 
-    const speedMult = this.getRoomSpeedMult(state);
+    const speedMult = this.getRoomSpeedVectorMult(state, dx, dy);
     const effectiveSpeed = this.currentSpeed * speedMult;
 
     if (dist > 0) {
@@ -383,7 +392,7 @@ export class BloatedEnemy extends Enemy {
 
     if (this.stunTimer <= 0 && dist > 0) {
       const dir = getEnemyMoveDir(this.x, this.y, state.player.x, state.player.y, state.flowField, state.openCells, state.removedWalls);
-      const speedMult = this.getRoomSpeedMult(state);
+      const speedMult = this.getRoomSpeedVectorMult(state, dir.dx, dir.dy);
       setBodyVelocity(this.body, dir.dx * CONFIG.ENEMY_STATS.bloated.speed * speedMult, dir.dy * CONFIG.ENEMY_STATS.bloated.speed * speedMult);
     } else {
       setBodyVelocity(this.body, 0, 0);
@@ -393,6 +402,13 @@ export class BloatedEnemy extends Enemy {
 
 // ── Ghost (passes through walls, direct chase) ────────────────
 export class GhostEnemy extends Enemy {
+  constructor(data) {
+    super(data);
+    if (this.animState == null) this.animState = 'move';
+    if (this.animFrame == null) this.animFrame = 0;
+    if (this.animTimer == null) this.animTimer = 0;
+  }
+
   update(dt, state) {
     if (this.isDead) return;
     if (this.hitFlash > 0) this.hitFlash -= dt;
@@ -417,8 +433,12 @@ export class GhostEnemy extends Enemy {
   }
 
   updateBehavior(dt, state) {
+    const speedMult = this.getRoomSpeedMult(state);
+    this._updateGhostAnim(dt * speedMult);
+
     if (this.stunTimer > 0) {
       setBodyVelocity(this.body, 0, 0);
+      this.animState = 'idle';
       return;
     }
 
@@ -427,9 +447,21 @@ export class GhostEnemy extends Enemy {
     const dist = Math.hypot(dx, dy);
 
     if (dist > 0) {
-      const speedMult = this.getRoomSpeedMult(state);
       const speed = CONFIG.ENEMY_STATS.ghost.speed;
-      setBodyVelocity(this.body, (dx / dist) * speed * speedMult, (dy / dist) * speed * speedMult);
+      const moveSpeedMult = this.getRoomSpeedVectorMult(state, dx, dy);
+      setBodyVelocity(this.body, (dx / dist) * speed * moveSpeedMult, (dy / dist) * speed * moveSpeedMult);
+      this.animState = 'move';
+    }
+  }
+
+  _updateGhostAnim(dt) {
+    if (this.animState == null || typeof SPRITE_SHEETS.ghost === 'undefined') return;
+    this.animTimer += dt;
+    const cfg = SPRITE_SHEETS.ghost.anims[this.animState];
+    if (!cfg) return;
+    if (this.animTimer >= 1 / cfg.fps) {
+      this.animTimer = 0;
+      this.animFrame = (this.animFrame + 1) % cfg.frames.length;
     }
   }
 }
@@ -493,8 +525,7 @@ export class PhaseBoss extends Enemy {
     }
 
     const phase = bossDef.phases[this.phaseIndex] || bossDef.phases[0];
-    const roomMult = this.getRoomSpeedMult(state);
-    const bossSpd = CONFIG.ENEMY_STATS.soldier.speed * (bossDef.speedMult || 1.0) * roomMult;
+    const bossSpd = CONFIG.ENEMY_STATS.soldier.speed * (bossDef.speedMult || 1.0);
     const dx = state.player.x - this.x;
     const dy = state.player.y - this.y;
     const dist = Math.hypot(dx, dy);
@@ -507,18 +538,19 @@ export class PhaseBoss extends Enemy {
       case 'soldier':
         if (this.stunTimer <= 0 && dist > 0) {
           const dir = getEnemyMoveDir(this.x, this.y, state.player.x, state.player.y, state.flowField, state.openCells, state.removedWalls);
-          setBodyVelocity(this.body, dir.dx * bossSpd, dir.dy * bossSpd);
+          const vecMult = this.getRoomSpeedVectorMult(state, dir.dx, dir.dy);
+          setBodyVelocity(this.body, dir.dx * bossSpd * vecMult, dir.dy * bossSpd * vecMult);
         } else {
           setBodyVelocity(this.body, 0, 0);
         }
         break;
 
       case 'buldyga':
-        this._updateBuldygaPhase(dt, state, phase, dx, dy, dist, roomMult);
+        this._updateBuldygaPhase(dt, state, phase, dx, dy, dist);
         break;
 
       case 'bull_limited':
-        this._updateBullLimitedPhase(dt, state, phase, dx, dy, dist, roomMult);
+        this._updateBullLimitedPhase(dt, state, phase, dx, dy, dist);
         break;
 
       case 'shooter':
@@ -541,7 +573,7 @@ export class PhaseBoss extends Enemy {
     this.speedAccumulator = 0;
   }
 
-  _updateBuldygaPhase(dt, state, phase, dx, dy, dist, roomMult) {
+  _updateBuldygaPhase(dt, state, phase, dx, dy, dist) {
     const accelMult = phase.accelMult || 1.0;
     const frictionMult = phase.frictionMult || 1.0;
     if (this.currentSpeed === undefined) this.currentSpeed = CONFIG.ENEMY_STATS.buldyga.speed;
@@ -557,8 +589,9 @@ export class PhaseBoss extends Enemy {
 
     const stunned = this.stunTimer > 0;
     if (!stunned && dist > 0) {
-      const tvx = (dx / dist) * this.currentSpeed * roomMult;
-      const tvy = (dy / dist) * this.currentSpeed * roomMult;
+      const vecMult = this.getRoomSpeedVectorMult(state, dx, dy);
+      const tvx = (dx / dist) * this.currentSpeed * vecMult;
+      const tvy = (dy / dist) * this.currentSpeed * vecMult;
       const acc = CONFIG.ENEMY_STATS.buldyga.accel * accelMult * dt;
       this.vx += (tvx - this.vx) * Math.min(1, acc / (this.currentSpeed || 1));
       this.vy += (tvy - this.vy) * Math.min(1, acc / (this.currentSpeed || 1));
@@ -592,8 +625,11 @@ export class PhaseBoss extends Enemy {
           this.strafeSwitchTimer = CONFIG.BOSS_STRAFE_SWITCH_TIME ?? 1.2;
         }
 
-        const bvx = (-dy / dist) * bossSpd * this.strafeDir;
-        const bvy = (dx / dist) * bossSpd * this.strafeDir;
+        const strafeDirX = (-dy / dist) * this.strafeDir;
+        const strafeDirY = (dx / dist) * this.strafeDir;
+        const vecMult = this.getRoomSpeedVectorMult(state, strafeDirX, strafeDirY);
+        const bvx = strafeDirX * bossSpd * vecMult;
+        const bvy = strafeDirY * bossSpd * vecMult;
         setBodyVelocity(body, bvx, bvy);
       }
     } else {
@@ -618,7 +654,7 @@ export class PhaseBoss extends Enemy {
     }
   }
 
-  _updateBullLimitedPhase(dt, state, phase, dx, dy, dist, roomMult) {
+  _updateBullLimitedPhase(dt, state, phase, dx, dy, dist) {
     const dashDistMax = (phase.dashCells || (CONFIG.ENEMY_STATS.bull.dashDistCells ?? 3)) * CELL_PX;
     const chargeDist = (CONFIG.ENEMY_STATS.bull.chargeDistCells ?? 1.5) * CELL_PX * 8;
     const hitDist = this.radius + CONFIG.PLAYER_RADIUS;
@@ -630,7 +666,8 @@ export class PhaseBoss extends Enemy {
       case 'chase':
         if (this.stunTimer <= 0 && dist > chargeDist && dist > 0) {
           const dir = getEnemyMoveDir(this.x, this.y, state.player.x, state.player.y, state.flowField, state.openCells, state.removedWalls);
-          setBodyVelocity(this.body, dir.dx * CONFIG.ENEMY_STATS.bull.speed * roomMult, dir.dy * CONFIG.ENEMY_STATS.bull.speed * roomMult);
+          const vecMult = this.getRoomSpeedVectorMult(state, dir.dx, dir.dy);
+          setBodyVelocity(this.body, dir.dx * CONFIG.ENEMY_STATS.bull.speed * vecMult, dir.dy * CONFIG.ENEMY_STATS.bull.speed * vecMult);
         } else if (dist <= chargeDist) {
           this.state = 'prepare';
           this.stateTimer = CONFIG.ENEMY_STATS.bull.prepareTime;
@@ -648,11 +685,18 @@ export class PhaseBoss extends Enemy {
         }
         break;
       case 'dash': {
-        const dashSpeed = CONFIG.ENEMY_STATS.bull.speed * 3 * roomMult;
+        const vecMult = this.getRoomSpeedVectorMult(state, this.dashDirX, this.dashDirY);
+        const dashSpeed = CONFIG.ENEMY_STATS.bull.speed * 3 * vecMult;
+
+        if (this._hitWall) {
+          this._hitWall = false;
+          this._onDashFinished(phase);
+          break;
+        }
+
         setBodyVelocity(this.body, this.dashDirX * dashSpeed, this.dashDirY * dashSpeed);
         this.stateTimer += dashSpeed * dt;
-        const hitWall = this.body && Math.hypot(this.body.velocity.x, this.body.velocity.y) < dashSpeed * 0.3;
-        if (hitWall || this.stateTimer >= this.dashDistance) {
+        if (this.stateTimer >= this.dashDistance) {
           this._onDashFinished(phase);
         }
         if (Math.hypot(state.player.x - this.x, state.player.y - this.y) < hitDist) {

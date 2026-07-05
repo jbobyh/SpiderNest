@@ -68,8 +68,8 @@ const MANIFEST = {
     {
       name: 'entities',
       assets: [
-        // Hero sprite sheet (2500×3000, 500×500 frames, 5 cols × 6 rows)
-        { alias: 'hero',              src: IMG + 'hero.png' },
+        // Hero sprite sheet (192×64, 3 frames of 64×64: front, back, left)
+        { alias: 'hero',              src: '../arts/player_spritesheet.png' },
         // Enemies — static sprites
         { alias: 'soldier',           src: IMG + 'soldier.png' },
         { alias: 'soldier-dead',      src: IMG + 'soldier_dead.png' },
@@ -87,6 +87,8 @@ const MANIFEST = {
         { alias: 'cocoon',            src: IMG + 'cocoon.png' },
         // Bat — 512×64 sprite sheet, 8 frames of 64×64 (7 move + 1 damage)
         { alias: 'bat',               src: IMG + 'Bat_NoContour.png' },
+        // Ghost — 256×224 sprite sheet, 32×32 per frame, 8 cols × 7 rows
+        { alias: 'ghost',             src: IMG + 'ghost_spritesheet.png' },
         // Screens
         { alias: 'death-screen',      src: IMG + 'death.png' },
         { alias: 'gameover-screen',   src: IMG + 'gameover.png' },
@@ -132,6 +134,16 @@ const MANIFEST = {
         { alias: 'ctrl-tab',          src: IMG + 'keyboard_tab.png' },
         { alias: 'mouse-left',        src: IMG + 'mouse_left.png' },
         { alias: 'mouse-right',       src: IMG + 'mouse_right.png' },
+        // 9-slice panel background
+        { alias: 'panel-center',      src: IMG + 'panel/0.png' },
+        { alias: 'panel-lt',          src: IMG + 'panel/1.png' },
+        { alias: 'panel-rt',          src: IMG + 'panel/2.png' },
+        { alias: 'panel-lb',          src: IMG + 'panel/3.png' },
+        { alias: 'panel-rb',          src: IMG + 'panel/4.png' },
+        { alias: 'panel-l',           src: IMG + 'panel/5.png' },
+        { alias: 'panel-t',           src: IMG + 'panel/6.png' },
+        { alias: 'panel-r',           src: IMG + 'panel/7.png' },
+        { alias: 'panel-b',           src: IMG + 'panel/8.png' },
       ],
     },
 

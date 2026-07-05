@@ -16,7 +16,7 @@
 // Globals: CONFIG, CURSED_UPGRADE_TYPES (from config.js)
 // ============================================================
 
-import { Container, Graphics, Text, TextStyle } from 'pixi.js';
+import { Container, Graphics, Text, TextStyle, Sprite, Assets } from 'pixi.js';
 import { applySpecialChoice, applyUpgradeChoice, applyRoomBonusChoice } from '../game/collectibles.js';
 
 const VW = CONFIG.VIEW_W;
@@ -167,7 +167,7 @@ export function showGameOver(state, playerProgress, onRestart) {
   });
   cont.addChild(btn);
 
-  const btnText = new Text({ text: 'НАЧАТЬ ЗАНОВО', style: ST_GO_BTN });
+  const btnText = new Text({ text: 'начать уровень заново', style: ST_GO_BTN });
   btnText.anchor.set(0.5, 0.5);
   btnText.position.set(VW / 2, btnY + btnH / 2);
   cont.addChild(btnText);
@@ -186,11 +186,45 @@ export function hideGameOver() {
 
 // ── Choice panel layout constants ────────────────────────────
 
-const PANEL_W = 430;
-const PANEL_H = 250;
+const PANEL_W = 520;
+const PANEL_H = 370;
 const BTN_W   = 120;
 const BTN_H   = 120;
 const BTN_GAP = 18;
+
+// ── 9-slice panel background ─────────────────────────────────
+
+const SLICE_CORNER = 180; // corner tile size (lt/rt/lb/rb are 180×180)
+
+function _create9SlicePanel(x, y, w, h) {
+  const cont = new Container();
+  cont.position.set(x, y);
+
+  const c = SLICE_CORNER;
+  const ew = w - c * 2; // edge width (horizontal stretch)
+  const eh = h - c * 2; // edge height (vertical stretch)
+
+  // Corners (unscaled)
+  const lt = new Sprite(Assets.get('panel-lt')); lt.position.set(0, 0);
+  const rt = new Sprite(Assets.get('panel-rt')); rt.position.set(w - c, 0);
+  const lb = new Sprite(Assets.get('panel-lb')); lb.position.set(0, h - c);
+  const rb = new Sprite(Assets.get('panel-rb')); rb.position.set(w - c, h - c);
+
+  // Edges (scaled)
+  const t = new Sprite(Assets.get('panel-t')); t.position.set(c, 0); t.width = ew;
+  const b = new Sprite(Assets.get('panel-b')); b.position.set(c, h - c); b.width = ew;
+  const l = new Sprite(Assets.get('panel-l')); l.position.set(0, c); l.height = eh;
+  const r = new Sprite(Assets.get('panel-r')); r.position.set(w - c, c); r.height = eh;
+
+  // Center (scaled both axes)
+  const center = new Sprite(Assets.get('panel-center'));
+  center.position.set(c, c);
+  center.width = ew;
+  center.height = eh;
+
+  cont.addChild(lt, rt, lb, rb, t, b, l, r, center);
+  return cont;
+}
 
 const UPGRADE_BTN_W = 120;
 const UPGRADE_BTN_H = 110;
@@ -214,32 +248,28 @@ function _showSpecialChoice(state, playerProgress) {
   dim.rect(0, 0, VW, VH).fill({ color: 0x000000, alpha: 0.6 });
   cont.addChild(dim);
 
-  // Panel background
-  const panel = new Graphics();
-  const accentColor = type === 'spatial' ? 0x00d4ff : 0x9900ff;
-  panel.rect(px, py, PANEL_W, PANEL_H)
-       .fill({ color: 0x160020, alpha: 0.97 })
-       .stroke({ color: accentColor, alpha: 0.9, width: 2 });
-  cont.addChild(panel);
+  // Panel background (9-slice)
+  const bg = _create9SlicePanel(px, py, PANEL_W, PANEL_H);
+  cont.addChild(bg);
 
   // Title
   const titleText = type === 'spatial' ? '✨ ПРОСТРАНСТВЕННЫЙ СУНДУК ✨' : '⚠ ПРОКЛЯТЫЙ БОНУС ⚠';
   const title = new Text({ text: titleText, style: ST_TITLE });
   title.anchor.set(0.5, 0);
-  title.position.set(VW / 2, py + 14);
+  title.position.set(VW / 2, py + 40);
   cont.addChild(title);
 
   // Hint
   const hintText = type === 'spatial' ? 'Выбери пространственное улучшение:' : 'Выбери одно из проклятых улучшений:';
   const hint = new Text({ text: hintText, style: ST_HINT });
   hint.anchor.set(0.5, 0);
-  hint.position.set(VW / 2, py + 42);
+  hint.position.set(VW / 2, py + 68);
   cont.addChild(hint);
 
   // Choice buttons
   const totalW  = choices.length * BTN_W + (choices.length - 1) * BTN_GAP;
   const startX  = (VW - totalW) / 2;
-  const btnY    = py + 75;
+  const btnY    = py + 100;
 
   for (let i = 0; i < choices.length; i++) {
     _addChoiceBtn(cont, choices[i], startX + i * (BTN_W + BTN_GAP), btnY);
@@ -334,29 +364,26 @@ function _showUpgradeChoice(state, playerProgress) {
   dim.rect(0, 0, VW, VH).fill({ color: 0x000000, alpha: 0.6 });
   cont.addChild(dim);
 
-  // Panel background
-  const panel = new Graphics();
-  panel.rect(px, py, PANEL_W, PANEL_H)
-       .fill({ color: 0x102020, alpha: 0.97 })
-       .stroke({ color: 0x44aaff, alpha: 0.9, width: 2 });
-  cont.addChild(panel);
+  // Panel background (9-slice)
+  const bg = _create9SlicePanel(px, py, PANEL_W, PANEL_H);
+  cont.addChild(bg);
 
   // Title
   const title = new Text({ text: '⚡ СУНДУК С БОНУСАМИ ⚡', style: ST_TITLE });
   title.anchor.set(0.5, 0);
-  title.position.set(VW / 2, py + 14);
+  title.position.set(VW / 2, py + 40);
   cont.addChild(title);
 
   // Hint
   const hint = new Text({ text: 'Выбери один из трех бонусов:', style: ST_HINT });
   hint.anchor.set(0.5, 0);
-  hint.position.set(VW / 2, py + 42);
+  hint.position.set(VW / 2, py + 68);
   cont.addChild(hint);
 
   // Choice buttons
   const totalW  = choices.length * UPGRADE_BTN_W + (choices.length - 1) * BTN_GAP;
   const startX  = (VW - totalW) / 2;
-  const btnY    = py + 75;
+  const btnY    = py + 100;
 
   for (let i = 0; i < choices.length; i++) {
     _addUpgradeChoiceBtn(cont, choices[i], startX + i * (UPGRADE_BTN_W + BTN_GAP), btnY);
@@ -495,29 +522,26 @@ function _showRoomBonusChoice(state, playerProgress) {
   dim.rect(0, 0, VW, VH).fill({ color: 0x000000, alpha: 0.6 });
   cont.addChild(dim);
 
-  // Panel background
-  const panel = new Graphics();
-  panel.rect(px, py, PANEL_W, PANEL_H)
-       .fill({ color: 0x102030, alpha: 0.97 })
-       .stroke({ color: 0x44ff88, alpha: 0.9, width: 2 });
-  cont.addChild(panel);
+  // Panel background (9-slice)
+  const bg = _create9SlicePanel(px, py, PANEL_W, PANEL_H);
+  cont.addChild(bg);
 
   // Title
   const title = new Text({ text: '🌟 БОНУС КОМНАТЫ 🌟', style: ST_TITLE });
   title.anchor.set(0.5, 0);
-  title.position.set(VW / 2, py + 14);
+  title.position.set(VW / 2, py + 40);
   cont.addChild(title);
 
   // Hint
   const hint = new Text({ text: 'Выбери один из трех бонусов для этой комнаты:', style: ST_HINT });
   hint.anchor.set(0.5, 0);
-  hint.position.set(VW / 2, py + 42);
+  hint.position.set(VW / 2, py + 68);
   cont.addChild(hint);
 
   // Choice buttons
   const totalW  = choices.length * UPGRADE_BTN_W + (choices.length - 1) * BTN_GAP;
   const startX  = (VW - totalW) / 2;
-  const btnY    = py + 75;
+  const btnY    = py + 100;
 
   for (let i = 0; i < choices.length; i++) {
     _addRoomBonusChoiceBtn(cont, choices[i], startX + i * (UPGRADE_BTN_W + BTN_GAP), btnY);

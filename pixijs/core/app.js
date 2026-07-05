@@ -1,4 +1,6 @@
-import { Application, Text as PixiText } from 'pixi.js';
+import { Application, Text as PixiText, TextureSource } from 'pixi.js';
+
+TextureSource.defaultOptions.scaleMode = 'nearest';
 
 export const app = new Application();
 

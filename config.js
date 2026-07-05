@@ -176,7 +176,10 @@ const CONFIG = {
     bloated: 40,      // hp 60, взрывается при смерти
     tank: 80,        // hp 200, танк: большой, медленный, много HP
     wallshooter: 40,  // hp 20, 4 пули стеной (+5 за стену пуль)
-    ghost: 35,        // hp 150, проходит сквозь стены, прямая навигация
+    ghost: 20,        // hp 150, проходит сквозь стены, прямая навигация
+    boss_1: 250,      // босс уровня 1
+    boss_2: 400,      // босс уровня 2
+    boss_3: 600,      // босс уровня 3
   },
 
   // ── Бюджетная генерация врагов в комнатах ──────────────────
@@ -427,7 +430,7 @@ const BOSS_DEFS = {
     speedMult: 1.0,
     name: 'БОСС',
     phases: [
-      { id: 'buldyga', duration: 6, accelMult: 2, frictionMult: 0.67 },  // инерция x2
+      { id: 'buldyga', duration: 6, accelMult: 40, frictionMult: 3.5 },
       { id: 'shooter', duration: 5, shootCdMult: 0.4, bulletSpeedMult: 0.8 }, // скорострельность,  скорость пули
     ],
   },
@@ -453,7 +456,7 @@ const BOSS_DEFS = {
 // ============================================================
 const UPGRADE_TYPES = [
   { id: 'pellets',       label: '+1 пуля к выстрелу',     description: 'Каждый выстрел выпускает на 1 пулю больше',                   color: '#ffaa00', max: 2, icon: '🔫', effects: { pellets: 1 } },
-  { id: 'damage',        label: '+20% урона от пули',        description: 'Каждая пуля наносит на 20% урона больше',                        color: '#ff4444', max: 2, icon: '💥', effects: { damageMult: 0.20 } },
+  { id: 'damage',        label: '+20% урона от пули',        description: 'Каждая пуля наносит на 20% урона больше',                        color: '#ff4444', max: 5, icon: '💥', effects: { damageMult: 0.20 } },
   { id: 'penetrate',     label: '+1 пробитие врага',       description: 'Пуля пролетает сквозь одного дополнительного врага',          color: '#ff44ff', max: 2, icon: '🎯', effects: { penetrate: 1 } },
   { id: 'bulletSpeed',   label: '+30% скорость пули',      description: 'Пули летят быстрее на +30%',                     color: '#ffff44', max: 2, icon: '⚡', effects: { bulletSpeedMult: 0.30 } },
   { id: 'critChance',    label: '+5% шанс крита',          description: '+5% шанс нанести двойной урон',                       color: '#ff0000', max: 3, icon: '⚔️', effects: { critChance: 0.05 } },
@@ -471,7 +474,10 @@ const UPGRADE_TYPES = [
 
 const ROOM_BONUS_TYPES = [
   { id: 'penetrate',     label: 'Пробитие',       description: 'Пули пробивают врагов насквозь',          color: '#ff44ff', max: 100, icon: '🎯' },
-  { id: 'speedup',   label: 'Ускорение',      description: 'Персонаж, враги и пули ускоряются на 50%',                     color: '#ffff44', max: 100, icon: '⚡', speedMult: 1.5 },
+  { id: 'wind_east',  label: 'Поток на восток',  description: 'Движение на восток +50%, на запад −50%', color: '#44ddff', max: 100, icon: '→', windDir: { x:  1, y:  0 }, windStrength: 0.5 },
+  { id: 'wind_west',  label: 'Поток на запад',  description: 'Движение на запад +50%, на восток −50%', color: '#44ddff', max: 100, icon: '←', windDir: { x: -1, y:  0 }, windStrength: 0.5 },
+  { id: 'wind_north', label: 'Поток на север', description: 'Движение на север +50%, на юг −50%',   color: '#44ddff', max: 100, icon: '↑', windDir: { x:  0, y: -1 }, windStrength: 0.5 },
+  { id: 'wind_south', label: 'Поток на юг',   description: 'Движение на юг +50%, на север −50%',   color: '#44ddff', max: 100, icon: '↓', windDir: { x:  0, y:  1 }, windStrength: 0.5 },
   { id: 'speeddown',    label: 'Замедление',          description: 'Персонаж, враги и пули замедляются на 50%',                       color: '#ff0000', max: 100, icon: '⚔️', speedMult: 0.5 },
   { id: 'ricochet',    label: 'Рикошет',          description: 'Пули рикошетят от стен внутри комнаты',                       color: '#ff8922', max: 100, icon: '↩️' },
   { id: 'longRange',   label: 'Дальнобой',         description: 'Дальность пуль +1000%',                                        color: '#0066ff', max: 100, icon: '🏹' },
@@ -822,14 +828,14 @@ const SPATIAL_UPGRADE_TYPES = [
 // ============================================================
 const SPRITE_SHEETS = {
   hero: {
-    sw: 500, sh: 500,
+    sw: 64, sh: 64,
     anims: {
-      idle_forward: { row: 0, frames: 5, fps: 8 },
-      idle_left:    { row: 1, frames: 5, fps: 8 },
-      idle_back:    { row: 2, frames: 5, fps: 8 },
-      run_forward:  { row: 3, frames: 4, fps: 10 },
-      run_left:     { row: 4, frames: 4, fps: 10 },
-      run_back:     { row: 5, frames: 4, fps: 10 },
+      idle_forward: { col: 0, frames: 1, fps: 1 },
+      idle_left:    { col: 2, frames: 1, fps: 1 },
+      idle_back:    { col: 1, frames: 1, fps: 1 },
+      run_forward:  { col: 0, frames: 1, fps: 1 },
+      run_left:     { col: 2, frames: 1, fps: 1 },
+      run_back:     { col: 1, frames: 1, fps: 1 },
     },
   },
   cocoon: {
@@ -846,6 +852,15 @@ const SPRITE_SHEETS = {
       run: { row: 0, frames: 3, fps: 3 },
       idle: { row: 1, frames: 2, fps: 2 },
       shoot: { row: 2, frames: 3, fps: 3 },
+    },
+  },
+  ghost: {
+    sw: 32, sh: 32, cols: 8,
+    anims: {
+      idle:  { frames: [0,1,2,3,4,5,6,7], fps: 15 },
+      move:  { frames: [9,10,11,12,13,14,15,16,17], fps: 15 },
+      death: { frames: [21,22,23,24,25,26,27,28], fps: 10 },
+      hit:   { frames: [36], fps: 15 },
     },
   },
 };

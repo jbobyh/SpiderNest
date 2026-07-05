@@ -122,7 +122,7 @@ function _updateWeapon(state, p, mouseDx, mouseDy, heroDrawSize) {
   const wDef       = WEAPON_DEFS[weaponId];
   const spriteAngle = wDef?.spriteAngle ?? 0;
   const aimAngle    = Math.atan2(mouseDy, mouseDx);
-  const wDrawSize   = heroDrawSize * 0.6;
+  const wDrawSize   = heroDrawSize * 0.3;
   const ws          = wDrawSize / _weaponSprite.texture.width;
 
   // Weapon texture

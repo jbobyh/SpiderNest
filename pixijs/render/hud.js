@@ -22,6 +22,7 @@ import {
   VW, VH, UI_COLORS, STYLE_LEVEL, STYLE_SLOT_LBL, STYLE_HINT, STYLE_UPG_LVL,
   STYLE_STATS_LABEL, STYLE_STATS_VALUE, createPanel, clearContainer, hexToNum,
 } from './ui-shared.js';
+import { tickHpAnim, drawHpBar } from './hp-bar.js';
 
 // ── Internal HUD state ───────────────────────────────────────
 
@@ -31,6 +32,7 @@ const dom = {
   levelLabel:   null,
   heartsRow:    null,
   shieldsRow:   null,
+  soulsCounter: null,
   upgradePanel: null,
   spatialPanel: null,
   cursedPanel:  null,
@@ -62,6 +64,15 @@ export function initHud(parentContainer) {
   // Shields row
   dom.shieldsRow = new Container({ label: 'shields-row' });
   _parent.addChild(dom.shieldsRow);
+
+  // Souls counter (below shields, top-left)
+  dom.soulsCounter = new Text({ text: '👻 0', style: new TextStyle({
+    fill: '#b28cff',
+    fontSize: 15,
+    fontFamily: 'BoldPixels, sans-serif',
+    fontWeight: 'bold',
+  })});
+  _parent.addChild(dom.soulsCounter);
 
   // Upgrade icon panel (top-right)
   dom.upgradePanel = new Container({ label: 'upgrades' });
@@ -135,6 +146,7 @@ export function updateHud(gameState, currentLevel, nearWeapon = false, nearAltar
 
   _updateHearts(gameState);
   _updateShields(gameState);
+  _updateSouls(gameState);
   _updateUpgrades(gameState);
   _updateWeaponSlots(gameState);
 
@@ -352,6 +364,25 @@ function _updateShields(s) {
       dom.shieldsRow.addChild(spr);
     } catch { /* */ }
   }
+}
+
+// ── Souls counter ─────────────────────────────────────────────
+
+function _updateSouls(s) {
+  if (!dom.soulsCounter) return;
+  const ICON = 20;
+  const filled    = s.player.lives;
+  const removedWt = s.playerRemovedWalls || 0;
+  const total     = Math.max(filled + removedWt, filled);
+  const shieldCount = s.upgrades?.shield || 0;
+
+  // Base Y: below hearts row (30 + ICON + 4). Push down again if shields shown.
+  let y = 30 + ICON + 4;
+  if (total > 0) y += ICON + 4; // hearts occupy their row visually
+  if (shieldCount > 0) y += ICON + 4; // shields row below hearts
+
+  dom.soulsCounter.text = `👻 ${s.souls || 0}`;
+  dom.soulsCounter.position.set(8, y);
 }
 
 // ── Upgrade icon panels ──────────────────────────────────────
@@ -754,33 +785,33 @@ function _buildBossSummonHint() {
 
 // ── Boss HP bar (top center) ───────────────────────────────────
 
+const BOSS_BAR_W = 400;
+const BOSS_BAR_H = 16;
+const BOSS_BAR_X = (VW - BOSS_BAR_W) / 2;
+const BOSS_BAR_Y = 20;
+
 function _buildBossHpBar() {
   clearContainer(dom.bossHpBar);
 
-  const BAR_W = 400;
-  const BAR_H = 16;
-  const X = (VW - BAR_W) / 2;
-  const Y = 20;
+  const cfg = CONFIG.ENEMY_HP_BAR;
 
-  // Background (dark red)
-  const bg = createPanel({
-    x: X, y: Y,
-    width: BAR_W, height: BAR_H,
-    bgColor: 0x331111, bgAlpha: 0.9,
-    strokeColor: 0x662222, strokeAlpha: 0.8, strokeWidth: 1
+  // Frame / border around the bar
+  const frame = createPanel({
+    x: BOSS_BAR_X - 2, y: BOSS_BAR_Y - 2,
+    width: BOSS_BAR_W + 4, height: BOSS_BAR_H + 4,
+    bgColor: cfg.bgColor, bgAlpha: 0.9,
+    strokeColor: 0x662222, strokeAlpha: 0.8, strokeWidth: 2
   });
-  bg.label = 'boss-hp-bg';
-  dom.bossHpBar.addChild(bg);
+  frame.label = 'boss-hp-frame';
+  dom.bossHpBar.addChild(frame);
 
-  // HP fill (red, will be resized)
+  // Animated fill (bg + white ghost + red hp) — same style as enemy bar
   const fill = new Graphics();
-  fill.rect(0, 0, BAR_W, BAR_H)
-    .fill({ color: 0xff4444, alpha: 0.95 });
-  fill.position.set(X, Y);
+  fill.position.set(BOSS_BAR_X, BOSS_BAR_Y);
   fill.label = 'boss-hp-fill';
   dom.bossHpBar.addChild(fill);
 
-  // HP text
+  // HP text (numeric)
   const hpText = new Text({ text: '1000/1000', style: new TextStyle({
     fill: '#ffffff',
     fontSize: 11,
@@ -788,7 +819,7 @@ function _buildBossHpBar() {
     fontWeight: 'bold',
   })});
   hpText.anchor.set(0.5, 0.5);
-  hpText.position.set(X + BAR_W / 2, Y + BAR_H / 2 + 1);
+  hpText.position.set(BOSS_BAR_X + BOSS_BAR_W / 2, BOSS_BAR_Y + BOSS_BAR_H / 2 + 1);
   hpText.label = 'boss-hp-text';
   dom.bossHpBar.addChild(hpText);
 
@@ -800,12 +831,12 @@ function _buildBossHpBar() {
     fontWeight: 'bold',
   })});
   bossLabel.anchor.set(0.5, 1);
-  bossLabel.position.set(X + BAR_W / 2, Y - 2);
+  bossLabel.position.set(BOSS_BAR_X + BOSS_BAR_W / 2, BOSS_BAR_Y - 2);
   bossLabel.label = 'boss-label';
   dom.bossHpBar.addChild(bossLabel);
 }
 
-export function updateBossHpBar(gameState) {
+export function updateBossHpBar(gameState, dt = 0) {
   if (!gameState?.battle?.isBossBattle) {
     dom.bossHpBar.visible = false;
     return;
@@ -819,21 +850,27 @@ export function updateBossHpBar(gameState) {
 
   dom.bossHpBar.visible = true;
 
-  const BAR_W = 400;
-  const hpPercent = Math.max(0, boss.hp / boss.maxHp);
+  const cfg = CONFIG.ENEMY_HP_BAR;
+  tickHpAnim(boss, dt, cfg.animDuration);
 
-  // Update fill width
+  const maxHp = boss.maxHp || boss.hp;
+  const hpPct   = Math.max(0, boss.hp / maxHp);
+  const dispPct = Math.max(0, boss.displayedHp / maxHp);
+
+  // Draw animated fill (bg + white ghost + red hp)
   const fill = dom.bossHpBar.getChildByLabel('boss-hp-fill');
   if (fill) {
-    fill.clear();
-    fill.rect(0, 0, BAR_W * hpPercent, 16)
-      .fill({ color: 0xff4444, alpha: 0.95 });
+    drawHpBar(fill, {
+      x: 0, y: 0, w: BOSS_BAR_W, h: BOSS_BAR_H,
+      hpPct, dispPct,
+      bgColor: cfg.bgColor, hpColor: cfg.hpColor, ghostColor: cfg.ghostColor,
+    });
   }
 
   // Update text
   const hpText = dom.bossHpBar.getChildByLabel('boss-hp-text');
   if (hpText) {
-    hpText.text = `${Math.ceil(boss.hp)}/${boss.maxHp}`;
+    hpText.text = `${Math.ceil(boss.hp)}/${maxHp}`;
   }
 }
 

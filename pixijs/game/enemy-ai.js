@@ -22,8 +22,10 @@ export function updateEnemyAI(state, playerProgress, dt, onPlayerDamaged) {
 
     // Stasis enemies: skip AI update but still handle death cleanup
     if (g.stasis) {
+      if (g.type === 'ghost') g.animState = 'idle';
       if (g.isDead || g.hp <= 0) {
         if (!g.isDead) g.die(state, true);
+        _awardSouls(state, playerProgress, g);
         spawnCorpse(s.deathCorpses, g, g.radius);
         _deathParticles(s.particles, g.x, g.y, 1, g.isBoss);
         if (g.body) { destroyBody(g.body); g.body = null; }
@@ -50,7 +52,8 @@ export function updateEnemyAI(state, playerProgress, dt, onPlayerDamaged) {
 
     if (g.isDead || g.hp <= 0) {
       if (!g.isDead) g.die(state, true); // Ensure die() is called if hp <= 0
-      
+
+      _awardSouls(state, playerProgress, g);
       spawnCorpse(s.deathCorpses, g, g.radius);
       _deathParticles(s.particles, g.x, g.y, 1, g.isBoss);
       
@@ -66,6 +69,18 @@ export function updateEnemyAI(state, playerProgress, dt, onPlayerDamaged) {
 }
 
 // ── Private helpers ───────────────────────────────────────────
+
+// Award souls currency for a killed enemy (ENEMY_COSTS). Bosses share
+// type 'boss_phase', so their reward is keyed by level: boss_<level>.
+function _awardSouls(state, playerProgress, g) {
+  const costs = CONFIG.ENEMY_COSTS || {};
+  const reward = g.isBoss
+    ? (costs['boss_' + state.level] || 0)
+    : (costs[g.type] || 0);
+  if (reward <= 0) return;
+  state.souls = (state.souls || 0) + reward;
+  if (playerProgress) playerProgress.souls = state.souls;
+}
 
 // ── Particle helpers ──────────────────────────────────────────
 
@@ -91,12 +106,14 @@ const CORPSE_TYPES = new Set(['soldier', 'bat', 'shooter', 'bull', 'buldyga', 'b
 export function spawnCorpse(corpseArray, g, radius) {
   if (!CORPSE_TYPES.has(g.type || 'soldier')) return;
   Sounds.death();
+  const isGhost = g.type === 'ghost';
+  const duration = isGhost ? SPRITE_SHEETS.ghost.anims.death.frames.length / SPRITE_SHEETS.ghost.anims.death.fps : CORPSE_DURATION;
   corpseArray.push({
     x: g.x, y: g.y,
     type: g.type,
     radius,
     visualScale: g.visualScale || 3.2,
-    life: CORPSE_DURATION,
-    maxLife: CORPSE_DURATION,
+    life: duration,
+    maxLife: duration,
   });
 }

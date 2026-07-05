@@ -122,16 +122,57 @@ export function getRoomBonus(state, cellKey) {
   return roomBonus ? roomBonus.bonusType : null;
 }
 
-// Get combined speed multiplier from room bonuses for a given cell
+const WIND_BONUS_IDS = new Set(['wind_east', 'wind_west', 'wind_north', 'wind_south']);
+
+export function isWindBonus(id) {
+  return WIND_BONUS_IDS.has(id);
+}
+
+// Get scalar speed multiplier from room bonuses for a given cell (no direction).
+// Used for animation timing and HUD display. Wind bonuses return 1.0 here.
 export function getRoomSpeedMultiplier(state, cellKey) {
   const bonus = getRoomBonus(state, cellKey);
-  if (!bonus || (bonus !== 'speedup' && bonus !== 'speeddown')) return 1.0;
-  
+  if (!bonus || bonus === 'speedup') return 1.0;
+  if (isWindBonus(bonus)) return 1.0;
+  if (bonus !== 'speeddown') return 1.0;
+
   const def = (typeof ROOM_BONUS_TYPES !== 'undefined') && ROOM_BONUS_TYPES.find(bt => bt.id === bonus);
   if (def && def.speedMult !== undefined) return def.speedMult;
-  
-  // Fallbacks if def not found or missing property
-  return bonus === 'speedup' ? 1.5 : 0.5;
+
+  return 0.5;
+}
+
+// Get directional speed multiplier from room bonuses for a given cell.
+// dirX/dirY is the movement direction vector (need not be normalized).
+// Returns a scalar to multiply the velocity magnitude by.
+// Wind: mult = 1.0 + windStrength * dot(normalize(dir), windDir)
+//   - aligned with wind: 1.0 + windStrength (e.g. 1.5)
+//   - opposite to wind:  1.0 - windStrength (e.g. 0.5)
+//   - perpendicular:     1.0
+//   - diagonal (45°):    1.0 + windStrength * 0.707 (e.g. ~1.35)
+export function getRoomSpeedVectorMultiplier(state, cellKey, dirX, dirY) {
+  const bonus = getRoomBonus(state, cellKey);
+  if (!bonus) return 1.0;
+
+  if (bonus === 'speeddown') {
+    const def = (typeof ROOM_BONUS_TYPES !== 'undefined') && ROOM_BONUS_TYPES.find(bt => bt.id === bonus);
+    return (def && def.speedMult !== undefined) ? def.speedMult : 0.5;
+  }
+
+  if (!isWindBonus(bonus)) return 1.0;
+
+  // No movement direction → no wind effect
+  const len = Math.hypot(dirX, dirY);
+  if (len < 1e-9) return 1.0;
+
+  const def = (typeof ROOM_BONUS_TYPES !== 'undefined') && ROOM_BONUS_TYPES.find(bt => bt.id === bonus);
+  if (!def || !def.windDir) return 1.0;
+
+  const ndx = dirX / len;
+  const ndy = dirY / len;
+  const dot = ndx * def.windDir.x + ndy * def.windDir.y;
+  const strength = def.windStrength ?? 0.5;
+  return 1.0 + strength * dot;
 }
 
 // Find wall at point (mx, my) within blobCells. Returns { ax, ay, bx, by, wk } or null.

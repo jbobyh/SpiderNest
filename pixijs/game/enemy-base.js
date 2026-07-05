@@ -1,5 +1,5 @@
 import { createEnemyBody, destroyBody, setBodyVelocity } from '../world/physics.js';
-import { cellOf, cellKey, CELL_PX, getRoomBonus, getRoomSpeedMultiplier } from '../world/constants.js';
+import { cellOf, cellKey, CELL_PX, getRoomBonus, getRoomSpeedMultiplier, getRoomSpeedVectorMultiplier } from '../world/constants.js';
 import { Sounds } from '../core/sound.js';
 import { updateStatuses, hasStatus } from './status-system.js';
 import { spawnDamageNumber } from '../render/damage-numbers.js';
@@ -67,12 +67,18 @@ export class Enemy {
     return mult;
   }
 
+  getRoomSpeedVectorMult(state, dirX, dirY) {
+    const cell = cellOf(this.x, this.y);
+    const ck = cellKey(cell.x, cell.y);
+    let mult = getRoomSpeedVectorMultiplier(state, ck, dirX, dirY);
+    if (hasStatus(this, 'freeze')) mult *= 0.5;
+    return mult;
+  }
+
   takeDamage(damage, isCrit = false, options = {}) {
-    if (!this.isBoss) {
-      this.hpBarVisible = true;
-      this.hpDamageStart = this.displayedHp;
-      this.hpDamageTimer = 0;
-    }
+    this.hpBarVisible = true;
+    this.hpDamageStart = this.displayedHp;
+    this.hpDamageTimer = 0;
     this.hp -= damage;
     this.hitFlash = (typeof CONFIG !== 'undefined') ? CONFIG.ENEMY_HIT_FLASH_DURATION : 0.1;
     if (!options.silent) Sounds.hit();

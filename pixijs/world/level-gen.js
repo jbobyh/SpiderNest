@@ -604,13 +604,26 @@ function createStasisEnemy(enemyType, gx, gy, level, roomIdx) {
 
 function spawnEnemiesFromPreset(preset, cells, stasisEnemies, level, roomIdx) {
   const margin = CONFIG.ENEMY_STATS.soldier.radius + CONFIG.ENEMY_STATS.soldier.spawnMargin;
+  const MAX_ATTEMPTS = 20;
   for (const [configKey, count] of Object.entries(preset)) {
     if (!count) continue;
     const enemyType = configKey;
+    const newRadius = CONFIG.ENEMY_STATS[enemyType]?.radius ?? CONFIG.ENEMY_STATS.soldier.radius;
     for (let i = 0; i < count; i++) {
-      const cell = cells[Math.floor(Math.random() * cells.length)];
-      const gx = cell.x * CELL_PX + margin + Math.random() * (CELL_PX - margin * 2);
-      const gy = cell.y * CELL_PX + margin + Math.random() * (CELL_PX - margin * 2);
+      let gx = 0, gy = 0;
+      for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+        const cell = cells[Math.floor(Math.random() * cells.length)];
+        gx = cell.x * CELL_PX + margin + Math.random() * (CELL_PX - margin * 2);
+        gy = cell.y * CELL_PX + margin + Math.random() * (CELL_PX - margin * 2);
+        let ok = true;
+        for (const existing of stasisEnemies) {
+          const minDist = newRadius + (existing.radius ?? CONFIG.ENEMY_STATS.soldier.radius);
+          const dx = gx - existing.x;
+          const dy = gy - existing.y;
+          if (dx * dx + dy * dy < minDist * minDist) { ok = false; break; }
+        }
+        if (ok) break;
+      }
       stasisEnemies.push(createStasisEnemy(enemyType, gx, gy, level, roomIdx));
     }
   }

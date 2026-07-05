@@ -45,6 +45,9 @@ import {
   initBurnVfx, syncBurnVfx, clearBurnVfx,
 } from './render/burn-vfx.js';
 import {
+  initRoomBonusVfx, updateRoomBonusVfx, clearRoomBonusVfx,
+} from './render/room-bonus-vfx.js';
+import {
   initFreezeVfx, syncFreezeVfx, clearFreezeVfx,
 } from './render/freeze-vfx.js';
 import {
@@ -135,6 +138,7 @@ export function startGameLoop({
   _levelStartProgress = {
     totalLives: _playerProgress.totalLives,
     totalHeartsCollected: _playerProgress.totalHeartsCollected,
+    souls: _playerProgress.souls || 0,
     upgrades: { ..._playerProgress.upgrades },
     spawnedUpgrades: { ..._playerProgress.spawnedUpgrades },
     spawnedWeapons: [...(_playerProgress.spawnedWeapons || [])],
@@ -145,6 +149,9 @@ export function startGameLoop({
 
   // Build or restore game state
   _state = savedState ?? createGameState(_currentLevel, _playerProgress);
+  // Ensure level/souls are set (back-compat for older saves)
+  _state.level = _currentLevel;
+  if (_state.souls === undefined) _state.souls = _playerProgress.souls || 0;
 
   // Initialize lazy-rebuild tracking
   _state._lastPurifiedSize = _state.purified?.size ?? 0;
@@ -169,9 +176,11 @@ export function startGameLoop({
 
   // Renderer init
   _camera = new Camera();
+  _camera.pan(_state.player.x, _state.player.y);
   initLayers(_camera);
   initEntityPool();
   initParticles(layers.particles);
+  initRoomBonusVfx(layers.particles);
   initShootVfx(layers.entities);
   initWallHitVfx(layers.entities);
   initEnemyHitVfx(layers.entities);
@@ -240,6 +249,7 @@ export function stopGameLoop() {
   bulletManager.clear();
   clearBullets();
   clearParticles();
+  clearRoomBonusVfx();
   clearShootVfx();
   clearWallHitVfx();
   clearEnemyHitVfx();
@@ -280,7 +290,7 @@ function _handlePhysicsCollision(pairs) {
       const enemyEnt = entA || entB;
       const wallBody = entA ? bodyB : bodyA;
       if (enemyEnt && (wallBody.label === 'wall' || wallBody.label === 'external_wall')
-          && (enemyEnt.type === 'buldyga' || enemyEnt.isBoss)) {
+          && (enemyEnt.type === 'buldyga' || enemyEnt.type === 'bull' || enemyEnt.isBoss)) {
         enemyEnt._hitWall = true;
       }
       continue;
@@ -421,6 +431,7 @@ function _render(dt) {
 
   syncBullets(bulletManager.bullets);
   syncParticles(_state.particles);
+  updateRoomBonusVfx(_state, dt);
   updateShootVfx(dt);
   updateWallHitVfx(dt);
   updateEnemyHitVfx(dt);
@@ -441,7 +452,7 @@ function _render(dt) {
 
   // Update boss HP bar during boss battle
   if (_state.battle?.isBossBattle) {
-    updateBossHpBar(_state);
+    updateBossHpBar(_state, dt);
   }
 
   // Update FPS counter

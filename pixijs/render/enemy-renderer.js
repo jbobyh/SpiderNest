@@ -11,16 +11,19 @@
 // Globals: CONFIG, SPRITE_SHEETS.shooter.anims, SPRITE_SHEETS.cocoon.anim, SPRITE_SHEETS.bat.anim (from config.js)
 // ============================================================
 
-import { Sprite, ColorMatrixFilter, Graphics } from 'pixi.js';
+import { Sprite, Texture, ColorMatrixFilter, Graphics } from 'pixi.js';
 import {
   makeEnemySprite,
   makeCorpseSprite,
   getShooterFrame,
+  getGhostFrame,
+  ghostFrames,
   cocoonFrames,
   batFrames,
   batHitTexture,
   enemyTextures,
 } from './entity-pool.js';
+import { tickHpAnim, drawHpBar } from './hp-bar.js';
 
 // Maps enemy/corpse object reference → { sprite, filter? }
 const _enemyMap  = new Map();
@@ -82,7 +85,19 @@ function _syncCorpses(deathCorpses, layer) {
     const spr = _corpseMap.get(c);
     spr.x     = c.x;
     spr.y     = c.y;
-    spr.alpha = Math.max(0, c.life / c.maxLife);
+
+    if (c.type === 'ghost') {
+      // Ghost corpse: play death animation, no fade
+      spr.alpha = 1;
+      const fps = SPRITE_SHEETS.ghost.anims.death.fps;
+      const total = SPRITE_SHEETS.ghost.anims.death.frames.length;
+      const elapsed = c.maxLife - c.life;
+      const frame = Math.min(total - 1, Math.floor(elapsed * fps));
+      const tex = ghostFrames.death?.[frame];
+      if (tex && spr.texture !== tex) spr.texture = tex;
+    } else {
+      spr.alpha = Math.max(0, c.life / c.maxLife);
+    }
     _applyEnemyScale(spr, c.radius, c.visualScale);
   }
 }
@@ -164,6 +179,7 @@ function _updateEnemyTexture(g, sprite, gameTime) {
   const isShooter = g.type === 'shooter';
   const isCocoon  = g.type === 'cocoon';
   const isBat     = g.type === 'bat';
+  const isGhost   = g.type === 'ghost';
   const isBoss    = g.isBoss;
 
   if (isShooter && g.animState !== null) {
@@ -176,6 +192,14 @@ function _updateEnemyTexture(g, sprite, gameTime) {
     } else {
       const frame = g.animFrame ?? 0;
       tex = batFrames[Math.min(frame, batFrames.length - 1)] ?? batHitTexture;
+    }
+    if (sprite.texture !== tex) sprite.texture = tex;
+  } else if (isGhost) {
+    let tex;
+    if (g.hitFlash > 0) {
+      tex = ghostFrames.hit?.[0] ?? Texture.WHITE;
+    } else {
+      tex = getGhostFrame(g.animState ?? 'move', g.animFrame ?? 0);
     }
     if (sprite.texture !== tex) sprite.texture = tex;
   } else if (isCocoon) {
@@ -228,14 +252,7 @@ function _updateHpBar(g, entry, layer, dt) {
   bar.visible = true;
 
   const cfg = CONFIG.ENEMY_HP_BAR;
-  if (g.hpDamageTimer < cfg.animDuration) {
-    g.hpDamageTimer += dt;
-    const t = Math.min(1, g.hpDamageTimer / cfg.animDuration);
-    g.displayedHp = g.hpDamageStart + (g.hp - g.hpDamageStart) * t;
-    if (t >= 1) g.displayedHp = g.hp;
-  } else {
-    g.displayedHp = g.hp;
-  }
+  tickHpAnim(g, dt, cfg.animDuration);
 
   const maxHp = g.maxHp || g.hp;
   const hpPct    = Math.max(0, g.hp / maxHp);
@@ -244,21 +261,15 @@ function _updateHpBar(g, entry, layer, dt) {
   const drawSize = (g.radius ?? CONFIG.ENEMY_STATS.soldier.radius) * (g.visualScale ?? CONFIG.ENEMY_STATS.soldier.visualScale);
   const barW = Math.min(cfg.width, drawSize * 0.8);
   const barH = cfg.height;
-  const barX = -barW / 2;
-  const barY = -drawSize / 2 - cfg.offset;
 
-  bar.clear();
   bar.x = g.x;
   bar.y = g.y;
 
-  // Background
-  bar.rect(barX, barY, barW, barH).fill({ color: cfg.bgColor });
-
-  // White ghost (displayedHp → hp)
-  if (dispPct > hpPct) {
-    bar.rect(barX + hpPct * barW, barY, (dispPct - hpPct) * barW, barH).fill({ color: cfg.ghostColor });
-  }
-
-  // Red fill (current hp)
-  bar.rect(barX, barY, hpPct * barW, barH).fill({ color: cfg.hpColor });
+  drawHpBar(bar, {
+    x: -barW / 2,
+    y: -drawSize / 2 - cfg.offset,
+    w: barW, h: barH,
+    hpPct, dispPct,
+    bgColor: cfg.bgColor, hpColor: cfg.hpColor, ghostColor: cfg.ghostColor,
+  });
 }

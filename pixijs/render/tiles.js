@@ -12,7 +12,7 @@
 //   3 = top    [ 0, -1]
 // ============================================================
 
-import { Container, Sprite, TilingSprite, Texture, Graphics, Assets, Text } from 'pixi.js';
+import { Container, Sprite, TilingSprite, Texture, Graphics, Assets } from 'pixi.js';
 import {
   CELL_PX, FLOOR_TILES_PER_CELL, FLOOR_TILE_PX, SUBCELL_PX, TILES_PER_CELL, CARDINAL_DIRECTIONS,
   cellKey, cellFromKey, wallKey,
@@ -194,17 +194,14 @@ function makeFloorSprite(x, y, openDirs, level, purifiedRooms, cellToRoom, cellC
   }
   container.position.set(x * CELL_PX, y * CELL_PX);
 
-  // Add room bonus icon if present
+  // Add room bonus floor tint if present
   if (roomBonus && typeof ROOM_BONUS_TYPES !== 'undefined') {
     const bonusType = ROOM_BONUS_TYPES.find(bt => bt.id === roomBonus);
-    if (bonusType && bonusType.icon) {
-      const icon = new Text({
-        text: bonusType.icon,
-        style: { fontSize: 16, fontFamily: 'sans-serif' },
-      });
-      icon.anchor.set(1, 0); // Top-right anchor
-      icon.position.set(CELL_PX - 4, 4);
-      container.addChild(icon);
+    if (bonusType && bonusType.color) {
+      const tint = new Graphics()
+        .rect(0, 0, CELL_PX, CELL_PX)
+        .fill({ color: bonusType.color, alpha: 0.18 });
+      container.addChild(tint);
     }
   }
 
