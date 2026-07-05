@@ -430,7 +430,7 @@ const BOSS_DEFS = {
     speedMult: 1.0,
     name: 'БОСС',
     phases: [
-      { id: 'buldyga', duration: 6, accelMult: 2, frictionMult: 0.67 },  // инерция x2
+      { id: 'buldyga', duration: 6, accelMult: 40, frictionMult: 3.5 },
       { id: 'shooter', duration: 5, shootCdMult: 0.4, bulletSpeedMult: 0.8 }, // скорострельность,  скорость пули
     ],
   },
@@ -456,7 +456,7 @@ const BOSS_DEFS = {
 // ============================================================
 const UPGRADE_TYPES = [
   { id: 'pellets',       label: '+1 пуля к выстрелу',     description: 'Каждый выстрел выпускает на 1 пулю больше',                   color: '#ffaa00', max: 2, icon: '🔫', effects: { pellets: 1 } },
-  { id: 'damage',        label: '+20% урона от пули',        description: 'Каждая пуля наносит на 20% урона больше',                        color: '#ff4444', max: 2, icon: '💥', effects: { damageMult: 0.20 } },
+  { id: 'damage',        label: '+20% урона от пули',        description: 'Каждая пуля наносит на 20% урона больше',                        color: '#ff4444', max: 5, icon: '💥', effects: { damageMult: 0.20 } },
   { id: 'penetrate',     label: '+1 пробитие врага',       description: 'Пуля пролетает сквозь одного дополнительного врага',          color: '#ff44ff', max: 2, icon: '🎯', effects: { penetrate: 1 } },
   { id: 'bulletSpeed',   label: '+30% скорость пули',      description: 'Пули летят быстрее на +30%',                     color: '#ffff44', max: 2, icon: '⚡', effects: { bulletSpeedMult: 0.30 } },
   { id: 'critChance',    label: '+5% шанс крита',          description: '+5% шанс нанести двойной урон',                       color: '#ff0000', max: 3, icon: '⚔️', effects: { critChance: 0.05 } },

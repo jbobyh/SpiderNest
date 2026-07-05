@@ -176,6 +176,7 @@ export function startGameLoop({
 
   // Renderer init
   _camera = new Camera();
+  _camera.pan(_state.player.x, _state.player.y);
   initLayers(_camera);
   initEntityPool();
   initParticles(layers.particles);
