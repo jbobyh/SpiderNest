@@ -851,4 +851,13 @@ const SPRITE_SHEETS = {
       shoot: { row: 2, frames: 3, fps: 3 },
     },
   },
+  ghost: {
+    sw: 32, sh: 32, cols: 8,
+    anims: {
+      idle:  { frames: [0,1,2,3,4,5,6,7], fps: 15 },
+      move:  { frames: [9,10,11,12,13,14,15,16,17], fps: 15 },
+      death: { frames: [21,22,23,24,25,26,27,28], fps: 10 },
+      hit:   { frames: [36], fps: 15 },
+    },
+  },
 };

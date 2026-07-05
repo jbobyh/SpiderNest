@@ -401,6 +401,13 @@ export class BloatedEnemy extends Enemy {
 
 // ── Ghost (passes through walls, direct chase) ────────────────
 export class GhostEnemy extends Enemy {
+  constructor(data) {
+    super(data);
+    if (this.animState == null) this.animState = 'move';
+    if (this.animFrame == null) this.animFrame = 0;
+    if (this.animTimer == null) this.animTimer = 0;
+  }
+
   update(dt, state) {
     if (this.isDead) return;
     if (this.hitFlash > 0) this.hitFlash -= dt;
@@ -425,8 +432,12 @@ export class GhostEnemy extends Enemy {
   }
 
   updateBehavior(dt, state) {
+    const speedMult = this.getRoomSpeedMult(state);
+    this._updateGhostAnim(dt * speedMult);
+
     if (this.stunTimer > 0) {
       setBodyVelocity(this.body, 0, 0);
+      this.animState = 'idle';
       return;
     }
 
@@ -435,9 +446,20 @@ export class GhostEnemy extends Enemy {
     const dist = Math.hypot(dx, dy);
 
     if (dist > 0) {
-      const speedMult = this.getRoomSpeedMult(state);
       const speed = CONFIG.ENEMY_STATS.ghost.speed;
       setBodyVelocity(this.body, (dx / dist) * speed * speedMult, (dy / dist) * speed * speedMult);
+      this.animState = 'move';
+    }
+  }
+
+  _updateGhostAnim(dt) {
+    if (this.animState == null || typeof SPRITE_SHEETS.ghost === 'undefined') return;
+    this.animTimer += dt;
+    const cfg = SPRITE_SHEETS.ghost.anims[this.animState];
+    if (!cfg) return;
+    if (this.animTimer >= 1 / cfg.fps) {
+      this.animTimer = 0;
+      this.animFrame = (this.animFrame + 1) % cfg.frames.length;
     }
   }
 }

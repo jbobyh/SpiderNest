@@ -16,6 +16,7 @@ export const shooterFrames  = {};  // { run: Texture[], idle: Texture[], shoot: 
 export const cocoonFrames   = [];  // Texture[7]
 export const batFrames      = [];  // Texture[7]
 export let   batHitTexture  = Texture.WHITE; // Texture
+export const ghostFrames    = {};  // { idle: Texture[], move: Texture[], death: Texture[], hit: Texture[] }
 export const enemyTextures  = {};  // { soldier, bat, bull, buldyga, bloated, tank }
 export const corpseTextures = {};  // { soldier, bat, bull, buldyga, bloated, shooter, tank }
 export const weaponTextures = {};  // { pistol, shotgun, smg, rifle, revolver, carbine }
@@ -23,8 +24,6 @@ let tankTexture = Texture.WHITE;
 let tankCorpseTexture = Texture.WHITE;
 let wallShooterTexture = Texture.WHITE;
 let wallShooterCorpseTexture = Texture.WHITE;
-let ghostTexture = Texture.WHITE;
-let ghostCorpseTexture = Texture.WHITE;
 
 /**
  * Build all texture caches from loaded Assets.
@@ -37,7 +36,7 @@ export function initEntityPool() {
   _buildBatFrames();
   _buildTankTextures();
   _buildWallShooterTextures();
-  _buildGhostTextures();
+  _buildGhostFrames();
   _buildEnemyTextures();
   _buildWeaponTextures();
 }
@@ -92,6 +91,17 @@ export function makeCorpseSprite(type) {
  */
 export function getShooterFrame(animState, frame) {
   const arr = shooterFrames[animState] ?? shooterFrames.idle;
+  return arr[Math.min(frame, arr.length - 1)];
+}
+
+/**
+ * Get the ghost texture for a given animState + frame index.
+ * @param {string} animState — 'idle' | 'move' | 'death' | 'hit'
+ * @param {number} frame
+ * @returns {Texture}
+ */
+export function getGhostFrame(animState, frame) {
+  const arr = ghostFrames[animState] ?? ghostFrames.idle;
   return arr[Math.min(frame, arr.length - 1)];
 }
 
@@ -197,29 +207,21 @@ function _buildWallShooterTextures() {
   wallShooterCorpseTexture = Texture.from(canvas2);
 }
 
-function _buildGhostTextures() {
-  const canvas = document.createElement('canvas');
-  canvas.width = 100;
-  canvas.height = 100;
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#3399ff';
-  ctx.beginPath();
-  ctx.arc(50, 50, 45, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = '#1166cc';
-  ctx.lineWidth = 6;
-  ctx.stroke();
-  ghostTexture = Texture.from(canvas);
-
-  const canvas2 = document.createElement('canvas');
-  canvas2.width = 100;
-  canvas2.height = 100;
-  const ctx2 = canvas2.getContext('2d');
-  ctx2.fillStyle = '#2266aa';
-  ctx2.beginPath();
-  ctx2.arc(50, 50, 45, 0, Math.PI * 2);
-  ctx2.fill();
-  ghostCorpseTexture = Texture.from(canvas2);
+function _buildGhostFrames() {
+  const ghostTex = Assets.get('ghost');
+  if (!ghostTex) return;
+  const cols = SPRITE_SHEETS.ghost.cols;
+  for (const [key, def] of Object.entries(SPRITE_SHEETS.ghost.anims)) {
+    ghostFrames[key] = [];
+    for (const flatIdx of def.frames) {
+      const col = flatIdx % cols;
+      const row = Math.floor(flatIdx / cols);
+      ghostFrames[key].push(new Texture({
+        source: ghostTex.source,
+        frame:  new Rectangle(col * SPRITE_SHEETS.ghost.sw, row * SPRITE_SHEETS.ghost.sh, SPRITE_SHEETS.ghost.sw, SPRITE_SHEETS.ghost.sh),
+      }));
+    }
+  }
 }
 
 function _buildEnemyTextures() {
@@ -229,7 +231,7 @@ function _buildEnemyTextures() {
   enemyTextures.bloated  = Assets.get('bloated');
   enemyTextures.tank     = tankTexture;
   enemyTextures.wallshooter = wallShooterTexture;
-  enemyTextures.ghost = ghostTexture;
+  enemyTextures.ghost = ghostFrames.idle?.[0] ?? Texture.WHITE;
 
   corpseTextures.soldier = Assets.get('soldier-dead');
   corpseTextures.shooter = Assets.get('shooter-dead');
@@ -238,7 +240,7 @@ function _buildEnemyTextures() {
   corpseTextures.bloated = Assets.get('bloated-dead');
   corpseTextures.tank    = tankCorpseTexture;
   corpseTextures.wallshooter = wallShooterCorpseTexture;
-  corpseTextures.ghost = ghostCorpseTexture;
+  corpseTextures.ghost = ghostFrames.death?.[0] ?? Texture.WHITE;
 }
 
 function _buildWeaponTextures() {
@@ -253,6 +255,6 @@ function _enemyTexForType(type) {
   if (type === 'bat')                            return batFrames[0]            ?? Texture.WHITE;
   if (type === 'tank')                           return enemyTextures.tank       ?? Texture.WHITE;
   if (type === 'wallshooter')                    return enemyTextures.wallshooter ?? Texture.WHITE;
-  if (type === 'ghost')                           return enemyTextures.ghost       ?? Texture.WHITE;
+  if (type === 'ghost')                           return ghostFrames.idle?.[0]    ?? Texture.WHITE;
   return enemyTextures[type] ?? enemyTextures.soldier ?? Texture.WHITE;
 }

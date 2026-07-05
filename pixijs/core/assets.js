@@ -87,6 +87,8 @@ const MANIFEST = {
         { alias: 'cocoon',            src: IMG + 'cocoon.png' },
         // Bat — 512×64 sprite sheet, 8 frames of 64×64 (7 move + 1 damage)
         { alias: 'bat',               src: IMG + 'Bat_NoContour.png' },
+        // Ghost — 256×224 sprite sheet, 32×32 per frame, 8 cols × 7 rows
+        { alias: 'ghost',             src: IMG + 'ghost_spritesheet.png' },
         // Screens
         { alias: 'death-screen',      src: IMG + 'death.png' },
         { alias: 'gameover-screen',   src: IMG + 'gameover.png' },
