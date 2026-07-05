@@ -15,7 +15,7 @@ import { Sounds }                       from '../core/sound.js';
 import { app }                          from '../core/app.js';
 import { getCurrentLevel, saveCurrentGame } from '../game-loop.js';
 import {
-  cellOf, cellKey, getWallAtPoint, getRoomBonus, getRoomSpeedMultiplier,
+  cellOf, cellKey, getWallAtPoint, getRoomBonus, getRoomSpeedMultiplier, getRoomSpeedVectorMultiplier,
 } from '../world/constants.js';
 import { setBodyVelocity, updatePlayerCollision } from '../world/physics.js';
 import { bulletManager } from '../game/bullet-manager.js';
@@ -235,12 +235,13 @@ function _stepMovement(state, dt) {
   const spatialSpeed = (typeof getSpatialBonus !== 'undefined') ? getSpatialBonus(state, 'speed') : 0;
   let spd = CONFIG.PLAYER_SPEED * state.upgrades.speedMult * (1 + spatialSpeed);
 
-  // Apply room bonus speed modifier
+  // Apply room bonus speed modifier (directional for wind)
   const playerCell = cellOf(state.player.x, state.player.y);
   const playerCellKey = cellKey(playerCell.x, playerCell.y);
-  spd *= getRoomSpeedMultiplier(state, playerCellKey);
 
   let { mvx, mvy } = getMovementDir();
+
+  spd *= getRoomSpeedVectorMultiplier(state, playerCellKey, mvx, mvy);
 
   if (mvx !== 0 || mvy !== 0) Sounds.footstep(dt);
   else                         Sounds._footstepTimer = 0;

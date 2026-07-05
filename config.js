@@ -474,7 +474,10 @@ const UPGRADE_TYPES = [
 
 const ROOM_BONUS_TYPES = [
   { id: 'penetrate',     label: 'Пробитие',       description: 'Пули пробивают врагов насквозь',          color: '#ff44ff', max: 100, icon: '🎯' },
-  { id: 'speedup',   label: 'Ускорение',      description: 'Персонаж, враги и пули ускоряются на 50%',                     color: '#ffff44', max: 100, icon: '⚡', speedMult: 1.5 },
+  { id: 'wind_east',  label: 'Поток на восток',  description: 'Движение на восток +50%, на запад −50%', color: '#44ddff', max: 100, icon: '→', windDir: { x:  1, y:  0 }, windStrength: 0.5 },
+  { id: 'wind_west',  label: 'Поток на запад',  description: 'Движение на запад +50%, на восток −50%', color: '#44ddff', max: 100, icon: '←', windDir: { x: -1, y:  0 }, windStrength: 0.5 },
+  { id: 'wind_north', label: 'Поток на север', description: 'Движение на север +50%, на юг −50%',   color: '#44ddff', max: 100, icon: '↑', windDir: { x:  0, y: -1 }, windStrength: 0.5 },
+  { id: 'wind_south', label: 'Поток на юг',   description: 'Движение на юг +50%, на север −50%',   color: '#44ddff', max: 100, icon: '↓', windDir: { x:  0, y:  1 }, windStrength: 0.5 },
   { id: 'speeddown',    label: 'Замедление',          description: 'Персонаж, враги и пули замедляются на 50%',                       color: '#ff0000', max: 100, icon: '⚔️', speedMult: 0.5 },
   { id: 'ricochet',    label: 'Рикошет',          description: 'Пули рикошетят от стен внутри комнаты',                       color: '#ff8922', max: 100, icon: '↩️' },
   { id: 'longRange',   label: 'Дальнобой',         description: 'Дальность пуль +1000%',                                        color: '#0066ff', max: 100, icon: '🏹' },
