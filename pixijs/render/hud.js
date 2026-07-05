@@ -12,7 +12,7 @@
 // ============================================================
 
 import {
-  Container, Sprite, Texture, Text, TextStyle, Graphics, Rectangle,
+  Container, Sprite, Texture, Text, TextStyle, Graphics, Rectangle, Assets,
 } from 'pixi.js';
 import { keys } from '../core/input.js';
 import { getActiveWeapon, getBulletRange, getSpatialBonus, getTotalSpread } from '../game/combat.js';
@@ -691,16 +691,14 @@ function _buildHintsPanel() {
     const iy = panelY + PAD_Y;
 
     let iconFound = false;
-    try {
-      const tex = Texture.from(alias);
-      if (tex && tex.valid) {
-        const spr = new Sprite(tex);
-        spr.width = spr.height = ICON;
-        spr.position.set(ix, iy);
-        dom.hintsPanel.addChild(spr);
-        iconFound = true;
-      }
-    } catch { /* texture not ready */ }
+    const tex = Assets.get(alias);
+    if (tex) {
+      const spr = new Sprite(tex);
+      spr.width = spr.height = ICON;
+      spr.position.set(ix, iy);
+      dom.hintsPanel.addChild(spr);
+      iconFound = true;
+    }
 
     if (!iconFound) {
       // Draw text-based icon if texture missing (e.g. for Q)
@@ -759,12 +757,13 @@ function _buildPickupHint() {
   dom.pickupHint.addChild(bg);
 
   // Key icon
-  try {
-    const spr = new Sprite(Texture.from('ctrl-f'));
+  const fTex = Assets.get('ctrl-f');
+  if (fTex) {
+    const spr = new Sprite(fTex);
     spr.width = spr.height = KEY_SIZE;
     spr.position.set(5, 5);
     dom.pickupHint.addChild(spr);
-  } catch { /* texture not ready */ }
+  }
 
   // Label (tagged so we can swap it later)
   const lbl = new Text({ text: 'подобрать', style: STYLE_HINT, label: 'hint-label' });
