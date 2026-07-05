@@ -132,6 +132,16 @@ const MANIFEST = {
         { alias: 'ctrl-tab',          src: IMG + 'keyboard_tab.png' },
         { alias: 'mouse-left',        src: IMG + 'mouse_left.png' },
         { alias: 'mouse-right',       src: IMG + 'mouse_right.png' },
+        // 9-slice panel background
+        { alias: 'panel-center',      src: IMG + 'panel/0.png' },
+        { alias: 'panel-lt',          src: IMG + 'panel/1.png' },
+        { alias: 'panel-rt',          src: IMG + 'panel/2.png' },
+        { alias: 'panel-lb',          src: IMG + 'panel/3.png' },
+        { alias: 'panel-rb',          src: IMG + 'panel/4.png' },
+        { alias: 'panel-l',           src: IMG + 'panel/5.png' },
+        { alias: 'panel-t',           src: IMG + 'panel/6.png' },
+        { alias: 'panel-r',           src: IMG + 'panel/7.png' },
+        { alias: 'panel-b',           src: IMG + 'panel/8.png' },
       ],
     },
 
