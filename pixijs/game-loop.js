@@ -45,6 +45,9 @@ import {
   initBurnVfx, syncBurnVfx, clearBurnVfx,
 } from './render/burn-vfx.js';
 import {
+  initRoomBonusVfx, updateRoomBonusVfx, clearRoomBonusVfx,
+} from './render/room-bonus-vfx.js';
+import {
   initFreezeVfx, syncFreezeVfx, clearFreezeVfx,
 } from './render/freeze-vfx.js';
 import {
@@ -172,6 +175,7 @@ export function startGameLoop({
   initLayers(_camera);
   initEntityPool();
   initParticles(layers.particles);
+  initRoomBonusVfx(layers.particles);
   initShootVfx(layers.entities);
   initWallHitVfx(layers.entities);
   initEnemyHitVfx(layers.entities);
@@ -240,6 +244,7 @@ export function stopGameLoop() {
   bulletManager.clear();
   clearBullets();
   clearParticles();
+  clearRoomBonusVfx();
   clearShootVfx();
   clearWallHitVfx();
   clearEnemyHitVfx();
@@ -421,6 +426,7 @@ function _render(dt) {
 
   syncBullets(bulletManager.bullets);
   syncParticles(_state.particles);
+  updateRoomBonusVfx(_state, dt);
   updateShootVfx(dt);
   updateWallHitVfx(dt);
   updateEnemyHitVfx(dt);
