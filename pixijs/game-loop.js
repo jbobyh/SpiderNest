@@ -451,7 +451,7 @@ function _render(dt) {
 
   // Update boss HP bar during boss battle
   if (_state.battle?.isBossBattle) {
-    updateBossHpBar(_state);
+    updateBossHpBar(_state, dt);
   }
 
   // Update FPS counter

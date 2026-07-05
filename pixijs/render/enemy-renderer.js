@@ -21,6 +21,7 @@ import {
   batHitTexture,
   enemyTextures,
 } from './entity-pool.js';
+import { tickHpAnim, drawHpBar } from './hp-bar.js';
 
 // Maps enemy/corpse object reference → { sprite, filter? }
 const _enemyMap  = new Map();
@@ -228,14 +229,7 @@ function _updateHpBar(g, entry, layer, dt) {
   bar.visible = true;
 
   const cfg = CONFIG.ENEMY_HP_BAR;
-  if (g.hpDamageTimer < cfg.animDuration) {
-    g.hpDamageTimer += dt;
-    const t = Math.min(1, g.hpDamageTimer / cfg.animDuration);
-    g.displayedHp = g.hpDamageStart + (g.hp - g.hpDamageStart) * t;
-    if (t >= 1) g.displayedHp = g.hp;
-  } else {
-    g.displayedHp = g.hp;
-  }
+  tickHpAnim(g, dt, cfg.animDuration);
 
   const maxHp = g.maxHp || g.hp;
   const hpPct    = Math.max(0, g.hp / maxHp);
@@ -244,21 +238,15 @@ function _updateHpBar(g, entry, layer, dt) {
   const drawSize = (g.radius ?? CONFIG.ENEMY_STATS.soldier.radius) * (g.visualScale ?? CONFIG.ENEMY_STATS.soldier.visualScale);
   const barW = Math.min(cfg.width, drawSize * 0.8);
   const barH = cfg.height;
-  const barX = -barW / 2;
-  const barY = -drawSize / 2 - cfg.offset;
 
-  bar.clear();
   bar.x = g.x;
   bar.y = g.y;
 
-  // Background
-  bar.rect(barX, barY, barW, barH).fill({ color: cfg.bgColor });
-
-  // White ghost (displayedHp → hp)
-  if (dispPct > hpPct) {
-    bar.rect(barX + hpPct * barW, barY, (dispPct - hpPct) * barW, barH).fill({ color: cfg.ghostColor });
-  }
-
-  // Red fill (current hp)
-  bar.rect(barX, barY, hpPct * barW, barH).fill({ color: cfg.hpColor });
+  drawHpBar(bar, {
+    x: -barW / 2,
+    y: -drawSize / 2 - cfg.offset,
+    w: barW, h: barH,
+    hpPct, dispPct,
+    bgColor: cfg.bgColor, hpColor: cfg.hpColor, ghostColor: cfg.ghostColor,
+  });
 }

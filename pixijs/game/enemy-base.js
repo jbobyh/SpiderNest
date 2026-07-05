@@ -68,11 +68,9 @@ export class Enemy {
   }
 
   takeDamage(damage, isCrit = false, options = {}) {
-    if (!this.isBoss) {
-      this.hpBarVisible = true;
-      this.hpDamageStart = this.displayedHp;
-      this.hpDamageTimer = 0;
-    }
+    this.hpBarVisible = true;
+    this.hpDamageStart = this.displayedHp;
+    this.hpDamageTimer = 0;
     this.hp -= damage;
     this.hitFlash = (typeof CONFIG !== 'undefined') ? CONFIG.ENEMY_HIT_FLASH_DURATION : 0.1;
     if (!options.silent) Sounds.hit();

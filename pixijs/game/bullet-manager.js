@@ -308,11 +308,9 @@ class BulletManager {
       if (g.takeDamage) {
         g.takeDamage(damage, isCritHit, { state, showDamageNumber: !isBattle });
       } else {
-        if (!g.isBoss) {
-          g.hpBarVisible = true;
-          g.hpDamageStart = g.displayedHp ?? g.hp;
-          g.hpDamageTimer = 0;
-        }
+        g.hpBarVisible = true;
+        g.hpDamageStart = g.displayedHp ?? g.hp;
+        g.hpDamageTimer = 0;
         g.hp -= damage;
         g.hitFlash = CONFIG.ENEMY_HIT_FLASH_DURATION;
         Sounds.hit?.();
