@@ -67,6 +67,7 @@ export function getTotalSpread(state) {
 
   const spatialAccuracy = getSpatialBonus(state, 'accuracy');
   let totalSpread = weapon.spread * state.upgrades.spreadMult * Math.max(0, 1 - spatialAccuracy);
+  const bloom = state.bloomSpread || 0;
 
   if (state.upgrades.sniper) {
     let roomCount = 1;
@@ -83,7 +84,7 @@ export function getTotalSpread(state) {
     else                totalSpread *= 1 + 0.10 * (roomCount - 2);
   }
 
-  return totalSpread;
+  return totalSpread + bloom;
 }
 
 // ── Shoot (play-mode) ─────────────────────────────────────────
@@ -140,6 +141,9 @@ export function shoot(state, camera = null) {
   const totalPellets = pellets + extraBullets;
   
   const totalSpread = getTotalSpread(state);
+
+  // Increase bloom per shot
+  state.bloomSpread = (state.bloomSpread || 0) + (weapon.bloomPerShot || 0);
 
   const spatialBulletSpeed = getSpatialBonus(state, 'bulletSpeed');
   const bulletSpeed   = weapon.bulletSpeed * state.upgrades.bulletSpeedMult * (1 + spatialBulletSpeed);

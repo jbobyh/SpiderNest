@@ -97,6 +97,18 @@ export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}
   state.shootCooldown  = Math.max(0, state.shootCooldown  - dt);
   state.burstCooldown  = Math.max(0, state.burstCooldown  - dt);
 
+  // ── Bloom recovery ────────────────────────────────────────
+  if (state.bloomSpread > 0) {
+    const wDef = WEAPON_DEFS[state.weaponSlots[state.activeSlot]];
+    if (wDef) {
+      const recoveryTime = wDef.bloomRecoveryTime || 1;
+      state.bloomSpread = Math.max(0, state.bloomSpread - wDef.bloomPerShot / recoveryTime * dt);
+      if (state.bloomSpread < 0.001) state.bloomSpread = 0;
+    } else {
+      state.bloomSpread = 0;
+    }
+  }
+
   // ── Reload tick ───────────────────────────────────────────
   if (state.isReloading) {
     state.reloadCooldown -= dt;

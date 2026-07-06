@@ -315,7 +315,7 @@ const WEAPON_DEFS = {
     description: 'Обычный пистолет',
     color: '#00d4ff',       // цвет пули/иконки
     pellets: 1,             // кол-во пуль за выстрел
-    spread: 0.1,            // разброс (рад)
+    spread: 0.05,            // разброс (рад)
     damage: 20,             // урон одной пули
     cooldown: 0.4,         // задержка между выстрелами (сек)
     bulletSpeed: 400,       // скорость пули (пикс/сек)
@@ -325,6 +325,8 @@ const WEAPON_DEFS = {
     spriteAngle: 0.1,       // поправка угла спрайта (рад)
     magazineSize: 12,       // размер обоймы
     reloadTime: 2,          // время перезарядки (сек)
+    bloomPerShot: 0.03,
+    bloomRecoveryTime: 0.3,
   },
   shotgun: {//dps 80
     id: 'shotgun',
@@ -332,9 +334,9 @@ const WEAPON_DEFS = {
     description: 'Стреляет дробью.',
     color: '#ffaa00',
     pellets: 3,
-    spread: 0.35,
+    spread: 0.20,
     damage: 20,
-    cooldown: 0.75,
+    cooldown: 0.5,
     bulletSpeed: 440,
     range: 10,
     penetrate: 0,
@@ -342,6 +344,8 @@ const WEAPON_DEFS = {
     spriteAngle: 0.55,
     magazineSize: 6,
     reloadTime: 3,
+    bloomPerShot: 0.25,
+    bloomRecoveryTime: 0.75,
   },
   smg: {//dps 50
     id: 'smg',
@@ -349,7 +353,7 @@ const WEAPON_DEFS = {
     description: 'Высокая скорострельность.',
     color: '#ff44ff',
     pellets: 1,
-    spread: 0.20,
+    spread: 0.05,
     damage: 6,
     cooldown: 0.12,
     bulletSpeed: 500,
@@ -359,6 +363,8 @@ const WEAPON_DEFS = {
     spriteAngle: 0.8,
     magazineSize: 30,
     reloadTime: 3,
+    bloomPerShot: 0.04,
+    bloomRecoveryTime: 0.2,
   },
   rifle: {//dps 42
     id: 'rifle',
@@ -368,7 +374,7 @@ const WEAPON_DEFS = {
     pellets: 1,
     spread: 0.05,
     damage: 60,
-    cooldown: 1.4,
+    cooldown: 1.0,
     bulletSpeed: 700,
     range: 40,
     penetrate: 2,
@@ -376,6 +382,8 @@ const WEAPON_DEFS = {
     spriteAngle: 0.7,
     magazineSize: 5,
     reloadTime: 4,
+    bloomPerShot: 0.09,
+    bloomRecoveryTime: 1.4,
   },
   revolver: {//dps 66
     id: 'revolver',
@@ -383,7 +391,7 @@ const WEAPON_DEFS = {
     description: 'Высокая точность. Пробивает 1 врага.',
     color: '#8b4513',
     pellets: 1,
-    spread: 0.08,
+    spread: 0.03,
     damage: 40,
     cooldown: 0.6,
     bulletSpeed: 500,
@@ -393,6 +401,8 @@ const WEAPON_DEFS = {
     spriteAngle: 0,
     magazineSize: 6,
     reloadTime: 3,
+    bloomPerShot: 0.06,
+    bloomRecoveryTime: 0.6,
   },
   carbine: {//dps 60
     id: 'carbine',
@@ -400,7 +410,7 @@ const WEAPON_DEFS = {
     description: 'Очередь из 3 пуль.',
     color: '#556b2f',
     pellets: 1,
-    spread: 0.15,
+    spread: 0.05,
     damage: 20,
     cooldown: 0.8,
     burstSize: 3,           // кол-во пуль в очереди (мультивыстрел: +1 за апгрейд pellets)
@@ -412,6 +422,8 @@ const WEAPON_DEFS = {
     spriteAngle: 0.7,
     magazineSize: 15,
     reloadTime: 4,
+    bloomPerShot: 0.03,
+    bloomRecoveryTime: 0.4,
   },
 };
 
