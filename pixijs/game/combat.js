@@ -299,8 +299,18 @@ function _spawnPlayerBullet(state, weapon, angle, bulletSpeed, scale, battleStat
   
   const player = battleState ? battleState.player : state.player;
 
-  const isIncendiary = state.upgrades.incendiaryChance > 0 && Math.random() < state.upgrades.incendiaryChance;
-  const isFreeze = state.upgrades.freezeChance > 0 && Math.random() < state.upgrades.freezeChance;
+  const playerCell = cellOf(player.x, player.y);
+  const playerCellKey = cellKey(playerCell.x, playerCell.y);
+  const roomBonus = getRoomBonus(state, playerCellKey);
+
+  let incendiaryChance = state.upgrades.incendiaryChance || 0;
+  if (roomBonus === 'burnChance') incendiaryChance += 0.1;
+
+  let freezeChance = state.upgrades.freezeChance || 0;
+  if (roomBonus === 'freezeChance') freezeChance += 0.1;
+
+  const isIncendiary = incendiaryChance > 0 && Math.random() < incendiaryChance;
+  const isFreeze = freezeChance > 0 && Math.random() < freezeChance;
 
   bulletManager.spawn({
     x: player.x, y: player.y,

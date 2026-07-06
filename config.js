@@ -495,6 +495,8 @@ const ROOM_BONUS_TYPES = [
   { id: 'ricochet',    label: 'Рикошет',          description: 'Пули рикошетят от стен внутри комнаты',                       color: '#ff8922', max: 100, icon: '↩️' },
   { id: 'longRange',   label: 'Дальнобой',         description: 'Дальность пуль +1000%',                                        color: '#0066ff', max: 100, icon: '🏹' },
   { id: 'freeAmmo',    label: 'Бесконечный боезапас', description: 'Выстрелы не тратят пули из магазина',                        color: '#ffdd00', max: 100, icon: '♾️' },
+  { id: 'burnChance',   label: 'Поджигающая комната',  description: 'Пули выстреленные в комнате имеют +10% шанс поджечь врага при попадании.', color: '#ff6600', max: 100, icon: '🔥' },
+  { id: 'freezeChance', label: 'Охлаждающая комната',  description: 'Пули выстреленные в комнате имеют +10% шанс охладить врага при попадании.', color: '#44ddff', max: 100, icon: '❄️' },
 ];
 
 // ============================================================
