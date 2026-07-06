@@ -10,7 +10,7 @@
 // ============================================================
 
 import { Graphics } from 'pixi.js';
-import { getActiveWeapon, getTotalSpread } from '../game/combat.js';
+import { getActiveWeapon, getTotalSpread, getBulletRange } from '../game/combat.js';
 
 let _gfx = null;
 let _parent = null;
@@ -50,15 +50,20 @@ export function updateAccuracyIndicator(state, camera) {
     return;
   }
 
+  const scale = state.battle ? (CONFIG.BATTLE_SCALE || 1) : 1;
+  const bulletRange = getBulletRange(state, weapon, scale);
+  const effectiveDist = Math.min(dist, bulletRange);
+  const isClamped = dist > bulletRange;
+
   const halfSpread = totalSpread / 2;
   const leftAngle  = baseAngle - halfSpread;
   const rightAngle = baseAngle + halfSpread;
 
-  // World-space cone edge points at cursor distance
-  const lx = px + Math.cos(leftAngle)  * dist;
-  const ly = py + Math.sin(leftAngle)  * dist;
-  const rx = px + Math.cos(rightAngle) * dist;
-  const ry = py + Math.sin(rightAngle) * dist;
+  // World-space cone edge points at effective distance
+  const lx = px + Math.cos(leftAngle)  * effectiveDist;
+  const ly = py + Math.sin(leftAngle)  * effectiveDist;
+  const rx = px + Math.cos(rightAngle) * effectiveDist;
+  const ry = py + Math.sin(rightAngle) * effectiveDist;
 
   // Project cone edge points and player to screen-space
   const ls = camera.worldToScreen(lx, ly);
@@ -87,15 +92,29 @@ export function updateAccuracyIndicator(state, camera) {
   _gfx.clear();
   _gfx.visible = true;
 
+  const strokeOpts = { width: cfg.lineWidth, color, alpha: cfg.alpha };
+
   // Left mark: oriented along left cone edge, near end toward player
-  _gfx.moveTo(ls.x - lux * halfLen, ls.y - luy * halfLen);
-  _gfx.lineTo(ls.x + lux * halfLen, ls.y + luy * halfLen);
-  _gfx.stroke({ width: cfg.lineWidth, color, alpha: cfg.alpha });
+  const lNearX = ls.x - lux * halfLen, lNearY = ls.y - luy * halfLen;
+  const lFarX  = ls.x + lux * halfLen, lFarY  = ls.y + luy * halfLen;
+  _gfx.moveTo(lNearX, lNearY);
+  _gfx.lineTo(lFarX, lFarY);
+  if (isClamped) {
+    // L-bend: perpendicular toward right (inward)
+    _gfx.lineTo(lFarX - luy * cfg.bendLength, lFarY + lux * cfg.bendLength);
+  }
+  _gfx.stroke(strokeOpts);
 
   // Right mark: oriented along right cone edge, near end toward player
-  _gfx.moveTo(rs.x - rux * halfLen, rs.y - ruy * halfLen);
-  _gfx.lineTo(rs.x + rux * halfLen, rs.y + ruy * halfLen);
-  _gfx.stroke({ width: cfg.lineWidth, color, alpha: cfg.alpha });
+  const rNearX = rs.x - rux * halfLen, rNearY = rs.y - ruy * halfLen;
+  const rFarX  = rs.x + rux * halfLen, rFarY  = rs.y + ruy * halfLen;
+  _gfx.moveTo(rNearX, rNearY);
+  _gfx.lineTo(rFarX, rFarY);
+  if (isClamped) {
+    // L-bend: perpendicular toward left (inward)
+    _gfx.lineTo(rFarX + ruy * cfg.bendLength, rFarY - rux * cfg.bendLength);
+  }
+  _gfx.stroke(strokeOpts);
 }
 
 export function destroyAccuracyIndicator() {

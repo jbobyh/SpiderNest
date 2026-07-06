@@ -146,6 +146,7 @@ const CONFIG = {
     lineWidth: 2,            // толщина полоски (px)
     alpha: 0.7,              // прозрачность
     minSpread: 0.001,        // минимальный разброс (рад) для показа индикатора
+    bendLength: 3,           // длина загиба L-формы (px, screen-space)
   },
 
   // Enemy stats
