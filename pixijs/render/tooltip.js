@@ -10,7 +10,9 @@
 import { Container, Graphics, Text, TextStyle } from 'pixi.js';
 import { mouse } from '../core/input.js';
 import {
-  VW, VH, STYLE_TOOLTIP_LABEL, STYLE_TOOLTIP_DESC, createPanel, clearContainer, hexToNum,
+  VW, VH, STYLE_TOOLTIP_LABEL, STYLE_TOOLTIP_DESC,
+  STYLE_TOOLTIP_STAT_LABEL, STYLE_TOOLTIP_STAT_VALUE,
+  createPanel, clearContainer, hexToNum,
 } from './ui-shared.js';
 
 // ── Module state ──────────────────────────────────────────────
@@ -55,7 +57,8 @@ export function updateTooltip(state, camera) {
       if (def) {
         const screenX = (dw.x - camera.worldX) * camera.zoom + VW / 2;
         const screenY = (dw.y - camera.worldY) * camera.zoom + VH / 2;
-        showTooltip(screenX, screenY, def.label, def.description, def.color, 'world');
+        const stats = _buildWeaponStats(def);
+        showTooltip(screenX, screenY, def.label, def.description, def.color, 'world', stats);
         return;
       }
     }
@@ -67,7 +70,7 @@ export function updateTooltip(state, camera) {
   }
 }
 
-export function showTooltip(screenX, screenY, label, description, color, source = 'hud') {
+export function showTooltip(screenX, screenY, label, description, color, source = 'hud', stats = null) {
   if (!_hud) return;
 
   _hoverSource = source;
@@ -82,12 +85,15 @@ export function showTooltip(screenX, screenY, label, description, color, source 
 
   const pad = 10;
   const lineGap = 6;
-  const boxW = 220;
+  const statLineGap = 3;
+  const boxW = 240;
 
   // Label
   const lbl = new Text({ text: label, style: STYLE_TOOLTIP_LABEL });
   lbl.position.set(pad, pad);
   _panel.addChild(lbl);
+
+  const lblBounds = lbl.getLocalBounds();
 
   // Description
   const desc = new Text({ 
@@ -95,16 +101,35 @@ export function showTooltip(screenX, screenY, label, description, color, source 
     style: STYLE_TOOLTIP_DESC,
     wordWrap: true,
     wordWrapWidth: boxW - pad * 2,
-    breakWords: true, // Handle long Russian words
+    breakWords: true,
   });
   
-  const lblBounds = lbl.getLocalBounds();
   const descBounds = desc.getLocalBounds();
 
-  desc.position.set(pad, pad + lblBounds.height + lineGap);
+  let cursorY = pad + lblBounds.height + lineGap;
+  desc.position.set(pad, cursorY);
   _panel.addChild(desc);
+  cursorY += descBounds.height + lineGap;
 
-  const realH = pad + lblBounds.height + lineGap + descBounds.height + pad;
+  // Stats rows
+  if (stats && stats.length > 0) {
+    const valueW = 80;
+    for (const s of stats) {
+      const sLbl = new Text({ text: s.label, style: STYLE_TOOLTIP_STAT_LABEL });
+      sLbl.position.set(pad, cursorY);
+      _panel.addChild(sLbl);
+
+      const sVal = new Text({ text: s.value, style: STYLE_TOOLTIP_STAT_VALUE });
+      sVal.anchor.set(1, 0);
+      sVal.position.set(boxW - pad, cursorY);
+      _panel.addChild(sVal);
+
+      cursorY += sLbl.getLocalBounds().height + statLineGap;
+    }
+    cursorY -= statLineGap; // remove trailing gap
+  }
+
+  const realH = cursorY + pad;
   const boxH = Math.max(realH, 40);
 
   // Background (add at index 0)
@@ -116,7 +141,7 @@ export function showTooltip(screenX, screenY, label, description, color, source 
   });
   _panel.addChildAt(bg, 0);
 
-  let tx = screenX + 24; // Offset more to the right to avoid overlap with icon
+  let tx = screenX + 24;
   let ty = screenY - boxH / 2;
 
   // Keep on screen
@@ -125,6 +150,23 @@ export function showTooltip(screenX, screenY, label, description, color, source 
   if (ty + boxH > VH - 4) ty = VH - 4 - boxH;
 
   _panel.position.set(tx, ty);
+}
+
+function _buildWeaponStats(def) {
+  const stats = [
+    { label: 'Урон', value: String(def.damage) },
+    { label: 'Пули', value: String(def.pellets) },
+    { label: 'Разброс', value: `${Math.round(def.spread * 180 / Math.PI)}°` },
+    { label: 'Скорость пули', value: String(def.bulletSpeed) },
+    { label: 'Дальность', value: `${def.range} кл.` },
+    { label: 'Пробитие', value: String(def.penetrate) },
+    { label: 'Обойма', value: String(def.magazineSize) },
+    { label: 'Перезарядка', value: `${def.reloadTime}с` },
+  ];
+  if (def.burstSize && def.burstSize > 1) {
+    stats.push({ label: 'Очередь', value: String(def.burstSize) });
+  }
+  return stats;
 }
 
 export function hideTooltip(source = null) {

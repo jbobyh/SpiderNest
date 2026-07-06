@@ -20,6 +20,7 @@ export function createDefaultProgress() {
     souls: 0,
     upgrades: {
       pellets: 0,
+      extraBulletChance: 0,
       damageMult: 0,
       penetrate: 0,
       cooldownMult: 1.0,

@@ -130,6 +130,14 @@ export function shoot(state, camera = null) {
   const pellets       = isBurstWeapon ? weapon.pellets : weapon.pellets + state.upgrades.pellets;
   const burstTotal    = isBurstWeapon ? weapon.burstSize + state.upgrades.pellets : weapon.burstSize;
   const burstDelay    = _burstStepDelay(weapon, burstTotal) * state.upgrades.cooldownMult * killAccelMult;
+
+  // Extra bullet chance
+  let extraBullets = 0;
+  const extraChance = state.upgrades.extraBulletChance || 0;
+  while (extraChance > 0 && Math.random() < extraChance) {
+    extraBullets++;
+  }
+  const totalPellets = pellets + extraBullets;
   
   const totalSpread = getTotalSpread(state);
 
@@ -149,7 +157,7 @@ export function shoot(state, camera = null) {
     }
   }
 
-  for (let i = 0; i < pellets; i++) {
+  for (let i = 0; i < totalPellets; i++) {
     const spread = (Math.random() - 0.5) * totalSpread;
     _spawnPlayerBullet(state, weapon, baseAngle + spread, bulletSpeed, 1, null, aimCritTarget);
   }

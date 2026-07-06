@@ -468,7 +468,8 @@ const BOSS_DEFS = {
 // UPGRADE TYPES
 // ============================================================
 const UPGRADE_TYPES = [
-  { id: 'pellets',       label: '+1 пуля к выстрелу',     description: 'Каждый выстрел выпускает на 1 пулю больше',                   color: '#ffaa00', max: 2, icon: '🔫', effects: { pellets: 1 } },
+  // { id: 'pellets',       label: '+1 пуля к выстрелу',     description: 'Каждый выстрел выпускает на 1 пулю больше',                   color: '#ffaa00', max: 2, icon: '🔫', effects: { pellets: 1 } },
+  { id: 'extraBulletChance', label: '+5% доп пуля',  description: '5% шанс выпустить дополнительную пулю при выстреле',          color: '#ffaa44', max: 3, icon: '✨', effects: { extraBulletChance: 0.05 } },
   { id: 'damage',        label: '+20% урона от пули',        description: 'Каждая пуля наносит на 20% урона больше',                        color: '#ff4444', max: 5, icon: '💥', effects: { damageMult: 0.20 } },
   { id: 'penetrate',     label: '+1 пробитие врага',       description: 'Пуля пролетает сквозь одного дополнительного врага',          color: '#ff44ff', max: 2, icon: '🎯', effects: { penetrate: 1 } },
   { id: 'bulletSpeed',   label: '+30% скорость пули',      description: 'Пули летят быстрее на +30%',                     color: '#ffff44', max: 2, icon: '⚡', effects: { bulletSpeedMult: 0.30 } },
