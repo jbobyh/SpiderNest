@@ -340,7 +340,7 @@ const WEAPON_DEFS = {
     penetrate: 0,
     shakeAmount: 0.5,
     spriteAngle: 0.55,
-    magazineSize: 4,
+    magazineSize: 6,
     reloadTime: 3,
   },
   smg: {//dps 50
@@ -494,6 +494,7 @@ const ROOM_BONUS_TYPES = [
   { id: 'speeddown',    label: 'Замедление',          description: 'Персонаж, враги и пули замедляются на 50%',                       color: '#ff0000', max: 100, icon: '⚔️', speedMult: 0.5 },
   { id: 'ricochet',    label: 'Рикошет',          description: 'Пули рикошетят от стен внутри комнаты',                       color: '#ff8922', max: 100, icon: '↩️' },
   { id: 'longRange',   label: 'Дальнобой',         description: 'Дальность пуль +1000%',                                        color: '#0066ff', max: 100, icon: '🏹' },
+  { id: 'freeAmmo',    label: 'Бесконечный боезапас', description: 'Выстрелы не тратят пули из магазина',                        color: '#ffdd00', max: 100, icon: '♾️' },
 ];
 
 // ============================================================

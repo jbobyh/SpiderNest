@@ -5,7 +5,7 @@
 // ============================================================
 
 import { bulletManager } from './bullet-manager.js';
-import { cellOf, cellKey, CELL_PX } from '../world/constants.js';
+import { cellOf, cellKey, CELL_PX, getRoomBonus } from '../world/constants.js';
 import { Sounds } from '../core/sound.js';
 import { spawnParticles } from '../render/particles.js';
 import { spawnShootVfx } from '../render/shoot-vfx.js';
@@ -97,7 +97,10 @@ export function shoot(state, camera = null) {
 
   // Ammo check
   const slot = state.activeSlot;
-  if (state.ammo[slot] <= 0) {
+  const playerCell = cellOf(state.player.x, state.player.y);
+  const playerCellKey = cellKey(playerCell.x, playerCell.y);
+  const isFreeAmmo = getRoomBonus(state, playerCellKey) === 'freeAmmo';
+  if (!isFreeAmmo && state.ammo[slot] <= 0) {
     startReload(state);
     return;
   }
@@ -166,12 +169,14 @@ export function shoot(state, camera = null) {
 
   _applyBurstCooldown(state, weapon, isBurstWeapon, burstTotal, burstDelay, cooldown);
 
-  // Decrement ammo after shot
-  state.ammo[slot]--;
+  // Decrement ammo after shot (skip in freeAmmo room)
+  if (!isFreeAmmo) {
+    state.ammo[slot]--;
 
-  // Auto-reload if empty
-  if (state.ammo[slot] <= 0) {
-    startReload(state);
+    // Auto-reload if empty
+    if (state.ammo[slot] <= 0) {
+      startReload(state);
+    }
   }
 }
 
