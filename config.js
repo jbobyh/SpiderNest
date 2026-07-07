@@ -18,6 +18,18 @@ const CONFIG = {
   PLAYER_SPRITE_RADIUS: 14,        // визуальный радиус спрайта (половина ширины отрисовки)
   PLAYER_INVULNERABLE_TIME: 1,    // секунд неуязвимости после урона
 
+  // IK arm anchors — pixel offsets from body centre (drawSize = PLAYER_SPRITE_RADIUS * 2 = 28)
+  PLAYER_ARM_ANCHORS: {
+    south: { left:  { x:  3, y: -3 }, right: { x: -3, y: -3 } },
+    north: { left:  { x: -5, y: -3 }, right: { x:  5, y: -3 } },
+    west:  { left:  { x:  2, y: -3 }, right: { x:  2, y: -3 } },
+    east:  { left:  { x:  0, y: -3 }, right: { x: -2, y: -3 } },
+  },
+
+  // IK arm segment sizes (px)
+  ARM_UPPER:    { w: 15 * 0.4, h: 8 * 0.4 },
+  ARM_FOREARM:  { w: 16 * 0.4, h: 7 * 0.4 },
+
   // Player Dash
   PLAYER_DASH_SPEED: 8,       // скорость деша (пикс/сек)
   PLAYER_DASH_DISTANCE: 1.1,    // дальность деша (пикселей)
@@ -92,7 +104,10 @@ const CONFIG = {
     cursorWeight: 0.3,  // 0 = только игрок, 1 = только курсор
     damping: 2.0,         // λ экспоненциального сглаживания (выше = быстрее)
     maxOffset: 160,      // макс. сдвиг камеры от игрока в сторону курсора (px)
-    playZoom: 1.5,              // зум камеры в play режиме
+    playZoom: 1.5,              // зум камеры в play режиме, надо 1.5
+    playZoomMin: 0.5,           // минимальный зум колесиком
+    playZoomMax: 3.5,           // максимальный зум колесиком
+    playZoomStep: 0.15,         // множитель шага зума за щелчок колесика (15% от текущего)
     battleZoomMult: 1,      // множитель к вычисленному зуму в battle режиме
     shakeMin: 0.01,          // минимальный порог тряски (пистолет 0 не трясёт)
     shakeScale: 5,          // множитель shakeAmount → пиксели (0.5 * 12 = 6px)
@@ -146,6 +161,7 @@ const CONFIG = {
     lineWidth: 2,            // толщина полоски (px)
     alpha: 0.7,              // прозрачность
     minSpread: 0.001,        // минимальный разброс (рад) для показа индикатора
+    bendLength: 3,           // длина загиба L-формы (px, screen-space)
   },
 
   // Enemy stats
@@ -250,7 +266,9 @@ const CONFIG = {
     invulnerable: false,      // неуязвимость игрока от врагов
     collisions: false,        // отображать коллайдеры
     showFps: true,            // отображать счетчик FPS
-    showWeapon: false,         // отображать оружие поверх персонажа
+    showWeapon: true,         // отображать оружие поверх персонажа
+    showOldHands: true,       // отображать старые руки (heroHandsFrames)
+    showIKArms: true,         // отображать IK руки
   },
 
   // Boss phase AI
@@ -315,7 +333,7 @@ const WEAPON_DEFS = {
     description: 'Обычный пистолет',
     color: '#00d4ff',       // цвет пули/иконки
     pellets: 1,             // кол-во пуль за выстрел
-    spread: 0.1,            // разброс (рад)
+    spread: 0.05,            // разброс (рад)
     damage: 20,             // урон одной пули
     cooldown: 0.4,         // задержка между выстрелами (сек)
     bulletSpeed: 400,       // скорость пули (пикс/сек)
@@ -325,6 +343,16 @@ const WEAPON_DEFS = {
     spriteAngle: 0.1,       // поправка угла спрайта (рад)
     magazineSize: 12,       // размер обоймы
     reloadTime: 2,          // время перезарядки (сек)
+    bloomPerShot: 0.04,
+    bloomRecoveryTime: 0.3,
+    maxSpread: 0.8,
+    shootAnimRatio: 0.3,
+    reloadAnimRatio: 1.0,
+    spriteScale: 0.5,
+    spriteOffset: 0.45,
+    spritePivotY: -2,
+    gripLeft:  { x: -20, y: 0 },
+    gripRight: { x:  -20, y: 0 },
   },
   shotgun: {//dps 80
     id: 'shotgun',
@@ -332,9 +360,9 @@ const WEAPON_DEFS = {
     description: 'Стреляет дробью.',
     color: '#ffaa00',
     pellets: 3,
-    spread: 0.35,
+    spread: 0.20,
     damage: 20,
-    cooldown: 0.75,
+    cooldown: 0.5,
     bulletSpeed: 440,
     range: 10,
     penetrate: 0,
@@ -342,6 +370,14 @@ const WEAPON_DEFS = {
     spriteAngle: 0.55,
     magazineSize: 6,
     reloadTime: 3,
+    bloomPerShot: 0.35,
+    bloomRecoveryTime: 0.5,
+    maxSpread: 1,
+    spriteScale: 0.3,
+    spriteOffset: 0.3,
+    spritePivotY: 0,
+    gripLeft:  { x: -12, y: 1 },
+    gripRight: { x:  4, y: 0 },
   },
   smg: {//dps 50
     id: 'smg',
@@ -349,8 +385,8 @@ const WEAPON_DEFS = {
     description: 'Высокая скорострельность.',
     color: '#ff44ff',
     pellets: 1,
-    spread: 0.20,
-    damage: 6,
+    spread: 0.05,
+    damage: 8,
     cooldown: 0.12,
     bulletSpeed: 500,
     range: 18,
@@ -359,6 +395,14 @@ const WEAPON_DEFS = {
     spriteAngle: 0.8,
     magazineSize: 30,
     reloadTime: 3,
+    bloomPerShot: 0.06,
+    bloomRecoveryTime: 0.4,
+    maxSpread: 1,
+    spriteScale: 0.3,
+    spriteOffset: 0.3,
+    spritePivotY: 0,
+    gripLeft:  { x: -10, y: 1 },
+    gripRight: { x:  4, y: 0 },
   },
   rifle: {//dps 42
     id: 'rifle',
@@ -368,7 +412,7 @@ const WEAPON_DEFS = {
     pellets: 1,
     spread: 0.05,
     damage: 60,
-    cooldown: 1.4,
+    cooldown: 1.0,
     bulletSpeed: 700,
     range: 40,
     penetrate: 2,
@@ -376,6 +420,14 @@ const WEAPON_DEFS = {
     spriteAngle: 0.7,
     magazineSize: 5,
     reloadTime: 4,
+    bloomPerShot: 0.25,
+    bloomRecoveryTime: 0.4,
+    maxSpread: 1,
+    spriteScale: 0.3,
+    spriteOffset: 0.3,
+    spritePivotY: 0,
+    gripLeft:  { x: -14, y: 1 },
+    gripRight: { x:  4, y: 0 },
   },
   revolver: {//dps 66
     id: 'revolver',
@@ -383,7 +435,7 @@ const WEAPON_DEFS = {
     description: 'Высокая точность. Пробивает 1 врага.',
     color: '#8b4513',
     pellets: 1,
-    spread: 0.08,
+    spread: 0.03,
     damage: 40,
     cooldown: 0.6,
     bulletSpeed: 500,
@@ -393,6 +445,14 @@ const WEAPON_DEFS = {
     spriteAngle: 0,
     magazineSize: 6,
     reloadTime: 3,
+    bloomPerShot: 0.15,
+    bloomRecoveryTime: 0.4,
+    maxSpread: 1,
+    spriteScale: 0.3,
+    spriteOffset: 0.3,
+    spritePivotY: 0,
+    gripLeft:  { x: -10, y: 1 },
+    gripRight: { x:  4, y: 0 },
   },
   carbine: {//dps 60
     id: 'carbine',
@@ -400,7 +460,7 @@ const WEAPON_DEFS = {
     description: 'Очередь из 3 пуль.',
     color: '#556b2f',
     pellets: 1,
-    spread: 0.15,
+    spread: 0.05,
     damage: 20,
     cooldown: 0.8,
     burstSize: 3,           // кол-во пуль в очереди (мультивыстрел: +1 за апгрейд pellets)
@@ -412,6 +472,14 @@ const WEAPON_DEFS = {
     spriteAngle: 0.7,
     magazineSize: 15,
     reloadTime: 4,
+    bloomPerShot: 0.08,
+    bloomRecoveryTime: 0.3,
+    maxSpread: 1,
+    spriteScale: 0.3,
+    spriteOffset: 0.3,
+    spritePivotY: 0,
+    gripLeft:  { x: -12, y: 1 },
+    gripRight: { x:  4, y: 0 },
   },
 };
 
@@ -468,7 +536,8 @@ const BOSS_DEFS = {
 // UPGRADE TYPES
 // ============================================================
 const UPGRADE_TYPES = [
-  { id: 'pellets',       label: '+1 пуля к выстрелу',     description: 'Каждый выстрел выпускает на 1 пулю больше',                   color: '#ffaa00', max: 2, icon: '🔫', effects: { pellets: 1 } },
+  // { id: 'pellets',       label: '+1 пуля к выстрелу',     description: 'Каждый выстрел выпускает на 1 пулю больше',                   color: '#ffaa00', max: 2, icon: '🔫', effects: { pellets: 1 } },
+  { id: 'extraBulletChance', label: '+5% доп пуля',  description: '5% шанс выпустить дополнительную пулю при выстреле',          color: '#ffaa44', max: 3, icon: '✨', effects: { extraBulletChance: 0.05 } },
   { id: 'damage',        label: '+20% урона от пули',        description: 'Каждая пуля наносит на 20% урона больше',                        color: '#ff4444', max: 5, icon: '💥', effects: { damageMult: 0.20 } },
   { id: 'penetrate',     label: '+1 пробитие врага',       description: 'Пуля пролетает сквозь одного дополнительного врага',          color: '#ff44ff', max: 2, icon: '🎯', effects: { penetrate: 1 } },
   { id: 'bulletSpeed',   label: '+30% скорость пули',      description: 'Пули летят быстрее на +30%',                     color: '#ffff44', max: 2, icon: '⚡', effects: { bulletSpeedMult: 0.30 } },
@@ -495,6 +564,8 @@ const ROOM_BONUS_TYPES = [
   { id: 'ricochet',    label: 'Рикошет',          description: 'Пули рикошетят от стен внутри комнаты',                       color: '#ff8922', max: 100, icon: '↩️' },
   { id: 'longRange',   label: 'Дальнобой',         description: 'Дальность пуль +1000%',                                        color: '#0066ff', max: 100, icon: '🏹' },
   { id: 'freeAmmo',    label: 'Бесконечный боезапас', description: 'Выстрелы не тратят пули из магазина',                        color: '#ffdd00', max: 100, icon: '♾️' },
+  { id: 'burnChance',   label: 'Поджигающая комната',  description: 'Пули выстреленные в комнате имеют +10% шанс поджечь врага при попадании.', color: '#ff6600', max: 100, icon: '🔥' },
+  { id: 'freezeChance', label: 'Охлаждающая комната',  description: 'Пули выстреленные в комнате имеют +10% шанс охладить врага при попадании.', color: '#44ddff', max: 100, icon: '❄️' },
 ];
 
 // ============================================================

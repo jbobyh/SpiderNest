@@ -247,6 +247,7 @@ function _updateStatsPanel(s) {
 
   if (s.upgrades.shield > 0) rows.push({ label: 'ЩИТЫ', value: `${s.upgrades.shield}`, color: 0x00aaff });
   if (s.upgrades.killAccel) rows.push({ label: 'РАЗГОН ПЕРЕЗАРЯДКИ', value: `${s.upgrades.killAccelPercent.toFixed(1)}%`, color: 0xff8800 });
+  if (s.upgrades.extraBulletChance > 0) rows.push({ label: 'ШАНС ДОП ПУЛИ', value: `${Math.round(s.upgrades.extraBulletChance * 100)}%`, color: 0xffaa44 });
 
   const panelW = 280;
   const lineH = 22;
@@ -387,12 +388,6 @@ function _updateSouls(s) {
 
 // ── Upgrade icon panels ──────────────────────────────────────
 
-const REGULAR_UPGRADE_IDS = [
-  'pellets', 'damage', 'penetrate', 'bulletSpeed', 'critChance',
-  'killAccel', 'enhancedPierce', 'shield', 'retreat', 'reflection',
-  'cooldown', 'speed', 'hitStun', 'incendiary', 'freezeBullet'
-];
-
 function _updateUpgrades(s) {
   const newHash = _getUpgradesHash(s);
   if (newHash === _lastUpgradesHash) return;
@@ -404,27 +399,10 @@ function _updateUpgrades(s) {
 
   if (!s.upgrades || !UPGRADE_TYPES) return;
 
-  // 1. Regular Upgrades
+  // 1. Regular Upgrades — use upgradeLevels from state
   const activeRegular = [];
   for (const upg of UPGRADE_TYPES) {
-    if (!REGULAR_UPGRADE_IDS.includes(upg.id)) continue;
-    let level = 0;
-    if (upg.id === 'pellets') level = s.upgrades.pellets || 0;
-    else if (upg.id === 'damage') level = s.upgrades.damageMult > 0 ? Math.round(s.upgrades.damageMult / 0.20) : 0;
-    else if (upg.id === 'penetrate') level = s.upgrades.penetrate || 0;
-    else if (upg.id === 'bulletSpeed') level = s.upgrades.bulletSpeedMult > 1 ? 1 : 0;
-    else if (upg.id === 'critChance') level = s.upgrades.critChance > 0 ? Math.ceil(s.upgrades.critChance * 20) : 0;
-    else if (upg.id === 'killAccel') level = s.upgrades.killAccel ? 1 : 0;
-    else if (upg.id === 'enhancedPierce') level = s.upgrades.enhancedPierce ? 1 : 0;
-    else if (upg.id === 'shield') level = s.upgrades.shield || 0;
-    else if (upg.id === 'retreat') level = s.upgrades.retreat > 0 ? 1 : 0;
-    else if (upg.id === 'reflection') level = s.upgrades.reflection ? 1 : 0;
-    else if (upg.id === 'cooldown') level = s.upgrades.cooldownMult < 1 ? Math.ceil((1 - s.upgrades.cooldownMult) * 6.67) : 0;
-    else if (upg.id === 'speed') level = s.upgrades.speedMult > 1 ? Math.ceil((s.upgrades.speedMult - 1) * 10) : 0;
-    else if (upg.id === 'hitStun') level = s.upgrades.hitStun > 0 ? Math.round(s.upgrades.hitStun / 0.05) : 0;
-    else if (upg.id === 'incendiary') level = s.upgrades.incendiaryChance > 0 ? Math.ceil(s.upgrades.incendiaryChance * 20) : 0;
-    else if (upg.id === 'freezeBullet') level = s.upgrades.freezeChance > 0 ? Math.ceil(s.upgrades.freezeChance * 20) : 0;
-    
+    const level = s.upgradeLevels[upg.id] || 0;
     if (level > 0) {
       activeRegular.push({ ...upg, level: Math.min(level, upg.max || 1) });
     }

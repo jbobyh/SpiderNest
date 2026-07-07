@@ -75,6 +75,19 @@ export const STYLE_TOOLTIP_DESC = new TextStyle({
   fontSize: 11,
 });
 
+export const STYLE_TOOLTIP_STAT_LABEL = new TextStyle({
+  ...BASE_STYLE,
+  fill: 'rgba(140,160,180,0.8)',
+  fontSize: 10,
+});
+
+export const STYLE_TOOLTIP_STAT_VALUE = new TextStyle({
+  ...BASE_STYLE,
+  fill: '#ffffff',
+  fontSize: 10,
+  fontWeight: 'bold',
+});
+
 // ── Shared Helpers ────────────────────────────────────────────
 
 /**

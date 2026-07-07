@@ -96,6 +96,20 @@ export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}
   // ── Shoot ─────────────────────────────────────────────────
   state.shootCooldown  = Math.max(0, state.shootCooldown  - dt);
   state.burstCooldown  = Math.max(0, state.burstCooldown  - dt);
+  state.weaponShootAnim  = Math.max(0, (state.weaponShootAnim || 0)  - dt);
+  state.weaponReloadAnim = Math.max(0, (state.weaponReloadAnim || 0) - dt);
+
+  // ── Bloom recovery ────────────────────────────────────────
+  if (state.bloomSpread > 0) {
+    const wDef = WEAPON_DEFS[state.weaponSlots[state.activeSlot]];
+    if (wDef) {
+      const recoveryTime = wDef.bloomRecoveryTime || 1;
+      state.bloomSpread *= Math.exp(-dt / recoveryTime);
+      if (state.bloomSpread < 0.001) state.bloomSpread = 0;
+    } else {
+      state.bloomSpread = 0;
+    }
+  }
 
   // ── Reload tick ───────────────────────────────────────────
   if (state.isReloading) {
@@ -225,7 +239,7 @@ export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}
       dx *= CONFIG.CAMERA.maxOffset / dist;
       dy *= CONFIG.CAMERA.maxOffset / dist;
     }
-    camera.setZoom(CONFIG.CAMERA.playZoom);
+    camera.setTargetZoom(CONFIG.CAMERA.playZoom);
     camera.moveTo(
       state.player.x + dx * CONFIG.CAMERA.cursorWeight,
       state.player.y + dy * CONFIG.CAMERA.cursorWeight,

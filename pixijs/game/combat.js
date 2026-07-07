@@ -67,6 +67,7 @@ export function getTotalSpread(state) {
 
   const spatialAccuracy = getSpatialBonus(state, 'accuracy');
   let totalSpread = weapon.spread * state.upgrades.spreadMult * Math.max(0, 1 - spatialAccuracy);
+  const bloom = state.bloomSpread || 0;
 
   if (state.upgrades.sniper) {
     let roomCount = 1;
@@ -83,7 +84,8 @@ export function getTotalSpread(state) {
     else                totalSpread *= 1 + 0.10 * (roomCount - 2);
   }
 
-  return totalSpread;
+  const maxSpread = weapon.maxSpread || CONFIG.MAX_SPREAD_RAD || Math.PI / 3;
+  return Math.min(maxSpread, totalSpread + bloom);
 }
 
 // ── Shoot (play-mode) ─────────────────────────────────────────
@@ -130,8 +132,19 @@ export function shoot(state, camera = null) {
   const pellets       = isBurstWeapon ? weapon.pellets : weapon.pellets + state.upgrades.pellets;
   const burstTotal    = isBurstWeapon ? weapon.burstSize + state.upgrades.pellets : weapon.burstSize;
   const burstDelay    = _burstStepDelay(weapon, burstTotal) * state.upgrades.cooldownMult * killAccelMult;
+
+  // Extra bullet chance
+  let extraBullets = 0;
+  const extraChance = state.upgrades.extraBulletChance || 0;
+  while (extraChance > 0 && Math.random() < extraChance) {
+    extraBullets++;
+  }
+  const totalPellets = pellets + extraBullets;
   
   const totalSpread = getTotalSpread(state);
+
+  // Increase bloom per shot
+  state.bloomSpread = (state.bloomSpread || 0) + (weapon.bloomPerShot || 0);
 
   const spatialBulletSpeed = getSpatialBonus(state, 'bulletSpeed');
   const bulletSpeed   = weapon.bulletSpeed * state.upgrades.bulletSpeedMult * (1 + spatialBulletSpeed);
@@ -149,7 +162,7 @@ export function shoot(state, camera = null) {
     }
   }
 
-  for (let i = 0; i < pellets; i++) {
+  for (let i = 0; i < totalPellets; i++) {
     const spread = (Math.random() - 0.5) * totalSpread;
     _spawnPlayerBullet(state, weapon, baseAngle + spread, bulletSpeed, 1, null, aimCritTarget);
   }
@@ -168,6 +181,12 @@ export function shoot(state, camera = null) {
   }
 
   _applyBurstCooldown(state, weapon, isBurstWeapon, burstTotal, burstDelay, cooldown);
+
+  // Pistol shoot animation trigger
+  if (weapon.id === 'pistol') {
+    state.weaponShootAnim = cooldown * (weapon.shootAnimRatio ?? 1);
+    state.weaponShootAnimMax = state.weaponShootAnim;
+  }
 
   // Decrement ammo after shot (skip in freeAmmo room)
   if (!isFreeAmmo) {
@@ -202,6 +221,12 @@ export function startReload(state) {
   state.reloadCooldown = reloadTime;
   state.burstRemaining = 0;
   state.burstWeaponId = null;
+
+  // Pistol reload animation trigger
+  if (weapon.id === 'pistol') {
+    state.weaponReloadAnim = reloadTime * (weapon.reloadAnimRatio ?? 1);
+    state.weaponReloadAnimMax = state.weaponReloadAnim;
+  }
 }
 
 export function finishReload(state) {
@@ -299,8 +324,18 @@ function _spawnPlayerBullet(state, weapon, angle, bulletSpeed, scale, battleStat
   
   const player = battleState ? battleState.player : state.player;
 
-  const isIncendiary = state.upgrades.incendiaryChance > 0 && Math.random() < state.upgrades.incendiaryChance;
-  const isFreeze = state.upgrades.freezeChance > 0 && Math.random() < state.upgrades.freezeChance;
+  const playerCell = cellOf(player.x, player.y);
+  const playerCellKey = cellKey(playerCell.x, playerCell.y);
+  const roomBonus = getRoomBonus(state, playerCellKey);
+
+  let incendiaryChance = state.upgrades.incendiaryChance || 0;
+  if (roomBonus === 'burnChance') incendiaryChance += 0.1;
+
+  let freezeChance = state.upgrades.freezeChance || 0;
+  if (roomBonus === 'freezeChance') freezeChance += 0.1;
+
+  const isIncendiary = incendiaryChance > 0 && Math.random() < incendiaryChance;
+  const isFreeze = freezeChance > 0 && Math.random() < freezeChance;
 
   bulletManager.spawn({
     x: player.x, y: player.y,

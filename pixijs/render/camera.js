@@ -20,7 +20,8 @@ export class Camera {
   constructor() {
     this.container = new Container();
 
-    this._zoom    = 1;
+    this._zoom       = 1;
+    this._targetZoom = 1;
     this._worldX  = 0; // world X at screen centre
     this._worldY  = 0; // world Y at screen centre
 
@@ -49,8 +50,14 @@ export class Camera {
   // Set zoom level and optionally re-centre on (cx, cy).
   setZoom(scale, cx, cy) {
     this._zoom = scale;
+    this._targetZoom = scale;
     if (cx !== undefined) { this._worldX = cx; this._worldY = cy; }
     this._apply();
+  }
+
+  // Set target zoom for smooth interpolation (used in play mode).
+  setTargetZoom(scale) {
+    this._targetZoom = scale;
   }
 
   // Add a one-shot impulse shake.
@@ -66,6 +73,7 @@ export class Camera {
     const t = 1 - Math.exp(-CONFIG.CAMERA.damping * dt);
     this._currentX += (this._worldX - this._currentX) * t;
     this._currentY += (this._worldY - this._currentY) * t;
+    this._zoom     += (this._targetZoom - this._zoom) * t;
     this._shakeAmount *= CONFIG.CAMERA.shakeDecay;
     if (this._shakeAmount < 0.5) this._shakeAmount = 0;
     this._apply();

@@ -124,7 +124,9 @@ const MANIFEST = {
         { alias: 'cursed-chest',          src: IMG + 'chest_cursed.png' },
         { alias: 'sphere',                src: IMG + 'sphere.png' },
         // Weapon sprites (HUD + floor pickups)
-        { alias: 'weapon-pistol',     src: IMG + 'pistol.png' },
+        { alias: 'weapon-pistol',     src: IMG + 'weapons/pistol/[SHOOTING]PistolV1.00.png' },
+        { alias: 'weapon-pistol-emptying', src: IMG + 'weapons/pistol/Pistol_V1.00 - EMPTYING.png' },
+        { alias: 'weapon-pistol-reload',   src: IMG + 'weapons/pistol/Pistol_V1.00 - RELOAD.png' },
         { alias: 'weapon-shotgun',    src: IMG + 'shotgun.png' },
         { alias: 'weapon-smg',        src: IMG + 'smg.png' },
         { alias: 'weapon-rifle',      src: IMG + 'rifle.png' },
