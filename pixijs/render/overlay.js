@@ -30,6 +30,7 @@ let _ctx   = null; // { state, playerProgress } while panel is open
 let _gameOverPanel = null;
 let _gameOverCallback = null; // onRestart callback
 let _onEnterBattle = null; // callback for upgrade chest choice
+let _rerollsLeft = 0;
 
 // ── Text styles ───────────────────────────────────────────────
 
@@ -234,6 +235,7 @@ const DECLINE_BTN_H = 36;
 // ── Special choice panel (Spatial / Cursed) ───────────────────
 
 function _showSpecialChoice(state, playerProgress) {
+  if (!_ctx) _rerollsLeft = 100;
   const type = state._specialChoiceState.type;
   const choices = _pickSpecialChoices(state, type);
   _ctx = { state, playerProgress, choices };
@@ -273,6 +275,12 @@ function _showSpecialChoice(state, playerProgress) {
 
   for (let i = 0; i < choices.length; i++) {
     _addChoiceBtn(cont, choices[i], startX + i * (BTN_W + BTN_GAP), btnY);
+  }
+
+  if (_rerollsLeft > 0) {
+    const rerollX = (VW - DECLINE_BTN_W) / 2;
+    const rerollY = btnY + BTN_H + 15;
+    _addRerollBtn(cont, rerollX, rerollY);
   }
 
   _hud.addChild(cont);
@@ -351,6 +359,7 @@ function _onSpecialChoice(id) {
 // ── Upgrade choice panel ───────────────────────────────────────
 
 function _showUpgradeChoice(state, playerProgress) {
+  if (!_ctx) _rerollsLeft = 100;
   const choices = _pickUpgradeChoices(state);
   _ctx = { state, playerProgress, choices };
 
@@ -393,6 +402,12 @@ function _showUpgradeChoice(state, playerProgress) {
   const declineX = (VW - DECLINE_BTN_W) / 2;
   const declineY = btnY + UPGRADE_BTN_H + 15;
   _addDeclineBtn(cont, declineX, declineY);
+
+  if (_rerollsLeft > 0) {
+    const rerollX = (VW - DECLINE_BTN_W) / 2;
+    const rerollY = declineY + DECLINE_BTN_H + 10;
+    _addRerollBtn(cont, rerollX, rerollY);
+  }
 
   _hud.addChild(cont);
   _panel = cont;
@@ -494,6 +509,49 @@ function _addDeclineBtn(cont, bx, by) {
   btn.addChild(lbl);
 }
 
+function _addRerollBtn(cont, bx, by) {
+  const btn = new Graphics();
+  btn.position.set(bx, by);
+  const _drawNormal = () =>
+    btn.clear()
+       .rect(0, 0, DECLINE_BTN_W, DECLINE_BTN_H)
+       .fill({ color: 0x202830, alpha: 0.95 })
+       .stroke({ color: 0x66aaff, alpha: 0.7, width: 1 });
+  const _drawHover = () =>
+    btn.clear()
+       .rect(0, 0, DECLINE_BTN_W, DECLINE_BTN_H)
+       .fill({ color: 0x2d3a50, alpha: 0.98 })
+       .stroke({ color: 0x88ccff, alpha: 0.9, width: 1.5 });
+
+  _drawNormal();
+  btn.eventMode = 'static';
+  btn.cursor    = 'pointer';
+  btn.hitArea   = { contains: (x, y) => x >= 0 && x <= DECLINE_BTN_W && y >= 0 && y <= DECLINE_BTN_H };
+  btn.on('pointerover', _drawHover);
+  btn.on('pointerout',  _drawNormal);
+  btn.on('pointerdown', () => {
+    if (_rerollsLeft > 0) {
+      _rerollsLeft--;
+      if (_panel) {
+        _panel.destroy({ children: true });
+        _panel = null;
+      }
+    }
+  });
+  cont.addChild(btn);
+
+  const lbl = new Text({
+    text: `🎲 Reroll (${_rerollsLeft})`,
+    style: new TextStyle({
+      fill: '#88ccff', fontSize: 12,
+      fontFamily: 'BoldPixels, sans-serif', align: 'center',
+    }),
+  });
+  lbl.anchor.set(0.5, 0.5);
+  lbl.position.set(DECLINE_BTN_W / 2, DECLINE_BTN_H / 2);
+  btn.addChild(lbl);
+}
+
 function _onUpgradeChoice(id) {
   if (!_ctx) return;
   const { state, playerProgress } = _ctx;
@@ -509,6 +567,7 @@ function _pickUpgradeChoices(state) {
 // ── Room bonus choice panel ───────────────────────────────────────
 
 function _showRoomBonusChoice(state, playerProgress) {
+  if (!_ctx) _rerollsLeft = 100;
   const choices = _pickRoomBonusChoices(state);
   _ctx = { state, playerProgress, choices };
 
@@ -551,6 +610,12 @@ function _showRoomBonusChoice(state, playerProgress) {
   const declineX = (VW - DECLINE_BTN_W) / 2;
   const declineY = btnY + UPGRADE_BTN_H + 15;
   _addDeclineBtn(cont, declineX, declineY);
+
+  if (_rerollsLeft > 0) {
+    const rerollX = (VW - DECLINE_BTN_W) / 2;
+    const rerollY = declineY + DECLINE_BTN_H + 10;
+    _addRerollBtn(cont, rerollX, rerollY);
+  }
 
   _hud.addChild(cont);
   _panel = cont;
