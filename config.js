@@ -18,6 +18,18 @@ const CONFIG = {
   PLAYER_SPRITE_RADIUS: 14,        // визуальный радиус спрайта (половина ширины отрисовки)
   PLAYER_INVULNERABLE_TIME: 1,    // секунд неуязвимости после урона
 
+  // IK arm anchors — pixel offsets from body centre (drawSize = PLAYER_SPRITE_RADIUS * 2 = 28)
+  PLAYER_ARM_ANCHORS: {
+    south: { left:  { x:  3, y: -3 }, right: { x: -3, y: -3 } },
+    north: { left:  { x: -5, y: -3 }, right: { x:  5, y: -3 } },
+    west:  { left:  { x:  2, y: -3 }, right: { x:  2, y: -3 } },
+    east:  { left:  { x:  0, y: -3 }, right: { x: -2, y: -3 } },
+  },
+
+  // IK arm segment sizes (px)
+  ARM_UPPER:    { w: 15 * 0.4, h: 8 * 0.4 },
+  ARM_FOREARM:  { w: 16 * 0.4, h: 7 * 0.4 },
+
   // Player Dash
   PLAYER_DASH_SPEED: 8,       // скорость деша (пикс/сек)
   PLAYER_DASH_DISTANCE: 1.1,    // дальность деша (пикселей)
@@ -252,6 +264,8 @@ const CONFIG = {
     collisions: false,        // отображать коллайдеры
     showFps: true,            // отображать счетчик FPS
     showWeapon: true,         // отображать оружие поверх персонажа
+    showOldHands: true,       // отображать старые руки (heroHandsFrames)
+    showIKArms: true,         // отображать IK руки
   },
 
   // Boss phase AI
@@ -334,6 +348,8 @@ const WEAPON_DEFS = {
     spriteScale: 0.5,
     spriteOffset: 0.45,
     spritePivotY: -2,
+    gripLeft:  { x: -20, y: 0 },
+    gripRight: { x:  -20, y: 0 },
   },
   shotgun: {//dps 80
     id: 'shotgun',
@@ -357,6 +373,8 @@ const WEAPON_DEFS = {
     spriteScale: 0.3,
     spriteOffset: 0.3,
     spritePivotY: 0,
+    gripLeft:  { x: -12, y: 1 },
+    gripRight: { x:  4, y: 0 },
   },
   smg: {//dps 50
     id: 'smg',
@@ -380,6 +398,8 @@ const WEAPON_DEFS = {
     spriteScale: 0.3,
     spriteOffset: 0.3,
     spritePivotY: 0,
+    gripLeft:  { x: -10, y: 1 },
+    gripRight: { x:  4, y: 0 },
   },
   rifle: {//dps 42
     id: 'rifle',
@@ -403,6 +423,8 @@ const WEAPON_DEFS = {
     spriteScale: 0.3,
     spriteOffset: 0.3,
     spritePivotY: 0,
+    gripLeft:  { x: -14, y: 1 },
+    gripRight: { x:  4, y: 0 },
   },
   revolver: {//dps 66
     id: 'revolver',
@@ -426,6 +448,8 @@ const WEAPON_DEFS = {
     spriteScale: 0.3,
     spriteOffset: 0.3,
     spritePivotY: 0,
+    gripLeft:  { x: -10, y: 1 },
+    gripRight: { x:  4, y: 0 },
   },
   carbine: {//dps 60
     id: 'carbine',
@@ -451,6 +475,8 @@ const WEAPON_DEFS = {
     spriteScale: 0.3,
     spriteOffset: 0.3,
     spritePivotY: 0,
+    gripLeft:  { x: -12, y: 1 },
+    gripRight: { x:  4, y: 0 },
   },
 };
 

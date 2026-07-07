@@ -8,10 +8,13 @@
 // Globals used: CONFIG, SPRITE_SHEETS.hero (from config.js)
 // ============================================================
 
-import { Sprite } from 'pixi.js';
+import { Sprite, Container, Graphics } from 'pixi.js';
 import { heroFrames, heroHandsFrames, weaponTextures, pistolFrames, pistolReloadFrames } from './entity-pool.js';
 import { getMovementDir } from '../core/input.js';
 
+let _playerContainer = null;
+let _armsBackGfx     = null;
+let _armsFrontGfx    = null;
 let _heroSprite   = null;
 let _handsSprite  = null;
 let _weaponSprite = null;
@@ -30,17 +33,29 @@ const _anim = {
  * @param {import('pixi.js').Container} entitiesLayer
  */
 export function initPlayerRenderer(entitiesLayer) {
+  _playerContainer = new Container({ sortableChildren: true });
+
+  _armsBackGfx = new Graphics();
+  _armsBackGfx.zIndex = 0;
+
   _heroSprite = new Sprite(heroFrames.idle_forward[0]);
   _heroSprite.anchor.set(0.5);
+  _heroSprite.zIndex = 1;
 
   _handsSprite = new Sprite();
   _handsSprite.anchor.set(0.5);
+  _handsSprite.zIndex = 2;
 
   _weaponSprite = new Sprite();
   _weaponSprite.anchor.set(0.5);
   _weaponSprite.visible = false;
+  _weaponSprite.zIndex = 3;
 
-  entitiesLayer.addChild(_heroSprite, _handsSprite, _weaponSprite);
+  _armsFrontGfx = new Graphics();
+  _armsFrontGfx.zIndex = 4;
+
+  _playerContainer.addChild(_armsBackGfx, _heroSprite, _handsSprite, _weaponSprite, _armsFrontGfx);
+  entitiesLayer.addChild(_playerContainer);
 }
 
 /**
@@ -96,23 +111,36 @@ export function updatePlayerSprite(state, dt) {
   _heroSprite.visible =
     p.invulnerable <= 0 || Math.floor(p.invulnerable * 10) % 2 === 0;
 
-  // ── Hands overlay ─────────────────────────────────────────
-  _updateHands(p, mouseDx, mouseDy, drawSize, _heroSprite.visible, _anim.key, _anim.flip);
+  // ── Hands overlay (old system, debug toggle) ─────────────
+  if (CONFIG.DEBUG.showOldHands) {
+    _updateHands(p, mouseDx, mouseDy, drawSize, _heroSprite.visible, _anim.key, _anim.flip);
+  } else {
+    _handsSprite.visible = false;
+  }
 
   // ── Weapon ────────────────────────────────────────────────
   _updateWeapon(state, p, mouseDx, mouseDy, drawSize);
+
+  // ── IK arms ───────────────────────────────────────────────
+  _updateIKArms(state, p, mouseDx, mouseDy, drawSize, _anim.key, _anim.flip);
 }
 
 /**
  * Remove and destroy player sprites.
  */
 export function destroyPlayerRenderer() {
+  _armsBackGfx?.destroy();
+  _armsFrontGfx?.destroy();
   _heroSprite?.destroy();
   _handsSprite?.destroy();
   _weaponSprite?.destroy();
+  _playerContainer?.destroy();
+  _armsBackGfx   = null;
+  _armsFrontGfx  = null;
   _heroSprite   = null;
   _handsSprite  = null;
   _weaponSprite = null;
+  _playerContainer = null;
   _anim.key   = 'idle_forward';
   _anim.frame = 0;
   _anim.timer = 0;
@@ -266,4 +294,130 @@ function _updateHands(p, mouseDx, mouseDy, drawSize, visible, bodyKey, bodyFlip)
   _handsSprite.x = p.x;
   _handsSprite.y = p.y;
   _handsSprite.visible = visible;
+}
+
+// ── IK Arms ────────────────────────────────────────────────────
+
+const ARM_COLORS = {
+  left:  { upper: 0x88aaff, forearm: 0x5588dd },
+  right: { upper: 0xff88aa, forearm: 0xdd5588 },
+};
+
+function _getFacingDir(bodyKey, bodyFlip) {
+  if (bodyKey.includes('forward')) return 'south';
+  if (bodyKey.includes('back'))    return 'north';
+  return bodyFlip ? 'east' : 'west';
+}
+
+function _solveIK(shoulderX, shoulderY, targetX, targetY, L1, L2, bendSign) {
+  const dx = targetX - shoulderX;
+  const dy = targetY - shoulderY;
+  let dist = Math.hypot(dx, dy);
+  const maxReach = L1 + L2 - 0.01;
+  const minReach = Math.abs(L1 - L2) + 0.01;
+  if (dist > maxReach) dist = maxReach;
+  if (dist < minReach) dist = minReach;
+
+  const cosElbow = Math.max(-1, Math.min(1, (L1 * L1 + dist * dist - L2 * L2) / (2 * L1 * dist)));
+  const elbowAngle = Math.acos(cosElbow) * bendSign;
+  const baseAngle = Math.atan2(dy, dx);
+  const elbowDir = baseAngle + elbowAngle;
+
+  return {
+    elbowX: shoulderX + Math.cos(elbowDir) * L1,
+    elbowY: shoulderY + Math.sin(elbowDir) * L1,
+  };
+}
+
+function _drawArmSegment(gfx, x1, y1, x2, y2, w, h, color) {
+  const angle = Math.atan2(y2 - y1, x2 - x1);
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const hh = h / 2;
+  const px = cos * w;
+  const py = sin * w;
+  const nx = -sin * hh;
+  const ny = cos * hh;
+  gfx.poly([
+    x1 + nx,       y1 + ny,
+    x1 + px + nx,  y1 + py + ny,
+    x1 + px - nx,  y1 + py - ny,
+    x1 - nx,       y1 - ny,
+  ]).fill(color);
+}
+
+function _updateIKArms(state, p, mouseDx, mouseDy, drawSize, bodyKey, bodyFlip) {
+  if (!_armsBackGfx || !_armsFrontGfx) return;
+  _armsBackGfx.clear();
+  _armsFrontGfx.clear();
+
+  if (!CONFIG.DEBUG.showIKArms) return;
+  if (!_heroSprite.visible) return;
+
+  const weaponId = state.weaponSlots?.[state.activeSlot];
+  const wDef = weaponId ? WEAPON_DEFS[weaponId] : null;
+  if (!wDef) return;
+
+  const facing = _getFacingDir(bodyKey, bodyFlip);
+  const anchors = CONFIG.PLAYER_ARM_ANCHORS[facing];
+  if (!anchors) return;
+
+  const aimAngle = Math.atan2(mouseDy, mouseDx);
+  const flipY = aimAngle > Math.PI / 2 || aimAngle < -Math.PI / 2;
+  const spriteAngle = wDef.spriteAngle ?? 0;
+  const weaponAngle = aimAngle + (flipY ? -spriteAngle : spriteAngle);
+  const wDrawSize = drawSize * (wDef.spriteScale ?? 0.3);
+  const ws = wDrawSize / 64;
+  const offsetDist = drawSize * (wDef.spriteOffset ?? 0.3);
+  const pivotY = wDef.spritePivotY ?? 0;
+
+  const weaponCx = p.x + Math.cos(aimAngle) * offsetDist;
+  const weaponCy = p.y + Math.sin(aimAngle) * offsetDist + pivotY;
+
+  const cos = Math.cos(weaponAngle);
+  const sin = Math.sin(weaponAngle);
+
+  function gripWorld(grip) {
+    const gx = grip.x * ws;
+    const gy = grip.y * ws;
+    return {
+      x: weaponCx + cos * gx - sin * gy,
+      y: weaponCy + sin * gx + cos * gy,
+    };
+  }
+
+  const scale = drawSize / 28;
+
+  const bendMap = {
+    south: { left:  -1, right:  1 },
+    north: { left:  1, right:  -1 },
+    west:  { left: -1, right: -1 },
+    east:  { left:  1, right:  1 },
+  };
+  const bend = bendMap[facing];
+
+  const zOrder = {
+    south: { left: 'front', right: 'front' },
+    north: { left: 'back',  right: 'back'  },
+    west:  { left: 'front', right: 'back'  },
+    east:  { left: 'back',  right: 'front' },
+  };
+  const z = zOrder[facing];
+
+  for (const side of ['left', 'right']) {
+    const grip = wDef.gripLeft && side === 'left' ? wDef.gripLeft : wDef.gripRight;
+    if (!grip) continue;
+
+    const anchor = anchors[side];
+    const sx = p.x + anchor.x * scale;
+    const sy = p.y + anchor.y * scale;
+    const target = gripWorld(grip);
+
+    const { elbowX, elbowY } = _solveIK(sx, sy, target.x, target.y, CONFIG.ARM_UPPER.w * scale, CONFIG.ARM_FOREARM.w * scale, bend[side]);
+
+    const gfx = z[side] === 'front' ? _armsFrontGfx : _armsBackGfx;
+    const colors = ARM_COLORS[side];
+    _drawArmSegment(gfx, sx, sy, elbowX, elbowY, CONFIG.ARM_UPPER.w * scale, CONFIG.ARM_UPPER.h * scale, colors.upper);
+    _drawArmSegment(gfx, elbowX, elbowY, target.x, target.y, CONFIG.ARM_FOREARM.w * scale, CONFIG.ARM_FOREARM.h * scale, colors.forearm);
+  }
 }
