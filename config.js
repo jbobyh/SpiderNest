@@ -326,8 +326,9 @@ const WEAPON_DEFS = {
     spriteAngle: 0.1,       // поправка угла спрайта (рад)
     magazineSize: 12,       // размер обоймы
     reloadTime: 2,          // время перезарядки (сек)
-    bloomPerShot: 0.03,
+    bloomPerShot: 0.04,
     bloomRecoveryTime: 0.3,
+    maxSpread: 0.8,
   },
   shotgun: {//dps 80
     id: 'shotgun',
@@ -345,8 +346,9 @@ const WEAPON_DEFS = {
     spriteAngle: 0.55,
     magazineSize: 6,
     reloadTime: 3,
-    bloomPerShot: 0.25,
-    bloomRecoveryTime: 0.75,
+    bloomPerShot: 0.35,
+    bloomRecoveryTime: 0.5,
+    maxSpread: 1,
   },
   smg: {//dps 50
     id: 'smg',
@@ -355,7 +357,7 @@ const WEAPON_DEFS = {
     color: '#ff44ff',
     pellets: 1,
     spread: 0.05,
-    damage: 6,
+    damage: 8,
     cooldown: 0.12,
     bulletSpeed: 500,
     range: 18,
@@ -364,8 +366,9 @@ const WEAPON_DEFS = {
     spriteAngle: 0.8,
     magazineSize: 30,
     reloadTime: 3,
-    bloomPerShot: 0.04,
-    bloomRecoveryTime: 0.2,
+    bloomPerShot: 0.06,
+    bloomRecoveryTime: 0.4,
+    maxSpread: 1,
   },
   rifle: {//dps 42
     id: 'rifle',
@@ -383,8 +386,9 @@ const WEAPON_DEFS = {
     spriteAngle: 0.7,
     magazineSize: 5,
     reloadTime: 4,
-    bloomPerShot: 0.09,
-    bloomRecoveryTime: 1.4,
+    bloomPerShot: 0.25,
+    bloomRecoveryTime: 0.4,
+    maxSpread: 1,
   },
   revolver: {//dps 66
     id: 'revolver',
@@ -402,8 +406,9 @@ const WEAPON_DEFS = {
     spriteAngle: 0,
     magazineSize: 6,
     reloadTime: 3,
-    bloomPerShot: 0.06,
-    bloomRecoveryTime: 0.6,
+    bloomPerShot: 0.15,
+    bloomRecoveryTime: 0.4,
+    maxSpread: 1,
   },
   carbine: {//dps 60
     id: 'carbine',
@@ -423,8 +428,9 @@ const WEAPON_DEFS = {
     spriteAngle: 0.7,
     magazineSize: 15,
     reloadTime: 4,
-    bloomPerShot: 0.03,
-    bloomRecoveryTime: 0.4,
+    bloomPerShot: 0.08,
+    bloomRecoveryTime: 0.3,
+    maxSpread: 1,
   },
 };
 

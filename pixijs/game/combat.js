@@ -84,7 +84,8 @@ export function getTotalSpread(state) {
     else                totalSpread *= 1 + 0.10 * (roomCount - 2);
   }
 
-  return totalSpread + bloom;
+  const maxSpread = weapon.maxSpread || CONFIG.MAX_SPREAD_RAD || Math.PI / 3;
+  return Math.min(maxSpread, totalSpread + bloom);
 }
 
 // ── Shoot (play-mode) ─────────────────────────────────────────

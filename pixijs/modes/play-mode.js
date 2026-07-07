@@ -102,7 +102,7 @@ export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}
     const wDef = WEAPON_DEFS[state.weaponSlots[state.activeSlot]];
     if (wDef) {
       const recoveryTime = wDef.bloomRecoveryTime || 1;
-      state.bloomSpread = Math.max(0, state.bloomSpread - wDef.bloomPerShot / recoveryTime * dt);
+      state.bloomSpread *= Math.exp(-dt / recoveryTime);
       if (state.bloomSpread < 0.001) state.bloomSpread = 0;
     } else {
       state.bloomSpread = 0;
