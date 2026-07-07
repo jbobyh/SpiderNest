@@ -239,7 +239,7 @@ export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}
       dx *= CONFIG.CAMERA.maxOffset / dist;
       dy *= CONFIG.CAMERA.maxOffset / dist;
     }
-    camera.setZoom(CONFIG.CAMERA.playZoom);
+    camera.setTargetZoom(CONFIG.CAMERA.playZoom);
     camera.moveTo(
       state.player.x + dx * CONFIG.CAMERA.cursorWeight,
       state.player.y + dy * CONFIG.CAMERA.cursorWeight,

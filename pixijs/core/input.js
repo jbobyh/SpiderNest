@@ -16,6 +16,7 @@ let _canvas       = null;
 let _mouseMoveRef = null;
 let _mouseDownRef = null;
 let _mouseUpRef   = null;
+let _wheelRef     = null;
 
 // ── Listeners ─────────────────────────────────────────────────
 
@@ -38,6 +39,17 @@ export function initInput(canvas) {
   canvas.addEventListener('mouseup',   _mouseUpRef);
   window.addEventListener('blur',      _clearAll);
   canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+  _wheelRef = e => {
+    e.preventDefault();
+    const factor = 1 + CONFIG.CAMERA.playZoomStep;
+    if (e.deltaY < 0) {
+      CONFIG.CAMERA.playZoom = Math.min(CONFIG.CAMERA.playZoomMax, CONFIG.CAMERA.playZoom * factor);
+    } else {
+      CONFIG.CAMERA.playZoom = Math.max(CONFIG.CAMERA.playZoomMin, CONFIG.CAMERA.playZoom / factor);
+    }
+  };
+  canvas.addEventListener('wheel', _wheelRef, { passive: false });
 }
 
 export function destroyInput() {
@@ -47,6 +59,8 @@ export function destroyInput() {
     _canvas.removeEventListener('mousemove', _mouseMoveRef);
     _canvas.removeEventListener('mousedown', _mouseDownRef);
     _canvas.removeEventListener('mouseup',   _mouseUpRef);
+    _canvas.removeEventListener('wheel', _wheelRef);
+    _wheelRef = null;
     _canvas = null;
   }
   window.removeEventListener('blur', _clearAll);
