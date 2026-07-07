@@ -182,6 +182,12 @@ export function shoot(state, camera = null) {
 
   _applyBurstCooldown(state, weapon, isBurstWeapon, burstTotal, burstDelay, cooldown);
 
+  // Pistol shoot animation trigger
+  if (weapon.id === 'pistol') {
+    state.weaponShootAnim = cooldown * (weapon.shootAnimRatio ?? 1);
+    state.weaponShootAnimMax = state.weaponShootAnim;
+  }
+
   // Decrement ammo after shot (skip in freeAmmo room)
   if (!isFreeAmmo) {
     state.ammo[slot]--;
@@ -215,6 +221,12 @@ export function startReload(state) {
   state.reloadCooldown = reloadTime;
   state.burstRemaining = 0;
   state.burstWeaponId = null;
+
+  // Pistol reload animation trigger
+  if (weapon.id === 'pistol') {
+    state.weaponReloadAnim = reloadTime * (weapon.reloadAnimRatio ?? 1);
+    state.weaponReloadAnimMax = state.weaponReloadAnim;
+  }
 }
 
 export function finishReload(state) {

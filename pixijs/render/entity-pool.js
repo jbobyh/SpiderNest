@@ -21,6 +21,8 @@ export const ghostFrames    = {};  // { idle: Texture[], move: Texture[], death:
 export const enemyTextures  = {};  // { soldier, bat, bull, buldyga, bloated, tank }
 export const corpseTextures = {};  // { soldier, bat, bull, buldyga, bloated, shooter, tank }
 export const weaponTextures = {};  // { pistol, shotgun, smg, rifle, revolver, carbine }
+export const pistolFrames = [];    // 12 Texture[] (64×32, shoot spritesheet)
+export const pistolReloadFrames = []; // 35 Texture[] (80×48, emptying+reload spritesheets)
 let tankTexture = Texture.WHITE;
 let tankCorpseTexture = Texture.WHITE;
 let wallShooterTexture = Texture.WHITE;
@@ -261,7 +263,40 @@ function _buildEnemyTextures() {
 }
 
 function _buildWeaponTextures() {
-  for (const id of ['pistol', 'shotgun', 'smg', 'rifle', 'revolver', 'carbine']) {
+  // Pistol: slice shoot spritesheet (768×32, 12 frames × 64×32)
+  const pistolTex = Assets.get('weapon-pistol');
+  if (pistolTex) {
+    for (let i = 0; i < 12; i++) {
+      pistolFrames.push(new Texture({
+        source: pistolTex.source,
+        frame:  new Rectangle(i * 64, 0, 64, 32),
+      }));
+    }
+    weaponTextures.pistol = pistolFrames[0];
+  }
+
+  // Pistol reload: EMPTYING frames 2-18 (indices 1-17) + RELOAD frames 6-23 (indices 5-22)
+  const emptyingTex = Assets.get('weapon-pistol-emptying');
+  if (emptyingTex) {
+    for (let i = 1; i <= 17; i++) {
+      pistolReloadFrames.push(new Texture({
+        source: emptyingTex.source,
+        frame:  new Rectangle(i * 80, 0, 80, 48),
+      }));
+    }
+  }
+  const reloadTex = Assets.get('weapon-pistol-reload');
+  if (reloadTex) {
+    for (let i = 5; i <= 22; i++) {
+      pistolReloadFrames.push(new Texture({
+        source: reloadTex.source,
+        frame:  new Rectangle(i * 80, 0, 80, 48),
+      }));
+    }
+  }
+
+  // Other weapons: single texture
+  for (const id of ['shotgun', 'smg', 'rifle', 'revolver', 'carbine']) {
     weaponTextures[id] = Assets.get('weapon-' + id);
   }
 }

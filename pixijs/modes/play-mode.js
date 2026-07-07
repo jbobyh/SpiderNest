@@ -96,6 +96,8 @@ export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}
   // ── Shoot ─────────────────────────────────────────────────
   state.shootCooldown  = Math.max(0, state.shootCooldown  - dt);
   state.burstCooldown  = Math.max(0, state.burstCooldown  - dt);
+  state.weaponShootAnim  = Math.max(0, (state.weaponShootAnim || 0)  - dt);
+  state.weaponReloadAnim = Math.max(0, (state.weaponReloadAnim || 0) - dt);
 
   // ── Bloom recovery ────────────────────────────────────────
   if (state.bloomSpread > 0) {

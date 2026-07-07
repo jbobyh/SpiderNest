@@ -9,7 +9,7 @@
 // ============================================================
 
 import { Sprite } from 'pixi.js';
-import { heroFrames, heroHandsFrames, weaponTextures } from './entity-pool.js';
+import { heroFrames, heroHandsFrames, weaponTextures, pistolFrames, pistolReloadFrames } from './entity-pool.js';
 import { getMovementDir } from '../core/input.js';
 
 let _heroSprite   = null;
@@ -135,18 +135,44 @@ function _updateWeapon(state, p, mouseDx, mouseDy, heroDrawSize) {
   const wDef       = WEAPON_DEFS[weaponId];
   const spriteAngle = wDef?.spriteAngle ?? 0;
   const aimAngle    = Math.atan2(mouseDy, mouseDx);
-  const wDrawSize   = heroDrawSize * 0.3;
-  const ws          = wDrawSize / _weaponSprite.texture.width;
+  const wDrawSize   = heroDrawSize * (wDef?.spriteScale ?? 0.3);
 
-  // Weapon texture
-  if (_weaponSprite.texture !== weaponTextures[weaponId]) {
-    _weaponSprite.texture = weaponTextures[weaponId];
+  // ── Pistol: animated sprite selection ─────────────────────
+  let tex;
+  let isReloadAnim = false;
+  if (weaponId === 'pistol') {
+    if (state.weaponReloadAnim > 0 && pistolReloadFrames.length > 0) {
+      isReloadAnim = true;
+      const progress = 1 - state.weaponReloadAnim / (state.weaponReloadAnimMax || 1);
+      const frame = Math.min(34, Math.floor(progress * 35));
+      tex = pistolReloadFrames[frame];
+    } else if (state.weaponShootAnim > 0 && pistolFrames.length > 0) {
+      const progress = 1 - state.weaponShootAnim / (state.weaponShootAnimMax || 1);
+      const frame = 1 + Math.min(5, Math.floor(progress * 6));
+      tex = pistolFrames[frame];
+    } else {
+      tex = pistolFrames[0];
+    }
+  } else {
+    tex = weaponTextures[weaponId];
   }
 
+  if (tex && _weaponSprite.texture !== tex) {
+    _weaponSprite.texture = tex;
+  }
+
+  // Scale: always based on 64px (shoot sprite width)
+  const ws = wDrawSize / 64;
+
+  // Reload offset: anchor.x = 0.7 shifts 80px sprite 16px left in local space
+  _weaponSprite.anchor.x = isReloadAnim ? 0.58 : 0.5;
+  _weaponSprite.anchor.y = isReloadAnim ? 0.35 : 0.5;
+
   // Position: offset from player centre in aim direction
-  const offsetDist   = heroDrawSize * 0.3;
+  const offsetDist   = heroDrawSize * (wDef?.spriteOffset ?? 0.3);
+  const pivotY       = wDef?.spritePivotY ?? 0;
   _weaponSprite.x    = p.x + Math.cos(aimAngle) * offsetDist;
-  _weaponSprite.y    = p.y + Math.sin(aimAngle) * offsetDist;
+  _weaponSprite.y    = p.y + Math.sin(aimAngle) * offsetDist + pivotY;
 
   // Flip vertically when aiming left half
   const flipY = aimAngle > Math.PI / 2 || aimAngle < -Math.PI / 2;

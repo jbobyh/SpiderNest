@@ -92,7 +92,7 @@ const CONFIG = {
     cursorWeight: 0.3,  // 0 = только игрок, 1 = только курсор
     damping: 2.0,         // λ экспоненциального сглаживания (выше = быстрее)
     maxOffset: 160,      // макс. сдвиг камеры от игрока в сторону курсора (px)
-    playZoom: 1.5,              // зум камеры в play режиме
+    playZoom: 1.5,              // зум камеры в play режиме, надо 1.5
     battleZoomMult: 1,      // множитель к вычисленному зуму в battle режиме
     shakeMin: 0.01,          // минимальный порог тряски (пистолет 0 не трясёт)
     shakeScale: 5,          // множитель shakeAmount → пиксели (0.5 * 12 = 6px)
@@ -251,7 +251,7 @@ const CONFIG = {
     invulnerable: false,      // неуязвимость игрока от врагов
     collisions: false,        // отображать коллайдеры
     showFps: true,            // отображать счетчик FPS
-    showWeapon: false,         // отображать оружие поверх персонажа
+    showWeapon: true,         // отображать оружие поверх персонажа
   },
 
   // Boss phase AI
@@ -329,6 +329,11 @@ const WEAPON_DEFS = {
     bloomPerShot: 0.04,
     bloomRecoveryTime: 0.3,
     maxSpread: 0.8,
+    shootAnimRatio: 0.3,
+    reloadAnimRatio: 1.0,
+    spriteScale: 0.5,
+    spriteOffset: 0.45,
+    spritePivotY: -2,
   },
   shotgun: {//dps 80
     id: 'shotgun',
@@ -349,6 +354,9 @@ const WEAPON_DEFS = {
     bloomPerShot: 0.35,
     bloomRecoveryTime: 0.5,
     maxSpread: 1,
+    spriteScale: 0.3,
+    spriteOffset: 0.3,
+    spritePivotY: 0,
   },
   smg: {//dps 50
     id: 'smg',
@@ -369,6 +377,9 @@ const WEAPON_DEFS = {
     bloomPerShot: 0.06,
     bloomRecoveryTime: 0.4,
     maxSpread: 1,
+    spriteScale: 0.3,
+    spriteOffset: 0.3,
+    spritePivotY: 0,
   },
   rifle: {//dps 42
     id: 'rifle',
@@ -389,6 +400,9 @@ const WEAPON_DEFS = {
     bloomPerShot: 0.25,
     bloomRecoveryTime: 0.4,
     maxSpread: 1,
+    spriteScale: 0.3,
+    spriteOffset: 0.3,
+    spritePivotY: 0,
   },
   revolver: {//dps 66
     id: 'revolver',
@@ -409,6 +423,9 @@ const WEAPON_DEFS = {
     bloomPerShot: 0.15,
     bloomRecoveryTime: 0.4,
     maxSpread: 1,
+    spriteScale: 0.3,
+    spriteOffset: 0.3,
+    spritePivotY: 0,
   },
   carbine: {//dps 60
     id: 'carbine',
@@ -431,6 +448,9 @@ const WEAPON_DEFS = {
     bloomPerShot: 0.08,
     bloomRecoveryTime: 0.3,
     maxSpread: 1,
+    spriteScale: 0.3,
+    spriteOffset: 0.3,
+    spritePivotY: 0,
   },
 };
 
