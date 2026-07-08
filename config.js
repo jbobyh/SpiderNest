@@ -22,13 +22,20 @@ const CONFIG = {
   PLAYER_ARM_ANCHORS: {
     south: { left:  { x:  3, y: -3 }, right: { x: -3, y: -3 } },
     north: { left:  { x: -5, y: -3 }, right: { x:  5, y: -3 } },
-    west:  { left:  { x:  2, y: -3 }, right: { x:  2, y: -3 } },
-    east:  { left:  { x:  0, y: -3 }, right: { x: -2, y: -3 } },
+    west:  { left:  { x:  2, y: -3 }, right: { x:  1, y: -4 } },
+    east:  { left:  { x:  -1, y: -4 }, right: { x: -2, y: -3 } },
   },
 
-  // IK arm segment sizes (px)
-  ARM_UPPER:    { w: 15 * 0.4, h: 8 * 0.4 },
-  ARM_FOREARM:  { w: 16 * 0.4, h: 7 * 0.4 },
+  // IK arm segment sizes (px) — bone lengths for IK calculation
+  ARM_UPPER:    { w: 15 * 0.25, h: 9 * 0.32 },
+  ARM_FOREARM:  { w: 19 * 0.25, h: 10 * 0.32 },
+
+  // IK arm sprite render scale (multiplied by drawSize/28)
+  ARM_SPRITE_SCALE: 0.42,
+
+  // IK arm sprite pivot offset (anchor.x: 1 = right edge, <1 = inset)
+  ARM_UPPER_PIVOT: 0.8,
+  ARM_FOREARM_PIVOT: 0.8,
 
   // Player Dash
   PLAYER_DASH_SPEED: 8,       // скорость деша (пикс/сек)
@@ -106,7 +113,7 @@ const CONFIG = {
     maxOffset: 160,      // макс. сдвиг камеры от игрока в сторону курсора (px)
     playZoom: 1.5,              // зум камеры в play режиме, надо 1.5
     playZoomMin: 0.5,           // минимальный зум колесиком
-    playZoomMax: 3.5,           // максимальный зум колесиком
+    playZoomMax: 5.5,           // максимальный зум колесиком
     playZoomStep: 0.15,         // множитель шага зума за щелчок колесика (15% от текущего)
     battleZoomMult: 1,      // множитель к вычисленному зуму в battle режиме
     shakeMin: 0.01,          // минимальный порог тряски (пистолет 0 не трясёт)
@@ -269,6 +276,7 @@ const CONFIG = {
     showWeapon: true,         // отображать оружие поверх персонажа
     showOldHands: true,       // отображать старые руки (heroHandsFrames)
     showIKArms: true,         // отображать IK руки
+    showIKBones: true,       // отображать точки костей (якоря, локти, grip)
   },
 
   // Boss phase AI
@@ -349,10 +357,10 @@ const WEAPON_DEFS = {
     shootAnimRatio: 0.3,
     reloadAnimRatio: 1.0,
     spriteScale: 0.5,
-    spriteOffset: 0.45,
+    spriteOffset: 0.4,
     spritePivotY: -2,
-    gripLeft:  { x: -20, y: 0 },
-    gripRight: { x:  -20, y: 0 },
+    gripLeft:  { x: -23, y: 7 },
+    gripRight: { x:  -25, y: 7 },
   },
   shotgun: {//dps 80
     id: 'shotgun',
