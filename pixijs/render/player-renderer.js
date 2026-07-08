@@ -15,12 +15,15 @@ import { getMovementDir } from '../core/input.js';
 let _playerContainer = null;
 let _armsBackGfx     = null;
 let _armsFrontGfx    = null;
+let _dbgGfx         = null;
 let _heroSprite   = null;
 let _handsSprite  = null;
 let _weaponSprite = null;
 
 // IK arm sprites: upperL, foreL, upperR, foreR
 let _armSprites = null;
+let _armSouthSprites = null;
+let _weaponFlipState = false;
 
 const _anim = {
   key:   'idle_forward',
@@ -52,14 +55,17 @@ export function initPlayerRenderer(entitiesLayer) {
   _weaponSprite = new Sprite();
   _weaponSprite.anchor.set(0.5);
   _weaponSprite.visible = false;
-  _weaponSprite.zIndex = 3;
+  _weaponSprite.zIndex = 5;
 
   _armsFrontGfx = new Graphics();
   _armsFrontGfx.zIndex = 4;
 
-  // IK arm sprites (anchor at right edge = root joint)
+  _dbgGfx = new Graphics();
+  _dbgGfx.zIndex = 100;
+
+  // IK arm sprites — west/east (anchor at right edge = root joint)
   _armSprites = {};
-  for (const [side, zFront, zBack] of [['left', 4, 0], ['right', 4, 0]]) {
+  for (const side of ['left', 'right']) {
     const upper = new Sprite(armTextures.upper);
     upper.anchor.set(CONFIG.ARM_UPPER_PIVOT ?? 1, 0.5);
     upper.visible = false;
@@ -70,7 +76,20 @@ export function initPlayerRenderer(entitiesLayer) {
     _playerContainer.addChild(upper, fore);
   }
 
-  _playerContainer.addChild(_armsBackGfx, _heroSprite, _handsSprite, _weaponSprite, _armsFrontGfx);
+  // IK arm sprites — south (anchor at top edge = root joint, sprite points down)
+  _armSouthSprites = {};
+  for (const side of ['left', 'right']) {
+    const upper = new Sprite(armTextures.southUpper);
+    upper.anchor.set(0.5, CONFIG.ARM_SOUTH_UPPER_PIVOT ?? 0.2);
+    upper.visible = false;
+    const fore = new Sprite(armTextures.southForearm);
+    fore.anchor.set(0.5, 1 - (CONFIG.ARM_SOUTH_FOREARM_PIVOT ?? 0.2));
+    fore.visible = false;
+    _armSouthSprites[side] = { upper, fore };
+    _playerContainer.addChild(upper, fore);
+  }
+
+  _playerContainer.addChild(_armsBackGfx, _heroSprite, _handsSprite, _weaponSprite, _armsFrontGfx, _dbgGfx);
   entitiesLayer.addChild(_playerContainer);
 }
 
@@ -129,7 +148,7 @@ export function updatePlayerSprite(state, dt) {
 
   // ── Hands overlay (old system, debug toggle) ─────────────
   const facing = _getFacingDir(_anim.key, _anim.flip);
-  const skipOldHands = (facing === 'west' || facing === 'east');
+  const skipOldHands = (facing === 'west' || facing === 'east' || facing === 'south' || facing === 'north');
   if (CONFIG.DEBUG.showOldHands && !skipOldHands) {
     _updateHands(p, mouseDx, mouseDy, drawSize, _heroSprite.visible, _anim.key, _anim.flip);
   } else {
@@ -137,7 +156,7 @@ export function updatePlayerSprite(state, dt) {
   }
 
   // ── Weapon ────────────────────────────────────────────────
-  _updateWeapon(state, p, mouseDx, mouseDy, drawSize);
+  _updateWeapon(state, p, mouseDx, mouseDy, drawSize, facing);
 
   // ── IK arms ───────────────────────────────────────────────
   _updateIKArms(state, p, mouseDx, mouseDy, drawSize, _anim.key, _anim.flip);
@@ -149,6 +168,7 @@ export function updatePlayerSprite(state, dt) {
 export function destroyPlayerRenderer() {
   _armsBackGfx?.destroy();
   _armsFrontGfx?.destroy();
+  _dbgGfx?.destroy();
   _heroSprite?.destroy();
   _handsSprite?.destroy();
   _weaponSprite?.destroy();
@@ -158,10 +178,18 @@ export function destroyPlayerRenderer() {
     _armSprites.right?.upper?.destroy();
     _armSprites.right?.fore?.destroy();
   }
+  if (_armSouthSprites) {
+    _armSouthSprites.left?.upper?.destroy();
+    _armSouthSprites.left?.fore?.destroy();
+    _armSouthSprites.right?.upper?.destroy();
+    _armSouthSprites.right?.fore?.destroy();
+  }
   _armSprites = null;
+  _armSouthSprites = null;
   _playerContainer?.destroy();
   _armsBackGfx   = null;
   _armsFrontGfx  = null;
+  _dbgGfx         = null;
   _heroSprite   = null;
   _handsSprite  = null;
   _weaponSprite = null;
@@ -170,11 +198,12 @@ export function destroyPlayerRenderer() {
   _anim.frame = 0;
   _anim.timer = 0;
   _anim.flip  = false;
+  _weaponFlipState = false;
 }
 
 // ── Private helpers ───────────────────────────────────────────
 
-function _updateWeapon(state, p, mouseDx, mouseDy, heroDrawSize) {
+function _updateWeapon(state, p, mouseDx, mouseDy, heroDrawSize, facing) {
   if (!CONFIG.DEBUG.showWeapon) {
     _weaponSprite.visible = false;
     return;
@@ -227,11 +256,28 @@ function _updateWeapon(state, p, mouseDx, mouseDy, heroDrawSize) {
   _weaponSprite.x    = p.x + Math.cos(aimAngle) * offsetDist;
   _weaponSprite.y    = p.y + Math.sin(aimAngle) * offsetDist + pivotY;
 
-  // Flip vertically when aiming left half
-  const flipY = aimAngle > Math.PI / 2 || aimAngle < -Math.PI / 2;
+  // Flip vertically with hysteresis
+  const threshold = wDef?.flipThreshold ?? 0.26;
+  if (!_weaponFlipState) {
+    if (aimAngle > Math.PI / 2 + threshold || aimAngle < -Math.PI / 2 - threshold)
+      _weaponFlipState = true;
+  } else {
+    if (aimAngle < Math.PI / 2 - threshold && aimAngle > -Math.PI / 2 + threshold)
+      _weaponFlipState = false;
+  }
+  const flipY = _weaponFlipState;
   _weaponSprite.rotation = aimAngle + (flipY ? -spriteAngle : spriteAngle);
   _weaponSprite.scale.set(ws, flipY ? -ws : ws);
   _weaponSprite.visible = _heroSprite.visible;
+
+  // Dynamic zIndex: weapon between arms
+  const weaponZ = {
+    south: 5,   // between arms (4 and 6)
+    west:  3,   // between front arm (4) and back arm (0)
+    east:  3,
+    north: -1,  // between arms (-2 and 0), behind body (1)
+  };
+  _weaponSprite.zIndex = weaponZ[facing] ?? 5;
 }
 
 /**
@@ -242,9 +288,10 @@ function _getAnimKey(mvx, mvy, mouseDx, mouseDy) {
   const moving = (mvx !== 0 || mvy !== 0);
   const a      = Math.atan2(mouseDy, mouseDx);
 
+  const shrink = CONFIG.FACING_SOUTH_SHRINK ?? 0;
   let dir;
-  if      (a > -Math.PI / 4 && a <=  Math.PI / 4)           dir = 'right';
-  else if (a >  Math.PI / 4 && a <=  3 * Math.PI / 4)       dir = 'down';
+  if      (a > -Math.PI / 4 && a <=  Math.PI / 4 + shrink)       dir = 'right';
+  else if (a >  Math.PI / 4 + shrink && a <=  3 * Math.PI / 4 - shrink) dir = 'down';
   else if (a > -3 * Math.PI / 4 && a <= -Math.PI / 4)       dir = 'up';
   else                                                        dir = 'left';
 
@@ -375,12 +422,19 @@ function _updateIKArms(state, p, mouseDx, mouseDy, drawSize, bodyKey, bodyFlip) 
   if (!_armsBackGfx || !_armsFrontGfx) return;
   _armsBackGfx.clear();
   _armsFrontGfx.clear();
+  if (_dbgGfx) _dbgGfx.clear();
 
   // Hide all arm sprites by default
   if (_armSprites) {
     for (const side of ['left', 'right']) {
       _armSprites[side].upper.visible = false;
       _armSprites[side].fore.visible = false;
+    }
+  }
+  if (_armSouthSprites) {
+    for (const side of ['left', 'right']) {
+      _armSouthSprites[side].upper.visible = false;
+      _armSouthSprites[side].fore.visible = false;
     }
   }
 
@@ -396,7 +450,7 @@ function _updateIKArms(state, p, mouseDx, mouseDy, drawSize, bodyKey, bodyFlip) 
   if (!anchors) return;
 
   const aimAngle = Math.atan2(mouseDy, mouseDx);
-  const flipY = aimAngle > Math.PI / 2 || aimAngle < -Math.PI / 2;
+  const flipY = _weaponFlipState;
   const spriteAngle = wDef.spriteAngle ?? 0;
   const weaponAngle = aimAngle + (flipY ? -spriteAngle : spriteAngle);
   const wDrawSize = drawSize * (wDef.spriteScale ?? 0.3);
@@ -420,7 +474,7 @@ function _updateIKArms(state, p, mouseDx, mouseDy, drawSize, bodyKey, bodyFlip) 
   }
 
   const scale = drawSize / 28;
-  const useSprites = (facing === 'west' || facing === 'east');
+  const useSprites = (facing === 'west' || facing === 'east' || facing === 'south' || facing === 'north');
 
   const bendMap = {
     south: { left:  -1, right:  1 },
@@ -431,10 +485,10 @@ function _updateIKArms(state, p, mouseDx, mouseDy, drawSize, bodyKey, bodyFlip) 
   const bend = bendMap[facing];
 
   const zOrder = {
-    south: { left: 'front', right: 'front' },
-    north: { left: 'back',  right: 'back'  },
-    west:  { left: 'front', right: 'back'  },
-    east:  { left: 'back',  right: 'front' },
+    south: { left: flipY ? 6 : 4, right: flipY ? 4 : 6 },
+    north: { left: flipY ? 0 : -2, right: flipY ? -2 : 0 },
+    west:  { left: 4, right: 0  },
+    east:  { left: 0,  right: 4 },
   };
   const z = zOrder[facing];
 
@@ -451,35 +505,63 @@ function _updateIKArms(state, p, mouseDx, mouseDy, drawSize, bodyKey, bodyFlip) 
     const L2 = CONFIG.ARM_FOREARM.w * scale;
     const { elbowX, elbowY } = _solveIK(sx, sy, target.x, target.y, L1, L2, bend[side]);
 
-    const isFront = z[side] === 'front';
+    const zVal = z[side];
+    const isFront = zVal >= 4;
 
-    if (useSprites && _armSprites) {
+    if (useSprites && _armSprites && facing !== 'south' && facing !== 'north') {
       const sprites = _armSprites[side];
       const upper = sprites.upper;
       const fore = sprites.fore;
 
-      // Sprite points west (angle = π). We need to rotate it to match segment direction.
-      // For west: scale.x = +s, rotation = angle - π (since sprite default is west = π)
-      // For east: scale.x = -s, rotation = angle (flipped horizontally)
       const upperAngle = Math.atan2(elbowY - sy, elbowX - sx);
       const foreAngle = Math.atan2(target.y - elbowY, target.x - elbowX);
 
       const s = scale * (CONFIG.ARM_SPRITE_SCALE ?? 0.3);
-      const scaleX = (facing === 'east') ? -s : s;
-      const rotOffset = (facing === 'east') ? 0 : Math.PI;
+      const spriteParams = {
+        west:  { scaleX:  s, rotOffset: Math.PI },
+        east:  { scaleX: -s, rotOffset: 0 },
+      };
+      const { scaleX, rotOffset } = spriteParams[facing];
 
       upper.scale.set(scaleX, s);
       upper.rotation = upperAngle + rotOffset;
       upper.x = sx;
       upper.y = sy;
-      upper.zIndex = isFront ? 4 : 0;
+      upper.zIndex = zVal;
       upper.visible = true;
 
       fore.scale.set(scaleX, s);
       fore.rotation = foreAngle + rotOffset;
       fore.x = target.x;
       fore.y = target.y;
-      fore.zIndex = isFront ? 4 : 0;
+      fore.zIndex = zVal;
+      fore.visible = true;
+    } else if (useSprites && _armSouthSprites && (facing === 'south' || facing === 'north')) {
+      const sprites = _armSouthSprites[side];
+      const upper = sprites.upper;
+      const fore = sprites.fore;
+
+      // Sprite points down (angle = π/2). Rotate to match segment direction.
+      const upperAngle = Math.atan2(elbowY - sy, elbowX - sx);
+      const foreAngle = Math.atan2(target.y - elbowY, target.x - elbowX);
+      const rotOffset = -Math.PI / 2; // sprite default = down = π/2
+
+      const s = scale * (CONFIG.ARM_SPRITE_SCALE ?? 0.3);
+      // Left hand = character's left = screen right (as-is), right hand = reflected
+      const scaleX = (side === 'right') ? -s : s;
+
+      upper.scale.set(scaleX, s);
+      upper.rotation = upperAngle + rotOffset;
+      upper.x = sx;
+      upper.y = sy;
+      upper.zIndex = zVal;
+      upper.visible = true;
+
+      fore.scale.set(scaleX, s);
+      fore.rotation = foreAngle + rotOffset;
+      fore.x = target.x;
+      fore.y = target.y;
+      fore.zIndex = zVal;
       fore.visible = true;
     } else {
       const gfx = isFront ? _armsFrontGfx : _armsBackGfx;
@@ -491,9 +573,9 @@ function _updateIKArms(state, p, mouseDx, mouseDy, drawSize, bodyKey, bodyFlip) 
     // Debug bone points
     if (CONFIG.DEBUG.showIKBones) {
       const dbgColor = side === 'left' ? 0x88aaff : 0xff88aa;
-      _armsFrontGfx.circle(sx, sy, 0.5).fill(dbgColor);
-      _armsFrontGfx.circle(elbowX, elbowY, 0.5).fill(dbgColor);
-      _armsFrontGfx.circle(target.x, target.y, 0.5).fill(dbgColor);
+      _dbgGfx.circle(sx, sy, 0.5).fill(dbgColor);
+      _dbgGfx.circle(elbowX, elbowY, 0.5).fill(dbgColor);
+      _dbgGfx.circle(target.x, target.y, 0.5).fill(dbgColor);
     }
   }
 }

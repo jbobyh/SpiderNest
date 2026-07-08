@@ -75,6 +75,9 @@ const MANIFEST = {
         // IK arm sprites (pointing west)
         { alias: 'arm-upper',         src: '../arts/lefthand2.png' },
         { alias: 'arm-forearm',       src: '../arts/lefthand1.png' },
+        // IK arm sprites (pointing south)
+        { alias: 'arm-south-upper',   src: '../arts/southhand2.png' },
+        { alias: 'arm-south-forearm', src: '../arts/southhand1.png' },
         // Enemies — static sprites
         { alias: 'soldier',           src: IMG + 'soldier.png' },
         { alias: 'soldier-dead',      src: IMG + 'soldier_dead.png' },

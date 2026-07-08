@@ -20,8 +20,8 @@ const CONFIG = {
 
   // IK arm anchors — pixel offsets from body centre (drawSize = PLAYER_SPRITE_RADIUS * 2 = 28)
   PLAYER_ARM_ANCHORS: {
-    south: { left:  { x:  3, y: -3 }, right: { x: -3, y: -3 } },
-    north: { left:  { x: -5, y: -3 }, right: { x:  5, y: -3 } },
+    south: { left:  { x:  4, y: -2 }, right: { x: -3, y: -2 } },
+    north: { left:  { x: -2, y: 0 }, right: { x:  3, y: 0 } },
     west:  { left:  { x:  2, y: -3 }, right: { x:  1, y: -4 } },
     east:  { left:  { x:  -1, y: -4 }, right: { x: -2, y: -3 } },
   },
@@ -33,9 +33,16 @@ const CONFIG = {
   // IK arm sprite render scale (multiplied by drawSize/28)
   ARM_SPRITE_SCALE: 0.42,
 
+  // Facing: shrink south sector so west/east persist longer (radians)
+  FACING_SOUTH_SHRINK: 0.15,
+
   // IK arm sprite pivot offset (anchor.x: 1 = right edge, <1 = inset)
   ARM_UPPER_PIVOT: 0.8,
   ARM_FOREARM_PIVOT: 0.8,
+
+  // IK south arm sprite pivot offset (anchor.y: 0 = top edge, 1 = bottom edge)
+  ARM_SOUTH_UPPER_PIVOT: 0.2,
+  ARM_SOUTH_FOREARM_PIVOT: 0.2,
 
   // Player Dash
   PLAYER_DASH_SPEED: 8,       // скорость деша (пикс/сек)
@@ -360,7 +367,8 @@ const WEAPON_DEFS = {
     spriteOffset: 0.4,
     spritePivotY: -2,
     gripLeft:  { x: -23, y: 7 },
-    gripRight: { x:  -25, y: 7 },
+    gripRight: { x:  -23, y: 7 },
+    flipThreshold: 0.10,       // запас угла до отражения (рад)
   },
   shotgun: {//dps 80
     id: 'shotgun',
@@ -386,6 +394,7 @@ const WEAPON_DEFS = {
     spritePivotY: 0,
     gripLeft:  { x: -12, y: 1 },
     gripRight: { x:  4, y: 0 },
+    flipThreshold: 0.10,
   },
   smg: {//dps 50
     id: 'smg',
@@ -411,6 +420,7 @@ const WEAPON_DEFS = {
     spritePivotY: 0,
     gripLeft:  { x: -10, y: 1 },
     gripRight: { x:  4, y: 0 },
+    flipThreshold: 0.10,
   },
   rifle: {//dps 42
     id: 'rifle',
@@ -436,6 +446,7 @@ const WEAPON_DEFS = {
     spritePivotY: 0,
     gripLeft:  { x: -14, y: 1 },
     gripRight: { x:  4, y: 0 },
+    flipThreshold: 0.10,
   },
   revolver: {//dps 66
     id: 'revolver',
@@ -461,6 +472,7 @@ const WEAPON_DEFS = {
     spritePivotY: 0,
     gripLeft:  { x: -10, y: 1 },
     gripRight: { x:  4, y: 0 },
+    flipThreshold: 0.10,
   },
   carbine: {//dps 60
     id: 'carbine',
@@ -488,6 +500,7 @@ const WEAPON_DEFS = {
     spritePivotY: 0,
     gripLeft:  { x: -12, y: 1 },
     gripRight: { x:  4, y: 0 },
+    flipThreshold: 0.10,
   },
 };
 

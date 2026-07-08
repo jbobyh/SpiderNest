@@ -23,7 +23,7 @@ export const corpseTextures = {};  // { soldier, bat, bull, buldyga, bloated, sh
 export const weaponTextures = {};  // { pistol, shotgun, smg, rifle, revolver, carbine }
 export const pistolFrames = [];    // 12 Texture[] (64×32, shoot spritesheet)
 export const pistolReloadFrames = []; // 35 Texture[] (80×48, emptying+reload spritesheets)
-export const armTextures = {};    // { upper: Texture, forearm: Texture }
+export const armTextures = {};    // { upper, forearm, southUpper, southForearm }
 let tankTexture = Texture.WHITE;
 let tankCorpseTexture = Texture.WHITE;
 let wallShooterTexture = Texture.WHITE;
@@ -316,4 +316,6 @@ function _enemyTexForType(type) {
 function _buildArmTextures() {
   armTextures.upper = Assets.get('arm-upper');
   armTextures.forearm = Assets.get('arm-forearm');
+  armTextures.southUpper = Assets.get('arm-south-upper');
+  armTextures.southForearm = Assets.get('arm-south-forearm');
 }
