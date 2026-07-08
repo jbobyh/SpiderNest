@@ -23,6 +23,7 @@ export const corpseTextures = {};  // { soldier, bat, bull, buldyga, bloated, sh
 export const weaponTextures = {};  // { pistol, shotgun, smg, rifle, revolver, carbine }
 export const pistolFrames = [];    // 12 Texture[] (64×32, shoot spritesheet)
 export const pistolReloadFrames = []; // 35 Texture[] (80×48, emptying+reload spritesheets)
+export const armTextures = {};    // { upper: Texture, forearm: Texture }
 let tankTexture = Texture.WHITE;
 let tankCorpseTexture = Texture.WHITE;
 let wallShooterTexture = Texture.WHITE;
@@ -43,6 +44,7 @@ export function initEntityPool() {
   _buildGhostFrames();
   _buildEnemyTextures();
   _buildWeaponTextures();
+  _buildArmTextures();
 }
 
 // ── Sprite factories ──────────────────────────────────────────
@@ -309,4 +311,9 @@ function _enemyTexForType(type) {
   if (type === 'wallshooter')                    return enemyTextures.wallshooter ?? Texture.WHITE;
   if (type === 'ghost')                           return ghostFrames.idle?.[0]    ?? Texture.WHITE;
   return enemyTextures[type] ?? enemyTextures.soldier ?? Texture.WHITE;
+}
+
+function _buildArmTextures() {
+  armTextures.upper = Assets.get('arm-upper');
+  armTextures.forearm = Assets.get('arm-forearm');
 }
