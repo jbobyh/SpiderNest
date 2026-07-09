@@ -44,6 +44,9 @@ const CONFIG = {
   ARM_SOUTH_UPPER_PIVOT: 0.2,
   ARM_SOUTH_FOREARM_PIVOT: 0.2,
 
+  // Player legs walk animation base fps (scaled by movement speed)
+  PLAYER_LEGS_WALK_FPS: 12,
+
   // Player Dash
   PLAYER_DASH_SPEED: 8,       // скорость деша (пикс/сек)
   PLAYER_DASH_DISTANCE: 1.1,    // дальность деша (пикселей)
@@ -283,7 +286,7 @@ const CONFIG = {
     showWeapon: true,         // отображать оружие поверх персонажа
     showOldHands: true,       // отображать старые руки (heroHandsFrames)
     showIKArms: true,         // отображать IK руки
-    showIKBones: true,       // отображать точки костей (якоря, локти, grip)
+    showIKBones: false,       // отображать точки костей (якоря, локти, grip)
   },
 
   // Boss phase AI
@@ -945,6 +948,10 @@ const SPRITE_SHEETS = {
     },
   },
   heroHands: {
+    sw: 64, sh: 64,
+    rows: 3, cols: 5,
+  },
+  heroLegs: {
     sw: 64, sh: 64,
     rows: 3, cols: 5,
   },

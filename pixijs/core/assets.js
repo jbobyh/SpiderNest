@@ -78,6 +78,8 @@ const MANIFEST = {
         // IK arm sprites (pointing south)
         { alias: 'arm-south-upper',   src: '../arts/southhand2.png' },
         { alias: 'arm-south-forearm', src: '../arts/southhand1.png' },
+        // Hero legs sprite sheet (320×192, 3 rows × 5 cols of 64×64)
+        { alias: 'hero-legs',         src: '../arts/player_legs_spritesheet.png' },
         // Enemies — static sprites
         { alias: 'soldier',           src: IMG + 'soldier.png' },
         { alias: 'soldier-dead',      src: IMG + 'soldier_dead.png' },

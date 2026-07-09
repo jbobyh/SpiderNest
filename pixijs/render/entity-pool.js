@@ -13,6 +13,7 @@ import { Assets } from 'pixi.js';
 // Cached frame arrays — populated by initEntityPool()
 export const heroFrames     = {};  // { idle_forward: Texture[], ... }
 export const heroHandsFrames = [];  // [row][col] — 3×5 Texture grid
+export const heroLegsFrames  = [];  // [row][col] — 3×5 Texture grid
 export const shooterFrames  = {};  // { run: Texture[], idle: Texture[], shoot: Texture[] }
 export const cocoonFrames   = [];  // Texture[7]
 export const batFrames      = [];  // Texture[7]
@@ -36,6 +37,7 @@ let wallShooterCorpseTexture = Texture.WHITE;
 export function initEntityPool() {
   _buildHeroFrames();
   _buildHeroHandsFrames();
+  _buildHeroLegsFrames();
   _buildShooterFrames();
   _buildCocoonFrames();
   _buildBatFrames();
@@ -134,6 +136,21 @@ function _buildHeroHandsFrames() {
     heroHandsFrames[r] = [];
     for (let c = 0; c < cols; c++) {
       heroHandsFrames[r][c] = new Texture({
+        source: tex.source,
+        frame:  new Rectangle(c * sw, r * sh, sw, sh),
+      });
+    }
+  }
+}
+
+function _buildHeroLegsFrames() {
+  const tex = Assets.get('hero-legs');
+  if (!tex) return;
+  const { sw, sh, rows, cols } = SPRITE_SHEETS.heroLegs;
+  for (let r = 0; r < rows; r++) {
+    heroLegsFrames[r] = [];
+    for (let c = 0; c < cols; c++) {
+      heroLegsFrames[r][c] = new Texture({
         source: tex.source,
         frame:  new Rectangle(c * sw, r * sh, sw, sh),
       });

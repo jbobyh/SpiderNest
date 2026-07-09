@@ -9,7 +9,7 @@
 // ============================================================
 
 import { Sprite, Container, Graphics } from 'pixi.js';
-import { heroFrames, heroHandsFrames, weaponTextures, pistolFrames, pistolReloadFrames, armTextures } from './entity-pool.js';
+import { heroFrames, heroHandsFrames, heroLegsFrames, weaponTextures, pistolFrames, pistolReloadFrames, armTextures } from './entity-pool.js';
 import { getMovementDir } from '../core/input.js';
 
 let _playerContainer = null;
@@ -17,6 +17,7 @@ let _armsBackGfx     = null;
 let _armsFrontGfx    = null;
 let _dbgGfx         = null;
 let _heroSprite   = null;
+let _legsSprite   = null;
 let _handsSprite  = null;
 let _weaponSprite = null;
 
@@ -32,6 +33,13 @@ const _anim = {
   flip:  false,
 };
 
+const _legsAnim = {
+  row:   0,
+  col:   0,
+  timer: 0,
+  flip:  false,
+};
+
 // ── Public API ────────────────────────────────────────────────
 
 /**
@@ -43,6 +51,10 @@ export function initPlayerRenderer(entitiesLayer) {
 
   _armsBackGfx = new Graphics();
   _armsBackGfx.zIndex = 0;
+
+  _legsSprite = new Sprite(heroLegsFrames[0]?.[0] ?? undefined);
+  _legsSprite.anchor.set(0.5);
+  _legsSprite.zIndex = 0.5;
 
   _heroSprite = new Sprite(heroFrames.idle_forward[0]);
   _heroSprite.anchor.set(0.5);
@@ -89,7 +101,7 @@ export function initPlayerRenderer(entitiesLayer) {
     _playerContainer.addChild(upper, fore);
   }
 
-  _playerContainer.addChild(_armsBackGfx, _heroSprite, _handsSprite, _weaponSprite, _armsFrontGfx, _dbgGfx);
+  _playerContainer.addChild(_armsBackGfx, _legsSprite, _heroSprite, _handsSprite, _weaponSprite, _armsFrontGfx, _dbgGfx);
   entitiesLayer.addChild(_playerContainer);
 }
 
@@ -146,8 +158,11 @@ export function updatePlayerSprite(state, dt) {
   _heroSprite.visible =
     p.invulnerable <= 0 || Math.floor(p.invulnerable * 10) % 2 === 0;
 
-  // ── Hands overlay (old system, debug toggle) ─────────────
+  // ── Legs animation ───────────────────────────────────────
   const facing = _getFacingDir(_anim.key, _anim.flip);
+  _updateLegs(p, dt, drawSize, facing, _heroSprite.visible);
+
+  // ── Hands overlay (old system, debug toggle) ─────────────
   const skipOldHands = (facing === 'west' || facing === 'east' || facing === 'south' || facing === 'north');
   if (CONFIG.DEBUG.showOldHands && !skipOldHands) {
     _updateHands(p, mouseDx, mouseDy, drawSize, _heroSprite.visible, _anim.key, _anim.flip);
@@ -170,6 +185,7 @@ export function destroyPlayerRenderer() {
   _armsFrontGfx?.destroy();
   _dbgGfx?.destroy();
   _heroSprite?.destroy();
+  _legsSprite?.destroy();
   _handsSprite?.destroy();
   _weaponSprite?.destroy();
   if (_armSprites) {
@@ -191,6 +207,7 @@ export function destroyPlayerRenderer() {
   _armsFrontGfx  = null;
   _dbgGfx         = null;
   _heroSprite   = null;
+  _legsSprite   = null;
   _handsSprite  = null;
   _weaponSprite = null;
   _playerContainer = null;
@@ -198,6 +215,10 @@ export function destroyPlayerRenderer() {
   _anim.frame = 0;
   _anim.timer = 0;
   _anim.flip  = false;
+  _legsAnim.row  = 0;
+  _legsAnim.col  = 0;
+  _legsAnim.timer = 0;
+  _legsAnim.flip = false;
   _weaponFlipState = false;
 }
 
@@ -374,6 +395,55 @@ const ARM_COLORS = {
   left:  { upper: 0x88aaff, forearm: 0x5588dd },
   right: { upper: 0xff88aa, forearm: 0xdd5588 },
 };
+
+// ── Legs animation ─────────────────────────────────────────────
+
+function _updateLegs(p, dt, drawSize, facing, visible) {
+  if (!_legsSprite) return;
+
+  // Row: south=0, north=1, west=2, east=2 (flipped)
+  const rowMap = { south: 0, north: 1, west: 2, east: 2 };
+  const row = rowMap[facing] ?? 0;
+  const flip = (facing === 'east');
+
+  // Movement speed from physics body
+  const speed = p.body ? Math.hypot(p.body.velocity.x, p.body.velocity.y) : 0;
+  const moving = speed > 0.01;
+
+  // Determine animation column
+  if (row !== _legsAnim.row || flip !== _legsAnim.flip) {
+    _legsAnim.row = row;
+    _legsAnim.flip = flip;
+    _legsAnim.col = 0;
+    _legsAnim.timer = 0;
+  }
+
+  if (moving) {
+    // Walk cycle: cols 1-4, fps scaled by speed ratio
+    const speedRatio = Math.min(3, speed / CONFIG.PLAYER_SPEED);
+    const fps = CONFIG.PLAYER_LEGS_WALK_FPS * speedRatio;
+    _legsAnim.timer += dt;
+    const frameDur = 1 / fps;
+    while (_legsAnim.timer >= frameDur) {
+      _legsAnim.timer -= frameDur;
+      _legsAnim.col = 1 + ((_legsAnim.col - 1 + 1) % 4);
+    }
+  } else {
+    // Idle: col 0
+    _legsAnim.col = 0;
+    _legsAnim.timer = 0;
+  }
+
+  const tex = heroLegsFrames[row]?.[_legsAnim.col];
+  if (tex && _legsSprite.texture !== tex) _legsSprite.texture = tex;
+
+  const s = drawSize / SPRITE_SHEETS.heroLegs.sw;
+  _legsSprite.scale.x = (flip ? -1 : 1) * s;
+  _legsSprite.scale.y = s;
+  _legsSprite.x = p.x;
+  _legsSprite.y = p.y;
+  _legsSprite.visible = visible;
+}
 
 function _getFacingDir(bodyKey, bodyFlip) {
   if (bodyKey.includes('forward')) return 'south';
