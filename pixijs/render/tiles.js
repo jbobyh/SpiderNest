@@ -501,6 +501,7 @@ export function buildTileLayer(targetContainer, worldData, level) {
   const {
     blobCells, openCells, everRevealedCells, everOpenedCells,
     removedWalls, permanentlyClosed, disabledCells, rooms, purified, chestObjs, hearts, upgradeChests, summonSphere, roomBonuses, roomBonusAltars,
+    torchMode,
   } = worldData;
 
   // Build cellToRoom map
@@ -546,9 +547,9 @@ export function buildTileLayer(targetContainer, worldData, level) {
   // }
   const cornerContainer = new Container({ label: 'corners' });
 
-  // ── 5. Partition walls between blob cells ──
+  // ── 5. Partition walls between blob cells (skip in torch mode) ──
   const { internalWalls } = worldData;
-  const partitions = buildPartitions(blobCells, openCells, removedWalls, everRevealedCells, purified, cellToRoom, internalWalls);
+  const partitions = torchMode ? new Container({ label: 'partitions' }) : buildPartitions(blobCells, openCells, removedWalls, everRevealedCells, purified, cellToRoom, internalWalls);
   partitions.label = 'partitions';
 
   // ── 6. External walls (blobCell boundaries) ──

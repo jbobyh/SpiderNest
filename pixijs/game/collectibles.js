@@ -231,9 +231,9 @@ export function applySpecialChoice(state, playerProgress, choiceId) {
   }
   applyUpgrade(state, playerProgress, choiceId);
 
-  // Enter battle mode after choice only if enemies not already released
+  // Enter battle mode after choice only if enemies not already released (skip in torch mode)
   const content = chest ? state.cellContents.get(chest.cellKey) : null;
-  if (onEnterBattle && !(content && content.enemiesReleased)) onEnterBattle(chest?.cellKey);
+  if (onEnterBattle && !(content && content.enemiesReleased) && !state.torchMode) onEnterBattle(chest?.cellKey);
 }
 
 // ── Upgrade chest choice (regular upgrades) ───────────
@@ -298,9 +298,9 @@ export function applyUpgradeChoice(state, playerProgress, choiceId) {
     applyUpgrade(state, playerProgress, choiceId);
   }
 
-  // Enter battle mode only if enemies not already released
+  // Enter battle mode only if enemies not already released (skip in torch mode)
   const content = chest ? state.cellContents.get(chest.cellKey) : null;
-  if (cb && !(content && content.enemiesReleased)) cb(chest?.cellKey);
+  if (cb && !(content && content.enemiesReleased) && !state.torchMode) cb(chest?.cellKey);
 }
 
 // ── Spatial chest F-key activation ───────────
@@ -413,9 +413,10 @@ export function applyRoomBonusChoice(state, playerProgress, choiceId) {
     summonSphere:       state.summonSphere,
     roomBonuses:        state.roomBonuses,
     roomBonusAltars:     state.roomBonusAltars,
+    torchMode:           state.torchMode,
   }, currentLevel);
 
-  // Enter battle mode after choice only if enemies not already released
+  // Enter battle mode after choice only if enemies not already released (skip in torch mode)
   const altarContent = altar ? state.cellContents.get(altar.cellKey) : null;
-  if (cb && !(altarContent && altarContent.enemiesReleased)) cb(altar?.cellKey);
+  if (cb && !(altarContent && altarContent.enemiesReleased) && !state.torchMode) cb(altar?.cellKey);
 }

@@ -35,6 +35,9 @@ import { tickUpgradePopupTimer, hideUpgradePopup } from '../game/upgrades.js';
 import {
   handleWallToggle, updateFlyingHeart, isWallInteractionPending,
 } from '../game/walls.js';
+import {
+  handleTorchAction, updateDarkness, checkEnemyStasisActivation,
+} from '../game/torches.js';
 import { spawnParticles } from '../render/particles.js';
 import { clearBullets, syncBullets, initBulletRenderer } from '../render/bullet-renderer.js';
 
@@ -148,9 +151,20 @@ export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}
 
   // ── Play-only interactions ────────────────────────────────
   if (!isBattle) {
-    // Wall toggle (right-click)
-    if (!isWallInteractionPending()) {
-      handleWallToggle(state, state.mouse.x, state.mouse.y, mouse.rightHeld, camera);
+    // Wall toggle (right-click) — non-torch mode
+    if (!state.torchMode) {
+      if (!isWallInteractionPending()) {
+        handleWallToggle(state, state.mouse.x, state.mouse.y, mouse.rightHeld, camera);
+      }
+    } else {
+      // Torch mode: right-click places/picks up torches
+      handleTorchAction(state, state.mouse.x, state.mouse.y, mouse.rightHeld, camera, onPlayerDead);
+    }
+
+    // Darkness damage + stasis activation (torch mode only)
+    if (state.torchMode) {
+      updateDarkness(state, dt, playerProgress, onPlayerDead);
+      checkEnemyStasisActivation(state);
     }
 
     // Cursor update
@@ -171,10 +185,12 @@ export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}
       if (onEnterBattle) onEnterBattle(ck);
     });
 
-    // Altar check
-    checkAltarActivation(state, interactTriggered, (ck) => {
-      if (onEnterBattle) onEnterBattle(ck);
-    });
+    // Altar check — skip in torch mode (no battle mode for regular enemies)
+    if (!state.torchMode) {
+      checkAltarActivation(state, interactTriggered, (ck) => {
+        if (onEnterBattle) onEnterBattle(ck);
+      });
+    }
 
     // Boss summon readiness
     state.bossSummonReady =
@@ -198,7 +214,7 @@ export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}
   handleWeaponPickup(state, playerProgress, interactTriggered);
 
   // ── Bullets ───────────────────────────────────────────────
-  const onStasisTriggered = isBattle ? null : (enemy) => {
+  const onStasisTriggered = (isBattle || state.torchMode) ? null : (enemy) => {
     if (state.phase !== 'play') return;
     if (!enemy.stasis) return;
     const room = state.rooms?.[enemy.stasisRoomIdx];

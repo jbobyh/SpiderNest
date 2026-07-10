@@ -100,6 +100,7 @@ export function createGameState(level, playerProgress) {
     startCell,
     disabledCells,
     purified,
+    torchMode,
   } = generateLevel(level, playerProgress);
 
   const cx = startCell.x;
@@ -113,9 +114,9 @@ export function createGameState(level, playerProgress) {
     }
   }
 
-  const initOpen         = new Set([cellKey(cx, cy)]);
-  const initEverOpened   = new Set([cellKey(cx, cy)]);
-  const initEverRevealed = new Set([cellKey(cx, cy)]);
+  const initOpen         = torchMode ? new Set(blobCells) : new Set([cellKey(cx, cy)]);
+  const initEverOpened   = torchMode ? new Set(blobCells) : new Set([cellKey(cx, cy)]);
+  const initEverRevealed = torchMode ? new Set(blobCells) : new Set([cellKey(cx, cy)]);
 
   // Reveal all cells of initially-purified rooms
   for (const purifiedIdx of purified) {
@@ -215,6 +216,9 @@ export function createGameState(level, playerProgress) {
     cellToRoom,
     revealedRooms: new Set(), // Rooms adjacent to purified that show content without being opened
     purifyWaveFired: new Set(purified),
+    torchMode: !!torchMode,
+    torches: [],
+    darknessDamageCooldown: 0,
   };
 }
 
@@ -472,6 +476,9 @@ function _serializeState(s) {
     purifyWaveFired: [...(s.purifyWaveFired || [])],
     cellToRoom:    [...(s.cellToRoom || [])],
     revealedRooms: [...(s.revealedRooms || [])],
+    torchMode:     s.torchMode || false,
+    torches:       (s.torches || []).map(t => ({ ...t })),
+    darknessDamageCooldown: s.darknessDamageCooldown || 0,
   };
 }
 
@@ -545,5 +552,8 @@ function _deserializeState(data) {
     cellToRoom:        new Map(data.cellToRoom || []),
     revealedRooms:     new Set(data.revealedRooms || []),
     purifyWaveFired:   new Set(data.purifyWaveFired || []),
+    torchMode:         data.torchMode || false,
+    torches:           (data.torches || []).map(t => ({ ...t })),
+    darknessDamageCooldown: data.darknessDamageCooldown || 0,
   };
 }

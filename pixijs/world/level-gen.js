@@ -218,7 +218,7 @@ function generateRoomsRandom(targetRoomCount, roomQuotas) {
   return { rooms, allCells: new Set(allCells.keys()), removedWalls, internalWalls };
 }
 
-function generateRoomsGrid(targetRoomCount, roomQuotas) {
+function generateRoomsGrid(targetRoomCount, roomQuotas, torchMode = false) {
   const sizes = buildRoomQuotaList(roomQuotas, targetRoomCount);
   const totalCellsNeeded = 1 + sizes.reduce((sum, s) => sum + s, 0);
   
@@ -289,13 +289,28 @@ function generateRoomsGrid(targetRoomCount, roomQuotas) {
         allCells.set(cell.k, roomIndex); 
       }
       
-      const roomInternal = getInternalWalls(roomCells);
-      for (const wKey of roomInternal) { 
-        removedWalls.add(wKey); 
-        internalWalls.add(wKey); 
+      if (!torchMode) {
+        const roomInternal = getInternalWalls(roomCells);
+        for (const wKey of roomInternal) { 
+          removedWalls.add(wKey); 
+          internalWalls.add(wKey); 
+        }
       }
 
       rooms.push({ cells: roomCells, size: roomCells.length, cellKeys });
+    }
+  }
+
+  // Torch mode: all inter-cell walls are removed (open space)
+  if (torchMode) {
+    for (const k of allCells.keys()) {
+      const { x, y } = cellFromKey(k);
+      for (const [dx, dy] of [[1, 0], [0, 1]]) {
+        const nk = cellKey(x + dx, y + dy);
+        if (allCells.has(nk)) {
+          removedWalls.add(wallKey(x, y, x + dx, y + dy));
+        }
+      }
     }
   }
 
@@ -643,7 +658,7 @@ export function generateLevel(level, playerProgress) {
   const maxAttempts = CONFIG.MAX_GENERATION_ATTEMPTS || 1000;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     if (levelConfig.genType === 'grid') {
-      levelData = generateRoomsGrid(roomCount, levelConfig.roomQuotas);
+      levelData = generateRoomsGrid(roomCount, levelConfig.roomQuotas, levelConfig.torchMode);
     } else {
       levelData = generateRoomsRandom(roomCount, levelConfig.roomQuotas);
     }
@@ -694,8 +709,14 @@ export function generateLevel(level, playerProgress) {
     applyRoomContent(ri, type, level, rooms, levelState, playerProgress, weaponPool);
   }
 
-  // ── Only the start room is purified initially ──
-  const purified = new Set([0]);
+  // ── Purified: torch mode = all rooms purified (no wall mechanics); else start only ──
+  const purified = levelConfig.torchMode ? new Set(rooms.map((_, i) => i)) : new Set([0]);
+
+  // ── Torch mode: all collectibles spawned immediately (no purification) ──
+  if (levelConfig.torchMode) {
+    for (const heart of levelState.hearts) heart.spawned = true;
+    if (levelState.summonSphere) levelState.summonSphere.spawned = true;
+  }
 
   // ── Spawn stasis enemies ──
   const trappedSpiders   = [];
@@ -710,13 +731,16 @@ export function generateLevel(level, playerProgress) {
 
   // ── Initial visibility ──
   const startKey = cellKey(cx, cy);
-  const initOpen         = new Set([startKey]);
-  const initEverOpened   = new Set([startKey]);
-  const initEverRevealed = new Set([startKey]);
-  for (const cell of rooms[0].cells) initEverRevealed.add(cell.k);
-  for (const [dx, dy] of CARDINAL_DIRECTIONS) {
-    const nk = cellKey(cx + dx, cy + dy);
-    if (blobCells.has(nk)) initEverRevealed.add(nk);
+  // Torch mode: all cells open and revealed (no fog-of-war, darkness is dynamic)
+  const initOpen         = levelConfig.torchMode ? new Set(blobCells) : new Set([startKey]);
+  const initEverOpened   = levelConfig.torchMode ? new Set(blobCells) : new Set([startKey]);
+  const initEverRevealed = levelConfig.torchMode ? new Set(blobCells) : new Set([startKey]);
+  if (!levelConfig.torchMode) {
+    for (const cell of rooms[0].cells) initEverRevealed.add(cell.k);
+    for (const [dx, dy] of CARDINAL_DIRECTIONS) {
+      const nk = cellKey(cx + dx, cy + dy);
+      if (blobCells.has(nk)) initEverRevealed.add(nk);
+    }
   }
 
   // ── Room background colours ──
@@ -729,24 +753,26 @@ export function generateLevel(level, playerProgress) {
     for (const cell of rooms[i].cells) roomColors.set(cell.k, color);
   }
 
-  // ── Room altars (battle triggers) ──
+  // ── Room altars (battle triggers) — skipped in torch mode ──
   const roomAltars        = [];
-  const altarProcessed    = new Set();
-  for (const [k, content] of cellContents) {
-    if (!content.enemyPreset || content.enemyCount <= 0 || content.enemiesReleased) continue;
-    if (content.type === ROOM_TYPES.CHEST || content.type === ROOM_TYPES.SPATIAL_CHEST || content.type === ROOM_TYPES.ROOM_BONUS) continue;
-    const ri = cellToRoom.get(k);
-    if (ri === undefined || altarProcessed.has(ri)) continue;
-    altarProcessed.add(ri);
-    const centerKey     = getCenterCellKey(rooms[ri]);
-    const { x: acx, y: acy } = cellFromKey(centerKey);
-    roomAltars.push({
-      roomIdx:   ri,
-      x:         (acx + 0.5) * CELL_PX,
-      y:         (acy + 0.5) * CELL_PX,
-      cellKey:   centerKey,
-      activated: false,
-    });
+  if (!levelConfig.torchMode) {
+    const altarProcessed    = new Set();
+    for (const [k, content] of cellContents) {
+      if (!content.enemyPreset || content.enemyCount <= 0 || content.enemiesReleased) continue;
+      if (content.type === ROOM_TYPES.CHEST || content.type === ROOM_TYPES.SPATIAL_CHEST || content.type === ROOM_TYPES.ROOM_BONUS) continue;
+      const ri = cellToRoom.get(k);
+      if (ri === undefined || altarProcessed.has(ri)) continue;
+      altarProcessed.add(ri);
+      const centerKey     = getCenterCellKey(rooms[ri]);
+      const { x: acx, y: acy } = cellFromKey(centerKey);
+      roomAltars.push({
+        roomIdx:   ri,
+        x:         (acx + 0.5) * CELL_PX,
+        y:         (acy + 0.5) * CELL_PX,
+        cellKey:   centerKey,
+        activated: false,
+      });
+    }
   }
 
   // Determine effective gridSize for legacy support (max dimension)
@@ -788,5 +814,6 @@ export function generateLevel(level, playerProgress) {
     roomBonusAltars:    levelState.roomBonusAltars,
     roomBonuses:        levelState.roomBonuses,
     purified,
+    torchMode:          !!levelConfig.torchMode,
   };
 }

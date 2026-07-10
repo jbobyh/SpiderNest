@@ -76,6 +76,12 @@ import {
 import { initInput, destroyInput } from './core/input.js';
 import { Sounds }               from './core/sound.js';
 import {
+  initTorchRenderer, syncTorches, clearTorchRenderer,
+} from './render/torch-renderer.js';
+import {
+  initDarknessOverlay, getDarknessOverlay, updateDarknessOverlay, destroyDarknessOverlay,
+} from './render/darkness-overlay.js';
+import {
   createGameState, createDefaultProgress, saveGame, savePlayerProgress, deleteSave,
 } from './game/state.js';
 import { updatePlayMode, isNearWeapon, isNearAltar, isNearUpgradeChest, isNearSpatialChest, isNearRoomBonusAltar } from './modes/play-mode.js';
@@ -197,6 +203,13 @@ export function startGameLoop({
   initTooltip(layers.hud);
   initDebugRenderer(layers.debug);
 
+  // Torch renderer (world-space, inside camera)
+  initTorchRenderer(layers.particles);
+
+  // Darkness overlay (screen-space, between world and HUD)
+  const darknessOverlay = initDarknessOverlay();
+  app.stage.addChildAt(darknessOverlay, 1);
+
   // Tile layer for current level
   buildTileLayer(layers.tiles, {
     blobCells:          _state.blobCells,
@@ -215,6 +228,7 @@ export function startGameLoop({
     summonSphere:       _state.summonSphere,
     roomBonuses:        _state.roomBonuses,
     roomBonusAltars:     _state.roomBonusAltars,
+    torchMode:          _state.torchMode,
   }, _currentLevel);
 
   // Input
@@ -263,6 +277,8 @@ export function stopGameLoop() {
   destroyAccuracyIndicator();
   destroyTooltip();
   clearDebugRenderer();
+  clearTorchRenderer();
+  destroyDarknessOverlay();
   clearWorldLayers();
 
   // Physics cleanup
@@ -439,6 +455,8 @@ function _render(dt) {
   syncDebugColliders(_state.phase === 'battle');
   syncCollectibles(_state);
   syncFlyingHeart();
+  syncTorches(_state.torches || []);
+  updateDarknessOverlay(_state, _camera);
   updateTooltip(_state, _camera);
   const nearWeapon = _state.phase === 'play' ? isNearWeapon(_state) : false;
   const nearAltar  = _state.phase === 'play' ? isNearAltar(_state)  : false;
@@ -495,6 +513,7 @@ function _render(dt) {
       upgradeChests:      _state.upgradeChests,
       summonSphere:       _state.summonSphere,
       roomBonuses:        _state.roomBonuses,
+      torchMode:          _state.torchMode,
     }, _currentLevel);
   }
 }
@@ -554,6 +573,7 @@ function _onZoomOutComplete(_tr) {
     upgradeChests:      _state.upgradeChests,
     summonSphere:       _state.summonSphere,
     roomBonuses:        _state.roomBonuses,
+    torchMode:          _state.torchMode,
   }, _currentLevel);
 }
 

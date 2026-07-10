@@ -52,6 +52,15 @@ const CONFIG = {
   PLAYER_DASH_DISTANCE: 1.1,    // дальность деша (пикселей)
   PLAYER_DASH_COOLDOWN: 2.0,    // кулдаун деша (сек)
 
+  // Torch Mode (Level 1)
+  TORCH_MODE: {
+    LIGHT_RADIUS: 150,              // радиус освещения факела/игрока (px)
+    PICKUP_RADIUS: 30,             // радиус подбора факела с земли (px)
+    DARKNESS_DAMAGE_COOLDOWN: 2.0, // кулдаун урона в темноте (сек)
+    DARKNESS_ALPHA: 0.82,          // непрозрачность тьмы (0-1)
+    LIGHT_GRADIENT_FULL: 0.85,     // доля радиуса с полной видимостью (0-1)
+  },
+
   // Shooting (default values, weapon-specific in WEAPON_DEFS)
   BULLET_RADIUS: 3,       // радиус пули
   BULLET_LIFE: 1.5,                 // время жизни пули (сек)
@@ -302,6 +311,7 @@ const LEVEL_CONFIG = {
   // roomQuotas: обязательное количество комнат каждого размера (остальные — 1-клеточные)
   1: { 
     genType: 'grid',
+    torchMode: true,
     roomCount: 25,
     roomQuotas: { size4: 1, size3: 2, size2: 3 },
     content: {
