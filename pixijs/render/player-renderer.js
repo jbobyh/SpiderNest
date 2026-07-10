@@ -9,7 +9,7 @@
 // ============================================================
 
 import { Sprite, Container, Graphics } from 'pixi.js';
-import { heroFrames, heroHandsFrames, heroLegsFrames, weaponTextures, pistolFrames, pistolReloadFrames, armTextures } from './entity-pool.js';
+import { heroFrames, heroHandsFrames, heroLegsFrames, weaponTextures, pistolFrames, pistolReloadFrames, smgFrames, smgReloadFrames, armTextures } from './entity-pool.js';
 import { getMovementDir } from '../core/input.js';
 
 let _playerContainer = null;
@@ -256,6 +256,19 @@ function _updateWeapon(state, p, mouseDx, mouseDy, heroDrawSize, facing) {
     } else {
       tex = pistolFrames[0];
     }
+  } else if (weaponId === 'smg') {
+    if (state.weaponReloadAnim > 0 && smgReloadFrames.length > 0) {
+      isReloadAnim = true;
+      const progress = 1 - state.weaponReloadAnim / (state.weaponReloadAnimMax || 1);
+      const frame = Math.min(27, Math.floor(progress * 28));
+      tex = smgReloadFrames[frame];
+    } else if (state.weaponShootAnim > 0 && smgFrames.length > 0) {
+      const progress = 1 - state.weaponShootAnim / (state.weaponShootAnimMax || 1);
+      const frame = 1 + Math.min(5, Math.floor(progress * 6));
+      tex = smgFrames[frame];
+    } else {
+      tex = smgFrames[0];
+    }
   } else {
     tex = weaponTextures[weaponId];
   }
@@ -264,8 +277,9 @@ function _updateWeapon(state, p, mouseDx, mouseDy, heroDrawSize, facing) {
     _weaponSprite.texture = tex;
   }
 
-  // Scale: always based on 64px (shoot sprite width)
-  const ws = wDrawSize / 64;
+  // Scale: based on sprite width (64px pistol, 80px smg, fallback 64)
+  const spriteW = wDef?.spriteWidth ?? 64;
+  const ws = wDrawSize / spriteW;
 
   // Reload offset: anchor.x = 0.7 shifts 80px sprite 16px left in local space
   _weaponSprite.anchor.x = isReloadAnim ? 0.58 : 0.5;

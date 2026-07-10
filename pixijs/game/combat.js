@@ -182,8 +182,8 @@ export function shoot(state, camera = null) {
 
   _applyBurstCooldown(state, weapon, isBurstWeapon, burstTotal, burstDelay, cooldown);
 
-  // Pistol shoot animation trigger
-  if (weapon.id === 'pistol') {
+  // Pistol/SMG shoot animation trigger
+  if (weapon.id === 'pistol' || weapon.id === 'smg') {
     state.weaponShootAnim = cooldown * (weapon.shootAnimRatio ?? 1);
     state.weaponShootAnimMax = state.weaponShootAnim;
   }
@@ -222,8 +222,8 @@ export function startReload(state) {
   state.burstRemaining = 0;
   state.burstWeaponId = null;
 
-  // Pistol reload animation trigger
-  if (weapon.id === 'pistol') {
+  // Pistol/SMG reload animation trigger
+  if (weapon.id === 'pistol' || weapon.id === 'smg') {
     state.weaponReloadAnim = reloadTime * (weapon.reloadAnimRatio ?? 1);
     state.weaponReloadAnimMax = state.weaponReloadAnim;
   }
