@@ -1,0 +1,40 @@
+{
+  "name": "spider-nest",
+  "version": "1.0.0",
+  "description": "ПАУЧЬЕ ГНЕЗДО — игра для ГЕЙМ!ДЖЕМ!",
+  "main": "electron-main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win portable"
+  },
+  "devDependencies": {
+    "electron": "^30.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.spidernest.game",
+    "productName": "SpiderNest",
+    "files": [
+      "index.html",
+      "style.css",
+      "config.js",
+      "pixijs/**",
+      "vendor/**",
+      "arts/**",
+      "img/**",
+      "sounds/**",
+      "fonts/**",
+      "electron-main.js"
+    ],
+    "asar": false,
+    "win": {
+      "target": ["portable"]
+    },
+    "portable": {
+      "artifactName": "SpiderNest.exe"
+    },
+    "directories": {
+      "output": "dist"
+    }
+  }
+}

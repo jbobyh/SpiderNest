@@ -425,7 +425,7 @@ const WEAPON_DEFS = {
     spriteOffset: 0.25,
     spritePivotY: -2,
     spriteWidth: 80,
-    gripLeft:  { x: 0, y: -5 },
+    gripLeft:  { x: -6, y: -5 },
     gripRight: { x:  -18, y: -3 },
     flipThreshold: 0.10,
   },

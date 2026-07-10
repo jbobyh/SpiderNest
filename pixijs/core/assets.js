@@ -1,8 +1,8 @@
 import { Assets } from 'pixi.js';
 import '@pixi/sound';  // registers audio parsers with PixiJS Assets
 
-const IMG = '../img/';
-const SND = '../sounds/';
+const IMG = 'img/';
+const SND = 'sounds/';
 
 // ============================================================
 // ASSET MANIFEST
@@ -69,17 +69,17 @@ const MANIFEST = {
       name: 'entities',
       assets: [
         // Hero sprite sheet (192×64, 3 frames of 64×64: front, back, left)
-        { alias: 'hero',              src: '../arts/player_body_spritesheet.png' },
+        { alias: 'hero',              src: 'arts/player_body_spritesheet.png' },
         // Hero hands sprite sheet (320×192, 3 rows × 5 cols of 64×64)
-        { alias: 'hero-hands',        src: '../arts/player_hands_spritesheet.png' },
+        { alias: 'hero-hands',        src: 'arts/player_hands_spritesheet.png' },
         // IK arm sprites (pointing west)
-        { alias: 'arm-upper',         src: '../arts/lefthand2.png' },
-        { alias: 'arm-forearm',       src: '../arts/lefthand1.png' },
+        { alias: 'arm-upper',         src: 'arts/lefthand2.png' },
+        { alias: 'arm-forearm',       src: 'arts/lefthand1.png' },
         // IK arm sprites (pointing south)
-        { alias: 'arm-south-upper',   src: '../arts/southhand2.png' },
-        { alias: 'arm-south-forearm', src: '../arts/southhand1.png' },
+        { alias: 'arm-south-upper',   src: 'arts/southhand2.png' },
+        { alias: 'arm-south-forearm', src: 'arts/southhand1.png' },
         // Hero legs sprite sheet (320×192, 3 rows × 5 cols of 64×64)
-        { alias: 'hero-legs',         src: '../arts/player_legs_spritesheet.png' },
+        { alias: 'hero-legs',         src: 'arts/player_legs_spritesheet.png' },
         // Enemies — static sprites
         { alias: 'soldier',           src: IMG + 'soldier.png' },
         { alias: 'soldier-dead',      src: IMG + 'soldier_dead.png' },

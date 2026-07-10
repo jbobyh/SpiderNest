@@ -126,14 +126,14 @@
   </div>
 
   <!-- Matter.js (UMD bundle — exposes window.Matter) -->
-  <script src="https://cdn.jsdelivr.net/npm/matter-js@0.20/build/matter.js"></script>
+  <script src="vendor/matter.js"></script>
 
   <!-- PixiJS v8 + @pixi/sound v6 via ES importmap -->
   <script type="importmap">
   {
     "imports": {
-      "pixi.js":     "https://cdn.jsdelivr.net/npm/pixi.js@8/dist/pixi.mjs",
-      "@pixi/sound": "https://cdn.jsdelivr.net/npm/@pixi/sound@6/dist/pixi-sound.mjs"
+      "pixi.js":     "./vendor/pixi.mjs",
+      "@pixi/sound": "./vendor/pixi-sound.mjs"
     }
   }
   </script>

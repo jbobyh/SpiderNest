@@ -21,7 +21,7 @@ if %errorlevel%==0 (
 )
 
 echo Используется команда: !PYTHON_CMD!
-start "Python HTTP Server" !PYTHON_CMD! -m http.server 8000
+start "Python HTTP Server" !PYTHON_CMD! serve.py
 
 REM Небольшая задержка для инициализации сервера
 timeout /t 2 /nobreak >nul
