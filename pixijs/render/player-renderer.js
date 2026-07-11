@@ -290,13 +290,15 @@ function _updateWeapon(state, p, mouseDx, mouseDy, heroDrawSize, facing) {
     _weaponSprite.texture = tex;
   }
 
-  // Scale: based on sprite width (64px pistol, 80px smg, fallback 64)
-  const spriteW = wDef?.spriteWidth ?? 64;
+  // Scale: based on sprite width (shoot vs reload may differ)
+  const spriteW = isReloadAnim
+    ? (wDef?.reloadSpriteWidth ?? wDef?.spriteWidth ?? 64)
+    : (wDef?.spriteWidth ?? 64);
   const ws = wDrawSize / spriteW;
 
-  // Reload offset: anchor.x = 0.7 shifts 80px sprite 16px left in local space
-  _weaponSprite.anchor.x = isReloadAnim ? 0.58 : 0.5;
-  _weaponSprite.anchor.y = isReloadAnim ? 0.35 : 0.5;
+  // Anchor: reload uses per-weapon config, shoot uses 0.5/0.5
+  _weaponSprite.anchor.x = isReloadAnim ? (wDef?.reloadAnchorX ?? 0.58) : 0.5;
+  _weaponSprite.anchor.y = isReloadAnim ? (wDef?.reloadAnchorY ?? 0.35) : 0.5;
 
   // Position: offset from player centre in aim direction
   const offsetDist   = heroDrawSize * (wDef?.spriteOffset ?? 0.3);
