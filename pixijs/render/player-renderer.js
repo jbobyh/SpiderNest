@@ -9,7 +9,7 @@
 // ============================================================
 
 import { Sprite, Container, Graphics } from 'pixi.js';
-import { heroFrames, heroHandsFrames, heroLegsFrames, weaponTextures, pistolFrames, pistolReloadFrames, smgFrames, smgReloadFrames, armTextures } from './entity-pool.js';
+import { heroFrames, heroHandsFrames, heroLegsFrames, weaponTextures, pistolFrames, pistolReloadFrames, smgFrames, smgReloadFrames, carbineFrames, carbineReloadFrames, armTextures } from './entity-pool.js';
 import { getMovementDir } from '../core/input.js';
 
 let _playerContainer = null;
@@ -268,6 +268,19 @@ function _updateWeapon(state, p, mouseDx, mouseDy, heroDrawSize, facing) {
       tex = smgFrames[frame];
     } else {
       tex = smgFrames[0];
+    }
+  } else if (weaponId === 'carbine') {
+    if (state.weaponReloadAnim > 0 && carbineReloadFrames.length > 0) {
+      isReloadAnim = true;
+      const progress = 1 - state.weaponReloadAnim / (state.weaponReloadAnimMax || 1);
+      const frame = Math.min(31, Math.floor(progress * 32));
+      tex = carbineReloadFrames[frame];
+    } else if (state.weaponShootAnim > 0 && carbineFrames.length > 0) {
+      const progress = 1 - state.weaponShootAnim / (state.weaponShootAnimMax || 1);
+      const frame = 1 + Math.min(10, Math.floor(progress * 11));
+      tex = carbineFrames[frame];
+    } else {
+      tex = carbineFrames[0];
     }
   } else {
     tex = weaponTextures[weaponId];

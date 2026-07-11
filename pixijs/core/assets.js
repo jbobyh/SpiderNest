@@ -141,7 +141,9 @@ const MANIFEST = {
         { alias: 'weapon-smg-reload', src: IMG + 'weapons/smg/[RELOAD] Submachine - MP5A3.png' },
         { alias: 'weapon-rifle',      src: IMG + 'rifle.png' },
         { alias: 'weapon-revolver',   src: IMG + 'revolver.png' },
-        { alias: 'weapon-carbine',    src: IMG + 'carbine.png' },
+        { alias: 'weapon-carbine',          src: IMG + 'weapons/rifle/[SINGLE_SHOT] Assault_rifle_V1.00.png' },
+        { alias: 'weapon-carbine-emptying', src: IMG + 'weapons/rifle/[EMPTYING] Assault_rifle_V1.00.png' },
+        { alias: 'weapon-carbine-reload',   src: IMG + 'weapons/rifle/[RELOAD] Assault_rifle_V1.00 - Reload.png' },
         // Input hint icons
         { alias: 'ctrl-f',            src: IMG + 'keyboard_f.png' },
         { alias: 'ctrl-shift',        src: IMG + 'keyboard_shift.png' },

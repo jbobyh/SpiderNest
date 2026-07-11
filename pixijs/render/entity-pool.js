@@ -26,6 +26,8 @@ export const pistolFrames = [];    // 12 Texture[] (64×32, shoot spritesheet)
 export const pistolReloadFrames = []; // 35 Texture[] (80×48, emptying+reload spritesheets)
 export const smgFrames = [];         // 7 Texture[] (80×48, shoot spritesheet)
 export const smgReloadFrames = [];  // 28 Texture[] (80×48, empty+reload spritesheets)
+export const carbineFrames = [];       // 12 Texture[] (128×48, shoot spritesheet: idle + 11 shoot)
+export const carbineReloadFrames = []; // 32 Texture[] (96×64, emptying + reload spritesheets)
 export const armTextures = {};    // { upper, forearm, southUpper, southForearm }
 let tankTexture = Texture.WHITE;
 let tankCorpseTexture = Texture.WHITE;
@@ -348,8 +350,40 @@ function _buildWeaponTextures() {
     }
   }
 
+  // Carbine: slice shoot spritesheet (2048×48, 16 frames × 128×48; use first 12: idle + 11 shoot)
+  const carbineTex = Assets.get('weapon-carbine');
+  if (carbineTex) {
+    for (let i = 0; i < 12; i++) {
+      carbineFrames.push(new Texture({
+        source: carbineTex.source,
+        frame:  new Rectangle(i * 128, 0, 128, 48),
+      }));
+    }
+    weaponTextures.carbine = carbineFrames[0];
+  }
+
+  // Carbine reload: EMPTYING 16 frames + RELOAD 16 frames = 32 total (96×64 each)
+  const carbineEmptyTex = Assets.get('weapon-carbine-emptying');
+  if (carbineEmptyTex) {
+    for (let i = 0; i < 16; i++) {
+      carbineReloadFrames.push(new Texture({
+        source: carbineEmptyTex.source,
+        frame:  new Rectangle(i * 96, 0, 96, 64),
+      }));
+    }
+  }
+  const carbineReloadTex = Assets.get('weapon-carbine-reload');
+  if (carbineReloadTex) {
+    for (let i = 0; i < 16; i++) {
+      carbineReloadFrames.push(new Texture({
+        source: carbineReloadTex.source,
+        frame:  new Rectangle(i * 96, 0, 96, 64),
+      }));
+    }
+  }
+
   // Other weapons: single texture
-  for (const id of ['shotgun', 'rifle', 'revolver', 'carbine']) {
+  for (const id of ['shotgun', 'rifle', 'revolver']) {
     weaponTextures[id] = Assets.get('weapon-' + id);
   }
 }
