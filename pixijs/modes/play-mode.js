@@ -229,9 +229,7 @@ export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}
   if (remaining <= 0) hideUpgradePopup();
 
   // ── Camera ───────────────────────────────────────────────
-  if (isBattle && b) {
-    camera.setZoom(b.zoom, b.centerX, b.centerY);
-  } else {
+  {
     let dx = state.mouse.x - state.player.x;
     let dy = state.mouse.y - state.player.y;
     const dist = Math.hypot(dx, dy);

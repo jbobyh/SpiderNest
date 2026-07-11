@@ -504,9 +504,10 @@ function _render(dt) {
 function _onEnterBattle(cellKey) {
   if (_state.bossSummonReady && cellKey == null) {
     // Boss summon via boss altar
-    startZoomIn(_state, _camera, null, true);
+    createBossBattleState(_state, _currentLevel);
+    Sounds.playBossMusic?.();
   } else {
-    startZoomIn(_state, _camera, cellKey, false);
+    createBattleState(_state, cellKey);
   }
 }
 
@@ -529,7 +530,28 @@ function _onBattleWon(state, playerProgress) {
     return;
   }
 
-  startZoomOut(state, _camera);
+  exitBattleMode(_state);
+  saveCurrentGame();
+  Sounds.playLevelMusic(_currentLevel);
+
+  // Rebuild tiles (walls may have changed, room purification updated)
+  buildTileLayer(layers.tiles, {
+    blobCells:          _state.blobCells,
+    openCells:          _state.openCells,
+    everRevealedCells:  _state.everRevealedCells,
+    everOpenedCells:   _state.everOpenedCells,
+    removedWalls:       _state.removedWalls,
+    internalWalls:      _state.internalWalls,
+    permanentlyClosed:  _state.permanentlyClosed,
+    disabledCells:      _state.disabledCells,
+    rooms:              _state.rooms,
+    purified:           _state.purified,
+    spatialChests:      _state.spatialChests,
+    hearts:             _state.hearts,
+    upgradeChests:      _state.upgradeChests,
+    summonSphere:       _state.summonSphere,
+    roomBonuses:        _state.roomBonuses,
+  }, _currentLevel);
 }
 
 function _onZoomOutComplete(_tr) {
