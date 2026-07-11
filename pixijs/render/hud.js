@@ -23,6 +23,7 @@ import {
   STYLE_STATS_LABEL, STYLE_STATS_VALUE, createPanel, clearContainer, hexToNum,
 } from './ui-shared.js';
 import { tickHpAnim, drawHpBar } from './hp-bar.js';
+import { weaponTextures } from './entity-pool.js';
 
 // ── Internal HUD state ───────────────────────────────────────
 
@@ -555,13 +556,18 @@ function _updateWeaponSlots(s) {
 
     if (wId) {
       try {
-        const tex = Texture.from(`weapon-${wId}`);
+        const tex = weaponTextures[wId] ?? Texture.from(`weapon-${wId}`);
         const img = new Sprite(tex);
         const M   = 6;
-        img.x       = sx + M;
-        img.y       = sy + M;
-        img.width   = SLOT - M * 2;
-        img.height  = SLOT - M * 2;
+        const maxW = SLOT - M * 2;
+        const maxH = SLOT - M * 2;
+        const tw = tex.width;
+        const th = tex.height;
+        const sc = Math.min(maxW / tw, maxH / th);
+        img.width   = tw * sc;
+        img.height  = th * sc;
+        img.x       = sx + (SLOT - img.width) / 2;
+        img.y       = sy + (SLOT - img.height) / 2;
         img.alpha   = active ? 1 : 0.6;
         dom.weaponPanel.addChild(img);
       } catch { /* texture not loaded yet */ }

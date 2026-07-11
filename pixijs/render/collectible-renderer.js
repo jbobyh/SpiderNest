@@ -174,7 +174,11 @@ function _syncWeapons(droppedWeapons, openCells, everRevealedCells) {
       const tex = weaponTextures[dw.weaponId] ?? Texture.WHITE;
       const spr = new Sprite(tex);
       spr.anchor.set(0.5);
-      spr.width = spr.height = WEAPON_SIZE;
+      const tw = tex.width;
+      const th = tex.height;
+      const sc = Math.min(WEAPON_SIZE / tw, WEAPON_SIZE / th);
+      spr.width  = tw * sc;
+      spr.height = th * sc;
       _layer.addChild(spr);
       _weapons.set(k, spr);
     }
