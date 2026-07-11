@@ -28,6 +28,7 @@ export function createDefaultProgress() {
       spreadMult: 1.0,
       bulletSpeedMult: 1.0,
       critChance: 0,
+      critDamage: 0,
       killAccel: false,
       killAccelPercent: 0,
       enhancedPierce: false,
@@ -47,6 +48,7 @@ export function createDefaultProgress() {
       hitStun: 0,
       incendiaryChance: 0,
       freezeChance: 0,
+      bloomReduction: 0,
       // Spatial upgrades
       spatialReloadRooms: false,
       spatialReloadHearts: false,

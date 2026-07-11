@@ -222,7 +222,7 @@ function _updateStatsPanel(s) {
   const damage = Math.round((weapon?.damage || 2) * (1 + s.upgrades.damageMult));
 
   const spatialCritDamage = getSpatialBonus(s, 'critDamage');
-  const critMult = 2 + spatialCritDamage;
+  const critMult = 2 + (s.upgrades.critDamage || 0) + spatialCritDamage;
 
   // Penetration
   const spatialPenetrate = getSpatialBonus(s, 'penetrate');
@@ -649,17 +649,13 @@ function _buildHintsPanel() {
 
   const ICON   = 24, GAP = 8, LABEL_H = 12;
   const PAD_X  = 20, PAD_Y = 6;
-  const MARGIN_R = 40, MARGIN_B = 8;
+  const MARGIN_B = 8, FPS_GAP = 70;
 
   const totalW = HINTS.length * 1.5 * ICON + (HINTS.length - 1) * GAP + PAD_X * 2;
   const totalH = PAD_Y + ICON + 3 + LABEL_H + PAD_Y;
 
-  // Weapon panel height (approx) to sit above it
-  const SLOT = 44, LABEL_SLOT_H = 14, AMMO_SLOT_H = 12, PAD_SLOT = 8, SCREEN_MARGIN = 8;
-  const weaponPanelH = SLOT + LABEL_SLOT_H + AMMO_SLOT_H + PAD_SLOT * 2 + SCREEN_MARGIN;
-
-  const panelX = VW - totalW - MARGIN_R;
-  const panelY = VH - totalH - weaponPanelH - 4;
+  const panelX = VW - totalW - FPS_GAP;
+  const panelY = VH - totalH - MARGIN_B;
 
   const bg = createPanel({
     x: panelX, y: panelY,

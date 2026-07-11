@@ -353,16 +353,16 @@ const WEAPON_DEFS = {
     pellets: 1,             // кол-во пуль за выстрел
     spread: 0.05,            // разброс (рад)
     damage: 20,             // урон одной пули
-    cooldown: 0.4,         // задержка между выстрелами (сек)
+    cooldown: 0.2,         // задержка между выстрелами (сек)
     bulletSpeed: 400,       // скорость пули (пикс/сек)
     range: 13,              // дальность в клетках
     penetrate: 0,           // кол-во врагов, которых пробивает пуля
     shakeAmount: 0,       // сила тряски камеры
     spriteAngle: 0.1,       // поправка угла спрайта (рад)
     magazineSize: 12,       // размер обоймы
-    reloadTime: 2,          // время перезарядки (сек)
-    bloomPerShot: 0.04,
-    bloomRecoveryTime: 0.3,
+    reloadTime: 1.5,          // время перезарядки (сек)
+    bloomPerShot: 0.08,
+    bloomRecoveryTime: 0.4,
     maxSpread: 0.8,
     shootAnimRatio: 0.3,
     reloadAnimRatio: 1.0,
@@ -382,14 +382,14 @@ const WEAPON_DEFS = {
     pellets: 3,
     spread: 0.20,
     damage: 20,
-    cooldown: 0.5,
+    cooldown: 0.3,
     bulletSpeed: 440,
     range: 10,
     penetrate: 0,
     shakeAmount: 0.5,
     spriteAngle: 0.55,
     magazineSize: 6,
-    reloadTime: 3,
+    reloadTime: 2,
     bloomPerShot: 0.35,
     bloomRecoveryTime: 0.5,
     maxSpread: 1,
@@ -415,7 +415,7 @@ const WEAPON_DEFS = {
     shakeAmount: 0,
     spriteAngle: 0.0,
     magazineSize: 30,
-    reloadTime: 3,
+    reloadTime: 2,
     bloomPerShot: 0.06,
     bloomRecoveryTime: 0.4,
     maxSpread: 1,
@@ -435,7 +435,7 @@ const WEAPON_DEFS = {
     description: 'Высокая точность и урон. Пробивает 2 врагов.',
     color: '#44ff44',
     pellets: 1,
-    spread: 0.05,
+    spread: 0.02,
     damage: 60,
     cooldown: 1.0,
     bulletSpeed: 700,
@@ -444,7 +444,7 @@ const WEAPON_DEFS = {
     shakeAmount: 0.8,
     spriteAngle: 0.7,
     magazineSize: 5,
-    reloadTime: 4,
+    reloadTime: 2.6,
     bloomPerShot: 0.25,
     bloomRecoveryTime: 0.4,
     maxSpread: 1,
@@ -470,7 +470,7 @@ const WEAPON_DEFS = {
     shakeAmount: 0.2,
     spriteAngle: 0,
     magazineSize: 6,
-    reloadTime: 3,
+    reloadTime: 2,
     bloomPerShot: 0.15,
     bloomRecoveryTime: 0.4,
     maxSpread: 1,
@@ -570,6 +570,7 @@ const UPGRADE_TYPES = [
   { id: 'penetrate',     label: '+1 пробитие врага',       description: 'Пуля пролетает сквозь одного дополнительного врага',          color: '#ff44ff', max: 2, icon: '🎯', effects: { penetrate: 1 } },
   { id: 'bulletSpeed',   label: '+30% скорость пули',      description: 'Пули летят быстрее на +30%',                     color: '#ffff44', max: 2, icon: '⚡', effects: { bulletSpeedMult: 0.30 } },
   { id: 'critChance',    label: '+5% шанс крита',          description: '+5% шанс нанести двойной урон',                       color: '#ff0000', max: 3, icon: '⚔️', effects: { critChance: 0.05 } },
+  { id: 'critDamage',    label: '+10% крит урон',          description: 'Увеличивает множитель критического урона на 10%',     color: '#ff4400', max: 50, icon: '🔥', effects: { critDamage: 0.10 } },
   { id: 'killAccel',     label: 'Убийственный разгон',     description: 'Каждое убийство ускоряет перезарядку на 0.1%',                  color: '#ff8800', max: 1, icon: '🏃', effects: { killAccel: true } },
   { id: 'enhancedPierce',label: 'Усиленное пробитие',      description: 'Пуля, пробившая врага, имеет шанс 50% нанести удвоенный урон',               color: '#aa44ff', max: 1, icon: '🗡️', effects: { enhancedPierce: true } },
   { id: 'shield',        label: 'Щит',                     description: 'Поглощает один удар без потери жизни. Тратится.',                        color: '#00aaff', max: 2, icon: '🛡️', effects: { shield: 1 } },
@@ -580,6 +581,7 @@ const UPGRADE_TYPES = [
   { id: 'hitStun',       label: 'Стан при попадании',      description: 'Враги застывают на 0.05с при попадании.',                     color: '#88ddff', max: 5, icon: '⏳', effects: { hitStun: 0.05 } },
   { id: 'incendiary',    label: '+5% поджигающая пуля',     description: '5% шанс что пуля подожжёт врага. Горение наносит урон каждые 0.2с в течение 2с.', color: '#ff6600', max: 3, icon: '🔥', effects: { incendiaryChance: 0.05 } },
   { id: 'freezeBullet',  label: '+5% охлаждающая пуля',     description: '5% шанс заморозить врага. Замедление в 2 раза на 2с.', color: '#44ddff', max: 3, icon: '❄️', effects: { freezeChance: 0.05 } },
+  { id: 'bloomReduction', label: '-5% отдачи', description: 'Уменьшает отдачу оружия на 5%', color: '#88ff88', max: 20, icon: '🎯', effects: { bloomReduction: 0.05 } },
 ];
 
 const ROOM_BONUS_TYPES = [
@@ -594,6 +596,7 @@ const ROOM_BONUS_TYPES = [
   { id: 'freeAmmo',    label: 'Бесконечный боезапас', description: 'Выстрелы не тратят пули из магазина',                        color: '#ffdd00', max: 100, icon: '♾️' },
   { id: 'burnChance',   label: 'Поджигающая комната',  description: 'Пули выстреленные в комнате имеют +10% шанс поджечь врага при попадании.', color: '#ff6600', max: 100, icon: '🔥' },
   { id: 'freezeChance', label: 'Охлаждающая комната',  description: 'Пули выстреленные в комнате имеют +10% шанс охладить врага при попадании.', color: '#44ddff', max: 100, icon: '❄️' },
+  { id: 'bloomReduction', label: 'Снижение отдачи', description: 'Отдача в комнате уменьшена на 40%', color: '#88ff88', max: 100, icon: '🎯' },
 ];
 
 // ============================================================

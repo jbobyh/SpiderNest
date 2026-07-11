@@ -143,8 +143,11 @@ export function shoot(state, camera = null) {
   
   const totalSpread = getTotalSpread(state);
 
-  // Increase bloom per shot
-  state.bloomSpread = (state.bloomSpread || 0) + (weapon.bloomPerShot || 0);
+  // Increase bloom per shot (reduced by bloomReduction upgrade + room bonus)
+  const bloomReduction = state.upgrades.bloomReduction || 0;
+  const roomBloomBonus = getRoomBonus(state, playerCellKey) === 'bloomReduction';
+  const bloomMult = Math.max(0, 1 - bloomReduction) * (roomBloomBonus ? 0.6 : 1.0);
+  state.bloomSpread = (state.bloomSpread || 0) + (weapon.bloomPerShot || 0) * bloomMult;
 
   const spatialBulletSpeed = getSpatialBonus(state, 'bulletSpeed');
   const bulletSpeed   = weapon.bulletSpeed * state.upgrades.bulletSpeedMult * (1 + spatialBulletSpeed);
@@ -310,7 +313,7 @@ function _spawnPlayerBullet(state, weapon, angle, bulletSpeed, scale, battleStat
   const isCrit = Math.random() < (state.upgrades.critChance + spatialCritChance);
   
   const spatialCritDamage = getSpatialBonus(state, 'critDamage');
-  const critMult = 2 + spatialCritDamage;
+  const critMult = 2 + (state.upgrades.critDamage || 0) + spatialCritDamage;
 
   let damage = weapon.damage * (1 + state.upgrades.damageMult);
   if (isCrit) {
