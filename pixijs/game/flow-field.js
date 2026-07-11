@@ -37,12 +37,16 @@ function canTraverse(scx, scy, nscx, nscy, openCells, removedWalls, blockedSubNo
   const ddCY = dstCY - srcCY;
 
   if (ddCX !== 0 && ddCY !== 0) {
-    // Diagonal cell crossing: both intermediate cells must be open, both walls removed.
+    // Diagonal cell crossing: both intermediate cells must be open.
+    // At least one L-path (src→interX→dst or src→interY→dst) must have both walls removed.
     // This prevents corner-cutting through wall junctions.
     if (!openCells.has(cellKey(srcCX + ddCX, srcCY))) return false;
     if (!openCells.has(cellKey(srcCX, srcCY + ddCY))) return false;
-    if (!removedWalls.has(wallKey(srcCX, srcCY, srcCX + ddCX, srcCY))) return false;
-    if (!removedWalls.has(wallKey(srcCX, srcCY, srcCX, srcCY + ddCY))) return false;
+    const pathA = removedWalls.has(wallKey(srcCX, srcCY, srcCX + ddCX, srcCY)) &&
+                  removedWalls.has(wallKey(srcCX + ddCX, srcCY, dstCX, dstCY));
+    const pathB = removedWalls.has(wallKey(srcCX, srcCY, srcCX, srcCY + ddCY)) &&
+                  removedWalls.has(wallKey(srcCX, srcCY + ddCY, dstCX, dstCY));
+    if (!(pathA || pathB)) return false;
   } else {
     // Cardinal cell crossing
     if (!removedWalls.has(wallKey(srcCX, srcCY, dstCX, dstCY))) return false;
