@@ -18,6 +18,8 @@ import {
   cellKey, cellFromKey, wallKey,
 } from '../world/constants.js';
 
+const WC = CONFIG.WALL_COLORS;
+
 const WALL_DEPTH  = CELL_PX * 0.125;
 const CORNER_SIZE = CELL_PX * 0.125;
 const PART_T      = CELL_PX * 0.05;   // partition wall thickness
@@ -320,7 +322,7 @@ function makeClosedCellSprites(blobCells, openCells, everRevealedCells, everOpen
 // Drawn for every boundary between two blobCells that is NOT in removedWalls
 // and where at least one of the two cells is visible (open or ever-revealed).
 
-function buildPartitions(blobCells, openCells, removedWalls, everRevealedCells, purified, cellToRoom, internalWalls) {
+function buildPartitions(blobCells, openCells, removedWalls, everRevealedCells, purified, cellToRoom, internalWalls, fixedWalls) {
   const g  = new Graphics();
   const HT = PART_T / 2;
   const allVisible = openCells ? new Set([...openCells, ...everRevealedCells]) : everRevealedCells;
@@ -338,6 +340,8 @@ function buildPartitions(blobCells, openCells, removedWalls, everRevealedCells, 
       const isRemoved = removedWalls.has(wk);
       if (isRemoved && internalWalls && internalWalls.has(wk)) continue;
 
+      const isFixed = fixedWalls && fixedWalls.has(wk);
+
       // Check if at least one adjacent room is purified
       const roomA = cellToRoom?.get(k);
       const roomB = cellToRoom?.get(nk);
@@ -345,11 +349,11 @@ function buildPartitions(blobCells, openCells, removedWalls, everRevealedCells, 
       const purifiedB = roomB !== undefined && purified?.has(roomB);
       const isPurifiedAdjacent = purifiedA || purifiedB;
 
-      // Lighter color for purified-adjacent walls
-      const fillColor = isPurifiedAdjacent ? 0x2a1a3e : 0x14081e;
-      const strokeColor = isPurifiedAdjacent ? 0x9a70b0 : 0x785090;
-      const fillAlpha = isRemoved ? 0.29 : 0.92;
-      const strokeAlpha = isRemoved ? 0.05 : 0.5;
+      // Fixed walls render like external walls (always dark, high alpha)
+      const fillColor = isFixed ? WC.closedFill : (isPurifiedAdjacent ? WC.purifiedFill : WC.partitionFill);
+      const strokeColor = isFixed ? WC.closedStroke : (isPurifiedAdjacent ? WC.purifiedStroke : WC.partitionStroke);
+      const fillAlpha = isFixed ? WC.closedFillAlpha : (isRemoved ? WC.openFillAlpha : WC.partitionFillAlpha);
+      const strokeAlpha = isFixed ? WC.closedStrokeAlpha : (isRemoved ? WC.openStrokeAlpha : WC.partitionStrokeAlpha);
 
       if (dx === 1) {
         // vertical strip at x-boundary — bevelled ends (45°)
@@ -419,8 +423,8 @@ function buildExternalWalls(blobCells, openCells, everRevealedCells) {
           bx,      by + H,
           bx - HT, by + H - HT,
         ])
-          .fill({ color: 0x14081e, alpha: 0.92 })
-          .stroke({ color: 0x785090, alpha: 0.5, width: 0.5 });
+          .fill({ color: WC.closedFill, alpha: WC.closedFillAlpha })
+          .stroke({ color: WC.closedStroke, alpha: WC.closedStrokeAlpha, width: 0.5 });
       } else if (dx === -1) {
         // Left boundary - vertical strip
         const bx = x * CELL_PX;
@@ -434,8 +438,8 @@ function buildExternalWalls(blobCells, openCells, everRevealedCells) {
           bx,      by + H,
           bx + HT, by + H - HT,
         ])
-          .fill({ color: 0x14081e, alpha: 0.92 })
-          .stroke({ color: 0x785090, alpha: 0.5, width: 0.5 });
+          .fill({ color: WC.closedFill, alpha: WC.closedFillAlpha })
+          .stroke({ color: WC.closedStroke, alpha: WC.closedStrokeAlpha, width: 0.5 });
       } else if (dy === 1) {
         // Bottom boundary - horizontal strip
         const bx = x * CELL_PX;
@@ -449,8 +453,8 @@ function buildExternalWalls(blobCells, openCells, everRevealedCells) {
           bx + HT,     by + HT,
           bx,          by,
         ])
-          .fill({ color: 0x14081e, alpha: 0.92 })
-          .stroke({ color: 0x785090, alpha: 0.5, width: 0.5 });
+          .fill({ color: WC.closedFill, alpha: WC.closedFillAlpha })
+          .stroke({ color: WC.closedStroke, alpha: WC.closedStrokeAlpha, width: 0.5 });
       } else {
         // Top boundary - horizontal strip
         const bx = x * CELL_PX;
@@ -464,8 +468,8 @@ function buildExternalWalls(blobCells, openCells, everRevealedCells) {
           bx + HT,     by - HT,
           bx,          by,
         ])
-          .fill({ color: 0x14081e, alpha: 0.92 })
-          .stroke({ color: 0x785090, alpha: 0.5, width: 0.5 });
+          .fill({ color: WC.closedFill, alpha: WC.closedFillAlpha })
+          .stroke({ color: WC.closedStroke, alpha: WC.closedStrokeAlpha, width: 0.5 });
       }
     }
   }
@@ -547,8 +551,8 @@ export function buildTileLayer(targetContainer, worldData, level) {
   const cornerContainer = new Container({ label: 'corners' });
 
   // ── 5. Partition walls between blob cells ──
-  const { internalWalls } = worldData;
-  const partitions = buildPartitions(blobCells, openCells, removedWalls, everRevealedCells, purified, cellToRoom, internalWalls);
+  const { internalWalls, fixedWalls } = worldData;
+  const partitions = buildPartitions(blobCells, openCells, removedWalls, everRevealedCells, purified, cellToRoom, internalWalls, fixedWalls);
   partitions.label = 'partitions';
 
   // ── 6. External walls (blobCell boundaries) ──

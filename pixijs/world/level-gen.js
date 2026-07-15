@@ -668,6 +668,59 @@ export function generateLevel(level, playerProgress) {
     for (const cell of rooms[i].cells) cellToRoom.set(cell.k, i);
   }
 
+  // ── Fixed (non-openable) inter-room walls ──
+  // Collect all inter-room walls (between cells of different rooms, not internal)
+  const interRoomWalls = [];
+  for (const k of blobCells) {
+    const { x, y } = cellFromKey(k);
+    for (const [dx, dy] of [[1, 0], [0, 1]]) {
+      const nx = x + dx, ny = y + dy;
+      const nk = cellKey(nx, ny);
+      if (!blobCells.has(nk)) continue;
+      const wk = wallKey(x, y, nx, ny);
+      if (roomInternalWalls.has(wk)) continue;
+      const ra = cellToRoom.get(k);
+      const rb = cellToRoom.get(nk);
+      if (ra === rb) continue;
+      interRoomWalls.push(wk);
+    }
+  }
+
+  // Build room adjacency graph: roomA → roomB via wall key
+  const roomAdj = new Map(); // roomIdx → Array<{to, wk}>
+  for (const wk of interRoomWalls) {
+    const [l, r] = wk.split('|');
+    const [ax, ay] = l.split(',').map(Number);
+    const [bx, by] = r.split(',').map(Number);
+    const ra = cellToRoom.get(cellKey(ax, ay));
+    const rb = cellToRoom.get(cellKey(bx, by));
+    if (!roomAdj.has(ra)) roomAdj.set(ra, []);
+    if (!roomAdj.has(rb)) roomAdj.set(rb, []);
+    roomAdj.get(ra).push({ to: rb, wk });
+    roomAdj.get(rb).push({ to: ra, wk });
+  }
+
+  // BFS spanning tree from room 0 — these walls must stay openable
+  const spanningWalls = new Set();
+  const visitedRooms = new Set([0]);
+  const roomQueue = [0];
+  while (roomQueue.length) {
+    const ri = roomQueue.shift();
+    const edges = roomAdj.get(ri) || [];
+    for (const e of edges) {
+      if (visitedRooms.has(e.to)) continue;
+      visitedRooms.add(e.to);
+      spanningWalls.add(e.wk);
+      roomQueue.push(e.to);
+    }
+  }
+
+  // Select ~40% of non-spanning-tree inter-room walls as fixed
+  const nonTreeWalls = interRoomWalls.filter(wk => !spanningWalls.has(wk));
+  shuffleInPlace(nonTreeWalls);
+  const fixedCount = Math.floor((CONFIG.FIXED_WALL_RATIO ?? 0.4) * interRoomWalls.length);
+  const fixedWalls = new Set(nonTreeWalls.slice(0, fixedCount));
+
   const availableRooms = [];
   for (let i = 1; i < rooms.length; i++) availableRooms.push(i);
   shuffleInPlace(availableRooms);
@@ -766,6 +819,7 @@ export function generateLevel(level, playerProgress) {
     openCells:          initOpen,
     removedWalls:       roomRemovedWalls,
     internalWalls:      roomInternalWalls,
+    fixedWalls,
     roomColors,
     playerRemovedWalls: 0,
     everRevealedCells:  initEverRevealed,

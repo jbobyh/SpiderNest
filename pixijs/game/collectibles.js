@@ -403,6 +403,7 @@ export function applyRoomBonusChoice(state, playerProgress, choiceId) {
     everOpenedCells:   state.everOpenedCells,
     removedWalls:       state.removedWalls,
     internalWalls:      state.internalWalls,
+    fixedWalls:         state.fixedWalls,
     permanentlyClosed: state.permanentlyClosed,
     disabledCells:      state.disabledCells,
     rooms:              state.rooms,

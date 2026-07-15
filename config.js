@@ -246,6 +246,27 @@ const CONFIG = {
 
   // Level generation
   MAX_GENERATION_ATTEMPTS: 1000,  // макс. попыток генерации уровня
+  FIXED_WALL_RATIO: 0.4,          // доля межкомнатных стен, которые нельзя открыть
+
+  // Wall colors
+  WALL_COLORS: {
+    // Внешние и fixed стены (неоткрываемые)
+    closedFill:    0x14081e,
+    closedStroke:  0x785090,
+    closedFillAlpha:   0.92,
+    closedStrokeAlpha: 0.5,
+    // Обычные закрытые перегородки (открываемые)
+    partitionFill:    0x14081e,
+    partitionStroke:  0x785090,
+    partitionFillAlpha:   0.92,
+    partitionStrokeAlpha: 0.5,
+    // Открытые перегородки (приглушённые)
+    openFillAlpha:   0.29,
+    openStrokeAlpha: 0.05,
+    // Purified-adjacent (светлее)
+    purifiedFill:    0xafafaf,
+    purifiedStroke:  0x9a70b0,
+  },
 
   // Pickup distances
   PICKUP_DISTANCE: 10,            // расстояние до предметов (добавляется к радиусу)
