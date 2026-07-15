@@ -246,6 +246,27 @@ const CONFIG = {
 
   // Level generation
   MAX_GENERATION_ATTEMPTS: 1000,  // макс. попыток генерации уровня
+  FIXED_WALL_RATIO: 0.4,          // доля межкомнатных стен, которые нельзя открыть
+
+  // Wall colors
+  WALL_COLORS: {
+    // Внешние и fixed стены (неоткрываемые)
+    closedFill:    0x14081e,
+    closedStroke:  0x785090,
+    closedFillAlpha:   0.92,
+    closedStrokeAlpha: 0.5,
+    // Обычные закрытые перегородки (открываемые)
+    partitionFill:    0x14081e,
+    partitionStroke:  0x785090,
+    partitionFillAlpha:   0.92,
+    partitionStrokeAlpha: 0.5,
+    // Открытые перегородки (приглушённые)
+    openFillAlpha:   0.29,
+    openStrokeAlpha: 0.05,
+    // Purified-adjacent (светлее)
+    purifiedFill:    0xafafaf,
+    purifiedStroke:  0x9a70b0,
+  },
 
   // Pickup distances
   PICKUP_DISTANCE: 10,            // расстояние до предметов (добавляется к радиусу)
@@ -448,17 +469,23 @@ const WEAPON_DEFS = {
     range: 40,
     penetrate: 2,
     shakeAmount: 0.8,
-    spriteAngle: 0.7,
+    spriteAngle: 0.05,
     magazineSize: 5,
     reloadTime: 2.6,
     bloomPerShot: 0.25,
     bloomRecoveryTime: 0.4,
     maxSpread: 1,
-    spriteScale: 0.3,
+    spriteScale: 0.8,
     spriteOffset: 0.3,
     spritePivotY: 0,
-    gripLeft:  { x: -14, y: 1 },
-    gripRight: { x:  4, y: 0 },
+    shootAnimRatio: 1.0,
+    reloadAnimRatio: 1.0,
+    spriteWidth: 160,
+    reloadSpriteWidth: 160,
+    reloadAnchorX: 0.63,
+    reloadAnchorY: 0.5,
+    gripLeft:  { x: -10, y: 1 },
+    gripRight: { x:  -20, y: 3 },
     flipThreshold: 0.10,
   },
   revolver: {//dps 66

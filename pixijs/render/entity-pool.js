@@ -28,6 +28,8 @@ export const smgFrames = [];         // 7 Texture[] (80×48, shoot spritesheet)
 export const smgReloadFrames = [];  // 28 Texture[] (80×48, empty+reload spritesheets)
 export const carbineFrames = [];       // 12 Texture[] (128×48, shoot spritesheet: idle + 11 shoot)
 export const carbineReloadFrames = []; // 32 Texture[] (96×64, emptying + reload spritesheets)
+export const rifleFrames = [];         // 28 Texture[] (160×32, shoot spritesheet: vertical column)
+export const rifleReloadFrames = [];   // 46 Texture[] (128×32, reload spritesheet: horizontal row)
 export const armTextures = {};    // { upper, forearm, southUpper, southForearm }
 let tankTexture = Texture.WHITE;
 let tankCorpseTexture = Texture.WHITE;
@@ -382,8 +384,31 @@ function _buildWeaponTextures() {
     }
   }
 
+  // Rifle: slice shoot spritesheet (160×896, 28 frames × 160×32, vertical column)
+  const rifleShootTex = Assets.get('weapon-rifle-shoot');
+  if (rifleShootTex) {
+    for (let i = 0; i < 28; i++) {
+      rifleFrames.push(new Texture({
+        source: rifleShootTex.source,
+        frame:  new Rectangle(0, i * 32, 160, 32),
+      }));
+    }
+    weaponTextures.rifle = rifleFrames[0];
+  }
+
+  // Rifle reload: slice reload spritesheet (5888×32, 46 frames × 128×32, horizontal row)
+  const rifleReloadTex = Assets.get('weapon-rifle-reload');
+  if (rifleReloadTex) {
+    for (let i = 0; i < 46; i++) {
+      rifleReloadFrames.push(new Texture({
+        source: rifleReloadTex.source,
+        frame:  new Rectangle(i * 128, 0, 128, 32),
+      }));
+    }
+  }
+
   // Other weapons: single texture
-  for (const id of ['shotgun', 'rifle', 'revolver']) {
+  for (const id of ['shotgun', 'revolver']) {
     weaponTextures[id] = Assets.get('weapon-' + id);
   }
 }

@@ -446,7 +446,7 @@ function _updateCursor(state, camera) {
   const my = mouse.y + (camera?.y || 0);
 
   const wall = getWallAtPoint(state.blobCells, mx, my);
-  if (wall && !state.internalWalls.has(wall.wk)) {
+  if (wall && !state.internalWalls.has(wall.wk) && !state.fixedWalls?.has(wall.wk)) {
     const aOpen = state.openCells.has(cellKey(wall.ax, wall.ay));
     const bOpen = state.openCells.has(cellKey(wall.bx, wall.by));
     const adjacentToOpen = aOpen || bOpen;

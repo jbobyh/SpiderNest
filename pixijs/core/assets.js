@@ -140,6 +140,8 @@ const MANIFEST = {
         { alias: 'weapon-smg-empty',  src: IMG + 'weapons/smg/[EMPTY] Submachine - MP5A3.png' },
         { alias: 'weapon-smg-reload', src: IMG + 'weapons/smg/[RELOAD] Submachine - MP5A3.png' },
         { alias: 'weapon-rifle',      src: IMG + 'rifle.png' },
+        { alias: 'weapon-rifle-shoot',  src: IMG + 'weapons/sniper/[SNIPER_SHOOTING]_Sniper_rifle_[KAR98]_V1.00.png' },
+        { alias: 'weapon-rifle-reload', src: IMG + 'weapons/sniper/[SNIPER_ONLY_FIVE_ROUND_RELOADING]_Sniper_rifle_[KAR98]_V1.00-Sheet-sheet.png' },
         { alias: 'weapon-revolver',   src: IMG + 'revolver.png' },
         { alias: 'weapon-carbine',          src: IMG + 'weapons/rifle/[SINGLE_SHOT] Assault_rifle_V1.00.png' },
         { alias: 'weapon-carbine-emptying', src: IMG + 'weapons/rifle/[EMPTYING] Assault_rifle_V1.00.png' },

@@ -35,6 +35,7 @@ function findAutoCloseWall(state, excludeWk) {
   for (const wk of state.removedWalls) {
     if (wk === excludeWk) continue;
     if (state.internalWalls.has(wk)) continue;
+    if (state.fixedWalls?.has(wk)) continue;
 
     const { ax, ay, bx, by } = (() => {
       const [l, r] = wk.split('|');
@@ -128,8 +129,9 @@ export function handleWallToggle(state, mx, my, rightHeld, camera = null) {
   const aOpen = state.openCells.has(aKey);
   const bOpen = state.openCells.has(bKey);
 
-  // Can't interact with internal walls
+  // Can't interact with internal or fixed walls
   if (state.internalWalls.has(wall.wk)) return;
+  if (state.fixedWalls?.has(wall.wk)) return;
 
   // Can only interact if at least one side is open
   if (!aOpen && !bOpen) return;

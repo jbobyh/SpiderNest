@@ -9,7 +9,7 @@
 // ============================================================
 
 import { Sprite, Container, Graphics } from 'pixi.js';
-import { heroFrames, heroHandsFrames, heroLegsFrames, weaponTextures, pistolFrames, pistolReloadFrames, smgFrames, smgReloadFrames, carbineFrames, carbineReloadFrames, armTextures } from './entity-pool.js';
+import { heroFrames, heroHandsFrames, heroLegsFrames, weaponTextures, pistolFrames, pistolReloadFrames, smgFrames, smgReloadFrames, carbineFrames, carbineReloadFrames, rifleFrames, rifleReloadFrames, armTextures } from './entity-pool.js';
 import { getMovementDir } from '../core/input.js';
 
 let _playerContainer = null;
@@ -282,6 +282,19 @@ function _updateWeapon(state, p, mouseDx, mouseDy, heroDrawSize, facing) {
     } else {
       tex = carbineFrames[0];
     }
+  } else if (weaponId === 'rifle') {
+    if (state.weaponReloadAnim > 0 && rifleReloadFrames.length > 0) {
+      isReloadAnim = true;
+      const progress = 1 - state.weaponReloadAnim / (state.weaponReloadAnimMax || 1);
+      const frame = Math.min(45, Math.floor(progress * 46));
+      tex = rifleReloadFrames[frame];
+    } else if (state.weaponShootAnim > 0 && rifleFrames.length > 0) {
+      const progress = 1 - state.weaponShootAnim / (state.weaponShootAnimMax || 1);
+      const frame = 4 + Math.min(5, Math.floor(progress * 6));
+      tex = rifleFrames[frame];
+    } else {
+      tex = rifleFrames[0];
+    }
   } else {
     tex = weaponTextures[weaponId];
   }
@@ -323,7 +336,7 @@ function _updateWeapon(state, p, mouseDx, mouseDy, heroDrawSize, facing) {
   // Dynamic zIndex: weapon between arms
   const weaponZ = {
     south: 5,   // between arms (4 and 6)
-    west:  3,   // between front arm (4) and back arm (0)
+    west:  0.5, // behind body (1), above back arm (0)
     east:  3,
     north: -1,  // between arms (-2 and 0), behind body (1)
   };
