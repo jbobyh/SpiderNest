@@ -20,12 +20,8 @@ import {
   getConnectedCells, getCellBounds,
   CELL_PX, cellOf,
 } from '../world/constants.js';
-import { spawnRoomRewards } from '../game/collectibles.js';
-import { spawnPurifyWave } from '../render/particles.js';
-import { updateRevealedRoomsOnPurify } from '../game/state.js';
-import { updatePlayMode, handleWeaponPickup } from './play-mode.js';
+import { updatePlayMode } from './play-mode.js';
 import { app } from '../core/app.js';
-import { EnemyFactory } from '../game/enemy-factory.js';
 
 // ── Battle state creation ─────────────────────────────────────
 
@@ -97,9 +93,6 @@ export function createBattleState(state, openedCellKey) {
     centerY,
   };
 
-  // External walls are already set up for full blobCells in play mode
-  // Don't re-sync them here - battleCells is a subset and would remove walls
-
   state.phase = 'battle';
 }
 
@@ -125,37 +118,12 @@ export function createBossBattleState(state, currentLevel) {
   const centerX = (minX + bCols / 2) * CP;
   const centerY = (minY + bRows / 2) * CP;
 
-  // Spawn boss at cell farthest from player
-  const bossDef = (typeof BOSS_DEFS !== 'undefined' && BOSS_DEFS[currentLevel]) || BOSS_DEFS[1];
-  let farthestCell = null, maxDist = -1;
-  for (const k of battleCells) {
-    const { x, y } = cellFromKey(k);
-    const d = Math.hypot((x + 0.5) * CP - state.player.x, (y + 0.5) * CP - state.player.y);
-    if (d > maxDist) { maxDist = d; farthestCell = { x, y }; }
+  // Activate stasis boss (already spawned by spawnBattleCycle)
+  for (const g of state.activeSpiders) {
+    if (g.stasis && g.isBoss) {
+      g.stasis = false;
+    }
   }
-
-  const margin = CONFIG.ENEMY_STATS.soldier.radius + 20;
-  let bossX = centerX, bossY = centerY;
-  if (farthestCell) {
-    const relX = state.player.x - farthestCell.x * CP;
-    const relY = state.player.y - farthestCell.y * CP;
-    bossX = farthestCell.x * CP + (relX < CP / 2 ? CP - margin : margin);
-    bossY = farthestCell.y * CP + (relY < CP / 2 ? CP - margin : margin);
-  }
-
-  const bossHp = bossDef.hp !== undefined
-    ? bossDef.hp
-    : (bossDef.hpBase === 'buldyga' ? CONFIG.ENEMY_STATS.buldyga.hp : CONFIG.ENEMY_STATS.soldier.hp) * (bossDef.hpMult || 1);
-
-  state.activeSpiders.push(EnemyFactory.create(bossDef.type || 'boss_phase', bossX, bossY, {
-    level: currentLevel,
-    hp: bossHp,
-    maxHp: bossHp,
-    radius: CONFIG.ENEMY_STATS.soldier.radius * (bossDef.radiusMult || 1),
-    isBoss: true,
-    phaseIndex: 0,
-    phaseTimer: bossDef.phases?.[0]?.duration ?? 0,
-  }));
 
   state.battle = {
     battleCells,
@@ -169,10 +137,6 @@ export function createBossBattleState(state, currentLevel) {
     centerY,
   };
 
-  // External walls are already set up for full blobCells in play mode
-  // Don't re-sync them here - battleCells is a subset and would remove walls
-
-  state.bossSummonReady = false;
   state.phase = 'battle';
 }
 
@@ -213,57 +177,6 @@ export function updateBattleMode(state, playerProgress, camera, dt, callbacks = 
  */
 export function exitBattleMode(state) {
   if (!state.battle) return;
-  const b = state.battle;
-
-  // Spawn rewards + purify ALL rooms that had enemies in battleCells
-  if (b.battleCells && state.rooms && state.purified) {
-    for (let ri = 0; ri < state.rooms.length; ri++) {
-      const room = state.rooms[ri];
-      const hasEnemyContent = room.cells.some(c => {
-        const content = state.cellContents.get(c.k);
-        return content && content.enemyCount && content.enemyCount > 0;
-      });
-      if (!hasEnemyContent) continue;
-      const inBattle = room.cells.some(c => b.battleCells.has(c.k));
-      if (!inBattle) continue;
-      if (state.purified.has(ri)) continue;
-
-      // Spawn rewards for this room
-      spawnRoomRewards(state, room.cells[0].k);
-
-      // Mark as purified
-      state.purified.add(ri);
-
-      // Reveal adjacent rooms
-      updateRevealedRoomsOnPurify(state, ri);
-
-      // Purify wave
-      if (!state.purifyWaveFired?.has(ri)) {
-        state.purifyWaveFired?.add(ri);
-        const altar = state.roomAltars?.find(a => a.roomIdx === ri);
-        let ox, oy;
-        if (altar) {
-          ox = altar.x;
-          oy = altar.y;
-        } else {
-          let sx = 0, sy = 0;
-          for (const c of room.cells) { sx += (c.x + 0.5) * CELL_PX; sy += (c.y + 0.5) * CELL_PX; }
-          ox = sx / room.cells.length;
-          oy = sy / room.cells.length;
-        }
-        spawnPurifyWave(state.particles, ox, oy, room.cells, CELL_PX);
-      }
-    }
-  }
-
-  // If boss was defeated, open exit cell
-  if (state.bossDefeated && state.exitCell) {
-    const ek = cellKey(state.exitCell.x, state.exitCell.y);
-    state.openCells.add(ek);
-    state.everRevealedCells.add(ek);
-    state.everOpenedCells.add(ek);
-  }
-
   state.battle = null;
   state.phase  = 'play';
 }
@@ -283,10 +196,3 @@ function _getRoomCenterCell(state, ck) {
   }
   return cellFromKey(ck);
 }
-
-function _enemyCopy(g, bx, by) {
-  const copy = EnemyFactory.create(g.type, bx, by, g);
-  return copy;
-}
-
-

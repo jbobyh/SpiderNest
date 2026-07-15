@@ -1,28 +1,21 @@
 // ============================================================
-// COLLECTIBLE RENDERER — world-space sprites for hearts,
-// upgrade orbs, chests, dropped weapons, summon sphere.
+// COLLECTIBLE RENDERER — world-space sprites for
+// upgrade chests, spatial chests, room bonus altars.
 //
 // initCollectibleRenderer(entitiesLayer)
 // syncCollectibles(state)   — call each frame
 // clearCollectibles()       — call on level teardown
-//
-// Works transparently in both play mode and battle mode:
-// in battle, reads from state.battle.* arrays.
 // ============================================================
 
 import { Sprite, Texture, Graphics, Text, Assets } from 'pixi.js';
-import { weaponTextures } from './entity-pool.js';
 import { cellOf, cellKey } from '../world/constants.js';
 
 let _layer = null;
 
-const _hearts        = new Map(); // key → Sprite
 const _chests        = new Map(); // key → Sprite
 const _upgradeChests = new Map(); // key → Sprite
-const _weapons       = new Map(); // key → Sprite
 const _altars        = new Map(); // cellKey → Sprite
 const _roomBonusAltars = new Map(); // cellKey → Sprite
-let   _sphere        = null;      // Graphics | null
 
 // ── Public API ────────────────────────────────────────────────
 
@@ -31,17 +24,12 @@ export function initCollectibleRenderer(entitiesLayer) {
 }
 
 export function clearCollectibles() {
-  for (const s of _hearts.values())        s.destroy({ children: true });
   for (const s of _chests.values())         s.destroy({ children: true });
   for (const s of _upgradeChests.values()) s.destroy({ children: true });
-  for (const s of _weapons.values())       s.destroy({ children: true });
   for (const e of _altars.values())        { e.spr.destroy(); e.label?.destroy(); }
   for (const s of _roomBonusAltars.values()) s.destroy({ children: true });
-  if (_sphere) { _sphere.destroy(); _sphere = null; }
-  _hearts.clear();
   _chests.clear();
   _upgradeChests.clear();
-  _weapons.clear();
   _altars.clear();
   _roomBonusAltars.clear();
 }
@@ -58,39 +46,14 @@ export function syncCollectibles(state) {
   const openCells       = inBattle ? state.battle?.battleCells : state.openCells;
   const everRevealedCells = (!inBattle) ? state.everRevealedCells : new Set();
 
-  _syncHearts       (state.hearts         || []);
   _syncSpatialChests(state.spatialChests  || [], openCells, everRevealedCells);
   _syncUpgradeChests(state.upgradeChests  || [], openCells, everRevealedCells);
-  _syncWeapons      (state.droppedWeapons || [], openCells, everRevealedCells);
-  _syncSphere       (state.summonSphere);
   if (!inBattle) {
     _syncAltars(state.roomAltars || [], state.openCells, state.cellContents, everRevealedCells);
     _syncRoomBonusAltars(state.roomBonusAltars || [], state.openCells, everRevealedCells);
   } else {
     _syncAltars([], null, null, null);
     _syncRoomBonusAltars([], null, null);
-  }
-}
-
-// ── Hearts ────────────────────────────────────────────────────
-
-const HEART_SIZE = 22;
-
-function _syncHearts(hearts) {
-  const alive = new Set();
-  for (const h of hearts) {
-    if (h.collected || h.spawned === false) continue;
-    const k = h.cellKey ?? h.originalCellKey ?? `h:${Math.round(h.x)},${Math.round(h.y)}`;
-    alive.add(k);
-    if (!_hearts.has(k)) {
-      const spr = _makeSprite('heart', HEART_SIZE);
-      _layer.addChild(spr);
-      _hearts.set(k, spr);
-    }
-    _hearts.get(k).position.set(h.x, h.y);
-  }
-  for (const [k, spr] of _hearts) {
-    if (!alive.has(k)) { spr.destroy(); _hearts.delete(k); }
   }
 }
 
@@ -154,61 +117,6 @@ function _syncUpgradeChests(chests, openCells, everRevealedCells) {
   for (const [k, s] of _upgradeChests) {
     if (!alive.has(k)) { s.destroy(); _upgradeChests.delete(k); }
   }
-}
-
-// ── Dropped / battle weapons ──────────────────────────────────
-
-const WEAPON_SIZE = 28;
-
-function _syncWeapons(droppedWeapons, openCells, everRevealedCells) {
-  const alive = new Set();
-  for (const dw of droppedWeapons) {
-    if (dw.picked) continue;
-    const wc = cellOf(dw.x, dw.y);
-    const wck = cellKey(wc.x, wc.y);
-    const isVisible = openCells?.has(wck) || everRevealedCells?.has(wck);
-    if (!isVisible) continue;
-    const k = `${dw.weaponId}|${Math.round(dw.x)},${Math.round(dw.y)}`;
-    alive.add(k);
-    if (!_weapons.has(k)) {
-      const tex = weaponTextures[dw.weaponId] ?? Texture.WHITE;
-      const spr = new Sprite(tex);
-      spr.anchor.set(0.5);
-      const tw = tex.width;
-      const th = tex.height;
-      const sc = Math.min(WEAPON_SIZE / tw, WEAPON_SIZE / th);
-      spr.width  = tw * sc;
-      spr.height = th * sc;
-      _layer.addChild(spr);
-      _weapons.set(k, spr);
-    }
-    _weapons.get(k).position.set(dw.x, dw.y);
-  }
-  for (const [k, spr] of _weapons) {
-    if (!alive.has(k)) { spr.destroy(); _weapons.delete(k); }
-  }
-}
-
-// ── Summon sphere ─────────────────────────────────────────────
-
-const SPHERE_R = 12;
-
-const SPHERE_SIZE = 24;
-
-function _syncSphere(sphere) {
-  if (!sphere || sphere.collected || sphere.spawned === false) {
-    if (_sphere) _sphere.visible = false;
-    return;
-  }
-  if (!_sphere) {
-    const spr = new Sprite(Texture.from('sphere'));
-    spr.anchor.set(0.5);
-    spr.width = spr.height = SPHERE_SIZE;
-    _layer.addChild(spr);
-    _sphere = spr;
-  }
-  _sphere.visible = true;
-  _sphere.position.set(sphere.x, sphere.y);
 }
 
 // ── Altars ────────────────────────────────────────────────────

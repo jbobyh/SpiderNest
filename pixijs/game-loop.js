@@ -73,12 +73,14 @@ import {
 import {
   initAccuracyIndicator, updateAccuracyIndicator, destroyAccuracyIndicator,
 } from './render/accuracy-indicator.js';
-import { initInput, destroyInput } from './core/input.js';
+import { initInput, destroyInput, mouse } from './core/input.js';
 import { Sounds }               from './core/sound.js';
 import {
   createGameState, createDefaultProgress, saveGame, savePlayerProgress, deleteSave,
 } from './game/state.js';
-import { updatePlayMode, isNearWeapon, isNearAltar, isNearUpgradeChest, isNearSpatialChest, isNearRoomBonusAltar } from './modes/play-mode.js';
+import { spawnBattleCycle } from './world/level-gen.js';
+import { cellKey } from './world/constants.js';
+import { updatePlayMode, isNearAltar, isNearUpgradeChest, isNearSpatialChest, isNearRoomBonusAltar } from './modes/play-mode.js';
 import {
   createBattleState, createBossBattleState,
   updateBattleMode, exitBattleMode,
@@ -127,14 +129,15 @@ export function startGameLoop({
   level = 1,
   playerProgress = null,
   savedState     = null,
+  chosenWeapon   = null,
 } = {}) {
   if (_running) stopGameLoop();
 
   _currentLevel   = level;
-  _playerProgress = playerProgress ?? createDefaultProgress();
+  _playerProgress = playerProgress ?? createDefaultProgress(chosenWeapon);
 
   // Save snapshot of progress at level start (for restart after death)
-  const defaults = createDefaultProgress();
+  const defaults = createDefaultProgress(chosenWeapon);
   _levelStartProgress = {
     totalLives: _playerProgress.totalLives,
     totalHeartsCollected: _playerProgress.totalHeartsCollected,
@@ -211,9 +214,7 @@ export function startGameLoop({
     rooms:              _state.rooms,
     purified:           _state.purified,
     spatialChests:      _state.spatialChests,
-    hearts:             _state.hearts,
     upgradeChests:      _state.upgradeChests,
-    summonSphere:       _state.summonSphere,
     roomBonuses:        _state.roomBonuses,
     roomBonusAltars:     _state.roomBonusAltars,
   }, _currentLevel);
@@ -364,6 +365,8 @@ function _loop(dt) {
 
   // If the cursed-choice or game-over overlay is open, skip game logic but still render
   if (isOverlayActive() || isGameOverActive()) {
+    mouse.held = false;
+    mouse.rightHeld = false;
     if (_state.player?.body) {
       setBodyVelocity(_state.player.body, 0, 0);
     }
@@ -441,13 +444,11 @@ function _render(dt) {
   syncCollectibles(_state);
   syncFlyingHeart();
   updateTooltip(_state, _camera);
-  const nearWeapon = _state.phase === 'play' ? isNearWeapon(_state) : false;
   const nearAltar  = _state.phase === 'play' ? isNearAltar(_state)  : false;
   const nearChest  = _state.phase === 'play' ? isNearUpgradeChest(_state) : false;
   const nearSpatialChest = _state.phase === 'play' ? isNearSpatialChest(_state) : false;
   const nearRoomBonusAltar = _state.phase === 'play' ? isNearRoomBonusAltar(_state) : false;
-  const bossSummonReady = _state.phase === 'play' ? _state.bossSummonReady : false;
-  updateHud(_state, _currentLevel, nearWeapon, nearAltar, bossSummonReady, nearChest, nearSpatialChest, nearRoomBonusAltar);
+  updateHud(_state, _currentLevel, false, nearAltar, false, nearChest, nearSpatialChest, nearRoomBonusAltar);
 
   updateAccuracyIndicator(_state, _camera);
 
@@ -493,9 +494,7 @@ function _render(dt) {
       rooms:              _state.rooms,
       purified:           _state.purified,
       spatialChests:      _state.spatialChests,
-      hearts:             _state.hearts,
       upgradeChests:      _state.upgradeChests,
-      summonSphere:       _state.summonSphere,
       roomBonuses:        _state.roomBonuses,
     }, _currentLevel);
   }
@@ -504,30 +503,60 @@ function _render(dt) {
 // ── Phase transition callbacks ────────────────────────────────
 
 function _onEnterBattle(cellKey) {
-  if (_state.bossSummonReady && cellKey == null) {
-    // Boss summon via boss altar
+  if (_state.pendingNextCycle) {
+    // Chest collected after battle won — spawn next cycle instead of starting battle
+    _state.pendingNextCycle = false;
+    const isNextBoss = _state.battleCount >= _state.requiredRegularBattles;
+    spawnBattleCycle(_state, _currentLevel, isNextBoss);
+    buildTileLayer(layers.tiles, {
+      blobCells:          _state.blobCells,
+      openCells:          _state.openCells,
+      everRevealedCells:  _state.everRevealedCells,
+      everOpenedCells:   _state.everOpenedCells,
+      removedWalls:       _state.removedWalls,
+      internalWalls:      _state.internalWalls,
+      fixedWalls:         _state.fixedWalls,
+      permanentlyClosed:  _state.permanentlyClosed,
+      disabledCells:      _state.disabledCells,
+      rooms:              _state.rooms,
+      purified:           _state.purified,
+      spatialChests:      _state.spatialChests,
+      upgradeChests:      _state.upgradeChests,
+      roomBonuses:        _state.roomBonuses,
+    }, _currentLevel);
+    return;
+  }
+  // Check if boss is in stasis — use boss battle state
+  const hasBoss = _state.activeSpiders.some(g => g.stasis && g.isBoss);
+  if (hasBoss) {
     createBossBattleState(_state, _currentLevel);
-    Sounds.playBossMusic?.();
   } else {
     createBattleState(_state, cellKey);
   }
 }
 
 function _onZoomInComplete(tr) {
-  if (tr.isBoss) {
+  const hasBoss = _state.activeSpiders.some(g => g.stasis && g.isBoss);
+  if (hasBoss) {
     createBossBattleState(_state, _currentLevel);
-    Sounds.playBossMusic?.();
   } else {
     createBattleState(_state, tr.pendingCellKey);
   }
+}
+
+function _isStartRoomChestCollected(state) {
+  const startKey = cellKey(state.startCell.x, state.startCell.y);
+  const hasUncollected =
+    (state.upgradeChests || []).some(c => c.cellKey === startKey && !c.collected) ||
+    (state.spatialChests || []).some(c => c.cellKey === startKey && !c.collected) ||
+    (state.roomBonusAltars || []).some(a => a.cellKey === startKey && !a.activated);
+  return !hasUncollected;
 }
 
 function _onBattleWon(state, playerProgress) {
   const isBoss = state.battle?.isBossBattle;
 
   if (isBoss) {
-    state.bossDefeated = true;
-    // Check win condition (all bosses defeated = level complete)
     _onLevelComplete(state, playerProgress);
     return;
   }
@@ -536,7 +565,20 @@ function _onBattleWon(state, playerProgress) {
   saveCurrentGame();
   Sounds.playLevelMusic(_currentLevel);
 
-  // Rebuild tiles (walls may have changed, room purification updated)
+  // Increment battle count
+  state.battleCount = (state.battleCount || 0) + 1;
+
+  // Check if boss should appear next
+  const isNextBoss = state.battleCount >= state.requiredRegularBattles;
+
+  // Only spawn next cycle if chest is collected; otherwise wait for chest pickup
+  if (_isStartRoomChestCollected(state)) {
+    spawnBattleCycle(state, _currentLevel, isNextBoss);
+  } else {
+    state.pendingNextCycle = true;
+  }
+
+  // Rebuild tiles
   buildTileLayer(layers.tiles, {
     blobCells:          _state.blobCells,
     openCells:          _state.openCells,
@@ -550,19 +592,37 @@ function _onBattleWon(state, playerProgress) {
     rooms:              _state.rooms,
     purified:           _state.purified,
     spatialChests:      _state.spatialChests,
-    hearts:             _state.hearts,
     upgradeChests:      _state.upgradeChests,
-    summonSphere:       _state.summonSphere,
     roomBonuses:        _state.roomBonuses,
   }, _currentLevel);
 }
 
 function _onZoomOutComplete(_tr) {
+  const isBoss = _state.battle?.isBossBattle;
+
+  if (isBoss) {
+    _onLevelComplete(_state, _playerProgress);
+    return;
+  }
+
   exitBattleMode(_state);
   saveCurrentGame();
   Sounds.playLevelMusic(_currentLevel);
 
-  // Rebuild tiles (walls may have changed, room purification updated)
+  // Increment battle count
+  _state.battleCount = (_state.battleCount || 0) + 1;
+
+  // Check if boss should appear next
+  const isNextBoss = _state.battleCount >= _state.requiredRegularBattles;
+
+  // Only spawn next cycle if chest is collected; otherwise wait for chest pickup
+  if (_isStartRoomChestCollected(_state)) {
+    spawnBattleCycle(_state, _currentLevel, isNextBoss);
+  } else {
+    _state.pendingNextCycle = true;
+  }
+
+  // Rebuild tiles
   buildTileLayer(layers.tiles, {
     blobCells:          _state.blobCells,
     openCells:          _state.openCells,
@@ -576,9 +636,7 @@ function _onZoomOutComplete(_tr) {
     rooms:              _state.rooms,
     purified:           _state.purified,
     spatialChests:      _state.spatialChests,
-    hearts:             _state.hearts,
     upgradeChests:      _state.upgradeChests,
-    summonSphere:       _state.summonSphere,
     roomBonuses:        _state.roomBonuses,
   }, _currentLevel);
 }
@@ -620,9 +678,10 @@ export function restartLevel() {
  * Advance to the next level.
  */
 export function nextLevel() {
-  // Recover hearts from open rooms
   if (_state && _playerProgress) {
-    _playerProgress.totalLives = (_state.player?.lives || 0) + (_state.playerRemovedWalls || 0);
+    // Return lives invested in opened walls + carry to next level
+    const removedWalls = _state.playerRemovedWalls || 0;
+    _playerProgress.totalLives = (_state.player?.lives || 0) + removedWalls;
   }
 
   stopGameLoop();

@@ -12,6 +12,7 @@ const CONFIG = {
 
   // Player
   INITIAL_LIVES: 3,       // начальное кол-во жизней
+  MAX_LIVES: 5,           // максимальное кол-во жизней
   LIVES_PER_HEART: 1,     // жизней на одно сердце
   PLAYER_SPEED: 2.2,      // скорость игрока (пикс/сек)
   PLAYER_RADIUS: 5,       // радиус коллизии игрока
@@ -319,46 +320,17 @@ const CONFIG = {
 // LEVEL CONFIGURATION
 // ============================================================
 const LEVEL_CONFIG = {
-  // gridSize: размер сетки; roomCount: кол-во комнат;
-  // roomQuotas: обязательное количество комнат каждого размера (остальные — 1-клеточные)
-  1: { 
-    genType: 'grid',
-    roomCount: 25,
-    roomQuotas: { size4: 1, size3: 2, size2: 3 },
-    content: {
-      weapons: 1,
-      upgrades: 4,
-      cursed: 1,
-      bonuses: 3,
-      hearts: 1,
-      enemyRoomPercent: 0.4
-    }
+  1: {
+    battleCount: 10,
+    gridSize: 21,
   },
-  2: { 
-    genType: 'random',
-    roomCount: 25,
-    roomQuotas: { size4: 1, size3: 2, size2: 3 },
-    content: {
-      weapons: 2,
-      upgrades: 10,
-      cursed: 1,
-      bonuses: 3,
-      hearts: 2,
-      enemyRoomPercent: 0.5
-    }
+  2: {
+    battleCount: 15,
+    gridSize: 21,
   },
-  3: { 
-    genType: 'random',
-    roomCount: 25,
-    roomQuotas: { size4: 1, size3: 2, size2: 3 },
-    content: {
-      weapons: 2,
-      upgrades: 16,
-      cursed: 1,
-      bonuses: 3,
-      hearts: 3,
-      enemyRoomPercent: 0.6
-    }
+  3: {
+    battleCount: 20,
+    gridSize: 21,
   },
 };
 
@@ -668,20 +640,6 @@ const CURSED_UPGRADE_TYPES = [
     max: 1,
     icon: '↩️',
     effects: { ricochet: true }
-  },
-  {
-    id: 'weaponSlot',
-    label: '+1 слот для оружия',
-    description: 'Дополнительный слот оружия.',
-    color: '#ffaa00',
-    max: 3,
-    icon: '🗃️',
-    onApply: (state, playerProgress) => {
-      state.maxSlots++;
-      state.weaponSlots.push(null);
-      playerProgress.maxSlots = state.maxSlots;
-      playerProgress.weaponSlots = [...state.weaponSlots];
-    }
   },
   {
     id: 'lastLife',

@@ -85,22 +85,10 @@ function floorRotation(openDirs) {
 
 // ── Sprite factories ─────────────────────────────────────────
 
-function makeFloorSprite(x, y, openDirs, level, purifiedRooms, cellToRoom, cellContents, chestObjs, hearts, upgradeChests, summonSphere, roomBonuses, roomBonusAltars) {
+function makeFloorSprite(x, y, openDirs, level, purifiedRooms, cellToRoom, cellContents, chestObjs, upgradeChests, roomBonuses, roomBonusAltars) {
   const k = cellKey(x, y);
   const roomIdx = cellToRoom ? cellToRoom.get(k) : undefined;
   const isPurified = roomIdx !== undefined && purifiedRooms && purifiedRooms.has(roomIdx);
-
-  // Check if room has heart
-  let hasHeart = false;
-  if (roomIdx !== undefined && hearts && hearts.length > 0) {
-    for (const heart of hearts) {
-      const heartRoomIdx = cellToRoom.get(heart.cellKey);
-      if (heartRoomIdx === roomIdx) {
-        hasHeart = true;
-        break;
-      }
-    }
-  }
 
   // Check if room has room bonus altar
   let hasRoomBonusAltar = false;
@@ -115,7 +103,7 @@ function makeFloorSprite(x, y, openDirs, level, purifiedRooms, cellToRoom, cellC
 
   // Check if room has cursed chest using chestObjs
   let hasCursedChest = false;
-  if (!hasHeart && !hasRoomBonusAltar && roomIdx !== undefined && chestObjs && chestObjs.length > 0) {
+  if (!hasRoomBonusAltar && roomIdx !== undefined && chestObjs && chestObjs.length > 0) {
     for (const chest of chestObjs) {
       const chestRoomIdx = cellToRoom.get(chest.cellKey);
       if (chestRoomIdx === roomIdx) {
@@ -127,22 +115,13 @@ function makeFloorSprite(x, y, openDirs, level, purifiedRooms, cellToRoom, cellC
 
   // Check if room has upgrade chest
   let hasUpgradeChest = false;
-  if (!hasHeart && !hasRoomBonusAltar && !hasCursedChest && roomIdx !== undefined && upgradeChests && upgradeChests.length > 0) {
+  if (!hasRoomBonusAltar && !hasCursedChest && roomIdx !== undefined && upgradeChests && upgradeChests.length > 0) {
     for (const chest of upgradeChests) {
       const chestRoomIdx = cellToRoom.get(chest.cellKey);
       if (chestRoomIdx === roomIdx) {
         hasUpgradeChest = true;
         break;
       }
-    }
-  }
-
-  // Check if room has summon sphere
-  let hasSummonSphere = false;
-  if (!hasHeart && !hasRoomBonusAltar && !hasCursedChest && !hasUpgradeChest && roomIdx !== undefined && summonSphere) {
-    const sphereRoomIdx = cellToRoom.get(summonSphere.cellKey);
-    if (sphereRoomIdx === roomIdx) {
-      hasSummonSphere = true;
     }
   }
 
@@ -171,11 +150,7 @@ function makeFloorSprite(x, y, openDirs, level, purifiedRooms, cellToRoom, cellC
 
   // Select texture based on content type and purified status
   let texAlias;
-  if (hasSummonSphere) {
-    texAlias = isPurified ? 'floor-ground-sand' : 'floor-ground-dirt';
-  } else if (hasHeart) {
-    texAlias = isPurified ? 'floor-stone-pattern-small' : 'floor-stone-pattern-small-dark';
-  } else if (hasCursedChest || hasUpgradeChest) {
+  if (hasCursedChest || hasUpgradeChest) {
     texAlias = isPurified ? 'floor-stone-pattern' : 'floor-stone-pattern-dark';
   } else {
     texAlias = isPurified ? 'floor-stone' : 'floor-stone-dark';
@@ -504,7 +479,7 @@ export function buildTileLayer(targetContainer, worldData, level) {
 
   const {
     blobCells, openCells, everRevealedCells, everOpenedCells,
-    removedWalls, permanentlyClosed, disabledCells, rooms, purified, chestObjs, hearts, upgradeChests, summonSphere, roomBonuses, roomBonusAltars,
+    removedWalls, permanentlyClosed, disabledCells, rooms, purified, chestObjs, upgradeChests, roomBonuses, roomBonusAltars,
   } = worldData;
 
   // Build cellToRoom map
@@ -531,7 +506,7 @@ export function buildTileLayer(targetContainer, worldData, level) {
   }
   for (const k of allFloorCells) {
     const { x, y } = cellFromKey(k);
-    floorContainer.addChild(makeFloorSprite(x, y, getOpenDirs(x, y, allFloorCells), level, purified, cellToRoom, null, chestObjs, hearts, upgradeChests, summonSphere, roomBonuses, roomBonusAltars));
+    floorContainer.addChild(makeFloorSprite(x, y, getOpenDirs(x, y, allFloorCells), level, purified, cellToRoom, null, chestObjs, upgradeChests, roomBonuses, roomBonusAltars));
   }
 
   // ── 3. Outer wall strips ──

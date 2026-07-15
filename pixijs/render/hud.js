@@ -39,8 +39,7 @@ const dom = {
   cursedPanel:  null,
   weaponPanel:  null,
   hintsPanel:   null,
-  pickupHint:   null, // dynamic hint for weapon pickup
-  bossSummonHint: null, // hint for boss summon (space key)
+  pickupHint:   null, // dynamic hint for chest/altar interaction
   bossHpBar:    null, // boss HP bar (top center)
   levelComplete: null, // level complete screen overlay
   fpsCounter:   null, // FPS counter (bottom right)
@@ -96,17 +95,11 @@ export function initHud(parentContainer) {
   dom.hintsPanel = new Container({ label: 'hints' });
   _parent.addChild(dom.hintsPanel);
 
-  // Pickup hint (center, shows when near weapon)
+  // Pickup hint (center, shows when near chest/altar)
   dom.pickupHint = new Container({ label: 'pickup-hint' });
   dom.pickupHint.visible = false;
   _parent.addChild(dom.pickupHint);
   _buildPickupHint();
-
-  // Boss summon hint (center, shows when sphere collected)
-  dom.bossSummonHint = new Container({ label: 'boss-summon-hint' });
-  dom.bossSummonHint.visible = false;
-  _parent.addChild(dom.bossSummonHint);
-  _buildBossSummonHint();
 
   // Boss HP bar (top center, shows during boss battle)
   dom.bossHpBar = new Container({ label: 'boss-hp-bar' });
@@ -143,7 +136,14 @@ export function initHud(parentContainer) {
 export function updateHud(gameState, currentLevel, nearWeapon = false, nearAltar = false, bossSummonReady = false, nearChest = false, nearSpatialChest = false, nearRoomBonusAltar = false) {
   if (!_parent || !gameState) return;
 
-  dom.levelLabel.text = `Уровень ${currentLevel}`;
+  const battleNum = (gameState.battleCount || 0) + 1;
+  const required = gameState.requiredRegularBattles || 0;
+  const isBossPending = (gameState.battleCount || 0) >= required;
+  if (isBossPending) {
+    dom.levelLabel.text = `Уровень ${currentLevel} — БОСС`;
+  } else {
+    dom.levelLabel.text = `Уровень ${currentLevel} — Бой ${battleNum}/${required + 1}`;
+  }
 
   _updateHearts(gameState);
   _updateShields(gameState);
@@ -151,21 +151,16 @@ export function updateHud(gameState, currentLevel, nearWeapon = false, nearAltar
   _updateUpgrades(gameState);
   _updateWeaponSlots(gameState);
 
-  // Show/hide pickup hint (reuse panel, swap text)
-  // Priority: room bonus altar > spatial chest > chest > altar > weapon
-  const showHint = nearWeapon || nearAltar || nearChest || nearSpatialChest || nearRoomBonusAltar;
-  dom.pickupHint.visible = showHint && !bossSummonReady;
-  if (showHint && !bossSummonReady) {
-    let hintText = 'подобрать';
+  // Show/hide pickup hint
+  const showHint = nearChest || nearSpatialChest || nearRoomBonusAltar;
+  dom.pickupHint.visible = showHint;
+  if (showHint) {
+    let hintText = 'открыть';
     if (nearRoomBonusAltar) hintText = 'Активировать алтарь комнаты';
     else if (nearSpatialChest) hintText = 'Открыть пространственный сундук';
     else if (nearChest) hintText = 'Открыть сундук';
-    else if (nearAltar) hintText = 'Призвать врагов';
     _setPickupHintText(hintText);
   }
-
-  // Show boss summon hint
-  dom.bossSummonHint.visible = bossSummonReady;
 
   // Stats panel (Tab key)
   const showStats = keys['tab'];
@@ -761,57 +756,6 @@ function _setPickupHintText(text) {
   }
 }
 
-// ── Boss summon hint (Space key) ──────────────────────────────
-
-function _buildBossSummonHint() {
-  clearContainer(dom.bossSummonHint);
-
-  const KEY_SIZE = 28, GAP = 6;
-  const panelW = KEY_SIZE + 100;
-  const panelH = KEY_SIZE + 10;
-
-  const bg = createPanel({
-    x: 0, y: 0,
-    width: panelW, height: panelH,
-    bgColor: UI_COLORS.BG_DARK, bgAlpha: 0.75,
-    strokeColor: 0xff6600, strokeAlpha: 0.8, strokeWidth: 1
-  });
-  dom.bossSummonHint.addChild(bg);
-
-  // Space key icon (draw as rectangle with text)
-  const keyBg = createPanel({
-    x: 5, y: 5,
-    width: KEY_SIZE, height: KEY_SIZE,
-    bgColor: UI_COLORS.STROKE_DEFAULT, bgAlpha: 0.8,
-    strokeColor: UI_COLORS.CYAN, strokeAlpha: 0.9, strokeWidth: 1
-  });
-  dom.bossSummonHint.addChild(keyBg);
-
-  const keyLbl = new Text({ text: 'SPC', style: new TextStyle({
-    fill: '#00d4ff',
-    fontSize: 10,
-    fontFamily: 'BoldPixels, sans-serif',
-    fontWeight: 'bold',
-  })});
-  keyLbl.anchor.set(0.5, 0.5);
-  keyLbl.position.set(5 + KEY_SIZE / 2, 5 + KEY_SIZE / 2);
-  dom.bossSummonHint.addChild(keyLbl);
-
-  // Label
-  const lbl = new Text({ text: 'ПРИЗВАТЬ БОССА', style: new TextStyle({
-    fill: '#ff6600',
-    fontSize: 11,
-    fontFamily: 'BoldPixels, sans-serif',
-    fontWeight: 'bold',
-  })});
-  lbl.anchor.set(0, 0.5);
-  lbl.position.set(KEY_SIZE + 12, panelH / 2);
-  dom.bossSummonHint.addChild(lbl);
-
-  // Center on screen (above player area)
-  dom.bossSummonHint.position.set((VW - panelW) / 2, VH - 120);
-}
-
 // ── Boss HP bar (top center) ───────────────────────────────────
 
 const BOSS_BAR_W = 400;
@@ -1011,7 +955,6 @@ export function destroyHud() {
   dom.weaponPanel = null;
   dom.hintsPanel = null;
   dom.pickupHint = null;
-  dom.bossSummonHint = null;
   dom.bossHpBar = null;
   dom.levelComplete = null;
   dom.fpsCounter = null;

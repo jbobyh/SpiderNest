@@ -5,8 +5,6 @@
 import { Sounds } from '../core/sound.js';
 import { saveCurrentGame } from '../game-loop.js';
 import { doOpenWall, doCloseWall } from './state.js';
-import { spawnRoomRewards } from './collectibles.js';
-import { spawnPurifyWave } from '../render/particles.js';
 import { CELL_PX, getWallAtPoint, cellKey } from '../world/constants.js';
 
 // Flying heart state (module-local)
@@ -145,14 +143,7 @@ export function handleWallToggle(state, mx, my, rightHeld, camera = null) {
 
     if (state.player.lives < cost) return;
 
-    // Check purified before spending life
-    const roomA = state.cellToRoom?.get(aKey);
-    const roomB = state.cellToRoom?.get(bKey);
-    const purifiedA = roomA !== undefined && state.purified?.has(roomA);
-    const purifiedB = roomB !== undefined && state.purified?.has(roomB);
-    if (!purifiedA && !purifiedB) return; // Deny interaction
-
-    // Auto-close far wall if only 1 life left (not for cursed rooms)
+    // Auto-close far wall if only 1 life left
     if (state.player.lives === 1) {
       const wallToClose = findAutoCloseWall(state, wall.wk);
       if (!wallToClose) return;
@@ -163,7 +154,6 @@ export function handleWallToggle(state, mx, my, rightHeld, camera = null) {
       launchFlyingHeart(wallToClose.midX, wallToClose.midY, wallMidX, wallMidY, () => {
         pendingOpenHeart = false;
         doOpenWall(state, wall.wk);
-        _spawnRewardsForNewlyPurified(state, wall);
         saveCurrentGame();
       });
       return;
@@ -180,20 +170,14 @@ export function handleWallToggle(state, mx, my, rightHeld, camera = null) {
     launchFlyingHeart(worldFrom.x, worldFrom.y, wallMidX, wallMidY, () => {
       pendingOpenHeart = false;
       doOpenWall(state, wall.wk);
-      _spawnRewardsForNewlyPurified(state, wall);
       saveCurrentGame();
     });
   } else {
     // CLOSE wall: recover lives
-    if (state.player.lives >= 5) return; // max lives cap
+    const maxLives = CONFIG.MAX_LIVES || 5;
+    if (state.player.lives >= maxLives) return;
 
     const refund = 1;
-
-    const roomA = state.cellToRoom?.get(aKey);
-    const roomB = state.cellToRoom?.get(bKey);
-    const purifiedA = roomA !== undefined && state.purified?.has(roomA);
-    const purifiedB = roomB !== undefined && state.purified?.has(roomB);
-    if (!purifiedA && !purifiedB) return; // Deny interaction
 
     pendingOpenHeart = 'hud';
     const heartIndex = state.player.lives;
@@ -209,21 +193,5 @@ export function handleWallToggle(state, mx, my, rightHeld, camera = null) {
       // Convert HUD screen-space coords to world-space
       return camera ? camera.screenToWorld(hudCoords.x, hudCoords.y) : hudCoords;
     });
-  }
-}
-
-function _spawnRewardsForNewlyPurified(state, wall) {
-  const wallMidX = (wall.ax + wall.bx + 1) * CELL_PX / 2;
-  const wallMidY = (wall.ay + wall.by + 1) * CELL_PX / 2;
-  for (const k of [cellKey(wall.ax, wall.ay), cellKey(wall.bx, wall.by)]) {
-    const roomIdx = state.cellToRoom?.get(k);
-    if (roomIdx !== undefined && state.purified?.has(roomIdx)) {
-      spawnRoomRewards(state, k);
-      const room = state.rooms?.[roomIdx];
-      if (room && !state.purifyWaveFired?.has(roomIdx)) {
-        state.purifyWaveFired.add(roomIdx);
-        spawnPurifyWave(state.particles, wallMidX, wallMidY, room.cells, CELL_PX);
-      }
-    }
   }
 }

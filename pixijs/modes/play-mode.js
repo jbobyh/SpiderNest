@@ -20,13 +20,12 @@ import {
 import { setBodyVelocity, updatePlayerCollision } from '../world/physics.js';
 import { bulletManager } from '../game/bullet-manager.js';
 import {
-  shoot, pickupWeapon, startReload, finishReload, enemyBulletRange, ENEMY_BULLET_COLOR, getSpatialBonus,
+  shoot, startReload, finishReload, enemyBulletRange, ENEMY_BULLET_COLOR, getSpatialBonus,
 } from '../game/combat.js';
 import { updateEnemyAI } from '../game/enemy-ai.js';
-import { handleBossKilled } from '../game/boss.js';
 import { dealPlayerDamage } from '../game/upgrades.js';
 import {
-  updateCollectibles, checkAltarActivation, isNearAltar,
+  updateCollectibles, isNearAltar,
   checkUpgradeChestActivation, isNearUpgradeChest,
   checkSpatialChestActivation, isNearSpatialChest,
   checkRoomBonusAltarActivation, isNearRoomBonusAltar,
@@ -36,7 +35,8 @@ import {
   handleWallToggle, updateFlyingHeart, isWallInteractionPending,
 } from '../game/walls.js';
 import { spawnParticles } from '../render/particles.js';
-import { clearBullets, syncBullets, initBulletRenderer } from '../render/bullet-renderer.js';
+
+let _fWasPressed = false;
 
 // ── Public API ────────────────────────────────────────────────
 
@@ -170,22 +170,6 @@ export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}
     checkRoomBonusAltarActivation(state, interactTriggered, (ck) => {
       if (onEnterBattle) onEnterBattle(ck);
     });
-
-    // Altar check
-    checkAltarActivation(state, interactTriggered, (ck) => {
-      if (onEnterBattle) onEnterBattle(ck);
-    });
-
-    // Boss summon readiness
-    state.bossSummonReady =
-      state.summonSphereCollected && state.phase === 'play' && !state.bossDefeated;
-
-    // Boss summon (Space key)
-    if (keys[' '] && !_spaceWasPressed && state.bossSummonReady) {
-      _spaceWasPressed = true;
-      if (onEnterBattle) onEnterBattle(null);
-    }
-    if (!keys[' ']) _spaceWasPressed = false;
   }
 
   // ── Flying heart animation ─────────────────────────────────
@@ -193,9 +177,6 @@ export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}
 
   // ── Weapon slot switch ────────────────────────────────────
   _handleWeaponSwitch(state);
-
-  // ── Weapon pickup (F key) ─────────────────────────────────
-  handleWeaponPickup(state, playerProgress, interactTriggered);
 
   // ── Bullets ───────────────────────────────────────────────
   const onStasisTriggered = isBattle ? null : (enemy) => {
@@ -411,7 +392,6 @@ function _onEnemyKilled(state, playerProgress, g) {
     }
   }
   if (g.isBoss) {
-    handleBossKilled(g, state, playerProgress);
     Sounds.bossdeath?.();
   }
   // Bloated death shot
@@ -462,52 +442,6 @@ function _updateCursor(state, camera) {
   app.canvas.style.cursor = "url('img/crosshairs_white.png') 4 4, crosshair";
 }
 
-// ── Weapon pickup via F key ──────────────────────────────────
-
-const WEAPON_PICKUP_R = CONFIG.PLAYER_RADIUS + CONFIG.WEAPON_PICKUP_DISTANCE;
-let _fWasPressed = false;
-let _spaceWasPressed = false;
-
-export function handleWeaponPickup(state, playerProgress, triggered) {
-  if (!triggered) return;
-
-  const px = state.player.x, py = state.player.y;
-
-  // Find nearby weapon
-  for (let i = state.droppedWeapons.length - 1; i >= 0; i--) {
-    const dw = state.droppedWeapons[i];
-    if (dw.picked) continue;
-    const wc = cellOf(dw.x, dw.y);
-    if (!state.openCells.has(cellKey(wc.x, wc.y))) continue;
-    const dist = Math.hypot(px - dw.x, py - dw.y);
-    if (dist < WEAPON_PICKUP_R) {
-      dw.picked = true;
-      state.droppedWeapons.splice(i, 1);
-      pickupWeapon(state, dw.weaponId, state.particles, px, py, 1, px, py);
-      playerProgress.weaponSlots = [...state.weaponSlots];
-      playerProgress.activeSlot  = state.activeSlot;
-      playerProgress.maxSlots    = state.maxSlots;
-      playerProgress.ammo        = [...state.ammo];
-      saveCurrentGame();
-      break;
-    }
-  }
-}
-
 // ── Re-export proximity checks for game-loop ──────────────────────
 
 export { isNearAltar, isNearUpgradeChest, isNearSpatialChest, isNearRoomBonusAltar };
-
-// ── Check if player is near a weapon (for HUD hint) ──────────
-
-export function isNearWeapon(state) {
-  const px = state.player.x, py = state.player.y;
-  for (const dw of (state.droppedWeapons || [])) {
-    if (dw.picked) continue;
-    const wc = cellOf(dw.x, dw.y);
-    if (!state.openCells.has(cellKey(wc.x, wc.y))) continue;
-    const dist = Math.hypot(px - dw.x, py - dw.y);
-    if (dist < WEAPON_PICKUP_R) return true;
-  }
-  return false;
-}

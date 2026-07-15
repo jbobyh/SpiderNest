@@ -46,24 +46,6 @@ export function updateTooltip(state, camera) {
   // Convert screen mouse to world coords
   const worldMouse = camera.screenToWorld(mouse.x, mouse.y);
 
-  // Check dropped weapons
-  const weapons = inBattle ? (state.battle?.droppedWeapons || []) : (state.droppedWeapons || []);
-  for (const dw of weapons) {
-    if (dw.picked) continue;
-    const dist = Math.hypot(worldMouse.x - dw.x, worldMouse.y - dw.y);
-    if (dist < hoverR) {
-      const def = (typeof WEAPON_DEFS !== 'undefined' ? WEAPON_DEFS : {})
-        [dw.weaponId];
-      if (def) {
-        const screenX = (dw.x - camera.worldX) * camera.zoom + VW / 2;
-        const screenY = (dw.y - camera.worldY) * camera.zoom + VH / 2;
-        const stats = _buildWeaponStats(def);
-        showTooltip(screenX, screenY, def.label, def.description, def.color, 'world', stats);
-        return;
-      }
-    }
-  }
-
   // Only hide if the current tooltip is from the world
   if (_hoverSource === 'world') {
     hideTooltip();

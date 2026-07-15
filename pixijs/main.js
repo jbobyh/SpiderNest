@@ -5,6 +5,8 @@ import {
   startGameLoop, restartLevel, nextLevel,
 } from './game-loop.js';
 import { loadGame, hasSave, deleteSave } from './game/state.js';
+import { showWeaponSelect } from './render/weapon-select.js';
+import { initEntityPool } from './render/entity-pool.js';
 
 // ============================================================
 // BOOT SEQUENCE
@@ -35,6 +37,9 @@ async function boot() {
   // 3. Assets ready — hide loading screen
   loadingScreen.classList.add('hidden');
 
+  // 3b. Build entity textures (weapon icons etc.) for weapon select screen
+  initEntityPool();
+
   // 4. Show start overlay
   overlay.style.display = '';
 
@@ -56,7 +61,7 @@ async function boot() {
           savedState:     save.state,
         });
       } else {
-        startGameLoop({ level: 1 });
+        showWeaponSelect(app.stage, (wId) => startGameLoop({ level: 1, chosenWeapon: wId }));
       }
     });
   }
@@ -66,7 +71,7 @@ async function boot() {
     resumeAudioContext();
     document.getElementById('overlay').style.display = 'none';
     deleteSave();
-    startGameLoop({ level: 1 });
+    showWeaponSelect(app.stage, (wId) => startGameLoop({ level: 1, chosenWeapon: wId }));
   });
 }
 

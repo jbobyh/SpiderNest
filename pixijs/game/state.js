@@ -8,14 +8,16 @@ import {
   CARDINAL_DIRECTIONS,
   recomputeOpenCells, wallKeyFromStr,
 } from '../world/constants.js';
-import { generateLevel } from '../world/level-gen.js';
+import { generateLevel, spawnBattleCycle } from '../world/level-gen.js';
 import { EnemyFactory } from './enemy-factory.js';
 
 // ── Default player progress (cross-level persistent state) ────
 
-export function createDefaultProgress() {
+export function createDefaultProgress(chosenWeapon) {
+  const wId = chosenWeapon || 'pistol';
+  const magSize = (typeof WEAPON_DEFS !== 'undefined' && WEAPON_DEFS[wId]) ? WEAPON_DEFS[wId].magazineSize : 12;
   return {
-    totalLives: 3,
+    totalLives: CONFIG.INITIAL_LIVES,
     totalHeartsCollected: 0,
     souls: 0,
     upgrades: {
@@ -70,10 +72,10 @@ export function createDefaultProgress() {
     spawnedUpgrades: {},
     upgradeLevels: {},
     spawnedWeapons: [],
-    weaponSlots: ['pistol', null],
+    weaponSlots: [wId, null],
     activeSlot: 0,
     maxSlots: 1,
-    ammo: [12, 0],
+    ammo: [magSize, 0],
   };
 }
 
@@ -89,13 +91,9 @@ export function createGameState(level, playerProgress) {
     removedWalls: roomRemovedWalls,
     internalWalls: roomInternalWalls,
     cellContents,
-    hearts,
     upgradeChests,
     spatialChests,
-    droppedWeapons,
-    summonSphere,
     trappedSpiders,
-    roomAltars,
     roomBonusAltars,
     roomBonuses,
     fixedWalls,
@@ -103,6 +101,7 @@ export function createGameState(level, playerProgress) {
     startCell,
     disabledCells,
     purified,
+    gridSize,
   } = generateLevel(level, playerProgress);
 
   const cx = startCell.x;
@@ -120,31 +119,10 @@ export function createGameState(level, playerProgress) {
   const initEverOpened   = new Set([cellKey(cx, cy)]);
   const initEverRevealed = new Set([cellKey(cx, cy)]);
 
-  // Reveal all cells of initially-purified rooms
-  for (const purifiedIdx of purified) {
-    for (const cell of rooms[purifiedIdx].cells) initEverRevealed.add(cell.k);
-  }
-
-  // Reveal rooms adjacent to initially-purified rooms (whole room, not just border cells)
-  for (const purifiedIdx of purified) {
-    const purifiedCellKeys = new Set(rooms[purifiedIdx].cells.map(c => c.k));
-    for (const pk of purifiedCellKeys) {
-      const { x, y } = cellFromKey(pk);
-      for (const [dx, dy] of CARDINAL_DIRECTIONS) {
-        const nk = cellKey(x + dx, y + dy);
-        if (purifiedCellKeys.has(nk)) continue;
-        const neighborRoomIdx = cellToRoom.get(nk);
-        if (neighborRoomIdx !== undefined && !purified.has(neighborRoomIdx)) {
-          for (const cell of rooms[neighborRoomIdx].cells) initEverRevealed.add(cell.k);
-        }
-      }
-    }
-  }
-
-  return {
+  const state = {
     level,
     souls: playerProgress.souls || 0,
-    gridSize: CONFIG.GRID_SIZE,
+    gridSize,
     rooms,
     blobCells,
     openCells: initOpen,
@@ -161,16 +139,12 @@ export function createGameState(level, playerProgress) {
     exitCell: null,
     revealedExit: false,
     cellContents,
-    hearts,
-    heartsCollected: 0,
-    summonSphere,
-    summonSphereCollected: false,
     upgradeChests,
     spatialChests,
     upgradeLevels: { ...playerProgress.upgradeLevels },
-    bossSummonReady: false,
-    bossDefeated: false,
     upgrades: { ...playerProgress.upgrades },
+    battleCount: 0,
+    requiredRegularBattles: (LEVEL_CONFIG[level] || LEVEL_CONFIG[1]).battleCount - 1,
     player: {
       x: (cx + 0.5) * CP,
       y: (cy + 0.5) * CP,
@@ -185,7 +159,7 @@ export function createGameState(level, playerProgress) {
       dashTrailTimer: 0,
     },
     spiders: [],
-    activeSpiders: trappedSpiders,
+    activeSpiders: [],
     deathCorpses: [],
     shootCooldown: 0,
     maxShootCooldown: 0,
@@ -207,25 +181,29 @@ export function createGameState(level, playerProgress) {
     mouse: { x: (cx + 0.5) * CP, y: (cy + 0.5) * CP },
     phase: 'play',
     battle: null,
-    droppedWeapons,
     weaponSlots: [...playerProgress.weaponSlots],
     activeSlot: playerProgress.activeSlot,
     maxSlots: playerProgress.maxSlots,
     ammo: _initAmmo(playerProgress),
-    roomAltars,
     roomBonusAltars,
     roomBonuses,
     purified,
     cellToRoom,
-    revealedRooms: new Set(), // Rooms adjacent to purified that show content without being opened
-    purifyWaveFired: new Set(purified),
+    revealedRooms: new Set(),
+    purifyWaveFired: new Set(),
+    pendingNextCycle: false,
   };
+
+  // Spawn first battle cycle (enemies + chest in start room)
+  spawnBattleCycle(state, level, false);
+
+  return state;
 }
 
 // ── Save / Load ───────────────────────────────────────────────
 
 const SAVE_KEY = 'spidernest_save';
-const SAVE_VERSION = 3;
+const SAVE_VERSION = 4;
 
 export function saveGame(state, currentLevel, playerProgress) {
   try {
@@ -298,7 +276,8 @@ export function deleteSave() {
 export function savePlayerProgress(state, playerProgress) {
   // Only save lives if player is alive; on death, totalLives stays as is
   if (state.player.lives > 0) {
-    playerProgress.totalLives = state.player.lives;
+    // Include lives invested in opened walls so they carry to next level
+    playerProgress.totalLives = state.player.lives + (state.playerRemovedWalls || 0);
   }
   playerProgress.weaponSlots          = [...(state.weaponSlots || ['pistol', null])];
   playerProgress.activeSlot           = state.activeSlot || 0;
@@ -390,7 +369,6 @@ export function doOpenWall(state, wk) {
 
   for (const { k } of [{ k: aKey }, { k: bKey }]) {
     if (!state.everOpenedCells.has(k)) state.everOpenedCells.add(k);
-    tryPurifyRoomIfEmpty(state, k);
   }
 }
 
@@ -440,10 +418,8 @@ function _serializeState(s) {
     startCell:        s.startCell,
     exitCell:         s.exitCell,
     revealedExit:     s.revealedExit,
-    heartsCollected:  s.heartsCollected,
-    summonSphere:     s.summonSphere,
-    summonSphereCollected: s.summonSphereCollected || false,
-    bossDefeated:     s.bossDefeated || false,
+    battleCount:      s.battleCount || 0,
+    requiredRegularBattles: s.requiredRegularBattles || 0,
     player: {
       x: s.player.x, y: s.player.y,
       lives: s.player.lives,
@@ -452,16 +428,13 @@ function _serializeState(s) {
       isDashing: false,
       dashDirX: 0, dashDirY: 0, dashProgress: 0,
     },
-    bossSummonReady:  s.bossSummonReady || false,
     cellContents:  [...s.cellContents].map(([k, v]) => [k, v]),
-    hearts:        s.hearts,
     upgradeChests: s.upgradeChests || [],
     spatialChests:     s.spatialChests || [],
     upgrades:      { ...s.upgrades },
     upgradeLevels: { ...s.upgradeLevels },
     spiders:       s.spiders.map(g => (g.serialize ? g.serialize() : { ...g })),
     activeSpiders: s.activeSpiders.map(g => (g.serialize ? g.serialize() : { ...g })),
-    droppedWeapons: s.droppedWeapons ? [...s.droppedWeapons] : [],
     weaponSlots:   s.weaponSlots ? [...s.weaponSlots] : ['pistol', null],
     activeSlot:    s.activeSlot || 0,
     maxSlots:      s.maxSlots || 1,
@@ -470,21 +443,21 @@ function _serializeState(s) {
     isReloading:   s.isReloading || false,
     reloadingSlot: s.reloadingSlot ?? -1,
     time:          s.time,
-    roomAltars:    s.roomAltars || [],
     roomBonusAltars: s.roomBonusAltars || [],
     roomBonuses:     s.roomBonuses || [],
     purified:      [...(s.purified || [])],
     purifyWaveFired: [...(s.purifyWaveFired || [])],
+    pendingNextCycle: s.pendingNextCycle || false,
     cellToRoom:    [...(s.cellToRoom || [])],
     revealedRooms: [...(s.revealedRooms || [])],
   };
 }
 
 function _deserializeState(data) {
-  return {
+  const state = {
     level:              data.level,
     souls:              data.souls || 0,
-    gridSize:           data.gridSize || 5,
+    gridSize:           data.gridSize || 21,
     rooms:              data.rooms || [],
     blobCells:          new Set(data.blobCells || []),
     openCells:          new Set(data.openCells),
@@ -500,25 +473,20 @@ function _deserializeState(data) {
     startCell:          data.startCell,
     exitCell:           data.exitCell,
     revealedExit:       data.revealedExit,
-    heartsCollected:    data.heartsCollected,
-    summonSphere:       data.summonSphere,
-    summonSphereCollected: data.summonSphereCollected || false,
-    bossDefeated:       data.bossDefeated || false,
-    bossSummonReady:    data.bossSummonReady || false,
+    battleCount:        data.battleCount || 0,
+    requiredRegularBattles: data.requiredRegularBattles || 0,
     player: {
       ...data.player,
       isDashing: false, dashDirX: 0, dashDirY: 0, dashProgress: 0,
       dashTrails: [], dashTrailTimer: 0,
     },
     cellContents:  new Map(data.cellContents),
-    hearts:        (data.hearts || []).map(h => ({ ...h, spawned: h.spawned !== false })),
     upgradeChests: (data.upgradeChests || []).map(c => ({ ...c, spawned: c.spawned !== false })),
     spatialChests:     (data.spatialChests || []).map(c => ({ ...c, spawned: c.spawned !== false })),
     upgrades:      { ...data.upgrades },
     upgradeLevels: data.upgradeLevels || {},
     spiders:       data.spiders.map(g => EnemyFactory.fromObject(g)),
     activeSpiders: (data.activeSpiders || []).map(g => EnemyFactory.fromObject(g)),
-    droppedWeapons: data.droppedWeapons ? [...data.droppedWeapons] : [],
     weaponSlots:   data.weaponSlots ? [...data.weaponSlots] : ['pistol', null],
     activeSlot:    data.activeSlot || 0,
     maxSlots:      data.maxSlots || 1,
@@ -544,12 +512,21 @@ function _deserializeState(data) {
     time:          data.time || 0,
     phase:         'play',
     battle:        null,
-    roomAltars:    data.roomAltars || [],
     roomBonusAltars: data.roomBonusAltars || [],
     roomBonuses:     data.roomBonuses || [],
     purified:         new Set(data.purified || []),
     cellToRoom:        new Map(data.cellToRoom || []),
     revealedRooms:     new Set(data.revealedRooms || []),
     purifyWaveFired:   new Set(data.purifyWaveFired || []),
+    pendingNextCycle: data.pendingNextCycle || false,
   };
+
+  // Restore battle cycle: if pendingNextCycle or no stasis enemies in start room, respawn
+  const hasStasisEnemies = (state.activeSpiders || []).some(g => g.stasis);
+  if (state.pendingNextCycle || !hasStasisEnemies) {
+    const isBoss = state.battleCount >= state.requiredRegularBattles;
+    spawnBattleCycle(state, state.level, isBoss);
+  }
+
+  return state;
 }
