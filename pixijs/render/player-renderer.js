@@ -336,7 +336,7 @@ function _updateWeapon(state, p, mouseDx, mouseDy, heroDrawSize, facing) {
   // Dynamic zIndex: weapon between arms
   const weaponZ = {
     south: 5,   // between arms (4 and 6)
-    west:  3,   // between front arm (4) and back arm (0)
+    west:  0.5, // behind body (1), above back arm (0)
     east:  3,
     north: -1,  // between arms (-2 and 0), behind body (1)
   };
