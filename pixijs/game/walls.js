@@ -4,8 +4,8 @@
 
 import { Sounds } from '../core/sound.js';
 import { saveCurrentGame } from '../game-loop.js';
-import { doOpenWall, doCloseWall } from './state.js';
-import { CELL_PX, getWallAtPoint, cellKey } from '../world/constants.js';
+import { doShiftWall, doUnshiftWall } from './state.js';
+import { CELL_PX, getNearestWall, inOpenRect, SHIFT_STEP } from '../world/constants.js';
 
 // Flying heart state (module-local)
 let flyingHeart = null;
@@ -24,39 +24,26 @@ function getHudHeartCoords(state, index) {
   return { x, y };
 }
 
-// Find a previously opened wall to auto-close when lives === 1
-function findAutoCloseWall(state, excludeWk) {
-  const pc = cellKey(Math.floor(state.player.x / CELL_PX), Math.floor(state.player.y / CELL_PX));
-  let best = null;
-  let bestDist = -Infinity;
-
-  for (const wk of state.removedWalls) {
-    if (wk === excludeWk) continue;
-    if (state.internalWalls.has(wk)) continue;
-    if (state.fixedWalls?.has(wk)) continue;
-
-    const { ax, ay, bx, by } = (() => {
-      const [l, r] = wk.split('|');
-      const [ax, ay] = l.split(',').map(Number);
-      const [bx, by] = r.split(',').map(Number);
-      return { ax, ay, bx, by };
-    })();
-
-    const aKey = cellKey(ax, ay);
-    const bKey = cellKey(bx, by);
-    const aOpen = state.openCells.has(aKey);
-    const bOpen = state.openCells.has(bKey);
-    if (!aOpen && !bOpen) continue;
-
-    const midX = (ax + bx + 1) * CELL_PX / 2;
-    const midY = (ay + by + 1) * CELL_PX / 2;
-    const dist = Math.hypot(midX - state.player.x, midY - state.player.y);
-
-    if (dist < bestDist) continue;
-    bestDist = dist;
-    best = { wk, midX, midY };
+// Find wall direction with largest shift to auto-pull when lives === 1
+function findAutoPullWall(state) {
+  const ws = state.wallShifts;
+  let bestDir = null;
+  let bestShift = 0;
+  for (const dir of ['N', 'S', 'E', 'W']) {
+    if (ws[dir] > bestShift) {
+      bestShift = ws[dir];
+      bestDir = dir;
+    }
   }
-  return best;
+  if (!bestDir) return null;
+
+  const r = state.openRect;
+  let midX, midY;
+  if (bestDir === 'N') { midX = (r.minX + r.maxX) / 2; midY = r.minY; }
+  else if (bestDir === 'S') { midX = (r.minX + r.maxX) / 2; midY = r.maxY; }
+  else if (bestDir === 'W') { midX = r.minX; midY = (r.minY + r.maxY) / 2; }
+  else { midX = r.maxX; midY = (r.minY + r.maxY) / 2; }
+  return { dir: bestDir, midX, midY };
 }
 
 // Launch flying heart animation
@@ -106,8 +93,8 @@ export function isWallInteractionPending() {
   return !!flyingHeart;
 }
 
-// Handle right-click wall toggle
-export function handleWallToggle(state, mx, my, rightHeld, camera = null) {
+// Handle right-click wall shift (push outward or pull inward)
+export function handleWallShift(state, mx, my, rightHeld, camera = null) {
   // Debounce: trigger only on rising edge
   if (!rightHeld) {
     _rightWasHeld = false;
@@ -119,78 +106,60 @@ export function handleWallToggle(state, mx, my, rightHeld, camera = null) {
   // Block if heart is flying
   if (flyingHeart) return;
 
-  const wall = getWallAtPoint(state.blobCells, mx, my);
+  const wall = getNearestWall(state.openRect, mx, my);
   if (!wall) return;
 
-  const aKey = cellKey(wall.ax, wall.ay);
-  const bKey = cellKey(wall.bx, wall.by);
-  const aOpen = state.openCells.has(aKey);
-  const bOpen = state.openCells.has(bKey);
+  const clickInside = inOpenRect(mx, my, state.openRect);
+  const maxLives = CONFIG.MAX_LIVES || 5;
 
-  // Can't interact with internal or fixed walls
-  if (state.internalWalls.has(wall.wk)) return;
-  if (state.fixedWalls?.has(wall.wk)) return;
+  if (!clickInside) {
+    // PUSH wall outward: spend a life
+    if (state.player.lives < 1) return;
 
-  // Can only interact if at least one side is open
-  if (!aOpen && !bOpen) return;
-
-  const wallMidX = (wall.ax + wall.bx + 1) * CELL_PX / 2;
-  const wallMidY = (wall.ay + wall.by + 1) * CELL_PX / 2;
-
-  if (!state.removedWalls.has(wall.wk)) {
-    // OPEN wall: spend a life
-    const cost = 1;
-
-    if (state.player.lives < cost) return;
-
-    // Auto-close far wall if only 1 life left
+    // Auto-pull farthest wall if only 1 life left
     if (state.player.lives === 1) {
-      const wallToClose = findAutoCloseWall(state, wall.wk);
-      if (!wallToClose) return;
+      const pullWall = findAutoPullWall(state);
+      if (!pullWall) return;
 
-      doCloseWall(state, wallToClose.wk);
+      doUnshiftWall(state, pullWall.dir);
+      state.player.lives += 1; // refund from auto-pull
       pendingOpenHeart = 'cell';
 
-      launchFlyingHeart(wallToClose.midX, wallToClose.midY, wallMidX, wallMidY, () => {
+      launchFlyingHeart(pullWall.midX, pullWall.midY, wall.midX, wall.midY, () => {
         pendingOpenHeart = false;
-        doOpenWall(state, wall.wk);
+        state.player.lives -= 1; // spend on push
+        doShiftWall(state, wall.dir);
         saveCurrentGame();
       });
       return;
     }
 
-    const heartIndex = state.player.lives - cost;
-    state.player.lives -= cost;
-    state.playerRemovedWalls++;
+    const heartIndex = state.player.lives - 1;
+    state.player.lives -= 1;
     pendingOpenHeart = 'hud';
 
     const hudCoords = getHudHeartCoords(state, heartIndex);
-    // Convert HUD screen-space coords to world-space
     const worldFrom = camera ? camera.screenToWorld(hudCoords.x, hudCoords.y) : { x: hudCoords.x, y: hudCoords.y };
-    launchFlyingHeart(worldFrom.x, worldFrom.y, wallMidX, wallMidY, () => {
+    launchFlyingHeart(worldFrom.x, worldFrom.y, wall.midX, wall.midY, () => {
       pendingOpenHeart = false;
-      doOpenWall(state, wall.wk);
+      doShiftWall(state, wall.dir);
       saveCurrentGame();
     });
   } else {
-    // CLOSE wall: recover lives
-    const maxLives = CONFIG.MAX_LIVES || 5;
+    // PULL wall inward: refund a life
+    if (state.wallShifts[wall.dir] < SHIFT_STEP) return; // wall not shifted
     if (state.player.lives >= maxLives) return;
-
-    const refund = 1;
 
     pendingOpenHeart = 'hud';
     const heartIndex = state.player.lives;
 
-    launchFlyingHeart(wallMidX, wallMidY, 0, 0, () => {
+    launchFlyingHeart(wall.midX, wall.midY, 0, 0, () => {
       pendingOpenHeart = false;
-      doCloseWall(state, wall.wk);
-      state.playerRemovedWalls--;
-      state.player.lives += refund;
+      doUnshiftWall(state, wall.dir);
+      state.player.lives += 1;
       saveCurrentGame();
     }, () => {
       const hudCoords = getHudHeartCoords(state, heartIndex);
-      // Convert HUD screen-space coords to world-space
       return camera ? camera.screenToWorld(hudCoords.x, hudCoords.y) : hudCoords;
     });
   }

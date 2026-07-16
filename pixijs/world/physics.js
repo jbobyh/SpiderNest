@@ -3,7 +3,7 @@
 // Matter is loaded as UMD via index.html → window.Matter
 // ============================================================
 
-import { CELL_PX, cellFromKey, wallKey } from './constants.js';
+import { CELL_PX } from './constants.js';
 
 // eslint-disable-next-line no-undef
 const { Engine, Bodies, Body, Composite, Events } = Matter;
@@ -15,17 +15,13 @@ export const CAT_PLAYER = 0x0002;
 export const CAT_ENEMY  = 0x0004;
 
 let _engine    = null;
-let _wallBodies = new Map(); // wallKey → Matter.Body
-let _outerWalls = [];
-let _externalWallBodies = new Map(); // key: "${x},${y}|${dx},${dy}" → Matter.Body
+let _rectWallBodies = []; // 4 rectangle boundary wall bodies
 
 // ── Engine lifecycle ──────────────────────────────────────────
 
 export function createEngine() {
   _engine     = Engine.create({ gravity: { x: 0, y: 0 } });
-  _wallBodies = new Map();
-  _outerWalls = [];
-  _externalWallBodies = new Map();
+  _rectWallBodies = [];
   return _engine;
 }
 
@@ -101,9 +97,7 @@ export function clearEngine() {
   if (_engine) {
     Engine.clear(_engine);
     _engine     = null;
-    _wallBodies = new Map();
-    _outerWalls = [];
-    _externalWallBodies = new Map();
+    _rectWallBodies = [];
   }
 }
 
@@ -120,60 +114,35 @@ export function syncEntitiesToBodies(player, enemies) {
   }
 }
 
-// ── Wall bodies ───────────────────────────────────────────────
+// ── Rectangle wall bodies ────────────────────────────────────
 //
-// For every boundary between two adjacent blobCells that is NOT in
-// removedWalls, we maintain a thin static rectangle.
-// Call syncWallBodies() whenever removedWalls changes.
+// 4 static walls forming the open rectangle boundary.
+// Call syncRectWallBodies() whenever openRect changes.
 
-export function syncWallBodies(blobCells, removedWalls) {
-  // Collect walls that should exist
-  const neededWalls = new Set();
-  for (const k of blobCells) {
-    const { x, y } = cellFromKey(k);
-    for (const [dx, dy] of [[1, 0], [0, 1]]) {
-      const nx = x + dx, ny = y + dy;
-      const nk = `${nx},${ny}`;
-      if (!blobCells.has(nk)) continue;
-      const wk = wallKey(x, y, nx, ny);
-      if (!removedWalls.has(wk)) neededWalls.add(wk);
-    }
+export function syncRectWallBodies(openRect) {
+  // Remove old bodies
+  for (const body of _rectWallBodies) {
+    Composite.remove(_engine.world, body);
   }
+  _rectWallBodies = [];
 
-  // Remove stale bodies
-  for (const [wk, body] of _wallBodies) {
-    if (!neededWalls.has(wk)) {
-      Composite.remove(_engine.world, body);
-      _wallBodies.delete(wk);
-    }
-  }
+  const { minX, minY, maxX, maxY } = openRect;
+  const W = maxX - minX;
+  const H = maxY - minY;
 
-  // Add missing bodies
-  for (const wk of neededWalls) {
-    if (_wallBodies.has(wk)) continue;
-    const [left, right] = wk.split('|');
-    const [ax, ay]      = left.split(',').map(Number);
-    const [bx, by]      = right.split(',').map(Number);
-    // ax===bx → horizontal boundary (same column) → horizontal wall strip
-    // ay===by → vertical boundary (same row)       → vertical wall strip
-    const isHorizBoundary = ax === bx; // boundary runs top-bottom → vertical strip
+  const walls = [
+    // North: horizontal strip at y = minY
+    { x: (minX + maxX) / 2, y: minY, w: W, h: WALL_THICKNESS },
+    // South: horizontal strip at y = maxY
+    { x: (minX + maxX) / 2, y: maxY, w: W, h: WALL_THICKNESS },
+    // West: vertical strip at x = minX
+    { x: minX, y: (minY + maxY) / 2, w: WALL_THICKNESS, h: H },
+    // East: vertical strip at x = maxX
+    { x: maxX, y: (minY + maxY) / 2, w: WALL_THICKNESS, h: H },
+  ];
 
-    let wx, wy, ww, wh;
-    if (!isHorizBoundary) {
-      // bx = ax+1 — wall between columns ax and bx (vertical strip at x = bx*CELL_PX)
-      wx = bx * CELL_PX;
-      wy = ay * CELL_PX + CELL_PX / 2;
-      ww = WALL_THICKNESS;
-      wh = CELL_PX;
-    } else {
-      // by = ay+1 — wall between rows ay and by (horizontal strip at y = by*CELL_PX)
-      wx = ax * CELL_PX + CELL_PX / 2;
-      wy = by * CELL_PX;
-      ww = CELL_PX;
-      wh = WALL_THICKNESS;
-    }
-
-    const body = Bodies.rectangle(wx, wy, ww, wh, {
+  for (const w of walls) {
+    const body = Bodies.rectangle(w.x, w.y, w.w, w.h, {
       isStatic: true,
       label: 'wall',
       friction: 0,
@@ -181,89 +150,13 @@ export function syncWallBodies(blobCells, removedWalls) {
       collisionFilter: { category: CAT_WALL },
     });
     Composite.add(_engine.world, body);
-    _wallBodies.set(wk, body);
+    _rectWallBodies.push(body);
   }
 }
 
-// External wall bodies at blobCell boundaries (where adjacent cell is NOT in blobCells).
-// Matches buildExternalWalls() visual rendering exactly.
-// visibleCells: optional Set of cells to check (like openCells + everRevealedCells)
-// If not provided, checks all blobCells.
-export function syncExternalWallBodies(blobCells, visibleCells = null) {
-  // Collect walls that should exist
-  const neededWalls = new Set();
-  const cellsToCheck = visibleCells ? new Set([...visibleCells].filter(k => blobCells.has(k))) : blobCells;
-  
-  for (const k of cellsToCheck) {
-    const { x, y } = cellFromKey(k);
-    for (const [dx, dy] of [[1, 0], [0, 1], [-1, 0], [0, -1]]) {
-      const nx = x + dx, ny = y + dy;
-      const nk = `${nx},${ny}`;
-      if (blobCells.has(nk)) continue; // Skip if adjacent cell exists in blob
-      const wk = `${x},${y}|${dx},${dy}`;
-      neededWalls.add(wk);
-    }
-  }
-
-  // Remove stale bodies
-  for (const [wk, body] of _externalWallBodies) {
-    if (!neededWalls.has(wk)) {
-      Composite.remove(_engine.world, body);
-      _externalWallBodies.delete(wk);
-    }
-  }
-
-  // Add missing bodies
-  for (const wk of neededWalls) {
-    if (_externalWallBodies.has(wk)) continue;
-    const [left, right] = wk.split('|');
-    const [x, y] = left.split(',').map(Number);
-    const [dx, dy] = right.split(',').map(Number);
-
-    let wx, wy, ww, wh;
-    const HT = WALL_THICKNESS / 2;
-    if (dx === 1) {
-      // Right boundary - vertical strip at x = (x+1)*CELL_PX
-      // Visual polygon: center at bx, extends from bx-HT to bx+HT
-      const bx = (x + 1) * CELL_PX;
-      wx = bx;
-      wy = y * CELL_PX + CELL_PX / 2;
-      ww = WALL_THICKNESS;
-      wh = CELL_PX;
-    } else if (dx === -1) {
-      // Left boundary - vertical strip at x = x*CELL_PX
-      const bx = x * CELL_PX;
-      wx = bx;
-      wy = y * CELL_PX + CELL_PX / 2;
-      ww = WALL_THICKNESS;
-      wh = CELL_PX;
-    } else if (dy === 1) {
-      // Bottom boundary - horizontal strip at y = (y+1)*CELL_PX
-      const by = (y + 1) * CELL_PX;
-      wx = x * CELL_PX + CELL_PX / 2;
-      wy = by;
-      ww = CELL_PX;
-      wh = WALL_THICKNESS;
-    } else {
-      // Top boundary - horizontal strip at y = y*CELL_PX
-      const by = y * CELL_PX;
-      wx = x * CELL_PX + CELL_PX / 2;
-      wy = by;
-      ww = CELL_PX;
-      wh = WALL_THICKNESS;
-    }
-
-    const body = Bodies.rectangle(wx, wy, ww, wh, {
-      isStatic: true,
-      label: 'external_wall',
-      friction: 0,
-      restitution: 0,
-      collisionFilter: { category: CAT_WALL },
-    });
-    Composite.add(_engine.world, body);
-    _externalWallBodies.set(wk, body);
-  }
-}
+// No-op stubs for backward compatibility (old callers updated separately)
+export function syncWallBodies() {}
+export function syncExternalWallBodies() {}
 
 // ── Collision events ──────────────────────────────────────────
 export function getAllBodies() {

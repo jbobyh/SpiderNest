@@ -2,7 +2,7 @@
 // COLLECTIBLES — upgrades, chests, room bonus altars
 // ============================================================
 
-import { cellOf, cellKey, CELL_PX } from '../world/constants.js';
+import { cellOf, cellKey, CELL_PX, inOpenRect } from '../world/constants.js';
 import { Sounds } from '../core/sound.js';
 import { applyUpgrade } from './upgrades.js';
 import { buildTileLayer } from '../render/tiles.js';
@@ -152,7 +152,7 @@ export function checkRoomBonusAltarActivation(state, fKeyPressed, onEnterBattle)
 
   for (const altar of (state.roomBonusAltars || [])) {
     if (altar.activated) continue;
-    if (!state.openCells.has(altar.cellKey)) continue;
+    if (!inOpenRect(altar.x, altar.y, state.openRect)) continue;
     const dist = Math.hypot(px - altar.x, py - altar.y);
     if (dist < PICKUP_R) {
       openRoomBonusChoice(state, altar, onEnterBattle);
@@ -169,7 +169,7 @@ export function isNearRoomBonusAltar(state) {
 
   for (const altar of (state.roomBonusAltars || [])) {
     if (altar.activated) continue;
-    if (!state.openCells.has(altar.cellKey)) continue;
+    if (!inOpenRect(altar.x, altar.y, state.openRect)) continue;
     const dist = Math.hypot(px - altar.x, py - altar.y);
     if (dist < PICKUP_R) return true;
   }
@@ -206,20 +206,14 @@ export function applyRoomBonusChoice(state, playerProgress, choiceId) {
   // Rebuild tile layer to show bonus icon immediately
   const currentLevel = getCurrentLevel();
   buildTileLayer(layers.tiles, {
-    blobCells:          state.blobCells,
     openCells:          state.openCells,
-    everRevealedCells:  state.everRevealedCells,
-    everOpenedCells:   state.everOpenedCells,
-    removedWalls:       state.removedWalls,
-    internalWalls:      state.internalWalls,
-    fixedWalls:         state.fixedWalls,
-    permanentlyClosed: state.permanentlyClosed,
-    disabledCells:      state.disabledCells,
     rooms:              state.rooms,
     purified:           state.purified,
+    chestObjs:          state.chestObjs,
     upgradeChests:      state.upgradeChests,
     roomBonuses:        state.roomBonuses,
     roomBonusAltars:     state.roomBonusAltars,
+    openRect:           state.openRect,
   }, currentLevel);
 
   // Enter battle mode after choice only if enemies not already released (or pending next cycle)

@@ -293,76 +293,69 @@ function makeClosedCellSprites(blobCells, openCells, everRevealedCells, everOpen
   return sprites;
 }
 
-// ── Partition walls (Graphics) ────────────────────────────────
-// Drawn for every boundary between two blobCells that is NOT in removedWalls
-// and where at least one of the two cells is visible (open or ever-revealed).
+// ── Rectangle boundary walls (Graphics) ──────────────────────
+// 4 bevelled wall strips forming the open rectangle boundary.
 
-function buildPartitions(blobCells, openCells, removedWalls, everRevealedCells, purified, cellToRoom, internalWalls, fixedWalls) {
+function buildRectWalls(openRect) {
   const g  = new Graphics();
   const HT = PART_T / 2;
-  const allVisible = openCells ? new Set([...openCells, ...everRevealedCells]) : everRevealedCells;
+  const { minX, minY, maxX, maxY } = openRect;
+  const W = maxX - minX;
+  const H = maxY - minY;
 
-  for (const k of blobCells) {
-    const { x, y } = cellFromKey(k);
+  const fillColor   = WC.partitionFill;
+  const strokeColor = WC.partitionStroke;
+  const fillAlpha   = WC.partitionFillAlpha;
+  const strokeAlpha = WC.partitionStrokeAlpha;
 
-    for (const [dx, dy] of [[1, 0], [0, 1]]) {
-      const nx = x + dx, ny = y + dy;
-      const nk = cellKey(nx, ny);
-      if (!blobCells.has(nk)) continue;
-      if (!allVisible.has(k) && !allVisible.has(nk)) continue;
+  // North wall: horizontal strip at y = minY
+  g.poly([
+    minX + HT,     minY - HT,
+    maxX - HT,     minY - HT,
+    maxX,          minY,
+    maxX - HT,     minY + HT,
+    minX + HT,     minY + HT,
+    minX,          minY,
+  ])
+    .fill({ color: fillColor, alpha: fillAlpha })
+    .stroke({ color: strokeColor, alpha: strokeAlpha, width: 0.5 });
 
-      const wk = wallKey(x, y, nx, ny);
-      const isRemoved = removedWalls.has(wk);
-      if (isRemoved && internalWalls && internalWalls.has(wk)) continue;
+  // South wall: horizontal strip at y = maxY
+  g.poly([
+    minX + HT,     maxY - HT,
+    maxX - HT,     maxY - HT,
+    maxX,          maxY,
+    maxX - HT,     maxY + HT,
+    minX + HT,     maxY + HT,
+    minX,          maxY,
+  ])
+    .fill({ color: fillColor, alpha: fillAlpha })
+    .stroke({ color: strokeColor, alpha: strokeAlpha, width: 0.5 });
 
-      const isFixed = fixedWalls && fixedWalls.has(wk);
+  // West wall: vertical strip at x = minX
+  g.poly([
+    minX - HT, minY + HT,
+    minX,      minY,
+    minX + HT, minY + HT,
+    minX + HT, maxY - HT,
+    minX,      maxY,
+    minX - HT, maxY - HT,
+  ])
+    .fill({ color: fillColor, alpha: fillAlpha })
+    .stroke({ color: strokeColor, alpha: strokeAlpha, width: 0.5 });
 
-      // Check if at least one adjacent room is purified
-      const roomA = cellToRoom?.get(k);
-      const roomB = cellToRoom?.get(nk);
-      const purifiedA = roomA !== undefined && purified?.has(roomA);
-      const purifiedB = roomB !== undefined && purified?.has(roomB);
-      const isPurifiedAdjacent = purifiedA || purifiedB;
+  // East wall: vertical strip at x = maxX
+  g.poly([
+    maxX - HT, minY + HT,
+    maxX,      minY,
+    maxX + HT, minY + HT,
+    maxX + HT, maxY - HT,
+    maxX,      maxY,
+    maxX - HT, maxY - HT,
+  ])
+    .fill({ color: fillColor, alpha: fillAlpha })
+    .stroke({ color: strokeColor, alpha: strokeAlpha, width: 0.5 });
 
-      // Fixed walls render like external walls (always dark, high alpha)
-      const fillColor = isFixed ? WC.closedFill : (isPurifiedAdjacent ? WC.purifiedFill : WC.partitionFill);
-      const strokeColor = isFixed ? WC.closedStroke : (isPurifiedAdjacent ? WC.purifiedStroke : WC.partitionStroke);
-      const fillAlpha = isFixed ? WC.closedFillAlpha : (isRemoved ? WC.openFillAlpha : WC.partitionFillAlpha);
-      const strokeAlpha = isFixed ? WC.closedStrokeAlpha : (isRemoved ? WC.openStrokeAlpha : WC.partitionStrokeAlpha);
-
-      if (dx === 1) {
-        // vertical strip at x-boundary — bevelled ends (45°)
-        const bx = (x + 1) * CELL_PX;
-        const by = y * CELL_PX;
-        const H  = CELL_PX;
-        g.poly([
-          bx - HT, by + HT,       // top-left
-          bx,      by,            // top tip
-          bx + HT, by + HT,       // top-right
-          bx + HT, by + H - HT,   // bottom-right
-          bx,      by + H,        // bottom tip
-          bx - HT, by + H - HT,   // bottom-left
-        ])
-          .fill({ color: fillColor, alpha: fillAlpha })
-          .stroke({ color: strokeColor, alpha: strokeAlpha, width: 0.5 });
-      } else {
-        // horizontal strip at y-boundary — bevelled ends (45°)
-        const bx = x * CELL_PX;
-        const by = (y + 1) * CELL_PX;
-        const W  = CELL_PX;
-        g.poly([
-          bx + HT,     by - HT,   // top-left
-          bx + W - HT, by - HT,   // top-right
-          bx + W,      by,        // right tip
-          bx + W - HT, by + HT,   // bottom-right
-          bx + HT,     by + HT,   // bottom-left
-          bx,          by,        // left tip
-        ])
-          .fill({ color: fillColor, alpha: fillAlpha })
-          .stroke({ color: strokeColor, alpha: strokeAlpha, width: 0.5 });
-      }
-    }
-  }
   return g;
 }
 
@@ -480,6 +473,7 @@ export function buildTileLayer(targetContainer, worldData, level) {
   const {
     blobCells, openCells, everRevealedCells, everOpenedCells,
     removedWalls, permanentlyClosed, disabledCells, rooms, purified, chestObjs, upgradeChests, roomBonuses, roomBonusAltars,
+    openRect,
   } = worldData;
 
   // Build cellToRoom map
@@ -492,49 +486,27 @@ export function buildTileLayer(targetContainer, worldData, level) {
     }
   }
 
-  // ── 1. Closed / rock cell overlays ──
-  const closedContainer = new Container({ label: 'closed' });
-  for (const spr of makeClosedCellSprites(
-    blobCells, openCells, everRevealedCells, everOpenedCells, permanentlyClosed, disabledCells,
-  )) closedContainer.addChild(spr);
-
-  // ── 2. Floor tiles (open cells + revealed cells that are blobCells) ──
+  // ── 1. Floor tiles (only open cells) ──
   const floorContainer = new Container({ label: 'floors' });
-  const allFloorCells = new Set([...openCells]);
-  for (const k of everRevealedCells) {
-    if (blobCells.has(k)) allFloorCells.add(k);
-  }
-  for (const k of allFloorCells) {
+  for (const k of openCells) {
     const { x, y } = cellFromKey(k);
-    floorContainer.addChild(makeFloorSprite(x, y, getOpenDirs(x, y, allFloorCells), level, purified, cellToRoom, null, chestObjs, upgradeChests, roomBonuses, roomBonusAltars));
+    floorContainer.addChild(makeFloorSprite(x, y, [], level, purified, cellToRoom, null, chestObjs, upgradeChests, roomBonuses, roomBonusAltars));
   }
 
-  // ── 3. Outer wall strips ──
-  // const wallContainer = new Container({ label: 'outer-walls' });
-  // for (const k of openCells) {
-  //   const { x, y } = cellFromKey(k);
-  //   for (const spr of makeWallStrips(x, y, openCells, level)) wallContainer.addChild(spr);
-  // }
-  const wallContainer = new Container({ label: 'outer-walls' });
+  // Clip floor tiles to openRect so partial-cell expansions don't show full adjacent floors
+  if (openRect) {
+    const mask = new Graphics()
+      .rect(openRect.minX, openRect.minY, openRect.maxX - openRect.minX, openRect.maxY - openRect.minY)
+      .fill({ color: 0xffffff });
+    floorContainer.mask = mask;
+    floorContainer.addChild(mask);
+  }
 
-  // ── 4. Corner pieces ──
-  // const cornerContainer = new Container({ label: 'corners' });
-  // for (const k of openCells) {
-  //   const { x, y } = cellFromKey(k);
-  //   for (const spr of makeCornerSprites(x, y, openCells, level)) cornerContainer.addChild(spr);
-  // }
-  const cornerContainer = new Container({ label: 'corners' });
+  // ── 2. Rectangle boundary walls ──
+  const rectWalls = openRect ? buildRectWalls(openRect) : new Graphics();
+  rectWalls.label = 'rect-walls';
 
-  // ── 5. Partition walls between blob cells ──
-  const { internalWalls, fixedWalls } = worldData;
-  const partitions = buildPartitions(blobCells, openCells, removedWalls, everRevealedCells, purified, cellToRoom, internalWalls, fixedWalls);
-  partitions.label = 'partitions';
-
-  // ── 6. External walls (blobCell boundaries) ──
-  const externalWalls = buildExternalWalls(blobCells, openCells, everRevealedCells);
-  externalWalls.label = 'external-walls';
-
-  targetContainer.addChild(closedContainer, floorContainer, wallContainer, cornerContainer, partitions, externalWalls);
+  targetContainer.addChild(floorContainer, rectWalls);
 }
 
 // Alias — call whenever openCells or removedWalls change.

@@ -7,6 +7,7 @@ import {
   cellKey, cellFromKey, cellOf, CELL_PX,
   CARDINAL_DIRECTIONS,
   recomputeOpenCells, wallKeyFromStr,
+  computeOpenRect, computeOpenCells, SHIFT_STEP,
 } from '../world/constants.js';
 import { generateLevel, spawnBattleCycle } from '../world/level-gen.js';
 import { EnemyFactory } from './enemy-factory.js';
@@ -119,6 +120,9 @@ export function createGameState(level, playerProgress) {
   const initEverOpened   = new Set([cellKey(cx, cy)]);
   const initEverRevealed = new Set([cellKey(cx, cy)]);
 
+  const wallShifts = { N: 0, S: 0, E: 0, W: 0 };
+  const openRect   = computeOpenRect(wallShifts, startCell);
+
   const state = {
     level,
     souls: playerProgress.souls || 0,
@@ -130,6 +134,8 @@ export function createGameState(level, playerProgress) {
     internalWalls: roomInternalWalls,
     fixedWalls,
     roomColors,
+    wallShifts,
+    openRect,
     playerRemovedWalls: 0,
     everRevealedCells: initEverRevealed,
     everOpenedCells: initEverOpened,
@@ -203,7 +209,7 @@ export function createGameState(level, playerProgress) {
 // ── Save / Load ───────────────────────────────────────────────
 
 const SAVE_KEY = 'spidernest_save';
-const SAVE_VERSION = 4;
+const SAVE_VERSION = 5;
 
 export function saveGame(state, currentLevel, playerProgress) {
   try {
@@ -359,26 +365,18 @@ export function tryPurifyRoomIfEmpty(state, k) {
   return true;
 }
 
-export function doOpenWall(state, wk) {
-  const { ax, ay, bx, by } = wallKeyFromStr(wk);
-  const aKey = cellKey(ax, ay);
-  const bKey = cellKey(bx, by);
-
-  state.removedWalls.add(wk);
-  state.openCells = recomputeOpenCells(state.blobCells, state.removedWalls, _playerSeedKey(state));
-
-  for (const { k } of [{ k: aKey }, { k: bKey }]) {
-    if (!state.everOpenedCells.has(k)) state.everOpenedCells.add(k);
-  }
+export function doShiftWall(state, dir) {
+  state.wallShifts[dir] += SHIFT_STEP;
+  state.openRect   = computeOpenRect(state.wallShifts, state.startCell);
+  state.openCells  = computeOpenCells(state.openRect);
+  state.playerRemovedWalls = (state.wallShifts.N + state.wallShifts.S + state.wallShifts.E + state.wallShifts.W) / SHIFT_STEP;
 }
 
-export function doCloseWall(state, wk) {
-  const { ax, ay, bx, by } = wallKeyFromStr(wk);
-  const aKey = cellKey(ax, ay);
-  const bKey = cellKey(bx, by);
-
-  state.removedWalls.delete(wk);
-  state.openCells = recomputeOpenCells(state.blobCells, state.removedWalls, _playerSeedKey(state));
+export function doUnshiftWall(state, dir) {
+  state.wallShifts[dir] = Math.max(0, state.wallShifts[dir] - SHIFT_STEP);
+  state.openRect   = computeOpenRect(state.wallShifts, state.startCell);
+  state.openCells  = computeOpenCells(state.openRect);
+  state.playerRemovedWalls = (state.wallShifts.N + state.wallShifts.S + state.wallShifts.E + state.wallShifts.W) / SHIFT_STEP;
 }
 
 // ── Internal serialization ────────────────────────────────────
@@ -410,6 +408,8 @@ function _serializeState(s) {
     internalWalls:    [...s.internalWalls],
     fixedWalls:       [...(s.fixedWalls || [])],
     roomColors:       [...s.roomColors],
+    wallShifts:       { ...(s.wallShifts || { N: 0, S: 0, E: 0, W: 0 }) },
+    openRect:         s.openRect || null,
     playerRemovedWalls: s.playerRemovedWalls || 0,
     everRevealedCells: [...s.everRevealedCells],
     everOpenedCells:  [...s.everOpenedCells],
@@ -465,9 +465,12 @@ function _deserializeState(data) {
     internalWalls:      new Set(data.internalWalls || []),
     fixedWalls:         new Set(data.fixedWalls || []),
     roomColors:         new Map(data.roomColors || []),
+    wallShifts:         data.wallShifts || { N: 0, S: 0, E: 0, W: 0 },
+    openRect:           data.openRect || computeOpenRect(data.wallShifts || { N: 0, S: 0, E: 0, W: 0 }, data.startCell),
     playerRemovedWalls: data.playerRemovedWalls || 0,
     everRevealedCells:  new Set(data.everRevealedCells),
     everOpenedCells:    new Set(data.everOpenedCells),
+    openCells:          new Set(data.openCells || []),
     permanentlyClosed:  new Set(data.permanentlyClosed || []),
     disabledCells:      new Set(data.disabledCells),
     startCell:          data.startCell,
@@ -520,6 +523,11 @@ function _deserializeState(data) {
     purifyWaveFired:   new Set(data.purifyWaveFired || []),
     pendingNextCycle: data.pendingNextCycle || false,
   };
+
+  // Recompute openCells from openRect for consistency
+  if (state.openRect) {
+    state.openCells = computeOpenCells(state.openRect);
+  }
 
   // Restore battle cycle: if pendingNextCycle or no stasis enemies in start room, respawn
   const hasStasisEnemies = (state.activeSpiders || []).some(g => g.stasis);

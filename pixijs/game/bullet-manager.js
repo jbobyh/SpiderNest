@@ -1,5 +1,5 @@
 import { acquireBullet, releaseBullet } from './bullet.js';
-import { cellOf, cellKey, CELL_PX, getRoomBonus, getRoomSpeedMultiplier, getRoomSpeedVectorMultiplier, isWindBonus, crossesWall, inRoom } from '../world/constants.js';
+import { cellOf, cellKey, CELL_PX, getRoomBonus, getRoomSpeedMultiplier, getRoomSpeedVectorMultiplier, isWindBonus, inOpenRect, crossesRectBoundary } from '../world/constants.js';
 import { Sounds } from '../core/sound.js';
 import { spawnParticles } from '../render/particles.js';
 import { spawnDamageNumber } from '../render/damage-numbers.js';
@@ -24,10 +24,9 @@ class BulletManager {
     const BS = isBattle ? (CONFIG.BATTLE_SCALE || 1) : 1;
     const worldBullets = this.bullets;
     
-    // In battle-mode, we might have different coordinate system or openCells
+    // In battle-mode, we might have different coordinate system or openRect
     const activeState = isBattle ? state.battle : state;
-    const openCells = activeState.openCells;
-    const removedWalls = activeState.removedWalls;
+    const openRect = activeState.openRect;
 
     for (let i = worldBullets.length - 1; i >= 0; i--) {
       const b = worldBullets[i];
@@ -87,7 +86,7 @@ class BulletManager {
       if (!bouncedThisFrame) {
         const hitsPartition = isBattle 
           ? this._battleCrossesWall(activeState, CELL_PX * BS, prevX, prevY, b.x, b.y)
-          : crossesWall(removedWalls, prevX, prevY, b.x, b.y);
+          : crossesRectBoundary(openRect, prevX, prevY, b.x, b.y);
 
         const prevCell = cellOf(prevX / (isBattle ? BS : 1), prevY / (isBattle ? BS : 1));
         const prevCellKey = isBattle
@@ -95,13 +94,13 @@ class BulletManager {
           : cellKey(prevCell.x, prevCell.y);
         const prevRoomBonus = getRoomBonus(state, prevCellKey);
         const wasInRoom = isBattle 
-          ? openCells.has(prevCellKey)
-          : inRoom(prevX, prevY, openCells);
+          ? activeState.openCells?.has(prevCellKey)
+          : inOpenRect(prevX, prevY, openRect);
 
         const currentCell = cellOf(b.x / (isBattle ? BS : 1), b.y / (isBattle ? BS : 1));
         const cellIsBlocked = isBattle 
-          ? !openCells.has(cellKey(currentCell.x + activeState.cellOffsetX, currentCell.y + activeState.cellOffsetY))
-          : !inRoom(b.x, b.y, openCells);
+          ? !activeState.openCells?.has(cellKey(currentCell.x + activeState.cellOffsetX, currentCell.y + activeState.cellOffsetY))
+          : !inOpenRect(b.x, b.y, openRect);
 
         const hitsWall = cellIsBlocked || hitsPartition;
 

@@ -91,7 +91,7 @@ import {
 import {
   createEngine, clearEngine, stepEngine,
   createPlayerBody, destroyBody, syncEntitiesToBodies,
-  syncWallBodies, syncExternalWallBodies, onCollision, setBodyVelocity,
+  syncRectWallBodies, onCollision, setBodyVelocity,
 } from './world/physics.js';
 import { computeFlowField, FLOW_SUB_PX } from './game/flow-field.js';
 import { spawnCorpse } from './game/enemy-ai.js';
@@ -158,14 +158,11 @@ export function startGameLoop({
 
   // Initialize lazy-rebuild tracking
   _state._lastPurifiedSize = _state.purified?.size ?? 0;
-  _state._lastEverRevealedSize = _state.everRevealedCells?.size ?? 0;
-  _state._lastRemovedWallsSize = _state.removedWalls?.size ?? 0;
+  _state._lastOpenRectKey = JSON.stringify(_state.openRect);
 
   // Physics engine
   createEngine();
-  syncWallBodies(_state.blobCells, _state.removedWalls);
-  const visibleCells = new Set([..._state.openCells, ..._state.everRevealedCells]);
-  syncExternalWallBodies(_state.blobCells, visibleCells);
+  syncRectWallBodies(_state.openRect);
   _state.player.body = createPlayerBody(_state.player.x, _state.player.y, _state.player);
 
   // Register collision handler
@@ -202,21 +199,14 @@ export function startGameLoop({
 
   // Tile layer for current level
   buildTileLayer(layers.tiles, {
-    blobCells:          _state.blobCells,
     openCells:          _state.openCells,
-    everRevealedCells:  _state.everRevealedCells,
-    everOpenedCells:   _state.everOpenedCells,
-    removedWalls:       _state.removedWalls,
-    internalWalls:      _state.internalWalls,
-    fixedWalls:         _state.fixedWalls,
-    permanentlyClosed:  _state.permanentlyClosed,
-    disabledCells:      _state.disabledCells,
     rooms:              _state.rooms,
     purified:           _state.purified,
-    spatialChests:      _state.spatialChests,
+    chestObjs:          _state.chestObjs,
     upgradeChests:      _state.upgradeChests,
     roomBonuses:        _state.roomBonuses,
     roomBonusAltars:     _state.roomBonusAltars,
+    openRect:           _state.openRect,
   }, _currentLevel);
 
   // Input
@@ -353,7 +343,7 @@ function _loop(dt) {
       _state._ff_scx = pSubCX;
       _state._ff_scy = pSubCY;
       _state.flowField = computeFlowField(
-        _state.openCells, _state.removedWalls,
+        _state.openRect,
         _state.player.x, _state.player.y,
         _state.blockedSubNodes,
       );
@@ -460,42 +450,28 @@ function _render(dt) {
   // Update FPS counter
   updateFps(app.ticker.FPS);
 
-  // Rebuild tile layer and sync physics walls when walls, purified, or revealed cells change
+  // Rebuild tile layer and sync physics walls when openRect or purified changes
   const purifiedSize      = _state.purified?.size ?? 0;
-  const everRevealedSize  = _state.everRevealedCells?.size ?? 0;
-  if (_state._lastRemovedWallsSize !== _state.removedWalls.size ||
-      _state._lastPurifiedSize     !== purifiedSize ||
-      _state._lastEverRevealedSize !== everRevealedSize) {
-    
-    // Sync physics walls if walls changed
-    if (_state._lastRemovedWallsSize !== _state.removedWalls.size) {
-      syncWallBodies(_state.blobCells, _state.removedWalls);
-    }
-    
-    // Sync external walls if revealed cells changed
-    if (_state._lastEverRevealedSize !== everRevealedSize) {
-      const visibleCells = new Set([..._state.openCells, ..._state.everRevealedCells]);
-      syncExternalWallBodies(_state.blobCells, visibleCells);
+  const openRectKey       = JSON.stringify(_state.openRect);
+  if (_state._lastOpenRectKey !== openRectKey ||
+      _state._lastPurifiedSize !== purifiedSize) {
+
+    // Sync physics walls if openRect changed
+    if (_state._lastOpenRectKey !== openRectKey) {
+      syncRectWallBodies(_state.openRect);
     }
 
-    _state._lastRemovedWallsSize = _state.removedWalls.size;
-    _state._lastPurifiedSize     = purifiedSize;
-    _state._lastEverRevealedSize = everRevealedSize;
+    _state._lastOpenRectKey = openRectKey;
+    _state._lastPurifiedSize = purifiedSize;
     buildTileLayer(layers.tiles, {
-      blobCells:          _state.blobCells,
       openCells:          _state.openCells,
-      everRevealedCells:  _state.everRevealedCells,
-      everOpenedCells:   _state.everOpenedCells,
-      removedWalls:       _state.removedWalls,
-      internalWalls:      _state.internalWalls,
-      fixedWalls:         _state.fixedWalls,
-      permanentlyClosed:  _state.permanentlyClosed,
-      disabledCells:      _state.disabledCells,
       rooms:              _state.rooms,
       purified:           _state.purified,
-      spatialChests:      _state.spatialChests,
+      chestObjs:          _state.chestObjs,
       upgradeChests:      _state.upgradeChests,
       roomBonuses:        _state.roomBonuses,
+      roomBonusAltars:     _state.roomBonusAltars,
+      openRect:           _state.openRect,
     }, _currentLevel);
   }
 }
@@ -509,20 +485,14 @@ function _onEnterBattle(cellKey) {
     const isNextBoss = _state.battleCount >= _state.requiredRegularBattles;
     spawnBattleCycle(_state, _currentLevel, isNextBoss);
     buildTileLayer(layers.tiles, {
-      blobCells:          _state.blobCells,
       openCells:          _state.openCells,
-      everRevealedCells:  _state.everRevealedCells,
-      everOpenedCells:   _state.everOpenedCells,
-      removedWalls:       _state.removedWalls,
-      internalWalls:      _state.internalWalls,
-      fixedWalls:         _state.fixedWalls,
-      permanentlyClosed:  _state.permanentlyClosed,
-      disabledCells:      _state.disabledCells,
       rooms:              _state.rooms,
       purified:           _state.purified,
-      spatialChests:      _state.spatialChests,
+      chestObjs:          _state.chestObjs,
       upgradeChests:      _state.upgradeChests,
       roomBonuses:        _state.roomBonuses,
+      roomBonusAltars:     _state.roomBonusAltars,
+      openRect:           _state.openRect,
     }, _currentLevel);
     return;
   }
@@ -580,20 +550,14 @@ function _onBattleWon(state, playerProgress) {
 
   // Rebuild tiles
   buildTileLayer(layers.tiles, {
-    blobCells:          _state.blobCells,
     openCells:          _state.openCells,
-    everRevealedCells:  _state.everRevealedCells,
-    everOpenedCells:   _state.everOpenedCells,
-    removedWalls:       _state.removedWalls,
-    internalWalls:      _state.internalWalls,
-    fixedWalls:         _state.fixedWalls,
-    permanentlyClosed:  _state.permanentlyClosed,
-    disabledCells:      _state.disabledCells,
     rooms:              _state.rooms,
     purified:           _state.purified,
-    spatialChests:      _state.spatialChests,
+    chestObjs:          _state.chestObjs,
     upgradeChests:      _state.upgradeChests,
     roomBonuses:        _state.roomBonuses,
+    roomBonusAltars:     _state.roomBonusAltars,
+    openRect:           _state.openRect,
   }, _currentLevel);
 }
 
@@ -624,20 +588,14 @@ function _onZoomOutComplete(_tr) {
 
   // Rebuild tiles
   buildTileLayer(layers.tiles, {
-    blobCells:          _state.blobCells,
     openCells:          _state.openCells,
-    everRevealedCells:  _state.everRevealedCells,
-    everOpenedCells:   _state.everOpenedCells,
-    removedWalls:       _state.removedWalls,
-    internalWalls:      _state.internalWalls,
-    fixedWalls:         _state.fixedWalls,
-    permanentlyClosed:  _state.permanentlyClosed,
-    disabledCells:      _state.disabledCells,
     rooms:              _state.rooms,
     purified:           _state.purified,
-    spatialChests:      _state.spatialChests,
+    chestObjs:          _state.chestObjs,
     upgradeChests:      _state.upgradeChests,
     roomBonuses:        _state.roomBonuses,
+    roomBonusAltars:     _state.roomBonusAltars,
+    openRect:           _state.openRect,
   }, _currentLevel);
 }
 

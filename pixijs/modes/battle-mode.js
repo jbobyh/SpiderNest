@@ -17,7 +17,6 @@ import { keys, mouse }                    from '../core/input.js';
 import { Sounds }                         from '../core/sound.js';
 import {
   cellKey, cellFromKey,
-  getConnectedCells, getCellBounds,
   CELL_PX, cellOf,
 } from '../world/constants.js';
 import { updatePlayMode } from './play-mode.js';
@@ -36,23 +35,18 @@ import { app } from '../core/app.js';
 export function createBattleState(state, openedCellKey) {
   const CP = CELL_PX;
 
-  const allOpenCells = new Set([...state.openCells]);
-  allOpenCells.add(openedCellKey);
+  const battleCells = new Set([...state.openCells]);
 
-  const playerCell  = cellOf(state.player.x, state.player.y);
-  const playerKey   = cellKey(playerCell.x, playerCell.y);
-  const battleCells = getConnectedCells(allOpenCells, playerKey);
-  const { minX, minY, maxX, maxY } = getCellBounds(battleCells);
-
-  // Compute camera zoom to fit battle region on screen
-  const bCols   = maxX - minX + 1;
-  const bRows   = maxY - minY + 1;
+  // Compute camera zoom to fit openRect on screen
+  const r = state.openRect;
+  const bCols   = (r.maxX - r.minX) / CP;
+  const bRows   = (r.maxY - r.minY) / CP;
   const wallPad = CP * 0.125;
   const scaleX  = CONFIG.VIEW_W / (bCols * CP + wallPad * 2);
   const scaleY  = CONFIG.VIEW_H / (bRows * CP + wallPad * 2);
   const zoom    = Math.min(scaleX, scaleY) * CONFIG.CAMERA.battleZoomMult;
-  const centerX = (minX + bCols / 2) * CP;
-  const centerY = (minY + bRows / 2) * CP;
+  const centerX = (r.minX + r.maxX) / 2;
+  const centerY = (r.minY + r.maxY) / 2;
 
   // Find room center cell for reward / content lookup
   const roomCenter    = _getRoomCenterCell(state, openedCellKey);
@@ -107,16 +101,15 @@ export function createBossBattleState(state, currentLevel) {
   const CP = CELL_PX;
 
   const battleCells = new Set([...state.openCells]);
-  const { minX, minY, maxX, maxY } = getCellBounds(battleCells);
-
-  const bCols   = maxX - minX + 1;
-  const bRows   = maxY - minY + 1;
+  const r = state.openRect;
+  const bCols   = (r.maxX - r.minX) / CP;
+  const bRows   = (r.maxY - r.minY) / CP;
   const wallPad = CP * 0.125;
   const scaleX  = CONFIG.VIEW_W / (bCols * CP + wallPad * 2);
   const scaleY  = CONFIG.VIEW_H / (bRows * CP + wallPad * 2);
   const zoom    = Math.min(scaleX, scaleY) * CONFIG.CAMERA.battleZoomMult;
-  const centerX = (minX + bCols / 2) * CP;
-  const centerY = (minY + bRows / 2) * CP;
+  const centerX = (r.minX + r.maxX) / 2;
+  const centerY = (r.minY + r.maxY) / 2;
 
   // Activate stasis boss (already spawned by spawnBattleCycle)
   for (const g of state.activeSpiders) {

@@ -7,7 +7,7 @@
 
 import {
   CELL_PX, CARDINAL_DIRECTIONS,
-  cellKey, cellFromKey,
+  cellKey, cellFromKey, computeOpenRect, computeOpenCells,
 } from './constants.js';
 import { EnemyFactory } from '../game/enemy-factory.js';
 
@@ -240,6 +240,11 @@ export function generateLevel(level, playerProgress) {
   const initEverOpened   = new Set([startKey]);
   const initEverRevealed = new Set([startKey]);
 
+  // ── Rectangle wall system: initial 1-cell openRect ──
+  const wallShifts = { N: 0, S: 0, E: 0, W: 0 };
+  const openRect   = computeOpenRect(wallShifts, { x: cx, y: cy });
+  const openCells  = computeOpenCells(openRect);
+
   // ── No removed walls, no internal walls, no fixed walls ──
   const removedWalls      = new Set();
   const internalWalls     = new Set();
@@ -253,7 +258,9 @@ export function generateLevel(level, playerProgress) {
     gridSize,
     rooms,
     blobCells,
-    openCells:          initOpen,
+    openCells,
+    openRect,
+    wallShifts,
     removedWalls,
     internalWalls,
     fixedWalls,

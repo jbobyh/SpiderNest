@@ -123,21 +123,13 @@ export function updateTransition(dt, camera, onComplete) {
 // ── Private helpers ───────────────────────────────────────────
 
 function _battleBounds(state, pendingCellKey, CP) {
-  const openCells = new Set([...state.openCells]);
-  if (pendingCellKey) openCells.add(pendingCellKey);
+  const r = state.openRect;
+  if (!r) return { bCols: 0, bRows: 0, bCenterX: 0, bCenterY: 0 };
 
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  for (const k of openCells) {
-    const [x, y] = k.split(',').map(Number);
-    if (x < minX) minX = x; if (x > maxX) maxX = x;
-    if (y < minY) minY = y; if (y > maxY) maxY = y;
-  }
-  if (!isFinite(minX)) { minX = 0; minY = 0; maxX = 0; maxY = 0; }
-
-  const bCols   = maxX - minX + 1;
-  const bRows   = maxY - minY + 1;
-  const bCenterX = (minX + bCols / 2) * CP;
-  const bCenterY = (minY + bRows / 2) * CP;
+  const bCols   = (r.maxX - r.minX) / CP;
+  const bRows   = (r.maxY - r.minY) / CP;
+  const bCenterX = (r.minX + r.maxX) / 2;
+  const bCenterY = (r.minY + r.maxY) / 2;
 
   return { bCols, bRows, bCenterX, bCenterY };
 }

@@ -15,7 +15,8 @@ import { Sounds }                       from '../core/sound.js';
 import { app }                          from '../core/app.js';
 import { getCurrentLevel, saveCurrentGame } from '../game-loop.js';
 import {
-  cellOf, cellKey, getWallAtPoint, getRoomBonus, getRoomSpeedMultiplier, getRoomSpeedVectorMultiplier,
+  cellOf, cellKey, getRoomBonus, getRoomSpeedMultiplier, getRoomSpeedVectorMultiplier,
+  getNearestWall, inOpenRect,
 } from '../world/constants.js';
 import { setBodyVelocity, updatePlayerCollision } from '../world/physics.js';
 import { bulletManager } from '../game/bullet-manager.js';
@@ -32,7 +33,7 @@ import {
 } from '../game/collectibles.js';
 import { tickUpgradePopupTimer, hideUpgradePopup } from '../game/upgrades.js';
 import {
-  handleWallToggle, updateFlyingHeart, isWallInteractionPending,
+  handleWallShift, updateFlyingHeart, isWallInteractionPending,
 } from '../game/walls.js';
 import { spawnParticles } from '../render/particles.js';
 
@@ -150,7 +151,7 @@ export function updatePlayMode(state, playerProgress, camera, dt, callbacks = {}
   if (!isBattle) {
     // Wall toggle (right-click)
     if (!isWallInteractionPending()) {
-      handleWallToggle(state, state.mouse.x, state.mouse.y, mouse.rightHeld, camera);
+      handleWallShift(state, state.mouse.x, state.mouse.y, mouse.rightHeld, camera);
     }
 
     // Cursor update
@@ -425,19 +426,19 @@ function _updateCursor(state, camera) {
   const mx = mouse.x + (camera?.x || 0);
   const my = mouse.y + (camera?.y || 0);
 
-  const wall = getWallAtPoint(state.blobCells, mx, my);
-  if (wall && !state.internalWalls.has(wall.wk) && !state.fixedWalls?.has(wall.wk)) {
-    const aOpen = state.openCells.has(cellKey(wall.ax, wall.ay));
-    const bOpen = state.openCells.has(cellKey(wall.bx, wall.by));
-    const adjacentToOpen = aOpen || bOpen;
-    if (adjacentToOpen) {
-      if (state.removedWalls.has(wall.wk)) {
-        app.canvas.style.cursor = "url('img/locked.png') 16 16, pointer";
-      } else {
-        app.canvas.style.cursor = "url('img/unlocked.png') 16 16, pointer";
-      }
-      return;
+  const wall = getNearestWall(state.openRect, mx, my);
+  if (wall) {
+    const clickInside = inOpenRect(mx, my, state.openRect);
+    if (!clickInside) {
+      // Outside rect → push (open) cursor
+      app.canvas.style.cursor = "url('img/unlocked.png') 16 16, pointer";
+    } else if (state.wallShifts[wall.dir] > 0) {
+      // Inside rect, wall is shifted → can pull (close) cursor
+      app.canvas.style.cursor = "url('img/locked.png') 16 16, pointer";
+    } else {
+      app.canvas.style.cursor = "url('img/crosshairs_white.png') 4 4, crosshair";
     }
+    return;
   }
   app.canvas.style.cursor = "url('img/crosshairs_white.png') 4 4, crosshair";
 }

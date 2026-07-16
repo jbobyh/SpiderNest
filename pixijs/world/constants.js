@@ -15,6 +15,8 @@ export const CARDINAL_DIRECTIONS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 export const DIAGONAL_DIRECTIONS = [[1, 1], [-1, 1], [1, -1], [-1, -1]];
 export const WALL_DIRECTIONS     = [[0, -1], [0, 1], [-1, 0], [1, 0]];
 
+export const SHIFT_STEP = 3; // sub-cells shifted per life spent on wall expansion
+
 // ── Cell coordinate helpers ──────────────────────────────────
 
 export function cellKey(x, y)    { return `${x},${y}`; }
@@ -203,6 +205,87 @@ export function getWallAtPoint(blobCells, mx, my) {
           best = { ax: gx, ay: gy, bx: nx, by: ny, wk: wallKey(gx, gy, nx, ny) };
         }
       }
+    }
+  }
+  return best;
+}
+
+// ── Rectangle open-area helpers (wall-shift mechanic) ────────
+
+// Compute world-pixel rectangle of open area from wall shifts.
+// wallShifts: { N, S, E, W } — shift in sub-cells from original start-cell boundary.
+// startCell: { x, y } — grid coords of the starting cell.
+export function computeOpenRect(wallShifts, startCell) {
+  return {
+    minX: (startCell.x - wallShifts.W / SUBCELLS_PER_CELL) * CELL_PX,
+    maxX: (startCell.x + 1 + wallShifts.E / SUBCELLS_PER_CELL) * CELL_PX,
+    minY: (startCell.y - wallShifts.N / SUBCELLS_PER_CELL) * CELL_PX,
+    maxY: (startCell.y + 1 + wallShifts.S / SUBCELLS_PER_CELL) * CELL_PX,
+  };
+}
+
+// Compute set of cell keys whose center is inside openRect.
+export function computeOpenCells(openRect) {
+  const cells = new Set();
+  const minCx = Math.floor(openRect.minX / CELL_PX);
+  const maxCx = Math.floor(openRect.maxX / CELL_PX);
+  const minCy = Math.floor(openRect.minY / CELL_PX);
+  const maxCy = Math.floor(openRect.maxY / CELL_PX);
+  for (let cx = minCx; cx <= maxCx; cx++) {
+    for (let cy = minCy; cy <= maxCy; cy++) {
+      const cxC = (cx + 0.5) * CELL_PX;
+      const cyC = (cy + 0.5) * CELL_PX;
+      if (cxC >= openRect.minX && cxC <= openRect.maxX &&
+          cyC >= openRect.minY && cyC <= openRect.maxY) {
+        cells.add(cellKey(cx, cy));
+      }
+    }
+  }
+  return cells;
+}
+
+// True if world-point (px,py) is inside the open rectangle.
+export function inOpenRect(px, py, openRect) {
+  return px >= openRect.minX && px <= openRect.maxX &&
+         py >= openRect.minY && py <= openRect.maxY;
+}
+
+// True if segment (x0,y0)→(x1,y1) crosses the rectangle boundary.
+export function crossesRectBoundary(openRect, x0, y0, x1, y1) {
+  const in0 = inOpenRect(x0, y0, openRect);
+  const in1 = inOpenRect(x1, y1, openRect);
+  return in0 !== in1;
+}
+
+// Find nearest rectangle wall to point (mx, my).
+// Returns { dir: 'N'|'S'|'E'|'W', midX, midY, dist } or null.
+export function getNearestWall(openRect, mx, my) {
+  const snapR = CELL_PX * 0.30;
+  const snapR2 = snapR * snapR;
+
+  const walls = [
+    { dir: 'N', x0: openRect.minX, y0: openRect.minY, x1: openRect.maxX, y1: openRect.minY },
+    { dir: 'S', x0: openRect.minX, y0: openRect.maxY, x1: openRect.maxX, y1: openRect.maxY },
+    { dir: 'W', x0: openRect.minX, y0: openRect.minY, x1: openRect.minX, y1: openRect.maxY },
+    { dir: 'E', x0: openRect.maxX, y0: openRect.minY, x1: openRect.maxX, y1: openRect.maxY },
+  ];
+
+  let bestDist2 = Infinity;
+  let best = null;
+
+  for (const w of walls) {
+    // Closest point on segment to (mx, my)
+    const dx = w.x1 - w.x0;
+    const dy = w.y1 - w.y0;
+    const len2 = dx * dx + dy * dy;
+    let t = len2 > 0 ? ((mx - w.x0) * dx + (my - w.y0) * dy) / len2 : 0;
+    t = Math.max(0, Math.min(1, t));
+    const cx = w.x0 + t * dx;
+    const cy = w.y0 + t * dy;
+    const d2 = (mx - cx) * (mx - cx) + (my - cy) * (my - cy);
+    if (d2 < snapR2 && d2 < bestDist2) {
+      bestDist2 = d2;
+      best = { dir: w.dir, midX: cx, midY: cy, dist: Math.sqrt(d2) };
     }
   }
   return best;
