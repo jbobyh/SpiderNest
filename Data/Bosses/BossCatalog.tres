@@ -1,0 +1,90 @@
+[gd_resource type="Resource" script_class="BossCatalog" format=3 uid="uid://buskfk7h8sxc0"]
+
+[ext_resource type="Script" uid="uid://bpdhcmsjtvln" path="res://Scripts/Domain/BossDefinition.cs" id="1_gw8ul"]
+[ext_resource type="Script" uid="uid://b5se1ryprrnfp" path="res://Scripts/Core/Catalogs/BossCatalog.cs" id="2_c73po"]
+
+[sub_resource type="CSharpScript" id="CSharpScript_uemyr"]
+
+[sub_resource type="Resource" id="Resource_bctga"]
+script = SubResource("CSharpScript_uemyr")
+Id = 1
+
+[sub_resource type="Resource" id="Resource_cll6n"]
+script = SubResource("CSharpScript_uemyr")
+Id = 4
+
+[sub_resource type="Resource" id="Resource_setj6"]
+script = ExtResource("1_gw8ul")
+Id = "boss_1"
+Name = "БОСС"
+Phases = Array[SubResource("CSharpScript_uemyr")]([SubResource("Resource_bctga"), SubResource("Resource_cll6n")])
+
+[sub_resource type="Resource" id="Resource_4vy2f"]
+script = SubResource("CSharpScript_uemyr")
+Id = 2
+Duration = 6.0
+AccelMult = 40.0
+FrictionMult = 3.5
+
+[sub_resource type="Resource" id="Resource_l12d5"]
+script = SubResource("CSharpScript_uemyr")
+Id = 4
+ShootCdMult = 0.4
+BulletSpeedMult = 0.8
+
+[sub_resource type="Resource" id="Resource_8fbhu"]
+script = ExtResource("1_gw8ul")
+Level = 2
+Id = "boss_2"
+Name = "БОСС"
+HpSource = 1
+HpMult = 40.0
+RadiusMult = 2.5
+SpeedMult = 1.0
+Phases = Array[SubResource("CSharpScript_uemyr")]([SubResource("Resource_4vy2f"), SubResource("Resource_l12d5")])
+
+[sub_resource type="Resource" id="Resource_ha7wk"]
+script = SubResource("CSharpScript_uemyr")
+Id = 2
+Duration = 10.0
+AccelMult = 2.0
+FrictionMult = 0.6
+
+[sub_resource type="Resource" id="Resource_fuyb1"]
+script = SubResource("CSharpScript_uemyr")
+Duration = 1.0
+
+[sub_resource type="Resource" id="Resource_ybww8"]
+script = SubResource("CSharpScript_uemyr")
+Id = 4
+Duration = 6.0
+ShootCdMult = 0.4
+BulletSpeedMult = 1.8
+
+[sub_resource type="Resource" id="Resource_6ct34"]
+script = SubResource("CSharpScript_uemyr")
+Duration = 1.0
+
+[sub_resource type="Resource" id="Resource_ret5x"]
+script = SubResource("CSharpScript_uemyr")
+Id = 3
+
+[sub_resource type="Resource" id="Resource_doml7"]
+script = SubResource("CSharpScript_uemyr")
+Duration = 1.0
+
+[sub_resource type="Resource" id="Resource_4ynxh"]
+script = ExtResource("1_gw8ul")
+Level = 3
+Id = "boss_3"
+Name = "БОСС"
+HpSource = 2
+HpMult = 1.0
+HpFixed = 3000
+RadiusMult = 2.5
+SpeedMult = 1.0
+Phases = Array[SubResource("CSharpScript_uemyr")]([SubResource("Resource_ha7wk"), SubResource("Resource_fuyb1"), SubResource("Resource_ybww8"), SubResource("Resource_6ct34"), SubResource("Resource_ret5x"), SubResource("Resource_doml7")])
+
+[resource]
+script = ExtResource("2_c73po")
+Bosses = Array[ExtResource("1_gw8ul")]([SubResource("Resource_setj6"), SubResource("Resource_8fbhu"), SubResource("Resource_4ynxh")])

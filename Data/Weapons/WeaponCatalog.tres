@@ -1,0 +1,143 @@
+[gd_resource type="Resource" script_class="WeaponCatalog" format=3 uid="uid://dx6h28rl205b0"]
+
+[ext_resource type="Script" uid="uid://d0cx7yo12hegu" path="res://Scripts/Domain/WeaponDefinition.cs" id="1_a0qwj"]
+[ext_resource type="Script" uid="uid://bqkgmk0elv2dk" path="res://Scripts/Core/Catalogs/WeaponCatalog.cs" id="2_ddd82"]
+
+[sub_resource type="Resource" id="Resource_bhy03"]
+script = ExtResource("1_a0qwj")
+Id = "pistol"
+Label = "ПИСТОЛЕТ"
+Description = "Обычный пистолет"
+Color = Color(0, 0.83137256, 1, 1)
+SpriteAngle = 0.1
+SpritePivotY = -2.0
+ReloadAnchorX = 0.58
+ReloadAnchorY = 0.36
+GripLeft = Vector2(-23, 7)
+GripRight = Vector2(-23, 7)
+
+[sub_resource type="Resource" id="Resource_xs4ve"]
+script = ExtResource("1_a0qwj")
+Id = "shotgun"
+Label = "ДРОБОВИК"
+Description = "Стреляет дробью."
+Color = Color(1, 0.6666667, 0, 1)
+Cooldown = 0.3
+ReloadTime = 2.0
+BulletSpeed = 440.0
+Range = 10.0
+Pellets = 3
+MagazineSize = 6
+Spread = 0.2
+MaxSpread = 1.0
+BloomPerShot = 0.35
+BloomRecoveryTime = 0.5
+ShakeAmount = 0.5
+SpriteAngle = 0.55
+SpriteScale = 0.3
+SpriteOffset = 0.3
+GripLeft = Vector2(-12, 1)
+GripRight = Vector2(4, 0)
+
+[sub_resource type="Resource" id="Resource_aglf1"]
+script = ExtResource("1_a0qwj")
+Id = "smg"
+Label = "ПП"
+Description = "Высокая скорострельность."
+Color = Color(1, 0.26666668, 1, 1)
+Damage = 8.0
+Cooldown = 0.12
+ReloadTime = 2.0
+BulletSpeed = 500.0
+Range = 18.0
+MagazineSize = 30
+MaxSpread = 1.0
+BloomPerShot = 0.06
+SpriteScale = 0.6
+SpriteOffset = 0.25
+SpritePivotY = -2.0
+SpriteWidth = 80
+ReloadSpriteWidth = 80
+ReloadAnchorY = 0.47
+GripLeft = Vector2(-6, -5)
+GripRight = Vector2(-18, -3)
+ShootAnimRatio = 1.0
+
+[sub_resource type="Resource" id="Resource_uxsty"]
+script = ExtResource("1_a0qwj")
+Id = "rifle"
+Label = "ВИНТОВКА"
+Description = "Высокая точность и урон. Пробивает 2 врагов."
+Color = Color(0.26666668, 1, 0.26666668, 1)
+Damage = 60.0
+Cooldown = 1.0
+ReloadTime = 2.6
+BulletSpeed = 700.0
+Range = 40.0
+Penetrate = 2
+MagazineSize = 5
+Spread = 0.02
+MaxSpread = 1.0
+BloomPerShot = 0.25
+ShakeAmount = 0.8
+SpriteAngle = 0.05
+SpriteScale = 0.8
+SpriteOffset = 0.3
+SpriteWidth = 160
+ReloadSpriteWidth = 160
+ReloadAnchorX = 0.63
+GripLeft = Vector2(-10, 1)
+GripRight = Vector2(-20, 3)
+ShootAnimRatio = 1.0
+
+[sub_resource type="Resource" id="Resource_ewqdy"]
+script = ExtResource("1_a0qwj")
+Id = "revolver"
+Label = "РЕВОЛЬВЕР"
+Description = "Высокая точность. Пробивает 1 врага."
+Color = Color(0.54509807, 0.27058825, 0.07450981, 1)
+Damage = 40.0
+Cooldown = 0.6
+ReloadTime = 2.0
+BulletSpeed = 500.0
+Range = 20.0
+Penetrate = 1
+MagazineSize = 6
+Spread = 0.03
+MaxSpread = 1.0
+BloomPerShot = 0.15
+ShakeAmount = 0.2
+SpriteScale = 0.3
+SpriteOffset = 0.3
+GripLeft = Vector2(-10, 1)
+GripRight = Vector2(4, 0)
+
+[sub_resource type="Resource" id="Resource_4bwgp"]
+script = ExtResource("1_a0qwj")
+Id = "carbine"
+Label = "КАРАБИН"
+Description = "Очередь из 3 пуль."
+Color = Color(0.33333334, 0.41960785, 0.18431373, 1)
+Cooldown = 0.8
+ReloadTime = 2.0
+BulletSpeed = 450.0
+Range = 25.0
+MagazineSize = 15
+MaxSpread = 1.0
+BloomRecoveryTime = 0.3
+ShakeAmount = 0.3
+BurstSize = 3
+BurstDuration = 0.2
+SpriteScale = 0.8
+SpriteOffset = 0.3
+SpriteWidth = 128
+ReloadSpriteWidth = 128
+ReloadAnchorX = 0.67
+ReloadAnchorY = 0.38
+GripLeft = Vector2(-9, 1)
+GripRight = Vector2(-18, 3)
+ShootAnimRatio = 0.15
+
+[resource]
+script = ExtResource("2_ddd82")
+Weapons = Array[ExtResource("1_a0qwj")]([SubResource("Resource_bhy03"), SubResource("Resource_xs4ve"), SubResource("Resource_aglf1"), SubResource("Resource_uxsty"), SubResource("Resource_ewqdy"), SubResource("Resource_4bwgp")])

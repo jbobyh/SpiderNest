@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://bwdkmmqej3n81"]
+
+[ext_resource type="Script" path="res://Scripts/World/LevelRenderer.cs" id="1_levelrenderer"]
+
+[node name="LevelRenderer" type="Node2D"]
+script = ExtResource("1_levelrenderer")

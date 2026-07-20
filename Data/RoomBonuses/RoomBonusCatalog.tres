@@ -1,0 +1,109 @@
+[gd_resource type="Resource" script_class="RoomBonusCatalog" format=3 uid="uid://dglulut3ywrb3"]
+
+[ext_resource type="Script" uid="uid://2kmyn73t4yx3" path="res://Scripts/Domain/RoomBonusDefinition.cs" id="1_c3ra0"]
+[ext_resource type="Script" uid="uid://cjv0615gph7vn" path="res://Scripts/Core/Catalogs/RoomBonusCatalog.cs" id="2_25nwy"]
+
+[sub_resource type="Resource" id="Resource_01u52"]
+script = ExtResource("1_c3ra0")
+Id = "penetrate"
+Label = "Пробитие"
+Description = "Пули пробивают врагов насквозь"
+Color = Color(1, 0.26666668, 1, 1)
+Icon = "🎯"
+
+[sub_resource type="Resource" id="Resource_l5km0"]
+script = ExtResource("1_c3ra0")
+Id = "wind_east"
+Label = "Поток на восток"
+Description = "Движение на восток +50%, на запад −50%"
+Color = Color(0.26666668, 0.8666667, 1, 1)
+Icon = "→"
+WindDir = Vector2(1, 0)
+
+[sub_resource type="Resource" id="Resource_eey0i"]
+script = ExtResource("1_c3ra0")
+Id = "wind_west"
+Label = "Поток на запад"
+Description = "Движение на запад +50%, на восток −50%"
+Color = Color(0.26666668, 0.8666667, 1, 1)
+Icon = "←"
+WindDir = Vector2(-1, 0)
+
+[sub_resource type="Resource" id="Resource_0lfxs"]
+script = ExtResource("1_c3ra0")
+Id = "wind_north"
+Label = "Поток на север"
+Description = "Движение на север +50%, на юг −50%"
+Color = Color(0.26666668, 0.8666667, 1, 1)
+Icon = "↑"
+WindDir = Vector2(0, -1)
+
+[sub_resource type="Resource" id="Resource_0ymp8"]
+script = ExtResource("1_c3ra0")
+Id = "wind_south"
+Label = "Поток на юг"
+Description = "Движение на юг +50%, на север −50%"
+Color = Color(0.26666668, 0.8666667, 1, 1)
+Icon = "↓"
+WindDir = Vector2(0, 1)
+
+[sub_resource type="Resource" id="Resource_d014x"]
+script = ExtResource("1_c3ra0")
+Id = "speeddown"
+Label = "Замедление"
+Description = "Персонаж, враги и пули замедляются на 50%"
+Color = Color(1, 0, 0, 1)
+Icon = "⚔️"
+SpeedMult = 0.5
+
+[sub_resource type="Resource" id="Resource_sifnw"]
+script = ExtResource("1_c3ra0")
+Id = "ricochet"
+Label = "Рикошет"
+Description = "Пули рикошетят от стен внутри комнаты"
+Color = Color(1, 0.5372549, 0.13333334, 1)
+Icon = "↩️"
+
+[sub_resource type="Resource" id="Resource_8aqha"]
+script = ExtResource("1_c3ra0")
+Id = "longRange"
+Label = "Дальнобой"
+Description = "Дальность пуль +1000%"
+Color = Color(0, 0.4, 1, 1)
+Icon = "🏹"
+
+[sub_resource type="Resource" id="Resource_5qwkm"]
+script = ExtResource("1_c3ra0")
+Id = "freeAmmo"
+Label = "Бесконечный боезапас"
+Description = "Выстрелы не тратят пули из магазина"
+Color = Color(1, 0.8666667, 0, 1)
+Icon = "♾️"
+
+[sub_resource type="Resource" id="Resource_6x5s5"]
+script = ExtResource("1_c3ra0")
+Id = "burnChance"
+Label = "Поджигающая комната"
+Description = "Пули выстреленные в комнате имеют +10% шанс поджечь врага при попадании."
+Color = Color(1, 0.4, 0, 1)
+Icon = "🔥"
+
+[sub_resource type="Resource" id="Resource_h44rv"]
+script = ExtResource("1_c3ra0")
+Id = "freezeChance"
+Label = "Охлаждающая комната"
+Description = "Пули выстреленные в комнате имеют +10% шанс охладить врага при попадании."
+Color = Color(0.26666668, 0.8666667, 1, 1)
+Icon = "❄️"
+
+[sub_resource type="Resource" id="Resource_8nmgv"]
+script = ExtResource("1_c3ra0")
+Id = "bloomReduction"
+Label = "Снижение отдачи"
+Description = "Отдача в комнате уменьшена на 40%"
+Color = Color(0.53333336, 1, 0.53333336, 1)
+Icon = "🎯"
+
+[resource]
+script = ExtResource("2_25nwy")
+Bonuses = Array[ExtResource("1_c3ra0")]([SubResource("Resource_01u52"), SubResource("Resource_l5km0"), SubResource("Resource_eey0i"), SubResource("Resource_0lfxs"), SubResource("Resource_0ymp8"), SubResource("Resource_d014x"), SubResource("Resource_sifnw"), SubResource("Resource_8aqha"), SubResource("Resource_5qwkm"), SubResource("Resource_6x5s5"), SubResource("Resource_h44rv"), SubResource("Resource_8nmgv")])

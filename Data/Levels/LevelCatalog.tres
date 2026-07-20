@@ -1,0 +1,35 @@
+[gd_resource type="Resource" script_class="LevelCatalog" format=3 uid="uid://dhx5ywxpi7nnm"]
+
+[ext_resource type="Script" uid="uid://nl15nkmevmgi" path="res://Scripts/Domain/LevelDefinition.cs" id="1_wlasv"]
+[ext_resource type="Script" uid="uid://kvk12rw2gi4m" path="res://Scripts/Core/Catalogs/LevelCatalog.cs" id="2_fprvo"]
+
+[sub_resource type="Resource" id="Resource_g42wu"]
+script = ExtResource("1_wlasv")
+SpawnKinds = Array[int]([1, 2, 6, 7, 8, 9])
+SpawnWeights = Array[int]([5, 2, 1, 1, 1, 2])
+
+[sub_resource type="Resource" id="Resource_li5w5"]
+script = ExtResource("1_wlasv")
+Level = 2
+GenType = 0
+Weapons = 2
+Upgrades = 10
+Hearts = 2
+EnemyRoomPercent = 0.5
+SpawnKinds = Array[int]([0, 2, 3, 4, 6, 7, 8, 9])
+SpawnWeights = Array[int]([5, 2, 2, 1, 1, 1, 2, 2])
+
+[sub_resource type="Resource" id="Resource_eu3ho"]
+script = ExtResource("1_wlasv")
+Level = 3
+GenType = 0
+Weapons = 2
+Upgrades = 16
+Hearts = 3
+EnemyRoomPercent = 0.6
+SpawnKinds = Array[int]([0, 2, 3, 4, 6, 5, 7, 8, 9])
+SpawnWeights = Array[int]([4, 2, 2, 1, 1, 1, 1, 2, 2])
+
+[resource]
+script = ExtResource("2_fprvo")
+Levels = Array[ExtResource("1_wlasv")]([SubResource("Resource_g42wu"), SubResource("Resource_li5w5"), SubResource("Resource_eu3ho")])

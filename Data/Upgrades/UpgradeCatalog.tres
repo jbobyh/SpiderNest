@@ -1,0 +1,549 @@
+[gd_resource type="Resource" script_class="UpgradeCatalog" format=3 uid="uid://bcln366gf7jyu"]
+
+[ext_resource type="Script" uid="uid://cgckahstsq73t" path="res://Scripts/Domain/UpgradeDefinition.cs" id="1_k11ib"]
+[ext_resource type="Script" uid="uid://cwc7j3cjkee1k" path="res://Scripts/Core/Catalogs/UpgradeCatalog.cs" id="2_h1xjo"]
+
+[sub_resource type="Resource" id="Resource_i3ecv"]
+script = ExtResource("1_k11ib")
+Id = "infinitePenetrate"
+Category = 1
+Label = "Бесконечное пробитие"
+Description = "Пули пробивают всех врагов насквозь, но -20% скорости перезарядки"
+Color = Color(0.49803922, 1, 0.26666668, 1)
+Icon = "🔮"
+Effects = Dictionary[String, Variant]({
+"cooldownMult": 0.2,
+"infinitePenetrate": true
+})
+
+[sub_resource type="Resource" id="Resource_nthqp"]
+script = ExtResource("1_k11ib")
+Id = "infiniteRange"
+Category = 1
+Label = "Бесконечная дальность"
+Description = "Пули летят бесконечно, но -30% скорости передвижения"
+Color = Color(0.13333334, 0.21960784, 1, 1)
+Icon = "🌀"
+Effects = Dictionary[String, Variant]({
+"infiniteRange": true,
+"speedMult": -0.3
+})
+
+[sub_resource type="Resource" id="Resource_gr8ov"]
+script = ExtResource("1_k11ib")
+Id = "ricochet"
+Category = 1
+Label = "Рикошет"
+Description = "Пули отскакивают от стен, +50% к дальности"
+Color = Color(1, 0.5372549, 0.13333334, 1)
+Icon = "↩️"
+Effects = Dictionary[String, Variant]({
+"ricochet": true
+})
+
+[sub_resource type="Resource" id="Resource_4x5pg"]
+script = ExtResource("1_k11ib")
+Id = "weaponSlot"
+Category = 1
+Label = "+1 слот для оружия"
+Description = "Дополнительный слот оружия."
+Color = Color(1, 0.6666667, 0, 1)
+Icon = "🗃️"
+Max = 3
+OnApplyId = "weaponSlot"
+
+[sub_resource type="Resource" id="Resource_qcctc"]
+script = ExtResource("1_k11ib")
+Id = "lastLife"
+Category = 1
+Label = "Последняя жизнь"
+Description = "При смертельном уроне все враги в бою умрут, урон не получишь. Одноразовый."
+Color = Color(1, 0, 0, 1)
+Icon = "💀"
+Effects = Dictionary[String, Variant]({
+"lastLife": true
+})
+
+[sub_resource type="Resource" id="Resource_ex2qh"]
+script = ExtResource("1_k11ib")
+Id = "battleSpeed"
+Category = 1
+Label = "Боевое ускорение"
+Description = "+25% скорости при 2 комнатах в бою, -10% за каждую комнату сверх двух"
+Color = Color(0, 1, 0.53333336, 1)
+Icon = "⚡"
+Effects = Dictionary[String, Variant]({
+"battleSpeed": true
+})
+
+[sub_resource type="Resource" id="Resource_nuqke"]
+script = ExtResource("1_k11ib")
+Id = "freeze"
+Category = 1
+Label = "Заморозка"
+Description = "В начале боя враги не могут двигаться 1 секунду"
+Color = Color(1, 0.63529414, 0, 1)
+Icon = "❄️"
+Effects = Dictionary[String, Variant]({
+"freeze": true
+})
+
+[sub_resource type="Resource" id="Resource_43o2w"]
+script = ExtResource("1_k11ib")
+Id = "randomBonus"
+Category = 1
+Label = "Что попало"
+Description = "Получить 3 случайных обычных бонуса"
+Color = Color(0.8980392, 1, 0, 1)
+Icon = "🎲"
+OnApplyId = "randomBonus"
+
+[sub_resource type="Resource" id="Resource_ejldp"]
+script = ExtResource("1_k11ib")
+Id = "longRange"
+Category = 1
+Label = "Дальнобойщик"
+Description = "За каждую открытую комнату в бою +20% к дальности полета пули"
+Color = Color(0, 0.4, 1, 1)
+Icon = "🏹"
+Effects = Dictionary[String, Variant]({
+"longRange": true
+})
+
+[sub_resource type="Resource" id="Resource_vq0bh"]
+script = ExtResource("1_k11ib")
+Id = "sniper"
+Category = 1
+Label = "Снайпер"
+Description = "Максимальная точность при 2 комнатах в бою, +10% разброса за каждую дополнительную комнату"
+Color = Color(0, 1, 0, 1)
+Icon = "🎯"
+Effects = Dictionary[String, Variant]({
+"sniper": true
+})
+
+[sub_resource type="Resource" id="Resource_4dxyg"]
+script = ExtResource("1_k11ib")
+Id = "extraBulletChance"
+Label = "+5% доп пуля"
+Description = "5% шанс выпустить дополнительную пулю при выстреле"
+Color = Color(1, 0.6666667, 0.26666668, 1)
+Icon = "✨"
+Max = 3
+Effects = Dictionary[String, Variant]({
+"extraBulletChance": 0.05
+})
+
+[sub_resource type="Resource" id="Resource_c0tam"]
+script = ExtResource("1_k11ib")
+Id = "damage"
+Label = "+20% урона от пули"
+Description = "Каждая пуля наносит на 20% урона больше"
+Color = Color(1, 0.26666668, 0.26666668, 1)
+Icon = "💥"
+Max = 5
+Effects = Dictionary[String, Variant]({
+"damageMult": 0.2
+})
+
+[sub_resource type="Resource" id="Resource_j67xc"]
+script = ExtResource("1_k11ib")
+Id = "penetrate"
+Label = "+1 пробитие врага"
+Description = "Пуля пролетает сквозь одного дополнительного врага"
+Color = Color(1, 0.26666668, 1, 1)
+Icon = "🎯"
+Max = 2
+Effects = Dictionary[String, Variant]({
+"penetrate": 1
+})
+
+[sub_resource type="Resource" id="Resource_e1wi2"]
+script = ExtResource("1_k11ib")
+Id = "bulletSpeed"
+Label = "+30% скорость пули"
+Description = "Пули летят быстрее на +30%"
+Color = Color(1, 1, 0.26666668, 1)
+Icon = "⚡"
+Max = 2
+Effects = Dictionary[String, Variant]({
+"bulletSpeedMult": 0.3
+})
+
+[sub_resource type="Resource" id="Resource_8jnqj"]
+script = ExtResource("1_k11ib")
+Id = "critChance"
+Label = "+5% шанс крита"
+Description = "+5% шанс нанести двойной урон"
+Color = Color(1, 0, 0, 1)
+Icon = "⚔️"
+Max = 3
+Effects = Dictionary[String, Variant]({
+"critChance": 0.05
+})
+
+[sub_resource type="Resource" id="Resource_b4hdl"]
+script = ExtResource("1_k11ib")
+Id = "critDamage"
+Label = "+10% крит урон"
+Description = "Увеличивает множитель критического урона на 10%"
+Color = Color(1, 0.26666668, 0, 1)
+Icon = "🔥"
+Max = 50
+Effects = Dictionary[String, Variant]({
+"critDamage": 0.1
+})
+
+[sub_resource type="Resource" id="Resource_76juh"]
+script = ExtResource("1_k11ib")
+Id = "killAccel"
+Label = "Убийственный разгон"
+Description = "Каждое убийство ускоряет перезарядку на 0.1%"
+Color = Color(1, 0.53333336, 0, 1)
+Icon = "🏃"
+Effects = Dictionary[String, Variant]({
+"killAccel": true
+})
+
+[sub_resource type="Resource" id="Resource_v8nfn"]
+script = ExtResource("1_k11ib")
+Id = "enhancedPierce"
+Label = "Усиленное пробитие"
+Description = "Пуля, пробившая врага, имеет шанс 50% нанести удвоенный урон"
+Color = Color(0.6666667, 0.26666668, 1, 1)
+Icon = "🗡️"
+Effects = Dictionary[String, Variant]({
+"enhancedPierce": true
+})
+
+[sub_resource type="Resource" id="Resource_yj08v"]
+script = ExtResource("1_k11ib")
+Id = "shield"
+Label = "Щит"
+Description = "Поглощает один удар без потери жизни. Тратится."
+Color = Color(0, 0.6666667, 1, 1)
+Icon = "🛡️"
+Max = 2
+Effects = Dictionary[String, Variant]({
+"shield": 1
+})
+
+[sub_resource type="Resource" id="Resource_a0k33"]
+script = ExtResource("1_k11ib")
+Id = "retreat"
+Label = "Отступление"
+Description = "После получения урона получи неуязвимость на 1.5 секунды"
+Color = Color(0, 1, 0.6666667, 1)
+Icon = "🏃‍♂️"
+Max = 2
+Effects = Dictionary[String, Variant]({
+"retreat": 1
+})
+
+[sub_resource type="Resource" id="Resource_v2t2g"]
+script = ExtResource("1_k11ib")
+Id = "cooldown"
+Label = "Перезарядка -10%"
+Description = "Уменьшает время между выстрелами на 10%"
+Color = Color(0, 0.8, 1, 1)
+Icon = "⏱️"
+Max = 5
+Effects = Dictionary[String, Variant]({
+"cooldownMult": -0.1
+})
+
+[sub_resource type="Resource" id="Resource_dy17k"]
+script = ExtResource("1_k11ib")
+Id = "speed"
+Label = "Скорость бега +10%"
+Description = "Увеличивает скорость передвижения на 10%"
+Color = Color(0.26666668, 1, 0.53333336, 1)
+Icon = "💨"
+Max = 3
+Effects = Dictionary[String, Variant]({
+"speedMult": 0.1
+})
+
+[sub_resource type="Resource" id="Resource_0mkf5"]
+script = ExtResource("1_k11ib")
+Id = "hitStun"
+Label = "Стан при попадании"
+Description = "Враги застывают на 0.05с при попадании."
+Color = Color(0.53333336, 0.8666667, 1, 1)
+Icon = "⏳"
+Max = 5
+Effects = Dictionary[String, Variant]({
+"hitStun": 0.05
+})
+
+[sub_resource type="Resource" id="Resource_f4wfi"]
+script = ExtResource("1_k11ib")
+Id = "incendiary"
+Label = "+5% поджигающая пуля"
+Description = "5% шанс что пуля подожжёт врага. Горение наносит урон каждые 0.2с в течение 2с."
+Color = Color(1, 0.4, 0, 1)
+Icon = "🔥"
+Max = 3
+Effects = Dictionary[String, Variant]({
+"incendiaryChance": 0.05
+})
+
+[sub_resource type="Resource" id="Resource_6dgjw"]
+script = ExtResource("1_k11ib")
+Id = "freezeBullet"
+Label = "+5% охлаждающая пуля"
+Description = "5% шанс заморозить врага. Замедление в 2 раза на 2с."
+Color = Color(0.26666668, 0.8666667, 1, 1)
+Icon = "❄️"
+Max = 3
+Effects = Dictionary[String, Variant]({
+"freezeChance": 0.05
+})
+
+[sub_resource type="Resource" id="Resource_ujeej"]
+script = ExtResource("1_k11ib")
+Id = "bloomReduction"
+Label = "-5% отдачи"
+Description = "Уменьшает отдачу оружия на 5%"
+Color = Color(0.53333336, 1, 0.53333336, 1)
+Icon = "🎯"
+Max = 20
+Effects = Dictionary[String, Variant]({
+"bloomReduction": 0.05
+})
+
+[sub_resource type="Resource" id="Resource_3ibrg"]
+script = ExtResource("1_k11ib")
+Id = "spatialReloadRooms"
+Category = 2
+Label = "Пространственный ритм"
+Description = "Скорость перезарядки +10% за каждую открытую комнату."
+Color = Color(0, 0.83137256, 1, 1)
+Icon = "🔄"
+Blocks = "spatialReloadHearts"
+Effects = Dictionary[String, Variant]({
+"reloadPerRoom": 0.1
+})
+
+[sub_resource type="Resource" id="Resource_8ejwj"]
+script = ExtResource("1_k11ib")
+Id = "spatialReloadHearts"
+Category = 2
+Label = "Сердечный ритм"
+Description = "Скорость перезарядки +10% за каждое сердце."
+Color = Color(1, 0.26666668, 0.26666668, 1)
+Icon = "❤️"
+Source = 1
+Blocks = "spatialReloadRooms"
+Effects = Dictionary[String, Variant]({
+"reloadPerHeart": 0.1
+})
+
+[sub_resource type="Resource" id="Resource_573o0"]
+script = ExtResource("1_k11ib")
+Id = "spatialRangeRooms"
+Category = 2
+Label = "Дальние горизонты"
+Description = "Дальность стрельбы +20% за каждую открытую комнату."
+Color = Color(1, 1, 0.26666668, 1)
+Icon = "🔭"
+Axis = 1
+Blocks = "spatialRangeHearts"
+Effects = Dictionary[String, Variant]({
+"rangePerRoom": 0.2
+})
+
+[sub_resource type="Resource" id="Resource_pwnbi"]
+script = ExtResource("1_k11ib")
+Id = "spatialRangeHearts"
+Category = 2
+Label = "Жизненная дистанция"
+Description = "Дальность стрельбы +20% за каждое сердце."
+Color = Color(1, 0.53333336, 0, 1)
+Icon = "🏹"
+Axis = 1
+Source = 1
+Blocks = "spatialRangeRooms"
+Effects = Dictionary[String, Variant]({
+"rangePerHeart": 0.2
+})
+
+[sub_resource type="Resource" id="Resource_kjm23"]
+script = ExtResource("1_k11ib")
+Id = "spatialAccuracyRooms"
+Category = 2
+Label = "Геометрическая точность"
+Description = "Точность +20% за каждую открытую комнату."
+Color = Color(0.26666668, 1, 0.26666668, 1)
+Icon = "📐"
+Axis = 2
+Blocks = "spatialAccuracyHearts"
+Effects = Dictionary[String, Variant]({
+"accuracyPerRoom": 0.2
+})
+
+[sub_resource type="Resource" id="Resource_dw8kt"]
+script = ExtResource("1_k11ib")
+Id = "spatialAccuracyHearts"
+Category = 2
+Label = "Интуитивная точность"
+Description = "Точность +20% за каждое сердце."
+Color = Color(1, 0, 1, 1)
+Icon = "👁️"
+Axis = 2
+Source = 1
+Blocks = "spatialAccuracyRooms"
+Effects = Dictionary[String, Variant]({
+"accuracyPerHeart": 0.2
+})
+
+[sub_resource type="Resource" id="Resource_g3ust"]
+script = ExtResource("1_k11ib")
+Id = "spatialBulletSpeedRooms"
+Category = 2
+Label = "Пространственное ускорение"
+Description = "Скорость пули +20% за каждую открытую комнату."
+Color = Color(0, 1, 1, 1)
+Icon = "⚡"
+Axis = 3
+Blocks = "spatialBulletSpeedHearts"
+Effects = Dictionary[String, Variant]({
+"bulletSpeedPerRoom": 0.2
+})
+
+[sub_resource type="Resource" id="Resource_b5bip"]
+script = ExtResource("1_k11ib")
+Id = "spatialBulletSpeedHearts"
+Category = 2
+Label = "Сердечное ускорение"
+Description = "Скорость пули +20% за каждое сердце."
+Color = Color(1, 0.4, 0.4, 1)
+Icon = "🚀"
+Axis = 3
+Source = 1
+Blocks = "spatialBulletSpeedRooms"
+Effects = Dictionary[String, Variant]({
+"bulletSpeedPerHeart": 0.2
+})
+
+[sub_resource type="Resource" id="Resource_hlbaf"]
+script = ExtResource("1_k11ib")
+Id = "spatialSpeedRooms"
+Category = 2
+Label = "Пространственный маневр"
+Description = "Скорость бега +10% за каждую открытую комнату."
+Color = Color(0.4, 1, 0.4, 1)
+Icon = "🏃"
+Axis = 4
+Blocks = "spatialSpeedHearts"
+Effects = Dictionary[String, Variant]({
+"speedPerRoom": 0.1
+})
+
+[sub_resource type="Resource" id="Resource_fnwav"]
+script = ExtResource("1_k11ib")
+Id = "spatialSpeedHearts"
+Category = 2
+Label = "Сердечный маневр"
+Description = "Скорость бега +10% за каждое сердце."
+Color = Color(1, 0.4, 1, 1)
+Icon = "💨"
+Axis = 4
+Source = 1
+Blocks = "spatialSpeedRooms"
+Effects = Dictionary[String, Variant]({
+"speedPerHeart": 0.1
+})
+
+[sub_resource type="Resource" id="Resource_fvd0o"]
+script = ExtResource("1_k11ib")
+Id = "spatialCritChanceRooms"
+Category = 2
+Label = "Пространственный фокус"
+Description = "Шанс крита +5% за каждую открытую комнату."
+Color = Color(1, 0.8, 0, 1)
+Icon = "🎯"
+Axis = 5
+Blocks = "spatialCritChanceHearts"
+Effects = Dictionary[String, Variant]({
+"critChancePerRoom": 0.05
+})
+
+[sub_resource type="Resource" id="Resource_d1nj1"]
+script = ExtResource("1_k11ib")
+Id = "spatialCritChanceHearts"
+Category = 2
+Label = "Сердечный фокус"
+Description = "Шанс крита +5% за каждое сердце."
+Color = Color(1, 0.2, 0, 1)
+Icon = "💥"
+Axis = 5
+Source = 1
+Blocks = "spatialCritChanceRooms"
+Effects = Dictionary[String, Variant]({
+"critChancePerHeart": 0.05
+})
+
+[sub_resource type="Resource" id="Resource_3cb8b"]
+script = ExtResource("1_k11ib")
+Id = "spatialCritDamageRooms"
+Category = 2
+Label = "Пространственная мощь"
+Description = "Крит урон +50% за каждую открытую комнату."
+Color = Color(0.8, 1, 0, 1)
+Icon = "🔱"
+Axis = 6
+Blocks = "spatialCritDamageHearts"
+Effects = Dictionary[String, Variant]({
+"critDamagePerRoom": 0.5
+})
+
+[sub_resource type="Resource" id="Resource_px8un"]
+script = ExtResource("1_k11ib")
+Id = "spatialCritDamageHearts"
+Category = 2
+Label = "Сердечная мощь"
+Description = "Крит урон +50% за каждое сердце."
+Color = Color(0.6, 0, 0, 1)
+Icon = "🩸"
+Axis = 6
+Source = 1
+Blocks = "spatialCritDamageRooms"
+Effects = Dictionary[String, Variant]({
+"critDamagePerHeart": 0.5
+})
+
+[sub_resource type="Resource" id="Resource_6as1p"]
+script = ExtResource("1_k11ib")
+Id = "spatialPenetrateRooms"
+Category = 2
+Label = "Пространственный прокол"
+Description = "Пуля пробивает 1 врага за каждую открытую комнату."
+Color = Color(0.8, 0, 1, 1)
+Icon = "🗡️"
+Axis = 7
+Blocks = "spatialPenetrateHearts"
+Effects = Dictionary[String, Variant]({
+"penetratePerRoom": 1
+})
+
+[sub_resource type="Resource" id="Resource_arn4j"]
+script = ExtResource("1_k11ib")
+Id = "spatialPenetrateHearts"
+Category = 2
+Label = "Сердечный прокол"
+Description = "Пуля пробивает 1 врага за каждое сердце."
+Color = Color(1, 0, 0.4, 1)
+Icon = "💉"
+Axis = 7
+Source = 1
+Blocks = "spatialPenetrateRooms"
+Effects = Dictionary[String, Variant]({
+"penetratePerHeart": 1
+})
+
+[resource]
+script = ExtResource("2_h1xjo")
+Regular = Array[ExtResource("1_k11ib")]([SubResource("Resource_4dxyg"), SubResource("Resource_c0tam"), SubResource("Resource_j67xc"), SubResource("Resource_e1wi2"), SubResource("Resource_8jnqj"), SubResource("Resource_b4hdl"), SubResource("Resource_76juh"), SubResource("Resource_v8nfn"), SubResource("Resource_yj08v"), SubResource("Resource_a0k33"), SubResource("Resource_v2t2g"), SubResource("Resource_dy17k"), SubResource("Resource_0mkf5"), SubResource("Resource_f4wfi"), SubResource("Resource_6dgjw"), SubResource("Resource_ujeej")])
+Cursed = Array[ExtResource("1_k11ib")]([SubResource("Resource_i3ecv"), SubResource("Resource_nthqp"), SubResource("Resource_gr8ov"), SubResource("Resource_4x5pg"), SubResource("Resource_qcctc"), SubResource("Resource_ex2qh"), SubResource("Resource_nuqke"), SubResource("Resource_43o2w"), SubResource("Resource_ejldp"), SubResource("Resource_vq0bh")])
+Spatial = Array[ExtResource("1_k11ib")]([SubResource("Resource_3ibrg"), SubResource("Resource_8ejwj"), SubResource("Resource_573o0"), SubResource("Resource_pwnbi"), SubResource("Resource_kjm23"), SubResource("Resource_dw8kt"), SubResource("Resource_g3ust"), SubResource("Resource_b5bip"), SubResource("Resource_hlbaf"), SubResource("Resource_fnwav"), SubResource("Resource_fvd0o"), SubResource("Resource_d1nj1"), SubResource("Resource_3cb8b"), SubResource("Resource_px8un"), SubResource("Resource_6as1p"), SubResource("Resource_arn4j")])
